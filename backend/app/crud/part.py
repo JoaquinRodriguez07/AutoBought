@@ -13,9 +13,8 @@ def list_parts(
     brand: str | None = None,
     model: str | None = None,
     year: int | None = None,
-) -> list[Part]:
-
-    db: Session, search: Optional[str] = None, category: Optional[str] = None
+    search: Optional[str] = None,
+    category: Optional[str] = None,
 ) -> list[Part]:
     query = (
         select(Part)
@@ -42,7 +41,6 @@ def list_parts(
             Compatibility.year_to >= year,
         )
 
-    return list(db.scalars(query).unique().all())
     # Búsqueda parcial, insensible a mayúsculas/minúsculas, por nombre o código.
     # Permite encontrar un repuesto sin ingresar el código completo
     # (ej: "BP12" encuentra "BP1234").
@@ -63,7 +61,7 @@ def list_parts(
     if categoria_term:
         query = query.where(func.lower(Part.category) == categoria_term.lower())
 
-    return list(db.scalars(query).all())
+    return list(db.scalars(query).unique().all())
 
 
 def list_categories(db: Session) -> list[tuple[str, int]]:

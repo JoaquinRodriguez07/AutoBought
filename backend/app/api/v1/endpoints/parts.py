@@ -16,22 +16,6 @@ def list_parts(
     brand: str | None = Query(default=None),
     model: str | None = Query(default=None),
     year: int | None = Query(default=None),
-    db: Session = Depends(get_db),
-):
-    parts = crud_part.list_parts(
-        db,
-        brand=brand,
-        model=model,
-        year=year,
-    )
-
-    return {
-        "parts": [
-            build_part_out(part)
-            for part in parts
-        ]
-    }
-    db: Session = Depends(get_db),
     search: Optional[str] = Query(
         None,
         min_length=1,
@@ -59,11 +43,25 @@ def list_parts(
         min_length=1,
         description="Alias de 'categoria'. Si se envían ambos, 'categoria' tiene prioridad.",
     ),
+    db: Session = Depends(get_db),
 ):
     termino_busqueda = search or q
     categoria_filtro = categoria or category
-    parts = crud_part.list_parts(db, search=termino_busqueda, category=categoria_filtro)
-    return {"parts": [build_part_out(p) for p in parts]}
+    parts = crud_part.list_parts(
+        db,
+        brand=brand,
+        model=model,
+        year=year,
+        search=termino_busqueda,
+        category=categoria_filtro,
+    )
+
+    return {
+        "parts": [
+            build_part_out(part)
+            for part in parts
+        ]
+    }
 
 
 # Nota: esta ruta debe declararse antes de cualquier futura ruta "/{id}" en
