@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useCart } from "./context/CartContext";
 
 export default function Navbar({
   paginaActual,
@@ -13,10 +14,10 @@ export default function Navbar({
   onMetodosPago,
   onHistorial,
   onCerrarSesion,
-  cantidadCarrito = 0,
   cantidadFavoritos = 0,
   usuario,
 }) {
+  const { cantidadCarrito } = useCart();
   const [menuUsuario, setMenuUsuario] = useState(false);
 
   const menuRef = useRef(null);

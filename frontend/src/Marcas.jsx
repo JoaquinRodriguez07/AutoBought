@@ -169,12 +169,6 @@ export default function Marcas({
               </p>
             </div>
           )}
-              <button
-                key={marca.nombre}
-                type="button"
-                onClick={() => onCatalogo()}
-                className="group bg-white border border-gray-100 rounded-xl h-[145px] flex flex-col items-center justify-center shadow-sm hover:shadow-lg hover:border-orange-300 hover:-translate-y-1 transition duration-300"
-              >
 
           {/* CARGANDO */}
 
