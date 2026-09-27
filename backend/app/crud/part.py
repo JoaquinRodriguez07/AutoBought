@@ -8,6 +8,10 @@ from app.models.compatibility import Compatibility
 from app.models.car_model import CarModel
 
 
+def get_part(db: Session, part_id: int) -> Part | None:
+    return db.get(Part, part_id)
+
+
 def list_parts(
     db: Session,
     brand: str | None = None,
