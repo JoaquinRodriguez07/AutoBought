@@ -2,6 +2,12 @@ import { useState } from "react";
 import Navbar from "./Navbar";
 
 export default function DetalleProducto({
+  usuario,
+  onPerfil,
+  onDirecciones,
+  onMetodosPago,
+  onHistorial,
+  onCerrarSesion,
   onHome,
   onLogin,
   onMarcas,
@@ -22,117 +28,10 @@ export default function DetalleProducto({
 
   // =====================================================
   // PRODUCTO ACTUAL
-  // Adaptamos el producto que viene de la API
+  // El producto ya llega traducido al shape de la UI
+  // (nombre, precio, codigo...) por mapearRepuesto.js.
   // =====================================================
 
-  const productoActual = producto
-    ? {
-        ...producto,
-
-        id: producto.id,
-
-        marca:
-          producto.marca ||
-          producto.compatible_brands?.[0] ||
-          "Repuesto",
-
-        nombre:
-          producto.nombre ||
-          producto.name ||
-          "Producto",
-
-        codigo:
-          producto.codigo ||
-          producto.part_code ||
-          "Sin código",
-
-        precio:
-          Number(producto.precio ?? producto.price ?? 0),
-
-        categoria:
-          producto.categoria ||
-          producto.category ||
-          "Repuestos",
-
-        stock:
-          Number(producto.stock ?? 0),
-
-        imagen:
-          producto.imagen ||
-          "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?q=80&w=900&auto=format&fit=crop",
-
-        descripcion:
-          producto.descripcion ||
-          `Repuesto ${producto.name || ""} compatible con los vehículos indicados.`,
-
-        especificaciones:
-          producto.especificaciones || [
-            ["Código", producto.part_code || "Sin código"],
-            [
-              "Categoría",
-              producto.category || "Sin categoría",
-            ],
-            [
-              "Stock",
-              `${producto.stock ?? 0} unidades`,
-            ],
-          ],
-
-        aplicaciones:
-          producto.aplicaciones ||
-          producto.compatible_models?.map(
-            (modelo) => modelo
-          ) ||
-          [],
-
-        garantia:
-          producto.garantia ||
-          "Garantía por defectos de fabricación.",
-
-        opiniones:
-          producto.opiniones || [],
-      }
-    : {
-        id: "BP1234",
-        marca: "BOSCH",
-        nombre: "Pastillas de Freno Delanteras Bosch",
-        codigo: "BP1234",
-        precio: 2450,
-        categoria: "Frenos",
-        imagen:
-          "https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?q=80&w=900&auto=format&fit=crop",
-        descripcion:
-          "Pastillas de freno delanteras Bosch de alta performance. Diseñadas para brindar máxima seguridad y frenado eficiente.",
-        stock: 12,
-        especificaciones: [
-          ["Posición", "Delanteras"],
-          ["Sistema de freno", "Disco"],
-          ["Ancho", "156,3 mm"],
-          ["Alto", "58,7 mm"],
-          ["Espesor", "17,5 mm"],
-          ["Material", "Semi-metálico"],
-        ],
-        aplicaciones: [
-          "Volkswagen Gol 2019 Highline 1.6 MSI",
-          "Volkswagen Gol 2018 1.6 MSI",
-          "Volkswagen Voyage 2019 1.6 MSI",
-        ],
-        garantia: "6 meses por defectos de fabricación.",
-        opiniones: [
-          {
-            nombre: "Martín",
-            estrellas: 5,
-            texto:
-              "Muy buena calidad y encajaron perfecto.",
-          },
-          {
-            nombre: "Lucía",
-            estrellas: 5,
-            texto:
-              "Llegaron rápido y el producto es excelente.",
-          },
-        ],
-      };
   // DEUDA CONOCIDA (diferida): si no llega `producto` (refresh o link
   // compartido a /producto, donde el estado de App ya está vacío) se
   // renderiza este producto inventado, con opiniones y specs que no
@@ -208,6 +107,12 @@ export default function DetalleProducto({
 
       <Navbar
         paginaActual="detalle"
+        usuario={usuario}
+        onPerfil={onPerfil}
+        onDirecciones={onDirecciones}
+        onMetodosPago={onMetodosPago}
+        onHistorial={onHistorial}
+        onCerrarSesion={onCerrarSesion}
         onHome={onHome}
         onCatalogo={onCatalogo}
         onLogin={onLogin}
@@ -323,40 +228,13 @@ export default function DetalleProducto({
 
             <div>
 
-              <p className="text-orange-500 text-[11px] font-black">
-                {productoActual.marca}
-              </p>
-
-              <h1 className="text-2xl md:text-3xl font-black mt-2 leading-tight">
-                {productoActual.nombre}
-              </h1>
-
-              <p className="text-[10px] text-gray-400 mt-2">
-                Código: {productoActual.codigo}
-              </p>
-
-              <p className="text-3xl font-black text-orange-500 mt-5">
-                ${productoActual.precio.toLocaleString("es-UY")}
-              </p>
-
-              <p className="text-[10px] mt-2">
-
-                <span className="text-green-600 font-bold">
-                  En stock
-                </span>
-
-                <span className="text-gray-400 ml-2">
-                  ({productoActual.stock} unidades)
-                </span>
-
-              </p>
-
-              {/* COMPATIBILIDAD */}
               <p className="text-orange-500 text-[11px] font-black">{productoActual.marcaPrincipal ?? productoActual.marca}</p>
               <h1 className="text-2xl md:text-3xl font-black mt-2 leading-tight">{productoActual.nombre}</h1>
               <p className="text-[10px] text-gray-400 mt-2">Código: {productoActual.codigo}</p>
               <p className="text-3xl font-black text-orange-500 mt-5">${productoActual.precio.toLocaleString("es-UY")}</p>
               <p className="text-[10px] mt-2"><span className="text-green-600 font-bold">En stock</span><span className="text-gray-400 ml-2">({productoActual.stock} unidades)</span></p>
+
+              {/* COMPATIBILIDAD */}
 
               <div className="bg-orange-50 border border-orange-100 rounded-lg p-4 mt-5">
 
@@ -374,7 +252,11 @@ export default function DetalleProducto({
                     : "Vehículo seleccionado"}
                 </p>
 
-                <button className="text-[9px] text-orange-500 underline mt-1">
+                <button
+                  type="button"
+                  onClick={onHome}
+                  className="text-[9px] text-orange-500 underline mt-1"
+                >
                   Cambiar vehículo
                 </button>
 
@@ -385,35 +267,6 @@ export default function DetalleProducto({
               <div className="flex gap-3 mt-5">
 
                 <div className="flex border border-gray-200 rounded-md">
-
-                  <button
-                    onClick={() =>
-                      setCantidad((v) =>
-                        Math.max(1, v - 1)
-                      )
-                    }
-                    className="w-9"
-                  >
-                    −
-                  </button>
-
-                  <span className="w-9 flex items-center justify-center text-[10px]">
-                    {cantidad}
-                  </span>
-
-                  <button
-                    onClick={() =>
-                      setCantidad((v) =>
-                        Math.min(
-                          productoActual.stock,
-                          v + 1
-                        )
-                      )
-                    }
-                    className="w-9"
-                  >
-                    +
-                  </button>
 
                   <button onClick={() => setCantidad((v) => Math.max(1, v - 1))} className="w-9">−</button>
                   <span className="w-9 flex items-center justify-center text-[10px]">{cantidad}</span>
@@ -456,14 +309,6 @@ export default function DetalleProducto({
             <div className="space-y-3">
 
               <div className="border border-gray-100 rounded-xl shadow-sm p-5">
-
-                <p className="text-[10px] font-black">
-                  🛡 Garantía
-                </p>
-
-                <p className="text-[9px] text-gray-500 mt-1">
-                  {productoActual.garantia}
-                </p>
 
                 <p className="text-[10px] font-black">🛡 Garantía</p>
                 <p className="text-[9px] text-gray-500 mt-1">{productoActual.garantia || "Consultar garantía."}</p>
@@ -528,13 +373,6 @@ export default function DetalleProducto({
               {pestana === "descripcion" && (
                 <div className="max-w-[800px]">
 
-                  <h2 className="text-[11px] font-black uppercase">
-                    Descripción
-                  </h2>
-
-                  <p className="text-[10px] text-gray-600 leading-relaxed mt-4">
-                    {productoActual.descripcion}
-                  </p>
 
                   <h2 className="text-[11px] font-black uppercase">Descripción</h2>
                   <p className="text-[10px] text-gray-600 leading-relaxed mt-4">{productoActual.descripcion || "Este repuesto todavía no tiene una descripción cargada."}</p>
@@ -545,29 +383,6 @@ export default function DetalleProducto({
 
               {pestana === "especificaciones" && (
                 <div>
-
-                  <h2 className="text-[11px] font-black uppercase mb-5">
-                    Especificaciones técnicas
-                  </h2>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-14 gap-y-3 max-w-[800px]">
-
-                    {(productoActual.especificaciones || []).map(
-                      ([clave, valor]) => (
-                        <div
-                          key={clave}
-                          className="flex justify-between border-b border-gray-100 pb-2"
-                        >
-                          <span className="text-[9px] text-gray-500">
-                            {clave}
-                          </span>
-
-                          <span className="text-[9px] font-bold">
-                            {valor}
-                          </span>
-                        </div>
-                      )
-                    )}
 
                   <h2 className="text-[11px] font-black uppercase mb-5">Especificaciones técnicas</h2>
                   {!productoActual.especificaciones?.length && (
@@ -589,32 +404,6 @@ export default function DetalleProducto({
 
               {pestana === "aplicaciones" && (
                 <div>
-
-                  <h2 className="text-[11px] font-black uppercase">
-                    Aplicaciones y compatibilidad
-                  </h2>
-
-                  <p className="text-[9px] text-gray-500 mt-2">
-                    Vehículos para los que está indicado este
-                    repuesto:
-                  </p>
-
-                  <div className="mt-5 space-y-2 max-w-[700px]">
-
-                    {(productoActual.aplicaciones || []).map(
-                      (aplicacion) => (
-                        <div
-                          key={aplicacion}
-                          className="bg-gray-50 rounded-md px-4 py-3 text-[10px]"
-                        >
-                          <span className="text-green-600 mr-2">
-                            ✓
-                          </span>
-
-                          {aplicacion}
-                        </div>
-                      )
-                    )}
 
                   <h2 className="text-[11px] font-black uppercase">Aplicaciones y compatibilidad</h2>
                   <p className="text-[9px] text-gray-500 mt-2">Vehículos para los que está indicado este repuesto:</p>
@@ -642,15 +431,6 @@ export default function DetalleProducto({
                   </h2>
 
                   <div className="bg-orange-50 border border-orange-100 rounded-xl p-5 mt-4">
-
-                    <p className="text-[11px] font-black">
-                      🛡 Garantía del producto
-                    </p>
-
-                    <p className="text-[10px] text-gray-600 mt-2">
-                      {productoActual.garantia}
-                    </p>
-
                     <p className="text-[11px] font-black">🛡 Garantía del producto</p>
                     <p className="text-[10px] text-gray-600 mt-2">{productoActual.garantia || "Consultar garantía."}</p>
                   </div>
@@ -664,16 +444,6 @@ export default function DetalleProducto({
                 <div className="max-w-[800px]">
 
                   <div className="flex items-center justify-between mb-5">
-
-                    <h2 className="text-[11px] font-black uppercase">
-                      Opiniones de clientes
-                    </h2>
-
-                    <span className="text-orange-500 font-black text-lg">
-                      ★ 4.8/5
-                    </span>
-
-                  </div>
 
                     <h2 className="text-[11px] font-black uppercase">Opiniones de clientes</h2>
                     {promedioOpiniones && (
@@ -714,12 +484,6 @@ export default function DetalleProducto({
                       )
                     )}
 
-                    {productoActual.opiniones?.length === 0 && (
-                      <p className="text-[10px] text-gray-400">
-                        Este producto todavía no tiene
-                        opiniones.
-                      </p>
-                    )}
 
                   </div>
 

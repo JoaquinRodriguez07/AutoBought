@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "./Navbar";
-import { categorias } from "./productos";
 import SearchBar from "./SearchBar";
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
@@ -56,25 +55,23 @@ export default function Catalogo({
   const [busqueda, setBusqueda] = useState("");
   const [cantidades, setCantidades] = useState({});
 
-  const [productosAPI, setProductosAPI] = useState([]);
-  const [cargandoProductos, setCargandoProductos] = useState(false);
-  const [errorProductos, setErrorProductos] = useState("");
-
   // ==========================================
-  // CARGAR PRODUCTOS DESDE LA API
   // DATOS DE LA API
   // ==========================================
   // El catálogo ya no usa el mock local de repuestos: los repuestos y las
   // categorías vienen del backend. Si el fetch falla se muestra el
   // estado de error (no hay fallback al mock, a propósito).
-
+  //
   // Cada respuesta se guarda junto con la `clave` del pedido que la
   // originó (categoría + reintento). Así "cargando" se DERIVA en el
   // render comparando claves, en vez de setearse sincrónicamente
   // dentro del efecto, y una respuesta vieja nunca pisa a una nueva.
 
   const [reintento, setReintento] = useState(0);
-  const clavePedido = `${reintento}|${categoria ?? ""}`;
+  const vehiculoBrand = filtrosVehiculo?.brand || "";
+  const vehiculoModel = filtrosVehiculo?.model || "";
+  const vehiculoYear = filtrosVehiculo?.year || "";
+  const clavePedido = `${reintento}|${categoria ?? ""}|${vehiculoBrand}|${vehiculoModel}|${vehiculoYear}`;
 
   const [respuesta, setRespuesta] = useState({
     clave: null,
@@ -108,51 +105,6 @@ export default function Catalogo({
   // (App.jsx pasa `categoriaCatalogo`); ese camino se mantiene.
 
   useEffect(() => {
-    const cargarProductos = async () => {
-      try {
-        setCargandoProductos(true);
-        setErrorProductos("");
-
-        const params = new URLSearchParams();
-
-        if (filtrosVehiculo?.brand) {
-          params.set("brand", filtrosVehiculo.brand);
-        }
-
-        if (filtrosVehiculo?.model) {
-          params.set("model", filtrosVehiculo.model);
-        }
-
-        if (filtrosVehiculo?.year) {
-          params.set("year", filtrosVehiculo.year);
-        }
-
-        const url = `/api/v1/parts${
-          params.toString() ? `?${params.toString()}` : ""
-        }`;
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error("No se pudieron obtener los repuestos");
-        }
-
-        const data = await response.json();
-
-        setProductosAPI(data.parts || []);
-      } catch (error) {
-        console.error("Error cargando productos:", error);
-        setProductosAPI([]);
-        setErrorProductos(
-          "No se pudieron cargar los repuestos."
-        );
-      } finally {
-        setCargandoProductos(false);
-      }
-    };
-
-    cargarProductos();
-  }, [filtrosVehiculo]);
     setCategoria(categoriaInicial || null);
   }, [categoriaInicial]);
 
@@ -163,57 +115,14 @@ export default function Catalogo({
   // dispara un fetch nuevo. `activo` descarta respuestas viejas si el
   // usuario cambia de categoría antes de que llegue la anterior.
 
-  const productosMostrados = useMemo(() => {
-  let lista = [...productosAPI];
-
-  // Convertir las categorías del frontend
-  // a las categorías que usa la API
-  const categoriasAPI = {
-    Frenos: "Brakes",
-    Motor: "Engine",
-    Suspensión: "Suspension",
-    Filtros: "Filters",
-    Accesorios: "Accessories",
-  };
-
-  // Filtrar por categoría
-  if (categoria) {
-    const categoriaAPI =
-      categoriasAPI[categoria] || categoria;
-
-    lista = lista.filter(
-      (p) => p.category === categoriaAPI
-    );
-  }
-
-  // Filtrar por búsqueda
-  if (busqueda.trim()) {
-    const q = busqueda.toLowerCase();
-
-    lista = lista.filter((p) =>
-      `${p.name} ${p.part_code} ${p.category} ${
-        p.compatible_brands?.join(" ") || ""
-      } ${p.compatible_models?.join(" ") || ""}`
-        .toLowerCase()
-        .includes(q)
-    );
-  }
-
-  // Ordenar
-  if (orden === "Menor precio") {
-    lista.sort((a, b) => a.price - b.price);
-  }
-
-  if (orden === "Mayor precio") {
-    lista.sort((a, b) => b.price - a.price);
-  }
-
-  return lista;
-}, [productosAPI, categoria, busqueda, orden]);
   useEffect(() => {
     let activo = true;
 
-    obtenerRepuestos(categoria || undefined)
+    obtenerRepuestos(categoria || undefined, {
+      brand: vehiculoBrand,
+      model: vehiculoModel,
+      year: vehiculoYear,
+    })
       .then((lista) => {
         if (!activo) return;
         setRespuesta({
@@ -234,7 +143,7 @@ export default function Catalogo({
     return () => {
       activo = false;
     };
-  }, [categoria, clavePedido]);
+  }, [categoria, clavePedido, vehiculoBrand, vehiculoModel, vehiculoYear]);
 
   // ==========================================
   // CARGAR CATEGORÍAS
@@ -289,6 +198,8 @@ export default function Catalogo({
   // GET /api/v1/parts sin parámetros (catálogo completo).
 
   const hayFiltros = Boolean(categoria) || Boolean(busqueda.trim());
+  // Nota: el vehículo se cambia con "Cambiar" (vuelve al Home), no con
+  // "Limpiar filtros", que solo limpia categoría y búsqueda.
 
   // La categoría vive en dos lados: acá y en App (`categoriaCatalogo`,
   // que es lo que vuelve como `categoriaInicial` al entrar de nuevo al
@@ -403,12 +314,10 @@ export default function Catalogo({
                   </span>
 
                   <p className="text-[14px] font-black">
-                    {filtrosVehiculo?.brand && filtrosVehiculo?.model
-                      ? `${filtrosVehiculo.brand} ${filtrosVehiculo.model}${
-                          filtrosVehiculo.year
-                            ? ` ${filtrosVehiculo.year}`
-                            : ""
-                        }`
+                    {vehiculoBrand
+                      ? [vehiculoBrand, vehiculoModel, vehiculoYear]
+                          .filter(Boolean)
+                          .join(" ")
                       : "Sin vehículo seleccionado"}
                   </p>
 
@@ -679,43 +588,6 @@ export default function Catalogo({
 
               {!cargando && !error && productosMostrados.length > 0 && (
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-
-                {productosMostrados.map((producto) => {
-
-                  const cantidad =
-                    cantidades[producto.id] || 1;
-
-                  const favorito =
-                    esFavorito(producto.id);
-
-                  return (
-
-              {cargandoProductos && (
-                <div className="py-20 text-center text-gray-400 text-sm">
-                  Cargando repuestos...
-                </div>
-              )}
-
-              {errorProductos && !cargandoProductos && (
-                <div className="py-20 text-center text-red-400 text-sm">
-                  {errorProductos}
-                </div>
-              )}
-                        {/* Sin filtro, el catálogo completo son ~377
-                            tarjetas: lazy evita decodificar todas las
-                            imágenes que están fuera de pantalla. */}
-
-                        <img
-                          src={producto.imagen}
-                          alt={producto.nombre}
-                          loading="lazy"
-                          className="w-full h-full object-cover"
-                        />
-
-              {/* GRID */}
-
-              {!cargandoProductos && !errorProductos && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 
                   {productosMostrados.map((producto) => {
@@ -725,25 +597,14 @@ export default function Catalogo({
 
                     const favorito =
                       esFavorito(producto.id);
-                        <p className="text-[9px] font-black">
-                          {producto.marcaPrincipal ?? producto.marca}
-                        </p>
 
-                    // Adaptamos los nombres de la API
-                    // a los nombres que usa visualmente el catálogo.
+                    // El producto ya llega traducido al shape de la UI
+                    // (nombre, codigo, precio, marcaPrincipal, imagen...)
+                    // por mapearRepuesto.js: no hay que volver a mapearlo.
                     const productoVisual = {
                       ...producto,
-                      nombre: producto.name,
-                      codigo: producto.part_code,
-                      precio: producto.price,
-                      categoria: producto.category,
-                      marca:
-                        producto.compatible_brands?.join(", ") ||
-                        "Compatible",
-                      stock: producto.stock,
-                      imagen:
-                        producto.imagen ||
-                        "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?q=80&w=600&auto=format&fit=crop",
+                      marca: producto.marcaPrincipal || producto.marca || "Compatible",
+                      precio: Number(producto.precio ?? 0),
                     };
 
                     return (
@@ -754,19 +615,16 @@ export default function Catalogo({
                       >
 
                         {/* IMAGEN */}
-                        {/* DEUDA CONOCIDA (diferida): el stock se muestra
-                            siempre en verde como "En stock" y el botón
-                            AGREGAR queda habilitado, así que un repuesto
-                            con stock 0 se puede agregar al carrito. */}
-                        <p className="text-[9px] text-green-600 font-bold mt-2">
-                          En stock · {producto.stock} unidades
-                        </p>
+                        {/* Sin filtro, el catálogo completo son ~377
+                            tarjetas: lazy evita decodificar todas las
+                            imágenes que están fuera de pantalla. */}
 
                         <div className="relative h-[190px] bg-gray-50">
 
                           <img
                             src={productoVisual.imagen}
                             alt={productoVisual.nombre}
+                            loading="lazy"
                             className="w-full h-full object-cover"
                           />
 
@@ -809,6 +667,10 @@ export default function Catalogo({
                             )}
                           </p>
 
+                          {/* DEUDA CONOCIDA (diferida): el stock se muestra
+                              siempre en verde como "En stock" y el botón
+                              AGREGAR queda habilitado, así que un repuesto
+                              con stock 0 se puede agregar al carrito. */}
                           <p className="text-[9px] text-green-600 font-bold mt-2">
                             En stock · {productoVisual.stock} unidades
                           </p>
@@ -883,19 +745,6 @@ export default function Catalogo({
                   })}
 
                 </div>
-              )}
-
-              {/* SIN RESULTADOS */}
-
-              {!cargandoProductos &&
-                !errorProductos &&
-                productosMostrados.length === 0 && (
-
-                  <div className="py-20 text-center text-gray-400 text-sm">
-                    No encontramos productos.
-                  </div>
-
-                )}
               )}
 
               {/* SIN RESULTADOS */}

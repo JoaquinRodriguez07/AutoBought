@@ -110,20 +110,28 @@ function listaDe(data, clave, mensajeError) {
 }
 
 /**
- * GET /api/v1/parts[?categoria=<nombre>]
+ * GET /api/v1/parts[?categoria=&brand=&model=&year=]
  *
- * Sin `categoria` devuelve el catálogo completo: ese es el caso de
- * "Limpiar filtros". El filtro por categoría lo resuelve el backend;
- * la búsqueda por texto y el orden siguen siendo del lado del cliente
- * (ver filtrarRepuestos.js).
+ * Sin filtros devuelve el catálogo completo: ese es el caso de
+ * "Limpiar filtros". Los filtros por categoría y por vehículo
+ * (marca / modelo / año) los resuelve el backend y se pueden
+ * combinar; la búsqueda por texto y el orden siguen siendo del
+ * lado del cliente (ver filtrarRepuestos.js).
  *
  * @param {string} [categoria]
+ * @param {{brand?: string, model?: string, year?: string|number}} [vehiculo]
  * @returns {Promise<Array<object>>} repuestos con el shape de la UI.
  */
-export async function obtenerRepuestos(categoria) {
-  const url = categoria
-    ? `${API_BASE_URL}/api/v1/parts?categoria=${encodeURIComponent(categoria)}`
-    : `${API_BASE_URL}/api/v1/parts`;
+export async function obtenerRepuestos(categoria, vehiculo) {
+  const params = new URLSearchParams();
+
+  if (categoria) params.set("categoria", categoria);
+  if (vehiculo?.brand) params.set("brand", vehiculo.brand);
+  if (vehiculo?.model) params.set("model", vehiculo.model);
+  if (vehiculo?.year) params.set("year", String(vehiculo.year));
+
+  const query = params.toString();
+  const url = `${API_BASE_URL}/api/v1/parts${query ? `?${query}` : ""}`;
 
   const mensajeError = "No pudimos cargar los repuestos.";
   const data = await pedirJson(url, mensajeError);

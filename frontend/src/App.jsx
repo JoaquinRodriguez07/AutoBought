@@ -22,15 +22,13 @@ function App() {
   // null = sin filtro de categoría (el catálogo muestra todos los
   // repuestos). Los nombres de categoría los define el backend
   // (GET /api/v1/parts/categories), no el frontend.
-  const [categoriaCatalogo, setCategoriaCatalogo] =
-  useState("Frenos");
+  const [categoriaCatalogo, setCategoriaCatalogo] = useState(null);
 
   const [filtrosVehiculo, setFiltrosVehiculo] = useState({
     brand: "",
     model: "",
     year: "",
   });
-    useState(null);
 
   const [productoSeleccionado, setProductoSeleccionado] =
     useState(null);
@@ -188,14 +186,10 @@ function App() {
 
   /* =====================================================
      NAVEGACIÓN
-     (antes: setPagina("x") — ahora: navigate("/x"))
+    navigate("/x")
   ====================================================== */
 
-  const irAlCatalogo = (
-    categoria = "Frenos",
-    vehiculo = null
-  ) => {
-  const irAlCatalogo = (categoria = null) => {
+  const irAlCatalogo = (categoria = null, vehiculo = null) => {
     setCategoriaCatalogo(categoria);
 
     if (vehiculo) {
@@ -529,39 +523,6 @@ function App() {
           que redirigen a /login).
       ================================================== */}
 
-      <Route element={<ProtectedRoute />}>
-        <Route
-          path="/catalogo"
-          element={
-            <Catalogo
-              {...propsNavbar}
-              onDetalle={irAlDetalle}
-              categoriaInicial={categoriaCatalogo}
-              filtrosVehiculo={filtrosVehiculo}
-              carrito={carrito}
-              favoritos={favoritos}
-              onAgregarAlCarrito={agregarAlCarrito}
-              onAlternarFavorito={alternarFavorito}
-              esFavorito={esFavorito}
-            />
-          }
-        />
-
-        <Route
-          path="/producto"
-          element={
-            <DetalleProducto
-              {...propsNavbar}
-              onDetalle={irAlDetalle}
-              onCatalogo={irAlCatalogo}
-              producto={productoSeleccionado}
-              filtrosVehiculo={filtrosVehiculo}
-              onAgregarAlCarrito={agregarAlCarrito}
-              onAlternarFavorito={alternarFavorito}
-              esFavorito={esFavorito}
-            />
-          }
-        />
       <Route
         path="/catalogo"
         element={
@@ -570,6 +531,7 @@ function App() {
             onDetalle={irAlDetalle}
             categoriaInicial={categoriaCatalogo}
             onCategoriaSeleccionada={setCategoriaCatalogo}
+            filtrosVehiculo={filtrosVehiculo}
             carrito={carrito}
             favoritos={favoritos}
             onAgregarAlCarrito={agregarAlCarrito}
@@ -587,6 +549,7 @@ function App() {
             onDetalle={irAlDetalle}
             onCatalogo={irAlCatalogo}
             producto={productoSeleccionado}
+            filtrosVehiculo={filtrosVehiculo}
             onAgregarAlCarrito={agregarAlCarrito}
             onAlternarFavorito={alternarFavorito}
             esFavorito={esFavorito}
@@ -596,7 +559,6 @@ function App() {
 
       {/* =================================================
           RUTAS PROTEGIDAS
-          (requieren sesión activa)
       ================================================== */}
 
       <Route element={<ProtectedRoute />}>
@@ -617,9 +579,6 @@ function App() {
 
       {/* =================================================
           FAVORITOS
-          (mismo comportamiento de antes: pantalla en
-          blanco si no hay sesión — no forma parte del
-          DoD de esta tarea)
       ================================================== */}
 
       <Route

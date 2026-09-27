@@ -309,13 +309,12 @@ export default function Home({
             <button
               type="button"
               onClick={() =>
-                onCatalogo("Frenos", {
+                onCatalogo(null, {
                   brand: selectedBrand,
                   model: selectedModel,
                   year: selectedYear,
                 })
               }
-              onClick={() => onCatalogo()}
               className="mt-8 bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-lg text-[11px] font-black transition"
             >
               BUSCAR REPUESTOS →
@@ -409,13 +408,12 @@ export default function Home({
             <button
               type="button"
               onClick={() =>
-                onCatalogo("Frenos", {
+                onCatalogo(null, {
                   brand: selectedBrand,
                   model: selectedModel,
                   year: selectedYear,
                 })
               }
-              onClick={() => onCatalogo()}
               className="bg-orange-500 hover:bg-orange-600 text-white rounded-md px-7 py-3 text-[10px] font-black transition"
             >
               BUSCAR REPUESTOS
@@ -631,7 +629,6 @@ export default function Home({
 
                   <button
                     type="button"
-                    onClick={() => onCatalogo(producto.categoria)}
                     onClick={() => onCatalogo()}
                     className="w-full mt-3 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md py-2 text-[9px] font-bold transition"
                   >
