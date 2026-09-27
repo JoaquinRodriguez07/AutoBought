@@ -1,4 +1,5 @@
-import { mapearCategoria, mapearRepuesto } from "./mapearRepuesto";
+import { mapearCategoria, mapearItemCarrito, mapearRepuesto } from "./mapearRepuesto";
+import { obtenerSesion } from "./auth";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
@@ -161,4 +162,119 @@ export async function obtenerCategorias() {
   );
 
   return listaDe(data, "categories", mensajeError).map(mapearCategoria);
+}
+
+/* =====================================================
+   CARRITO
+   A diferencia del catálogo, estas rutas van con el JWT
+   de la sesión (Authorization: Bearer) y son mutaciones:
+   cada una devuelve el carrito COMPLETO ya actualizado
+   (items + total), así CartContext no tiene que llevar
+   la cuenta a mano de subtotales ni de stock.
+====================================================== */
+
+/**
+ * GET/POST/PATCH/DELETE de `/api/v1/cart*` devuelven los mismos
+ * códigos que ya maneja `errorDeRespuesta` (401/403/404/409/422), pero
+ * acá el mensaje por status importa para que CartContext decida qué
+ * hacer (401 → redirigir a login, 409 → avisar el stock disponible).
+ * Se guarda en `error.status` en vez de parsear el mensaje.
+ */
+const MENSAJES_POR_STATUS_CARRITO = {
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  403: "Esta acción requiere una cuenta de cliente.",
+  404: "No encontramos ese repuesto.",
+  409: "No hay stock suficiente.",
+  422: "La cantidad no es válida.",
+};
+
+async function pedirCarrito(url, options = {}) {
+  const sesion = obtenerSesion();
+
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(sesion?.token ? { Authorization: `Bearer ${sesion.token}` } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el carrito.");
+  }
+
+  const data = await leerJson(response);
+
+  if (!response.ok) {
+    const detalle =
+      data !== SIN_JSON && typeof data?.detail === "string"
+        ? data.detail
+        : null;
+
+    const error = new Error(
+      detalle ||
+        MENSAJES_POR_STATUS_CARRITO[response.status] ||
+        "No pudimos actualizar el carrito."
+    );
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data === SIN_JSON) {
+    const error = new Error("No pudimos leer la respuesta del carrito.");
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+}
+
+function mapearCarritoDetalle(data) {
+  return {
+    items: (data.items || []).map(mapearItemCarrito),
+    total: data.total ?? 0,
+  };
+}
+
+/** GET /api/v1/cart (si el cliente no tiene carrito, el backend lo crea) */
+export async function obtenerCarrito() {
+  const data = await pedirCarrito(`${API_BASE_URL}/api/v1/cart`);
+  return mapearCarritoDetalle(data);
+}
+
+/** POST /api/v1/cart/items — si el repuesto ya está, el backend suma. */
+export async function agregarItemCarrito(partId, amount) {
+  const data = await pedirCarrito(`${API_BASE_URL}/api/v1/cart/items`, {
+    method: "POST",
+    body: JSON.stringify({ part_id: partId, amount }),
+  });
+  return mapearCarritoDetalle(data);
+}
+
+/** PATCH /api/v1/cart/items/{part_id} — reemplaza la cantidad. */
+export async function actualizarItemCarrito(partId, amount) {
+  const data = await pedirCarrito(
+    `${API_BASE_URL}/api/v1/cart/items/${partId}`,
+    { method: "PATCH", body: JSON.stringify({ amount }) }
+  );
+  return mapearCarritoDetalle(data);
+}
+
+/** DELETE /api/v1/cart/items/{part_id} */
+export async function eliminarItemCarrito(partId) {
+  const data = await pedirCarrito(
+    `${API_BASE_URL}/api/v1/cart/items/${partId}`,
+    { method: "DELETE" }
+  );
+  return mapearCarritoDetalle(data);
+}
+
+/** DELETE /api/v1/cart — vaciar. */
+export async function vaciarCarritoAPI() {
+  const data = await pedirCarrito(`${API_BASE_URL}/api/v1/cart`, {
+    method: "DELETE",
+  });
+  return mapearCarritoDetalle(data);
 }

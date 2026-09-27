@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { obtenerSesion, sesionValida } from "./auth";
+import { useCart } from "./context/CartContext";
 
 import Home from "./Home";
 import Login from "./Login";
@@ -18,6 +19,7 @@ import ProtectedRoute from "./ProtectedRoute";
 
 function App() {
   const navigate = useNavigate();
+  const { cargarCarrito, limpiarCarritoLocal } = useCart();
 
   // null = sin filtro de categoría (el catálogo muestra todos los
   // repuestos). Los nombres de categoría los define el backend
@@ -222,6 +224,7 @@ function App() {
       );
     }
 
+    cargarCarrito();
     navigate("/");
   };
 
@@ -237,6 +240,7 @@ function App() {
       JSON.stringify(usuarioNuevo)
     );
 
+    cargarCarrito();
     navigate("/");
   };
 
@@ -267,6 +271,7 @@ function App() {
     localStorage.removeItem("autobought-sesion");
     sessionStorage.removeItem("autobought-sesion");
 
+    limpiarCarritoLocal();
     navigate("/");
   };
 

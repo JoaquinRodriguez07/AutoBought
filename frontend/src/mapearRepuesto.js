@@ -74,6 +74,27 @@ export function mapearRepuesto(part) {
 }
 
 /**
+ * El carrito del backend (`CartItemDetailOut`, de GET/POST/PATCH/DELETE
+ * `/api/v1/cart*`) usa sus propios nombres (`part_id`, `amount`,
+ * `subtotal`...) y no trae `compatible_brands` ni imagen, así que no
+ * alcanza con `mapearRepuesto`. Igual que ahí, `id` se normaliza a
+ * string y `partId` guarda el número para las llamadas a la API.
+ */
+export function mapearItemCarrito(item) {
+  return {
+    id: String(item.part_id),
+    partId: item.part_id,
+    nombre: item.name ?? "",
+    precio: item.price ?? 0,
+    cantidad: item.amount ?? 0,
+    subtotal: item.subtotal ?? 0,
+    stock: item.stock ?? 0,
+    categoria: item.category ?? "",
+    imagen: IMAGEN_PLACEHOLDER,
+  };
+}
+
+/**
  * `GET /api/v1/parts/categories` devuelve `{ name, count }`; el sidebar
  * del catálogo ya está escrito contra `{ nombre, cantidad }`.
  */
