@@ -111,22 +111,22 @@ function listaDe(data, clave, mensajeError) {
 }
 
 /**
- * GET /api/v1/parts[?categoria=<nombre>&brand=<marca>&model=<modelo>&year=<año>]
+ * GET /api/v1/parts[?categoria=<nombre>&brand=<marca>&model=<modelo>&year=<año>&search=<texto>]
  *
  * Sin filtros devuelve el catálogo completo: ese es el caso de
  * "Limpiar filtros". El filtro por categoría y por vehículo (marca,
- * modelo, año) los resuelve el backend; la búsqueda por texto y el
- * orden siguen siendo del lado del cliente (ver filtrarRepuestos.js).
+ * modelo, año) y la búsqueda por texto (`search`, nombre o código) los
+ * resuelve el backend y se acumulan en un mismo pedido; solo el orden
+ * sigue siendo del lado del cliente (ver filtrarRepuestos.js).
  *
  * Se acepta un string (compatibilidad: solo categoría) o un objeto
- * `{ categoria, brand, model, year }` para combinar filtro de
- * categoría con el de vehículo.
+ * `{ categoria, brand, model, year, search }` para combinar los filtros.
  *
- * @param {string|{categoria?: string, brand?: string, model?: string, year?: string|number}} [filtros]
+ * @param {string|{categoria?: string, brand?: string, model?: string, year?: string|number, search?: string}} [filtros]
  * @returns {Promise<Array<object>>} repuestos con el shape de la UI.
  */
 export async function obtenerRepuestos(filtros) {
-  const { categoria, brand, model, year } =
+  const { categoria, brand, model, year, search } =
     typeof filtros === "string" ? { categoria: filtros } : filtros || {};
 
   const params = new URLSearchParams();
@@ -134,6 +134,7 @@ export async function obtenerRepuestos(filtros) {
   if (brand) params.set("brand", brand);
   if (model) params.set("model", model);
   if (year) params.set("year", year);
+  if (search && search.trim()) params.set("search", search.trim());
 
   const url = `${API_BASE_URL}/api/v1/parts${
     params.toString() ? `?${params.toString()}` : ""
