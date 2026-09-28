@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
+import { useCart } from "./context/CartContext";
 
 export default function Perfil({
   onHome,
@@ -8,7 +9,6 @@ export default function Perfil({
   onMarcas,
   onCarrito,
   onFavoritos,
-  cantidadCarrito = 0,
   cantidadFavoritos = 0,
   usuario,
   onCerrarSesion,
@@ -17,10 +17,11 @@ export default function Perfil({
   onHistorialCompras,
   onActualizarUsuario,
 }) {
-  if (!usuario) {
-    return null;
-  }
-
+  // Los hooks van antes que cualquier `return` condicional (reglas de
+  // hooks): si `usuario` es null, App.jsx ya evita montar este
+  // componente (`usuario ? <Perfil .../> : null`), así que estos
+  // valores por defecto de `useState` nunca llegan a usarse de verdad.
+  const { cantidadCarrito } = useCart();
   const [editando, setEditando] = useState(false);
 
   const [datos, setDatos] = useState({
@@ -42,6 +43,10 @@ export default function Perfil({
       documento: usuario.documento || "",
     });
   }, [usuario]);
+
+  if (!usuario) {
+    return null;
+  }
 
   const cambiarDato = (campo, valor) => {
     setDatos((actual) => ({
@@ -91,7 +96,6 @@ export default function Perfil({
         onMarcas={onMarcas}
         onCarrito={onCarrito}
         onFavoritos={onFavoritos}
-        cantidadCarrito={cantidadCarrito}
         cantidadFavoritos={cantidadFavoritos}
         usuario={usuario}
       />

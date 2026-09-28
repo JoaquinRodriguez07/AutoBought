@@ -1,17 +1,19 @@
 import Navbar from "./Navbar";
+import { useCart } from "./context/CartContext";
 
 export default function Favoritos({
   onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
-  cantidadCarrito, cantidadFavoritos, favoritos, onAlternarFavorito,
-  onAgregarAlCarrito, onDetalle,
+  cantidadFavoritos, favoritos, onAlternarFavorito,
+  onDetalle,
 }) {
+  const { addToCart } = useCart();
   const precio = (v) => `$${v.toLocaleString("es-UY")}`;
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
       <Navbar paginaActual="favoritos" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
-        cantidadCarrito={cantidadCarrito} cantidadFavoritos={cantidadFavoritos} />
+        cantidadFavoritos={cantidadFavoritos} />
 
       <main className="pt-[105px] max-w-[1100px] mx-auto px-5 pb-14">
         <p className="text-orange-500 text-[9px] font-black tracking-[4px]">AUTOBOUGHT</p>
@@ -23,7 +25,7 @@ export default function Favoritos({
             <div className="text-5xl mb-4 text-orange-500">♡</div>
             <h2 className="text-xl font-black">Todavía no tenés favoritos</h2>
             <p className="text-[10px] text-gray-400 mt-2">Tocá el corazón de un producto para guardarlo.</p>
-            <button onClick={() => onCatalogo("Frenos")}
+            <button onClick={() => onCatalogo()}
               className="mt-6 bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-md text-[10px] font-black">
               EXPLORAR REPUESTOS
             </button>
@@ -40,15 +42,22 @@ export default function Favoritos({
                   </button>
                 </div>
                 <div className="p-4">
-                  <p className="text-[9px] text-orange-500 font-black">{producto.marca}</p>
+                  <p className="text-[9px] text-orange-500 font-black">{producto.marcaPrincipal ?? producto.marca}</p>
                   <button onClick={() => onDetalle(producto)} className="text-left text-[11px] font-black mt-1 hover:text-orange-500">
                     {producto.nombre}
                   </button>
                   <p className="text-lg font-black mt-3">{precio(producto.precio)}</p>
-                  <button onClick={() => onAgregarAlCarrito(producto, 1)}
-                    className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white rounded-md py-2.5 text-[9px] font-black">
-                    🛒 AGREGAR AL CARRITO
-                  </button>
+                  {producto.stock === 0 ? (
+                    <button disabled
+                      className="w-full mt-4 bg-gray-200 text-gray-400 cursor-not-allowed rounded-md py-2.5 text-[9px] font-black">
+                      SIN STOCK
+                    </button>
+                  ) : (
+                    <button onClick={() => addToCart(producto, 1)}
+                      className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white rounded-md py-2.5 text-[9px] font-black">
+                      🛒 AGREGAR AL CARRITO
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

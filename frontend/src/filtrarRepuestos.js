@@ -2,30 +2,41 @@
  * filtrarRepuestos
  * ==========================================
  * Lógica de búsqueda, filtrado por categoría y orden del catálogo,
- * separada A PROPÓSITO de de dónde vienen los datos.
+ * separada A PROPÓSITO de de dónde vienen los datos: esta función no
+ * hace fetch ni importa nada, quien la llama le pasa el array que tenga
+ * en ese momento.
  *
- * Hoy `productos` es el array local de `productos.js`. El día que se
- * conecte con el backend (`GET /api/v1/parts`), lo único que cambia es
- * CÓMO se arma ese array (import estático -> `useState` + `fetch`).
- * Esta función no importa `productos.js` ni sabe nada de su origen:
- * quien la llama le pasa el array que tenga en ese momento.
+ * Hoy ese array viene del backend (`GET /api/v1/parts`) y llega YA
+ * traducido al shape de la UI por `mapearRepuesto.js`, que es el único
+ * lugar de la app que conoce el contrato de la API. El mock local
+ * `productos.js` fue eliminado en esa migración. El filtro por categoría
+ * también lo resuelve el backend (`?categoria=`), así que la rama
+ * `else if (categoria)` de abajo ya no se usa; se deja porque la función
+ * sigue siendo válida sobre cualquier array (por ejemplo el del
+ * localStorage).
  *
- * Además, tolera los dos "shapes" posibles de un repuesto, para que
- * si el día de mañana se usa la respuesta de la API tal cual viene
- * (sin remapear los campos), esto siga funcionando sin tocar nada:
+ * Los getters de abajo además toleran el shape crudo del backend
+ * (`name`, `category`, ...). Hoy ningún llamador le pasa esa forma
+ * -la traducción ocurre en el borde del fetch-, así que esa rama es
+ * puramente defensiva y NO es el camino previsto: si aparece una
+ * pantalla nueva, tiene que seguir pasando por `mapearRepuesto`.
  *
- *   Mock actual (productos.js)   →  Backend (PartOut)
+ *   Shape de la UI (mapearRepuesto)  →  PartOut (backend)
  *   ----------------------------------------------------
- *   nombre                       →  name
- *   codigo                       →  part_code
- *   categoria                    →  category
- *   precio                       →  price
- *   marca (string)                →  compatible_brands (string[])
+ *   nombre                           →  name
+ *   codigo                           →  part_code
+ *   categoria                        →  category
+ *   precio                           →  price
+ *   marca (string)                   →  compatible_brands (string[])
  *
- * Si en algún momento se decide mapear la respuesta de la API al shape
- * del mock antes de pasarla al catálogo, también funciona igual: los
- * getters de abajo primero intentan el campo del mock y si no existe
- * caen al campo del backend.
+ * INVARIANTE, NO DESHACER: `marca` NO es "la marca principal". Contiene
+ * TODAS las marcas compatibles unidas por espacios (ver mapearRepuesto.js),
+ * y `getMarca` depende de eso para que la búsqueda por texto encuentre
+ * un repuesto por CUALQUIERA de sus marcas; en el catálogo actual hay 21
+ * repuestos compatibles con más de una. Si alguien "ordena" el mapper
+ * para que `marca` sea `compatible_brands[0]`, esas marcas dejan de ser
+ * buscables y nada falla a la vista. Para MOSTRAR una sola marca existe
+ * `marcaPrincipal`.
  */
 
 const getNombre = (p) => p.nombre ?? p.name ?? "";

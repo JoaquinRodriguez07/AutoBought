@@ -24,6 +24,15 @@ class PartsResponse(BaseModel):
     parts: list[PartOut]
 
 
+class CategoryOut(BaseModel):
+    name: str
+    count: int
+
+
+class CategoriesResponse(BaseModel):
+    categories: list[CategoryOut]
+
+
 def build_part_out(part: Part) -> PartOut:
     brands = []
     models = []

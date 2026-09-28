@@ -1,15 +1,34 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
+import { useCart } from "./context/CartContext";
 
 export default function DetalleProducto({
-  onHome, onLogin, onMarcas, onCatalogo, onCarrito, onFavoritos,
-  cantidadCarrito, cantidadFavoritos, producto, onAgregarAlCarrito,
-  onAlternarFavorito, esFavorito,
+  onHome,
+  onLogin,
+  onMarcas,
+  onCatalogo,
+  onCarrito,
+  onFavoritos,
+  cantidadFavoritos,
+  producto,
+  filtrosVehiculo,
+  onAlternarFavorito,
+  esFavorito,
 }) {
+  const { addToCart } = useCart();
   const [cantidad, setCantidad] = useState(1);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [pestana, setPestana] = useState("descripcion");
 
+  // DEUDA CONOCIDA (diferida): si no llega `producto` (refresh o link
+  // compartido a /producto, donde el estado de App ya está vacío) se
+  // renderiza este producto inventado, con opiniones y specs que no
+  // existen en ninguna base, y su AGREGAR mete el id fantasma "BP1234"
+  // en el carrito real. Además, su breadcrumb llama a onCatalogo("Frenos")
+  // y el backend no tiene ninguna categoría "Frenos", así que ese camino
+  // termina en 'No hay productos en la categoría "Frenos"'. El arreglo de
+  // verdad necesita un id en la ruta (/producto/:id) y un
+  // GET /api/v1/parts/{id} que hoy no existe.
   const productoActual = producto || {
     id: "BP1234", marca: "BOSCH", nombre: "Pastillas de Freno Delanteras Bosch",
     codigo: "BP1234", precio: 2450, categoria: "Frenos",
@@ -22,11 +41,31 @@ export default function DetalleProducto({
     opiniones: [{nombre:"Martín",estrellas:5,texto:"Muy buena calidad y encajaron perfecto."},{nombre:"Lucía",estrellas:5,texto:"Llegaron rápido y el producto es excelente."}],
   };
 
+  // Nota de opiniones: se calcula con las opiniones REALES del producto.
+  // Si no hay ninguna no se muestra nota. Antes había un ★ 4.8/5 fijo que
+  // se renderizaba incluso arriba del estado vacío "todavía no tiene
+  // opiniones", es decir un número inventado presentado como la nota real
+  // del repuesto (todos los que vienen de la API llegan sin `opiniones`).
+  const opiniones = productoActual.opiniones || [];
+  const promedioOpiniones = opiniones.length
+    ? (
+        opiniones.reduce((total, o) => total + (o.estrellas || 0), 0) /
+        opiniones.length
+      ).toFixed(1)
+    : null;
+
   const favorito = esFavorito(productoActual.id);
   const imagenes = [productoActual.imagen, productoActual.imagen, productoActual.imagen];
 
+  // =====================================================
+  // AGREGAR AL CARRITO
+  // =====================================================
+
+  const sinStock = productoActual.stock === 0;
+
   const agregar = () => {
-    onAgregarAlCarrito(productoActual, cantidad);
+    if (sinStock) return;
+    addToCart(productoActual, cantidad);
     setCantidad(1);
   };
 
@@ -42,7 +81,7 @@ export default function DetalleProducto({
     <div className="min-h-screen bg-white text-gray-900 font-sans">
       <Navbar paginaActual="detalle" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
-        cantidadCarrito={cantidadCarrito} cantidadFavoritos={cantidadFavoritos} />
+        cantidadFavoritos={cantidadFavoritos} />
 
       <main className="pt-[88px]">
         <div className="max-w-[1200px] mx-auto px-5 md:px-10 py-4">
@@ -74,26 +113,42 @@ export default function DetalleProducto({
             </div>
 
             <div>
-              <p className="text-orange-500 text-[11px] font-black">{productoActual.marca}</p>
+              <p className="text-orange-500 text-[11px] font-black">{productoActual.marcaPrincipal ?? productoActual.marca}</p>
               <h1 className="text-2xl md:text-3xl font-black mt-2 leading-tight">{productoActual.nombre}</h1>
               <p className="text-[10px] text-gray-400 mt-2">Código: {productoActual.codigo}</p>
               <p className="text-3xl font-black text-orange-500 mt-5">${productoActual.precio.toLocaleString("es-UY")}</p>
-              <p className="text-[10px] mt-2"><span className="text-green-600 font-bold">En stock</span><span className="text-gray-400 ml-2">({productoActual.stock} unidades)</span></p>
+              {sinStock ? (
+                <p className="text-[10px] mt-2"><span className="text-red-500 font-bold">Sin stock</span></p>
+              ) : (
+                <p className="text-[10px] mt-2"><span className="text-green-600 font-bold">En stock</span><span className="text-gray-400 ml-2">({productoActual.stock} unidades)</span></p>
+              )}
 
               <div className="bg-orange-50 border border-orange-100 rounded-lg p-4 mt-5">
                 <p className="text-[9px] font-black">🚗 Compatible con tu vehículo</p>
-                <p className="text-[10px] font-bold mt-2">Volkswagen Gol 2019 Highline</p>
+                <p className="text-[10px] font-bold mt-2">
+                  {filtrosVehiculo?.brand && filtrosVehiculo?.model
+                    ? `${filtrosVehiculo.brand} ${filtrosVehiculo.model}${
+                        filtrosVehiculo.year ? ` ${filtrosVehiculo.year}` : ""
+                      }`
+                    : "Vehículo seleccionado"}
+                </p>
                 <button className="text-[9px] text-orange-500 underline mt-1">Cambiar vehículo</button>
               </div>
 
               <div className="flex gap-3 mt-5">
                 <div className="flex border border-gray-200 rounded-md">
-                  <button onClick={() => setCantidad((v) => Math.max(1, v - 1))} className="w-9">−</button>
-                  <span className="w-9 flex items-center justify-center text-[10px]">{cantidad}</span>
-                  <button onClick={() => setCantidad((v) => Math.min(productoActual.stock, v + 1))} className="w-9">+</button>
+                  <button onClick={() => setCantidad((v) => Math.max(1, v - 1))} disabled={sinStock} className="w-9 disabled:opacity-40">−</button>
+                  <span className="w-9 flex items-center justify-center text-[10px]">{sinStock ? 0 : cantidad}</span>
+                  <button onClick={() => setCantidad((v) => Math.min(productoActual.stock, v + 1))} disabled={sinStock || cantidad >= productoActual.stock} className="w-9 disabled:opacity-40">+</button>
                 </div>
-                <button onClick={agregar} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[10px] font-black transition">
-                  🛒 AGREGAR AL CARRITO
+                <button
+                  onClick={agregar}
+                  disabled={sinStock}
+                  className={`flex-1 rounded-md text-[10px] font-black transition ${
+                    sinStock ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600 text-white"
+                  }`}
+                >
+                  {sinStock ? "SIN STOCK" : "🛒 AGREGAR AL CARRITO"}
                 </button>
               </div>
               <button onClick={() => onAlternarFavorito(productoActual)}
@@ -105,7 +160,7 @@ export default function DetalleProducto({
             <div className="space-y-3">
               <div className="border border-gray-100 rounded-xl shadow-sm p-5">
                 <p className="text-[10px] font-black">🛡 Garantía</p>
-                <p className="text-[9px] text-gray-500 mt-1">{productoActual.garantia}</p>
+                <p className="text-[9px] text-gray-500 mt-1">{productoActual.garantia || "Consultar garantía."}</p>
                 <div className="border-t my-4" />
                 <p className="text-[10px] font-black">🚚 Envíos</p>
                 <p className="text-[9px] text-gray-500 mt-1">A todo el país</p>
@@ -132,15 +187,18 @@ export default function DetalleProducto({
               {pestana === "descripcion" && (
                 <div className="max-w-[800px]">
                   <h2 className="text-[11px] font-black uppercase">Descripción</h2>
-                  <p className="text-[10px] text-gray-600 leading-relaxed mt-4">{productoActual.descripcion}</p>
+                  <p className="text-[10px] text-gray-600 leading-relaxed mt-4">{productoActual.descripcion || "Este repuesto todavía no tiene una descripción cargada."}</p>
                 </div>
               )}
 
               {pestana === "especificaciones" && (
                 <div>
                   <h2 className="text-[11px] font-black uppercase mb-5">Especificaciones técnicas</h2>
+                  {!productoActual.especificaciones?.length && (
+                    <p className="text-[9px] text-gray-400">Este repuesto no tiene especificaciones cargadas.</p>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-14 gap-y-3 max-w-[800px]">
-                    {productoActual.especificaciones.map(([clave, valor]) => (
+                    {(productoActual.especificaciones || []).map(([clave, valor]) => (
                       <div key={clave} className="flex justify-between border-b border-gray-100 pb-2">
                         <span className="text-[9px] text-gray-500">{clave}</span>
                         <span className="text-[9px] font-bold">{valor}</span>
@@ -154,8 +212,11 @@ export default function DetalleProducto({
                 <div>
                   <h2 className="text-[11px] font-black uppercase">Aplicaciones y compatibilidad</h2>
                   <p className="text-[9px] text-gray-500 mt-2">Vehículos para los que está indicado este repuesto:</p>
+                  {!productoActual.aplicaciones?.length && (
+                    <p className="text-[9px] text-gray-400 mt-4">Este repuesto no tiene aplicaciones cargadas.</p>
+                  )}
                   <div className="mt-5 space-y-2 max-w-[700px]">
-                    {productoActual.aplicaciones.map((aplicacion) => (
+                    {(productoActual.aplicaciones || []).map((aplicacion) => (
                       <div key={aplicacion} className="bg-gray-50 rounded-md px-4 py-3 text-[10px]">
                         <span className="text-green-600 mr-2">✓</span>{aplicacion}
                       </div>
@@ -169,7 +230,7 @@ export default function DetalleProducto({
                   <h2 className="text-[11px] font-black uppercase">Garantía</h2>
                   <div className="bg-orange-50 border border-orange-100 rounded-xl p-5 mt-4">
                     <p className="text-[11px] font-black">🛡 Garantía del producto</p>
-                    <p className="text-[10px] text-gray-600 mt-2">{productoActual.garantia}</p>
+                    <p className="text-[10px] text-gray-600 mt-2">{productoActual.garantia || "Consultar garantía."}</p>
                   </div>
                 </div>
               )}
@@ -178,8 +239,13 @@ export default function DetalleProducto({
                 <div className="max-w-[800px]">
                   <div className="flex items-center justify-between mb-5">
                     <h2 className="text-[11px] font-black uppercase">Opiniones de clientes</h2>
-                    <span className="text-orange-500 font-black text-lg">★ 4.8/5</span>
+                    {promedioOpiniones && (
+                      <span className="text-orange-500 font-black text-lg">★ {promedioOpiniones}/5</span>
+                    )}
                   </div>
+                  {!productoActual.opiniones?.length && (
+                    <p className="text-[9px] text-gray-400">Este repuesto todavía no tiene opiniones.</p>
+                  )}
                   <div className="space-y-3">
                     {(productoActual.opiniones || []).map((opinion, index) => (
                       <div key={index} className="border border-gray-100 rounded-xl p-4">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { obtenerSesion, sesionValida } from "./auth";
+import { useCart } from "./context/CartContext";
 
 import Home from "./Home";
 import Login from "./Login";
@@ -18,9 +19,19 @@ import ProtectedRoute from "./ProtectedRoute";
 
 function App() {
   const navigate = useNavigate();
+  const { cargarCarrito, limpiarCarritoLocal } = useCart();
 
+  // null = sin filtro de categoría (el catálogo muestra todos los
+  // repuestos). Los nombres de categoría los define el backend
+  // (GET /api/v1/parts/categories), no el frontend.
   const [categoriaCatalogo, setCategoriaCatalogo] =
-    useState("Frenos");
+    useState(null);
+
+  const [filtrosVehiculo, setFiltrosVehiculo] = useState({
+    brand: "",
+    model: "",
+    year: "",
+  });
 
   const [productoSeleccionado, setProductoSeleccionado] =
     useState(null);
@@ -32,22 +43,6 @@ function App() {
   const [usuario, setUsuario] = useState(() => {
     const sesion = obtenerSesion();
     return sesionValida(sesion) ? sesion : null;
-  });
-
-  /* =====================================================
-     CARRITO
-  ====================================================== */
-
-  const [carrito, setCarrito] = useState(() => {
-    try {
-      return (
-        JSON.parse(
-          localStorage.getItem("autobought-carrito")
-        ) || []
-      );
-    } catch {
-      return [];
-    }
   });
 
   /* =====================================================
@@ -122,17 +117,6 @@ function App() {
     });
 
   /* =====================================================
-     GUARDAR CARRITO
-  ====================================================== */
-
-  useEffect(() => {
-    localStorage.setItem(
-      "autobought-carrito",
-      JSON.stringify(carrito)
-    );
-  }, [carrito]);
-
-  /* =====================================================
      GUARDAR FAVORITOS
   ====================================================== */
 
@@ -181,8 +165,22 @@ function App() {
      (antes: setPagina("x") — ahora: navigate("/x"))
   ====================================================== */
 
-  const irAlCatalogo = (categoria = "Frenos") => {
+  const irAlCatalogo = (
+    categoria = null,
+    vehiculo = null
+  ) => {
     setCategoriaCatalogo(categoria);
+
+    if (vehiculo) {
+      setFiltrosVehiculo(vehiculo);
+    } else {
+      setFiltrosVehiculo({
+        brand: "",
+        model: "",
+        year: "",
+      });
+    }
+
     navigate("/catalogo");
   };
 
@@ -226,6 +224,7 @@ function App() {
       );
     }
 
+    cargarCarrito();
     navigate("/");
   };
 
@@ -241,6 +240,7 @@ function App() {
       JSON.stringify(usuarioNuevo)
     );
 
+    cargarCarrito();
     navigate("/");
   };
 
@@ -271,84 +271,8 @@ function App() {
     localStorage.removeItem("autobought-sesion");
     sessionStorage.removeItem("autobought-sesion");
 
+    limpiarCarritoLocal();
     navigate("/");
-  };
-
-  /* =====================================================
-     CARRITO
-  ====================================================== */
-
-  const agregarAlCarrito = (
-    producto,
-    cantidad = 1
-  ) => {
-    if (!usuario) {
-      navigate("/login");
-      return;
-    }
-
-    const cantidadFinal = Math.max(
-      1,
-      Number(cantidad) || 1
-    );
-
-    setCarrito((actual) => {
-      const existente = actual.find(
-        (item) => item.id === producto.id
-      );
-
-      if (existente) {
-        return actual.map((item) =>
-          item.id === producto.id
-            ? {
-                ...item,
-                cantidad:
-                  item.cantidad +
-                  cantidadFinal,
-              }
-            : item
-        );
-      }
-
-      return [
-        ...actual,
-        {
-          ...producto,
-          cantidad: cantidadFinal,
-        },
-      ];
-    });
-  };
-
-  const cambiarCantidad = (
-    id,
-    cambio
-  ) => {
-    setCarrito((actual) =>
-      actual.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              cantidad: Math.max(
-                1,
-                item.cantidad + cambio
-              ),
-            }
-          : item
-      )
-    );
-  };
-
-  const eliminarDelCarrito = (id) => {
-    setCarrito((actual) =>
-      actual.filter(
-        (item) => item.id !== id
-      )
-    );
-  };
-
-  const vaciarCarrito = () => {
-    setCarrito([]);
   };
 
   /* =====================================================
@@ -377,17 +301,6 @@ function App() {
   const esFavorito = (id) =>
     favoritos.some(
       (item) => item.id === id
-    );
-
-  /* =====================================================
-     CONTADORES
-  ====================================================== */
-
-  const cantidadCarrito =
-    carrito.reduce(
-      (total, item) =>
-        total + item.cantidad,
-      0
     );
 
   /* =====================================================
@@ -431,9 +344,9 @@ function App() {
 
     // ==========================================
     // CONTADORES
+    // (cantidadCarrito ya no se pasa por prop: Navbar la
+    // lee directo de CartContext con useCart())
     // ==========================================
-
-    cantidadCarrito,
 
     cantidadFavoritos: favoritos.length,
   };
@@ -450,7 +363,12 @@ function App() {
 
       <Route
         path="/"
-        element={<Home {...propsNavbar} />}
+        element={
+          <Home
+            {...propsNavbar}
+            filtrosVehiculo={filtrosVehiculo}
+          />
+        }
       />
 
       {/* =================================================
@@ -492,51 +410,55 @@ function App() {
       />
 
       {/* =================================================
+          CATÁLOGO Y DETALLE DE PRODUCTO
+          Navegar el catálogo es público: no requiere sesión.
+          Agregar al carrito o marcar favoritos sí la requiere
+          (ver el guard de addToCart en CartContext y el de
+          alternarFavorito, que redirigen a /login).
+      ================================================== */}
+
+      <Route
+        path="/catalogo"
+        element={
+          <Catalogo
+            {...propsNavbar}
+            onDetalle={irAlDetalle}
+            categoriaInicial={categoriaCatalogo}
+            filtrosVehiculo={filtrosVehiculo}
+            onCategoriaSeleccionada={setCategoriaCatalogo}
+            favoritos={favoritos}
+            onAlternarFavorito={alternarFavorito}
+            esFavorito={esFavorito}
+          />
+        }
+      />
+
+      <Route
+        path="/producto"
+        element={
+          <DetalleProducto
+            {...propsNavbar}
+            onDetalle={irAlDetalle}
+            onCatalogo={irAlCatalogo}
+            producto={productoSeleccionado}
+            filtrosVehiculo={filtrosVehiculo}
+            onAlternarFavorito={alternarFavorito}
+            esFavorito={esFavorito}
+          />
+        }
+      />
+
+      {/* =================================================
           RUTAS PROTEGIDAS
-          (requieren sesión activa — subtask 2)
+          (requieren sesión activa)
       ================================================== */}
 
       <Route element={<ProtectedRoute />}>
-        <Route
-          path="/catalogo"
-          element={
-            <Catalogo
-              {...propsNavbar}
-              onDetalle={irAlDetalle}
-              categoriaInicial={categoriaCatalogo}
-              carrito={carrito}
-              favoritos={favoritos}
-              onAgregarAlCarrito={agregarAlCarrito}
-              onAlternarFavorito={alternarFavorito}
-              esFavorito={esFavorito}
-            />
-          }
-        />
-
-        <Route
-          path="/producto"
-          element={
-            <DetalleProducto
-              {...propsNavbar}
-              onDetalle={irAlDetalle}
-              onCatalogo={irAlCatalogo}
-              producto={productoSeleccionado}
-              onAgregarAlCarrito={agregarAlCarrito}
-              onAlternarFavorito={alternarFavorito}
-              esFavorito={esFavorito}
-            />
-          }
-        />
-
         <Route
           path="/carrito"
           element={
             <Carrito
               {...propsNavbar}
-              productos={carrito}
-              onCambiarCantidad={cambiarCantidad}
-              onEliminarProducto={eliminarDelCarrito}
-              onVaciarCarrito={vaciarCarrito}
               onDetalle={irAlDetalle}
             />
           }
@@ -558,7 +480,6 @@ function App() {
               {...propsNavbar}
               favoritos={favoritos}
               onAlternarFavorito={alternarFavorito}
-              onAgregarAlCarrito={agregarAlCarrito}
               onDetalle={irAlDetalle}
             />
           ) : null
