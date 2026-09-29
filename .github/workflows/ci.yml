@@ -1,0 +1,76 @@
+# Integración continua de AutoBought.
+# Corre en cada PR hacia dev o main y en cada push a dev.
+# Los nombres de los jobs ("backend" y "frontend") son los que se eligen
+# como "status checks" obligatorios en los rulesets de GitHub.
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+
+# Si se sube un commit nuevo al mismo PR, se cancela la corrida anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Valores solo para CI: los tests usan SQLite en memoria (tests/conftest.py).
+      SECRET_KEY: ci-only-not-a-real-secret
+      DATABASE_URL: sqlite://
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Instalar Python 3.14
+        run: uv python install 3.14
+
+      - name: Instalar dependencias (falla si uv.lock no coincide con pyproject.toml)
+        run: uv sync --locked --group dev
+
+      - name: Tests + cobertura (mínimo 70%)
+        run: uv run pytest --cov-fail-under=70
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias (falla si package-lock.json está desincronizado)
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npx oxlint
+
+      - name: Build
+        run: npm run build
+
+      - name: Tests unitarios (Jest)
+        run: npm test -- --passWithNoTests
