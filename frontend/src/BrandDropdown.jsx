@@ -8,7 +8,7 @@ function BrandDropdown({
   const [brands, setBrands] = useState([]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/v1/brands")
+    fetch("/api/v1/brands")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Error fetching brands");
