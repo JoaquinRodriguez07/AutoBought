@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
@@ -7,12 +8,33 @@ import CheryLogo from "./assets/Logos Vehiculos/Chery.webp";
 import ChevroletLogo from "./assets/Logos Vehiculos/Chevrolet.png";
 import CitroenLogo from "./assets/Logos Vehiculos/Citroen.png";
 import FiatLogo from "./assets/Logos Vehiculos/Fiat.png";
-import GacLogo from "./assets/Logos Vehiculos/Gac.png";
 import HyundaiLogo from "./assets/Logos Vehiculos/Hyundai.webp";
-import MercedesLogo from "./assets/Logos Vehiculos/Mercedes.png";
 import PeugeotLogo from "./assets/Logos Vehiculos/Peugeot.webp";
 import RenaultLogo from "./assets/Logos Vehiculos/Renault.png";
-import SuzukiLogo from "./assets/Logos Vehiculos/Suzuki.png";
+
+const logoMap = {
+  Volkswagen: "https://cdn.simpleicons.org/volkswagen/000000",
+  Chevrolet: ChevroletLogo,
+  Fiat: FiatLogo,
+  Renault: RenaultLogo,
+  Ford: "https://cdn.simpleicons.org/ford/000000",
+  Toyota: "https://cdn.simpleicons.org/toyota/000000",
+  Peugeot: PeugeotLogo,
+  Citroen: CitroenLogo,
+  "Citroën": CitroenLogo,
+  Nissan: "https://cdn.simpleicons.org/nissan/000000",
+  Hyundai: HyundaiLogo,
+  Kia: "https://cdn.simpleicons.org/kia/000000",
+  Suzuki: "https://cdn.simpleicons.org/suzuki/000000",
+  Honda: "https://cdn.simpleicons.org/honda/000000",
+  BMW: BMWLogo,
+  "Mercedes-Benz": "https://cdn.simpleicons.org/mercedes/000000",
+  Audi: AudiLogo,
+  Jeep: "https://cdn.simpleicons.org/jeep/000000",
+  Mitsubishi: "https://cdn.simpleicons.org/mitsubishi/000000",
+  Chery: CheryLogo,
+  BYD: BYDLogo,
+};
 
 export default function Marcas({
   usuario,
@@ -30,88 +52,35 @@ export default function Marcas({
   onHistorial,
   onCerrarSesion,
 }) {
-  const marcas = [
-    {
-      nombre: "Volkswagen",
-      logo: "https://cdn.simpleicons.org/volkswagen/000000",
-    },
-    {
-      nombre: "Chevrolet",
-      logo: ChevroletLogo,
-    },
-    {
-      nombre: "Fiat",
-      logo: FiatLogo,
-    },
-    {
-      nombre: "Renault",
-      logo: RenaultLogo,
-    },
-    {
-      nombre: "Ford",
-      logo: "https://cdn.simpleicons.org/ford/000000",
-    },
-    {
-      nombre: "Toyota",
-      logo: "https://cdn.simpleicons.org/toyota/000000",
-    },
-    {
-      nombre: "Peugeot",
-      logo: PeugeotLogo,
-    },
-    {
-      nombre: "Citroën",
-      logo: CitroenLogo,
-    },
-    {
-      nombre: "Nissan",
-      logo: "https://cdn.simpleicons.org/nissan/000000",
-    },
-    {
-      nombre: "Hyundai",
-      logo: HyundaiLogo,
-    },
-    {
-      nombre: "Kia",
-      logo: "https://cdn.simpleicons.org/kia/000000",
-    },
-    {
-      nombre: "Suzuki",
-      logo: SuzukiLogo,
-    },
-    {
-      nombre: "Honda",
-      logo: "https://cdn.simpleicons.org/honda/000000",
-    },
-    {
-      nombre: "BMW",
-      logo: BMWLogo,
-    },
-    {
-      nombre: "Mercedes-Benz",
-      logo: MercedesLogo,
-    },
-    {
-      nombre: "Audi",
-      logo: AudiLogo,
-    },
-    {
-      nombre: "Jeep",
-      logo: "https://cdn.simpleicons.org/jeep/000000",
-    },
-    {
-      nombre: "Mitsubishi",
-      logo: "https://cdn.simpleicons.org/mitsubishi/000000",
-    },
-    {
-      nombre: "Chery",
-      logo: CheryLogo,
-    },
-    {
-      nombre: "BYD",
-      logo: BYDLogo,
-    },
-  ];
+  const [marcas, setMarcas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const apiBaseUrl =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1"
+        ? "http://127.0.0.1:8000"
+        : "";
+
+    fetch(`${apiBaseUrl}/api/v1/brands`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Error fetching brands");
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        setMarcas(data.brands);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching brands:", error);
+        setError(true);
+        setLoading(false);
+      });
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#f7f7f7] text-gray-900 font-sans">
@@ -136,9 +105,7 @@ export default function Marcas({
         cantidadFavoritos={cantidadFavoritos}
       />
 
-      {/* =====================================================
-          CONTENIDO
-      ====================================================== */}
+      {/* CONTENIDO */}
 
       <main className="pt-[105px]">
 
@@ -165,9 +132,7 @@ export default function Marcas({
 
         </section>
 
-        {/* =====================================================
-            MARCAS
-        ====================================================== */}
+        {/* MARCAS */}
 
         <section className="max-w-[1100px] mx-auto px-6 py-12">
 
@@ -186,51 +151,86 @@ export default function Marcas({
             </div>
 
             <span className="text-[10px] text-gray-400">
-              {marcas.length} marcas
+              {loading ? "Cargando..." : `${marcas.length} marcas`}
             </span>
 
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {/* ERROR */}
 
-            {marcas.map((marca) => (
+          {error && (
+            <div className="bg-white border border-red-200 rounded-xl p-6 text-center">
+              <p className="text-sm font-bold text-red-500">
+                No se pudieron cargar las marcas.
+              </p>
 
-              <button
-                key={marca.nombre}
-                type="button"
-                onClick={() => onCatalogo("Frenos")}
-                className="group bg-white border border-gray-100 rounded-xl h-[145px] flex flex-col items-center justify-center shadow-sm hover:shadow-lg hover:border-orange-300 hover:-translate-y-1 transition duration-300"
-              >
+              <p className="text-xs text-gray-400 mt-2">
+                Verificá que el backend esté funcionando.
+              </p>
+            </div>
+          )}
 
-                <div className="h-16 w-28 flex items-center justify-center">
+          {/* CARGANDO */}
 
-                  <img
-                    src={marca.logo}
-                    alt={`Logo ${marca.nombre}`}
-                    className="max-h-14 max-w-24 object-contain grayscale group-hover:grayscale-0 transition duration-300"
-                  />
+          {loading && !error && (
+            <div className="bg-white rounded-xl p-10 text-center">
+              <p className="text-sm text-gray-400">
+                Cargando marcas...
+              </p>
+            </div>
+          )}
 
-                </div>
+          {/* MARCAS */}
 
-                <p className="text-[11px] font-bold mt-5 group-hover:text-orange-500 transition">
-                  {marca.nombre}
-                </p>
+          {!loading && !error && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
 
-                <p className="text-[8px] text-gray-400 mt-1">
-                  Ver repuestos →
-                </p>
+              {marcas.map((marca) => {
 
-              </button>
+                const logo = logoMap[marca.brand];
 
-            ))}
+                return (
+                  <button
+                    key={marca.brand}
+                    type="button"
+                    onClick={() => onCatalogo("Frenos")}
+                    className="group bg-white border border-gray-100 rounded-xl h-[145px] flex flex-col items-center justify-center shadow-sm hover:shadow-lg hover:border-orange-300 hover:-translate-y-1 transition duration-300"
+                  >
 
-          </div>
+                    <div className="h-16 w-28 flex items-center justify-center">
+
+                      {logo ? (
+                        <img
+                          src={logo}
+                          alt={`Logo ${marca.brand}`}
+                          className="max-h-14 max-w-24 object-contain grayscale group-hover:grayscale-0 transition duration-300"
+                        />
+                      ) : (
+                        <span className="text-lg font-black">
+                          {marca.brand}
+                        </span>
+                      )}
+
+                    </div>
+
+                    <p className="text-[11px] font-bold mt-5 group-hover:text-orange-500 transition">
+                      {marca.brand}
+                    </p>
+
+                    <p className="text-[8px] text-gray-400 mt-1">
+                      Ver repuestos →
+                    </p>
+
+                  </button>
+                );
+              })}
+
+            </div>
+          )}
 
         </section>
 
-        {/* =====================================================
-            BANNER
-        ====================================================== */}
+        {/* BANNER */}
 
         <section className="max-w-[1100px] mx-auto px-6 pb-14">
 
@@ -254,7 +254,7 @@ export default function Marcas({
 
             <button
               type="button"
-              onClick={() => onCatalogo("Frenos")}
+              onClick={() => onCatalogo()}
               className="bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-lg text-[10px] font-black transition whitespace-nowrap"
             >
               VER REPUESTOS →

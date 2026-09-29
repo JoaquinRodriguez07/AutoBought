@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.car_model import CarModel
@@ -8,27 +8,43 @@ from app.models.compatibility import Compatibility
 from app.models.part import Part
 
 
+def get_part(db: Session, part_id: int) -> Part | None:
+    return db.get(Part, part_id)
+
+
 def list_parts(
     db: Session,
+    brand: str | None = None,
+    model: str | None = None,
+    year: int | None = None,
     search: Optional[str] = None,
     category: Optional[str] = None,
-    brand: Optional[str] = None,
-    model: Optional[str] = None,
-    year: Optional[int] = None,
 ) -> list[Part]:
     query = (
         select(Part)
+        .join(Compatibility)
+        .join(CarModel)
         .options(
             selectinload(Part.compatibilities).selectinload(
                 Compatibility.car_model
             )
         )
+        .distinct()
         .order_by(Part.id)
     )
 
-    # Búsqueda parcial, insensible a mayúsculas/minúsculas, por nombre o código.
-    # Permite encontrar un repuesto sin ingresar el código completo
-    # (ej: "BP12" encuentra "BP1234").
+    if brand:
+        query = query.where(CarModel.brand == brand)
+
+    if model:
+        query = query.where(CarModel.model == model)
+
+    if year:
+        query = query.where(
+            Compatibility.year_from <= year,
+            Compatibility.year_to >= year,
+        )
+
     term = (search or "").strip()
     if term:
         pattern = f"%{term}%"
@@ -39,31 +55,20 @@ def list_parts(
             )
         )
 
-    # Filtro de categoría (HU 1.2), coincidencia exacta insensible a mayúsculas.
-    if category and category.strip():
-        query = query.where(Part.category.ilike(category.strip()))
-
-    # Filtro de vehículo compatible (HU 2.5 / HU 2.3): marca, modelo y/o año.
-    # Se acumulan entre sí (AND) y con los filtros de arriba, todos dentro
-    # del mismo GET /parts (ej: ?search=filtro&brand=Chevrolet&year=2019).
-    if brand or model or year:
-        vehicle_conditions = []
-
-        if brand and brand.strip():
-            vehicle_conditions.append(CarModel.brand.ilike(brand.strip()))
-
-        if model and model.strip():
-            vehicle_conditions.append(CarModel.model.ilike(model.strip()))
-
-        if year:
-            vehicle_conditions.append(Compatibility.year_from <= year)
-            vehicle_conditions.append(Compatibility.year_to >= year)
-
-        matching_part_ids = (
-            select(Compatibility.part_id)
-            .join(CarModel, Compatibility.car_model_id == CarModel.id)
-            .where(and_(*vehicle_conditions))
+    categoria_term = (category or "").strip()
+    if categoria_term:
+        query = query.where(
+            func.lower(Part.category) == categoria_term.lower()
         )
-        query = query.where(Part.id.in_(matching_part_ids))
 
-    return list(db.scalars(query).all())
+    return list(db.scalars(query).unique().all())
+
+
+def list_categories(db: Session) -> list[tuple[str, int]]:
+    query = (
+        select(Part.category, func.count(Part.id))
+        .group_by(Part.category)
+        .order_by(Part.category)
+    )
+    return [(category, count) for category, count in db.execute(query).all()]
+

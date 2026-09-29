@@ -5,14 +5,24 @@ requires-python = ">=3.14"
 dependencies = [
     "bcrypt>=5.0.0",
     "fastapi[standard]>=0.141.1",
-    "psycopg2-binary>=2.9.12",
-    "pyjwt>=2.14.0",
+    "psycopg2-binary>=2.9.13",
+    "pyjwt>=2.15.0",
     "python-dotenv>=1.2.3",
-    "sqlalchemy>=2.0.52",
+    "sqlalchemy>=2.1.1",
 ]
 
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
+    "pytest-cov>=7.0.0",
 ]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html:coverage_html",
+    "--cov-report=xml:coverage.xml",
+]
+testpaths = ["../tests"]

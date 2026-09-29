@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: postgres
+    restart: unless-stopped
+
+    cpus: 2
+
+    environment:
+      POSTGRES_USER: ingsoft2
+      POSTGRES_PASSWORD: estoesunacontrasenia1234!
+      POSTGRES_DB: ingsoft2db
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ingsoft2 -d ingsoft2db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: backend
+    restart: unless-stopped
+
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ingsoft2:estoesunacontrasenia1234!@postgres:5432/ingsoft2db
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+
+volumes:
+  postgres_data:
