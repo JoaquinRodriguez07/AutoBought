@@ -30,7 +30,7 @@ jobs:
       SECRET_KEY: ci-only-not-a-real-secret
       DATABASE_URL: sqlite://
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Instalar uv
         uses: astral-sh/setup-uv@v6
@@ -54,7 +54,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Instalar Node 22
         uses: actions/setup-node@v4
