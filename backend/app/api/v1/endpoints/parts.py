@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.crud import text_search
 from app.api.deps import get_db
 from app.crud import part as crud_part
 from app.schemas.part import CategoriesResponse, PartsResponse, build_part_out
@@ -28,7 +29,11 @@ def list_parts(
     q: Optional[str] = Query(
         None,
         min_length=1,
-        description="Alias de 'search'. Si se envían ambos, 'search' tiene prioridad.",
+        description=(
+            "Búsqueda en lenguaje natural (ej: 'pastillas de freno onix 2020'). "
+            "Detecta pieza, marca, modelo y año y los devuelve en 'entities'. "
+            "Si se envía 'search', 'search' tiene prioridad."
+        ),
     ),
     categoria: Optional[str] = Query(
         None,
@@ -45,24 +50,27 @@ def list_parts(
     ),
     db: Session = Depends(get_db),
 ):
-    termino_busqueda = search or q
     categoria_filtro = categoria or category
-    parts = crud_part.list_parts(
-        db,
-        brand=brand,
-        model=model,
-        year=year,
-        search=termino_busqueda,
-        category=categoria_filtro,
-    )
+    entities = None
+
+    if q and not search:
+        entities, parts = text_search.search_parts(
+            db, q, category=categoria_filtro
+        )
+    else:
+        parts = crud_part.list_parts(
+            db,
+            brand=brand,
+            model=model,
+            year=year,
+            search=search,
+            category=categoria_filtro,
+        )
 
     return {
-        "parts": [
-            build_part_out(part)
-            for part in parts
-        ]
+        "parts": [build_part_out(part) for part in parts],
+        "entities": entities,
     }
-
 
 # Nota: esta ruta debe declararse antes de cualquier futura ruta "/{id}" en
 # este router, de lo contrario FastAPI intentaría interpretar "categories"
