@@ -122,14 +122,14 @@ describe("catalog API frontend contract", () => {
         parts: [
           {
             id: 1,
-            name: "Oil filter 1.4 8V",
+            name: "Filtro de aceite 1.4 8V",
             compatible_brands: ["Chevrolet"],
             compatible_models: ["Onix", "Prisma"],
             year_from: 2013,
             year_to: 2019,
             engine_code: "1.4 8V",
             part_code: "FIL-0001",
-            category: "Filters",
+            category: "Filtros",
             color: null,
             price: 790,
             stock: 38,
