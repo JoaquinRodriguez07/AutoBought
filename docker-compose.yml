@@ -30,6 +30,7 @@ services:
 
     environment:
       DATABASE_URL: postgresql+psycopg2://ingsoft2:estoesunacontrasenia1234!@postgres:5432/ingsoft2db
+      SECRET_KEY: ML8fWNhyxXtHNrDW7PAxmIytND7xTJolZZZlb_zWeBo
 
     ports:
       - "8000:8000"
