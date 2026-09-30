@@ -95,3 +95,19 @@ def test_rechaza_busquedas_demasiado_largas(client, db_session):
     response = client.get("/api/v1/parts", params={"q": "a" * 101})
 
     assert response.status_code == 422
+
+
+def test_encuentra_la_pieza_en_busquedas_largas(client, db_session):
+    make_catalog(db_session)
+
+    response = client.get(
+        "/api/v1/parts",
+        params={
+            "q": "necesito buscar repuestos nuevos para mi auto por favor "
+                 "ahora pastillas de freno onix 2020"
+        },
+    )
+
+    assert response.json()["entities"]["part"] == "pastillas de freno"
+    codes = [p["part_code"] for p in response.json()["parts"]]
+    assert codes == ["BRK-0001"]

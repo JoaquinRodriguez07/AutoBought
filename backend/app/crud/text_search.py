@@ -1,6 +1,6 @@
 import re
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.crud.part import list_parts
@@ -16,9 +16,9 @@ STOPWORDS = {
     "a", "al", "con", "de", "del", "el", "en", "la", "las",
     "lo", "los", "para", "por", "un", "una", "y",
 }
-# Tope de palabras para buscar la pieza. Cada pedazo posible es una
-# consulta a la base: con n palabras son n*(n+1)/2 consultas, así que sin
-# tope un texto largo dispararía miles. 8 palabras = 36 como máximo.
+
+# Largo máximo de una pieza, en palabras. Ningún nombre de repuesto es más
+# largo, así que no tiene sentido probar pedazos más grandes.
 MAX_PART_WORDS = 8
 
 
@@ -47,31 +47,28 @@ def _take(text: str, phrase: str) -> tuple[bool, str]:
     return True, _cut(text, match)
 
 
-def _part_exists(db: Session, phrase: str) -> bool:
-    """True si algún repuesto tiene `phrase` en el nombre o el código."""
-    pattern = f"%{phrase}%"
-    found = db.scalar(
-        select(Part.id)
-        .where(or_(Part.name.ilike(pattern), Part.part_code.ilike(pattern)))
-        .limit(1)
-    )
-    return found is not None
-
-
 def _find_part(db: Session, text: str) -> str | None:
     """Busca el pedazo más largo del texto que coincide con algún repuesto.
 
+    Los nombres y códigos se traen una sola vez de la base y los pedazos se
+    comparan en memoria, así una búsqueda es siempre una sola consulta.
     Con "pastillas de freno para" prueba primero las 4 palabras juntas,
     después de a 3 ("pastillas de freno" coincide) y se queda con esa.
     """
-    words = text.split()[:MAX_PART_WORDS]
-    for length in range(len(words), 0, -1):
+    words = text.split()
+    searchable = [
+        value.lower()
+        for row in db.execute(select(Part.name, Part.part_code)).all()
+        for value in row
+    ]
+
+    for length in range(min(len(words), MAX_PART_WORDS), 0, -1):
         for start in range(len(words) - length + 1):
             candidate = words[start : start + length]
             if candidate[0] in STOPWORDS or candidate[-1] in STOPWORDS:
                 continue
             phrase = " ".join(candidate)
-            if _part_exists(db, phrase):
+            if any(phrase in value for value in searchable):
                 return phrase
     return None
 
