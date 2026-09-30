@@ -10,6 +10,13 @@ from app.models.part import Part
 # Años razonables para un auto: 1980 a 2039.
 YEAR_PATTERN = re.compile(r"\b(19[89]\d|20[0-3]\d)\b")
 
+# Palabras que no pueden estar al principio ni al final de una pieza
+# ("para" solo coincidiría con "limpiaparabrisas").
+STOPWORDS = {
+    "a", "al", "con", "de", "del", "el", "en", "la", "las",
+    "lo", "los", "para", "por", "un", "una", "y",
+}
+
 
 def normalize(text: str) -> str:
     """Pasa a minúsculas y cambia signos por espacios.
@@ -34,6 +41,35 @@ def _take(text: str, phrase: str) -> tuple[bool, str]:
     if not match:
         return False, text
     return True, _cut(text, match)
+
+
+def _part_exists(db: Session, phrase: str) -> bool:
+    """True si algún repuesto tiene `phrase` en el nombre o el código."""
+    pattern = f"%{phrase}%"
+    found = db.scalar(
+        select(Part.id)
+        .where(or_(Part.name.ilike(pattern), Part.part_code.ilike(pattern)))
+        .limit(1)
+    )
+    return found is not None
+
+
+def _find_part(db: Session, text: str) -> str | None:
+    """Busca el pedazo más largo del texto que coincide con algún repuesto.
+
+    Con "pastillas de freno para" prueba primero las 4 palabras juntas,
+    después de a 3 ("pastillas de freno" coincide) y se queda con esa.
+    """
+    words = text.split()
+    for length in range(len(words), 0, -1):
+        for start in range(len(words) - length + 1):
+            candidate = words[start : start + length]
+            if candidate[0] in STOPWORDS or candidate[-1] in STOPWORDS:
+                continue
+            phrase = " ".join(candidate)
+            if _part_exists(db, phrase):
+                return phrase
+    return None
 
 
 def extract_entities(db: Session, text: str) -> dict:
@@ -65,36 +101,39 @@ def extract_entities(db: Session, text: str) -> dict:
         entities["year"] = int(match.group())
         rest = _cut(rest, match)
 
-    # 4) Lo que queda es la pieza, solo si algún repuesto la tiene en el nombre.
+    # 4) Pieza: el pedazo más largo de lo que queda que coincida con un repuesto.
     if rest:
-        pattern = f"%{rest}%"
-        exists = db.scalar(
-            select(Part.id)
-            .where(or_(Part.name.ilike(pattern), Part.part_code.ilike(pattern)))
-            .limit(1)
-        )
-        if exists:
-            entities["part"] = rest
+        entities["part"] = _find_part(db, rest)
 
     return entities
 
 
 def search_parts(
-    db: Session, text: str, category: str | None = None
+    db: Session,
+    text: str,
+    brand: str | None = None,
+    model: str | None = None,
+    year: int | None = None,
+    category: str | None = None,
 ) -> tuple[dict, list[Part]]:
     """Extrae las entidades y busca los repuestos con los mismos filtros
-    que usan los menús en cascada."""
+    que usan los menús en cascada.
+
+    Si vienen filtros explícitos (brand, model, year), ganan sobre lo que
+    se detectó en el texto: lo que el usuario eligió en los menús es más
+    seguro que lo que se adivina.
+    """
     entities = extract_entities(db, text)
 
-    # Sin nada reconocible no se devuelve el catálogo entero, sino vacío.
+    # Sin nada reconocible en el texto no se devuelve el catálogo entero.
     if not any(entities.values()):
         return entities, []
 
     parts = list_parts(
         db,
-        brand=entities["brand"],
-        model=entities["model"],
-        year=entities["year"],
+        brand=brand or entities["brand"],
+        model=model or entities["model"],
+        year=year or entities["year"],
         search=entities["part"],
         category=category,
     )

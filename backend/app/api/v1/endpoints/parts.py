@@ -55,7 +55,12 @@ def list_parts(
 
     if q and not search:
         entities, parts = text_search.search_parts(
-            db, q, category=categoria_filtro
+            db,
+            q,
+            brand=brand,
+            model=model,
+            year=year,
+            category=categoria_filtro,
         )
     else:
         parts = crud_part.list_parts(

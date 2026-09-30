@@ -65,3 +65,26 @@ def test_busqueda_sin_entidades_reconocibles(client, db_session):
         "year": None,
     }
     assert response.json()["parts"] == []
+
+
+def test_respeta_los_filtros_explicitos(client, db_session):
+    make_catalog(db_session)
+
+    response = client.get(
+        "/api/v1/parts", params={"q": "pastillas de freno", "brand": "Fiat"}
+    )
+
+    codes = [p["part_code"] for p in response.json()["parts"]]
+    assert codes == ["BRK-0002"]
+
+
+def test_ignora_palabras_de_mas(client, db_session):
+    make_catalog(db_session)
+
+    response = client.get(
+        "/api/v1/parts", params={"q": "pastillas de freno para onix 2020"}
+    )
+
+    assert response.json()["entities"]["part"] == "pastillas de freno"
+    codes = [p["part_code"] for p in response.json()["parts"]]
+    assert codes == ["BRK-0001"]
