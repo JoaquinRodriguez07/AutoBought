@@ -9,6 +9,3 @@ __pycache__/
 .coverage
 coverage.xml
 coverage_html/
-
-# Local Compose credentials
-/.env

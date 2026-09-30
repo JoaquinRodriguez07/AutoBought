@@ -8,7 +8,7 @@ services:
 
     environment:
       POSTGRES_USER: ingsoft2
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: estoesunacontrasenia1234!
       POSTGRES_DB: ingsoft2db
 
     ports:
@@ -29,10 +29,10 @@ services:
     restart: unless-stopped
 
     environment:
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DATABASE_URL: postgresql+psycopg2://ingsoft2:estoesunacontrasenia1234!@postgres:5432/ingsoft2db
 
     ports:
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
 
     depends_on:
       postgres:
@@ -48,10 +48,10 @@ services:
     restart: unless-stopped
 
     environment:
-      DATABASE_URL: ${REMOTE_DATABASE_URL:?Set REMOTE_DATABASE_URL in .env}
+      DATABASE_URL: postgresql+psycopg2://ingsoft2:estoesunacontrasenia1234!@152.67.42.130:5432/ingsoft2db
 
     ports:
-      - "127.0.0.1:8001:8000"
+      - "8001:8000"
 
     volumes:
       - ./backend:/app
@@ -67,7 +67,7 @@ services:
       VITE_PROXY_TARGET: http://backend:8000
 
     ports:
-      - "127.0.0.1:5173:5173"
+      - "5173:5173"
 
     depends_on:
       - backend
@@ -86,7 +86,7 @@ services:
       VITE_PROXY_TARGET: http://backend-remote:8000
 
     ports:
-      - "127.0.0.1:5174:5173"
+      - "5174:5173"
 
     depends_on:
       - backend-remote
