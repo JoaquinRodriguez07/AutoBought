@@ -29,6 +29,7 @@ def list_parts(
     q: Optional[str] = Query(
         None,
         min_length=1,
+        max_length=100,
         description=(
             "Búsqueda en lenguaje natural (ej: 'pastillas de freno onix 2020'). "
             "Detecta pieza, marca, modelo y año y los devuelve en 'entities'. "

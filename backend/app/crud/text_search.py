@@ -16,6 +16,10 @@ STOPWORDS = {
     "a", "al", "con", "de", "del", "el", "en", "la", "las",
     "lo", "los", "para", "por", "un", "una", "y",
 }
+# Tope de palabras para buscar la pieza. Cada pedazo posible es una
+# consulta a la base: con n palabras son n*(n+1)/2 consultas, así que sin
+# tope un texto largo dispararía miles. 8 palabras = 36 como máximo.
+MAX_PART_WORDS = 8
 
 
 def normalize(text: str) -> str:
@@ -60,7 +64,7 @@ def _find_part(db: Session, text: str) -> str | None:
     Con "pastillas de freno para" prueba primero las 4 palabras juntas,
     después de a 3 ("pastillas de freno" coincide) y se queda con esa.
     """
-    words = text.split()
+    words = text.split()[:MAX_PART_WORDS]
     for length in range(len(words), 0, -1):
         for start in range(len(words) - length + 1):
             candidate = words[start : start + length]

@@ -88,3 +88,10 @@ def test_ignora_palabras_de_mas(client, db_session):
     assert response.json()["entities"]["part"] == "pastillas de freno"
     codes = [p["part_code"] for p in response.json()["parts"]]
     assert codes == ["BRK-0001"]
+
+def test_rechaza_busquedas_demasiado_largas(client, db_session):
+    make_catalog(db_session)
+
+    response = client.get("/api/v1/parts", params={"q": "a" * 101})
+
+    assert response.status_code == 422
