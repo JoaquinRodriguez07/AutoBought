@@ -278,3 +278,21 @@ export async function vaciarCarritoAPI() {
   });
   return mapearCarritoDetalle(data);
 }
+
+export async function obtenerMarcas() {
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/brands`,
+    "No pudimos cargar las marcas."
+  );
+
+  return data.brands || [];
+}
+
+export async function obtenerModelos(brand) {
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/models?brand=${encodeURIComponent(brand)}`,
+    "No pudimos cargar los modelos."
+  );
+
+  return data.models || [];
+}

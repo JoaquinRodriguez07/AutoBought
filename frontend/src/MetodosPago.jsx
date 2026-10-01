@@ -29,7 +29,6 @@ export default function MetodosPago({
     titular: "",
     numero: "",
     vencimiento: "",
-    cvv: "",
   });
 
   const guardarMetodos = (nuevosMetodos) => {
@@ -62,8 +61,7 @@ export default function MetodosPago({
     if (
       !formulario.titular ||
       !formulario.numero ||
-      !formulario.vencimiento ||
-      !formulario.cvv
+      !formulario.vencimiento
     ) {
       alert("Completá todos los campos.");
       return;
@@ -94,8 +92,7 @@ export default function MetodosPago({
       tipo: "Visa",
       titular: "",
       numero: "",
-      vencimiento: "",
-      cvv: "",
+      vencimiento: ""
     });
 
     setMostrarFormulario(false);
@@ -274,26 +271,10 @@ export default function MetodosPago({
                     />
                   </div>
 
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      CVV *
-                    </label>
-
-                    <input
-                      type="password"
-                      name="cvv"
-                      value={formulario.cvv}
-                      onChange={manejarCambio}
-                      placeholder="•••"
-                      maxLength={4}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
-                    />
-                  </div>
-
                 </div>
 
                 <p className="text-[8px] text-gray-400 mt-5">
-                  Por seguridad, el código CVV no se guarda.
+                Por seguridad, solo guardamos los últimos 4 dígitos de la tarjeta.
                 </p>
 
                 <div className="flex justify-end mt-5">

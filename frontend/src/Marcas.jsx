@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
+import { obtenerMarcas } from "./api";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
 import BMWLogo from "./assets/Logos Vehiculos/BMW.png";
@@ -57,22 +58,9 @@ export default function Marcas({
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    const apiBaseUrl =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1"
-        ? "http://127.0.0.1:8000"
-        : "";
-
-    fetch(`${apiBaseUrl}/api/v1/brands`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Error fetching brands");
-        }
-
-        return response.json();
-      })
+    obtenerMarcas()
       .then((data) => {
-        setMarcas(data.brands);
+        setMarcas(data);
         setLoading(false);
       })
       .catch((error) => {

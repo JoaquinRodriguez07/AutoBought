@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { obtenerMarcas } from "./api";
 
 function BrandDropdown({
   value,
@@ -8,16 +9,9 @@ function BrandDropdown({
   const [brands, setBrands] = useState([]);
 
   useEffect(() => {
-    fetch("/api/v1/brands")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Error fetching brands");
-        }
-
-        return response.json();
-      })
+    obtenerMarcas()
       .then((data) => {
-        setBrands(data.brands || []);
+        setBrands(data);
       })
       .catch((error) => {
         console.error("Error fetching brands:", error);
