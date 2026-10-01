@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { obtenerModelos } from "./api";
 
 function ModelDropdown({
   brand,
@@ -14,20 +15,9 @@ function ModelDropdown({
       return;
     }
 
-    fetch(
-      `http://127.0.0.1:8000/api/v1/models?brand=${encodeURIComponent(
-        brand
-      )}`
-    )
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Error fetching models");
-        }
-
-        return response.json();
-      })
+    obtenerModelos(brand)
       .then((data) => {
-        setModels(data.models || []);
+        setModels(data);
       })
       .catch((error) => {
         console.error("Error fetching models:", error);
