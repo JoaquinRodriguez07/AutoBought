@@ -480,3 +480,38 @@ export async function eliminarMetodoPagoAPI(id) {
     method: "DELETE",
   });
 }
+/* =====================================================
+   RECOMENDACIONES (HU 3.2)
+   ===================================================== */
+
+/**
+ * GET /api/v1/recommendations?part_ids=<id>,<id>
+ *
+ * Pide repuestos complementarios para los repuestos del carrito
+ * (HU 3.1, SCRUM-11). Devuelve los repuestos con el shape de la UI.
+ *
+ * Si el servicio falla o todavía no existe, devuelve una lista vacía:
+ * las sugerencias son un extra y el carrito tiene que verse igual
+ * aunque no carguen.
+ *
+ * @param {Array<number>} partIds - ids de los repuestos del carrito.
+ * @returns {Promise<Array<object>>}
+ */
+export async function obtenerRecomendaciones(partIds) {
+  const ids = (partIds || []).filter((id) => id !== undefined && id !== null);
+
+  if (ids.length === 0) return [];
+
+  const mensajeError = "No pudimos cargar las sugerencias.";
+
+  try {
+    const data = await pedirJson(
+      `${API_BASE_URL}/api/v1/recommendations?part_ids=${ids.join(",")}`,
+      mensajeError
+    );
+
+    return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+  } catch {
+    return [];
+  }
+}
