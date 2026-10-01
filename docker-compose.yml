@@ -2,14 +2,15 @@ services:
   postgres:
     image: postgres:17
     container_name: postgres
+    profiles: ["local"]
     restart: unless-stopped
 
     cpus: 2
 
     environment:
-      POSTGRES_USER: ingsoft2
-      POSTGRES_PASSWORD: estoesunacontrasenia1234!
-      POSTGRES_DB: ingsoft2db
+      POSTGRES_USER: ${LOCAL_DB_USER:-ingsoft2}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:?Falta LOCAL_DB_PASSWORD en el .env de la raíz (ver .env.example)}
+      POSTGRES_DB: ${LOCAL_DB_NAME:-ingsoft2db}
 
     ports:
       - "5432:5432"
@@ -18,7 +19,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ingsoft2 -d ingsoft2db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -26,11 +27,12 @@ services:
   backend:
     build: ./backend
     container_name: backend
+    profiles: ["local"]
     restart: unless-stopped
 
     environment:
-      DATABASE_URL: postgresql+psycopg2://ingsoft2:estoesunacontrasenia1234!@postgres:5432/ingsoft2db
-      SECRET_KEY: ML8fWNhyxXtHNrDW7PAxmIytND7xTJolZZZlb_zWeBo
+      DATABASE_URL: postgresql+psycopg2://${LOCAL_DB_USER:-ingsoft2}:${LOCAL_DB_PASSWORD}@${LOCAL_DB_HOST:-postgres}:${LOCAL_DB_PORT:-5432}/${LOCAL_DB_NAME:-ingsoft2db}
+      SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en el .env de la raíz (ver .env.example)}
 
     ports:
       - "8000:8000"
@@ -46,10 +48,12 @@ services:
   backend-remote:
     build: ./backend
     container_name: backend-remote
+    profiles: ["remoto"]
     restart: unless-stopped
 
     environment:
-      DATABASE_URL: postgresql+psycopg2://ingsoft2:estoesunacontrasenia1234!@152.67.42.130:5432/ingsoft2db
+      DATABASE_URL: postgresql+psycopg2://${REMOTE_DB_USER:-}:${REMOTE_DB_PASSWORD:-}@${REMOTE_DB_HOST:-}:${REMOTE_DB_PORT:-5432}/${REMOTE_DB_NAME:-ingsoft2db}
+      SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en el .env de la raíz (ver .env.example)}
 
     ports:
       - "8001:8000"
@@ -61,6 +65,7 @@ services:
   frontend:
     build: ./frontend
     container_name: frontend
+    profiles: ["local"]
     restart: unless-stopped
 
     environment:
@@ -80,6 +85,7 @@ services:
   frontend-remote:
     build: ./frontend
     container_name: frontend-remote
+    profiles: ["remoto"]
     restart: unless-stopped
 
     environment:
