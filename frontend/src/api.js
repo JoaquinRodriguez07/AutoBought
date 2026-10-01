@@ -297,6 +297,189 @@ export async function obtenerModelos(brand) {
   return data.models || [];
 }
 
+
+/* =====================================================
+   DIRECCIONES
+====================================================== */
+
+const MENSAJES_POR_STATUS_DIRECCIONES = {
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  403: "Esta acción requiere una cuenta de cliente.",
+  404: "No encontramos esa dirección.",
+  422: "Revisá los datos de la dirección.",
+};
+
+const MENSAJES_POR_STATUS_METODOS_PAGO = {
+  ...MENSAJES_POR_STATUS_DIRECCIONES,
+  404: "No encontramos ese método de pago.",
+  422: "Revisá los datos de la tarjeta.",
+};
+
+function pedirDirecciones(url, options = {}) {
+  return pedirCuentaCliente(
+    url,
+    options,
+    MENSAJES_POR_STATUS_DIRECCIONES,
+    "No pudimos actualizar las direcciones."
+  );
+}
+
+function pedirMetodosPago(url, options = {}) {
+  return pedirCuentaCliente(
+    url,
+    options,
+    MENSAJES_POR_STATUS_METODOS_PAGO,
+    "No pudimos actualizar los métodos de pago."
+  );
+}
+
+async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGenerico) {
+  const sesion = obtenerSesion();
+
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(sesion?.token ? { Authorization: `Bearer ${sesion.token}` } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  const data = response.status === 204 ? null : await leerJson(response);
+
+  if (!response.ok) {
+    const detalle =
+      data !== SIN_JSON && typeof data?.detail === "string"
+        ? data.detail
+        : null;
+
+    const error = new Error(
+      detalle || mensajesPorStatus[response.status] || mensajeGenerico
+    );
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data === SIN_JSON) {
+    throw new Error("No pudimos leer la respuesta del servidor.");
+  }
+
+  return data;
+}
+
+function mapearDireccion(d) {
+  return {
+    id: d.shipping_address_id,
+    nombre: d.personal_name,
+    calle: d.street,
+    numero: d.number,
+    apartamento: d.apartment ?? "",
+    ciudad: d.city,
+    departamento: d.department,
+    codigoPostal: d.postal_code ?? "",
+    principal: d.is_primary,
+  };
+}
+
+/** GET /api/v1/addresses */
+export async function obtenerDirecciones() {
+  const data = await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses`);
+  return data.map(mapearDireccion);
+}
+
+/** POST /api/v1/addresses */
+export async function crearDireccion(f) {
+  const data = await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses`, {
+    method: "POST",
+    body: JSON.stringify({
+      personal_name: f.nombre,
+      street: f.calle,
+      number: f.numero,
+      apartment: f.apartamento || null,
+      city: f.ciudad,
+      department: f.departamento,
+      postal_code: f.codigoPostal || null,
+      is_primary: Boolean(f.principal),
+    }),
+  });
+  return mapearDireccion(data);
+}
+
+/** PATCH /api/v1/addresses/{id}/primary */
+export async function marcarDireccionPrincipal(id) {
+  const data = await pedirDirecciones(
+    `${API_BASE_URL}/api/v1/addresses/${id}/primary`,
+    { method: "PATCH" }
+  );
+  return mapearDireccion(data);
+}
+
+/** DELETE /api/v1/addresses/{id} */
+export async function eliminarDireccionAPI(id) {
+  await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses/${id}`, {
+    method: "DELETE",
+  });
+}
+
+
+/* =====================================================
+   MÉTODOS DE PAGO
+   Solo se envían los últimos 4 dígitos: el número completo
+   y el CVV nunca salen del navegador.
+====================================================== */
+
+function mapearMetodoPago(m) {
+  return {
+    id: m.payment_method_id,
+    tipo: m.card_type,
+    titular: m.holder,
+    numero: m.last_four,
+    vencimiento: m.expiry,
+    principal: m.is_primary,
+  };
+}
+
+/** GET /api/v1/payment-methods */
+export async function obtenerMetodosPago() {
+  const data = await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods`);
+  return data.map(mapearMetodoPago);
+}
+
+/** POST /api/v1/payment-methods */
+export async function crearMetodoPago(f) {
+  const data = await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods`, {
+    method: "POST",
+    body: JSON.stringify({
+      card_type: f.tipo,
+      holder: f.titular,
+      last_four: f.numero.replace(/\D/g, "").slice(-4),
+      expiry: f.vencimiento,
+      is_primary: Boolean(f.principal),
+    }),
+  });
+  return mapearMetodoPago(data);
+}
+
+/** PATCH /api/v1/payment-methods/{id}/primary */
+export async function marcarMetodoPagoPrincipal(id) {
+  const data = await pedirMetodosPago(
+    `${API_BASE_URL}/api/v1/payment-methods/${id}/primary`,
+    { method: "PATCH" }
+  );
+  return mapearMetodoPago(data);
+}
+
+/** DELETE /api/v1/payment-methods/{id} */
+export async function eliminarMetodoPagoAPI(id) {
+  await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods/${id}`, {
+    method: "DELETE",
+  });
+}
 /* =====================================================
    RECOMENDACIONES (HU 3.2)
    ===================================================== */

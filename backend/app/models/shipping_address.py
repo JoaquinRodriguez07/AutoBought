@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, false
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -9,6 +9,13 @@ class ShippingAddress(Base):
 
     shipping_address_id = Column(Integer, primary_key=True)
     client_id = Column(Integer, ForeignKey("client.user_id"), nullable=False)
-    address = Column(String(255), nullable=False)
+    personal_name = Column(String(50), nullable=False)
+    street = Column(String(50), nullable=False)
+    city = Column(String(50), nullable=False)
+    number = Column(String(10), nullable=False)
+    apartment = Column(String(10))
+    department = Column(String(50), nullable=False)
+    postal_code = Column(String(10))
+    is_primary = Column(Boolean, nullable=False, default=False, server_default=false())
 
     client = relationship("Client", back_populates="shipping_addresses")

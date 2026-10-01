@@ -1,5 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
+import {
+  obtenerMetodosPago,
+  crearMetodoPago,
+  marcarMetodoPagoPrincipal,
+  eliminarMetodoPagoAPI,
+} from "./api";
+
+const FORMULARIO_VACIO = {
+  tipo: "Visa",
+  titular: "",
+  numero: "",
+  vencimiento: "",
+  principal: false,
+};
 
 export default function MetodosPago({
   onHome,
@@ -12,40 +26,25 @@ export default function MetodosPago({
   cantidadFavoritos = 0,
   onPerfil,
 }) {
-  const [metodos, setMetodos] = useState(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem("autobought-metodos-pago")
-      ) || [];
-    } catch {
-      return [];
-    }
-  });
-
+  const [metodos, setMetodos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [formulario, setFormulario] = useState(FORMULARIO_VACIO);
 
-  const [formulario, setFormulario] = useState({
-    tipo: "Visa",
-    titular: "",
-    numero: "",
-    vencimiento: "",
-  });
-
-  const guardarMetodos = (nuevosMetodos) => {
-    setMetodos(nuevosMetodos);
-
-    localStorage.setItem(
-      "autobought-metodos-pago",
-      JSON.stringify(nuevosMetodos)
-    );
-  };
+  useEffect(() => {
+    obtenerMetodosPago()
+      .then(setMetodos)
+      .catch((e) => setError(e.message))
+      .finally(() => setCargando(false));
+  }, []);
 
   const manejarCambio = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
 
     setFormulario((actual) => ({
       ...actual,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -55,7 +54,7 @@ export default function MetodosPago({
     return limpio.replace(/(.{4})/g, "$1 ").trim();
   };
 
-  const agregarMetodo = (e) => {
+  const agregarMetodo = async (e) => {
     e.preventDefault();
 
     if (
@@ -67,54 +66,43 @@ export default function MetodosPago({
       return;
     }
 
-    const numeroLimpio = formulario.numero.replace(/\D/g, "");
-
-    if (numeroLimpio.length < 13) {
+    if (formulario.numero.replace(/\D/g, "").length < 13) {
       alert("Ingresá un número de tarjeta válido.");
       return;
     }
 
-    const nuevoMetodo = {
-      id: Date.now(),
-      tipo: formulario.tipo,
-      titular: formulario.titular,
-      numero: numeroLimpio.slice(-4),
-      vencimiento: formulario.vencimiento,
-      principal: metodos.length === 0,
-    };
+    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(formulario.vencimiento)) {
+      alert("El vencimiento debe tener el formato MM/AA.");
+      return;
+    }
 
-    guardarMetodos([
-      ...metodos,
-      nuevoMetodo,
-    ]);
-
-    setFormulario({
-      tipo: "Visa",
-      titular: "",
-      numero: "",
-      vencimiento: ""
-    });
-
-    setMostrarFormulario(false);
+    try {
+      await crearMetodoPago(formulario);
+      setMetodos(await obtenerMetodosPago());
+      setError("");
+      setFormulario(FORMULARIO_VACIO);
+      setMostrarFormulario(false);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const eliminarMetodo = (id) => {
-    const nuevosMetodos = metodos.filter(
-      (metodo) => metodo.id !== id
-    );
-
-    guardarMetodos(nuevosMetodos);
+  const eliminarMetodo = async (id) => {
+    try {
+      await eliminarMetodoPagoAPI(id);
+      setMetodos(await obtenerMetodosPago());
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const marcarPrincipal = (id) => {
-    const nuevosMetodos = metodos.map(
-      (metodo) => ({
-        ...metodo,
-        principal: metodo.id === id,
-      })
-    );
-
-    guardarMetodos(nuevosMetodos);
+  const marcarPrincipal = async (id) => {
+    try {
+      await marcarMetodoPagoPrincipal(id);
+      setMetodos(await obtenerMetodosPago());
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (
@@ -273,6 +261,17 @@ export default function MetodosPago({
 
                 </div>
 
+                <label className="flex items-center gap-2 mt-5 text-[9px] font-bold text-gray-500 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="principal"
+                    checked={formulario.principal}
+                    onChange={manejarCambio}
+                    className="accent-orange-500"
+                  />
+                  MARCAR COMO MÉTODO PRINCIPAL
+                </label>
+
                 <p className="text-[8px] text-gray-400 mt-5">
                 Por seguridad, solo guardamos los últimos 4 dígitos de la tarjeta.
                 </p>
@@ -293,7 +292,19 @@ export default function MetodosPago({
 
             {/* TARJETAS */}
 
-            {metodos.length === 0 ? (
+            {cargando ? (
+
+              <p className="text-center text-gray-400 text-sm py-16">
+                Cargando…
+              </p>
+
+            ) : error ? (
+
+              <p className="text-center text-red-500 text-sm py-16">
+                {error}
+              </p>
+
+            ) : metodos.length === 0 ? (
 
               <div className="text-center py-16">
 
