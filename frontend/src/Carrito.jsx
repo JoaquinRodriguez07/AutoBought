@@ -95,8 +95,7 @@ export default function Carrito({
                 );
                 
               })}
-                            <SugerenciasCarrito />
-
+              <SugerenciasCarrito />
             </div>
             
  
