@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, false
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, false, text
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -17,5 +17,16 @@ class ShippingAddress(Base):
     department = Column(String(50), nullable=False)
     postal_code = Column(String(10))
     is_primary = Column(Boolean, nullable=False, default=False, server_default=false())
+
+    # Como mucho una fila principal por cliente (también ante requests concurrentes).
+    __table_args__ = (
+        Index(
+            "uq_shipping_address_one_primary",
+            "client_id",
+            unique=True,
+            postgresql_where=text("is_primary"),
+            sqlite_where=text("is_primary"),
+        ),
+    )
 
     client = relationship("Client", back_populates="shipping_addresses")
