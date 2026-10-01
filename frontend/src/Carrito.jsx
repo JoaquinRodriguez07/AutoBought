@@ -1,5 +1,7 @@
 import Navbar from "./Navbar";
 import { useCart } from "./context/CartContext";
+import SugerenciasCarrito from "./SugerenciasCarrito";
+
 
 export default function Carrito({
   onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
@@ -91,9 +93,12 @@ export default function Carrito({
                     </button>
                   </div>
                 );
+                
               })}
+              <SugerenciasCarrito />
             </div>
-
+            
+ 
             <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit shadow-sm">
               <h2 className="text-[13px] font-black">Resumen del pedido</h2>
               <div className="mt-6 space-y-4">
