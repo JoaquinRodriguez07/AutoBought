@@ -296,3 +296,110 @@ export async function obtenerModelos(brand) {
 
   return data.models || [];
 }
+
+
+/* =====================================================
+   DIRECCIONES
+====================================================== */
+
+const MENSAJES_POR_STATUS_DIRECCIONES = {
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  403: "Esta acción requiere una cuenta de cliente.",
+  404: "No encontramos esa dirección.",
+  422: "Revisá los datos de la dirección.",
+};
+
+async function pedirDirecciones(url, options = {}) {
+  const sesion = obtenerSesion();
+
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(sesion?.token ? { Authorization: `Bearer ${sesion.token}` } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  const data = response.status === 204 ? null : await leerJson(response);
+
+  if (!response.ok) {
+    const detalle =
+      data !== SIN_JSON && typeof data?.detail === "string"
+        ? data.detail
+        : null;
+
+    const error = new Error(
+      detalle ||
+        MENSAJES_POR_STATUS_DIRECCIONES[response.status] ||
+        "No pudimos actualizar las direcciones."
+    );
+    error.status = response.status;
+    throw error;
+  }
+
+  if (data === SIN_JSON) {
+    throw new Error("No pudimos leer la respuesta del servidor.");
+  }
+
+  return data;
+}
+
+function mapearDireccion(d) {
+  return {
+    id: d.shipping_address_id,
+    nombre: d.personal_name,
+    calle: d.street,
+    numero: d.number,
+    apartamento: d.apartment ?? "",
+    ciudad: d.city,
+    departamento: d.department,
+    codigoPostal: d.postal_code ?? "",
+    principal: d.is_primary,
+  };
+}
+
+/** GET /api/v1/addresses */
+export async function obtenerDirecciones() {
+  const data = await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses`);
+  return data.map(mapearDireccion);
+}
+
+/** POST /api/v1/addresses */
+export async function crearDireccion(f) {
+  const data = await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses`, {
+    method: "POST",
+    body: JSON.stringify({
+      personal_name: f.nombre,
+      street: f.calle,
+      number: f.numero,
+      apartment: f.apartamento || null,
+      city: f.ciudad,
+      department: f.departamento,
+      postal_code: f.codigoPostal || null,
+      is_primary: Boolean(f.principal),
+    }),
+  });
+  return mapearDireccion(data);
+}
+
+/** PATCH /api/v1/addresses/{id}/primary */
+export async function marcarDireccionPrincipal(id) {
+  const data = await pedirDirecciones(
+    `${API_BASE_URL}/api/v1/addresses/${id}/primary`,
+    { method: "PATCH" }
+  );
+  return mapearDireccion(data);
+}
+
+/** DELETE /api/v1/addresses/{id} */
+export async function eliminarDireccionAPI(id) {
+  await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses/${id}`, {
+    method: "DELETE",
+  });
+}

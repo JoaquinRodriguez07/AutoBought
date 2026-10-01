@@ -19,6 +19,14 @@ def create_address(body: ShippingAddressCreate, db: Session = Depends(get_db), c
     return crud_address.create_address(db, client.user_id, body)
 
 
+@router.patch("/{shipping_address_id}/primary", response_model=ShippingAddressOut)
+def set_primary_address(shipping_address_id: int, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
+    address = crud_address.set_primary(db, client.user_id, shipping_address_id)
+    if address is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dirección no encontrada.")
+    return address
+
+
 @router.delete("/{shipping_address_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_address(shipping_address_id: int, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
     eliminada = crud_address.delete_address(db, client.user_id, shipping_address_id)

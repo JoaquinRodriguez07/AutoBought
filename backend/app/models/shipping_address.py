@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, false
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -16,5 +16,6 @@ class ShippingAddress(Base):
     apartment = Column(String(10))
     department = Column(String(50), nullable=False)
     postal_code = Column(String(10))
+    is_primary = Column(Boolean, nullable=False, default=False, server_default=false())
 
     client = relationship("Client", back_populates="shipping_addresses")

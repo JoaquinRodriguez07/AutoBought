@@ -30,6 +30,7 @@ class ShippingAddressCreate(BaseModel):
     city: str = Field(min_length=1, max_length=50)
     department: Department
     postal_code: str | None = Field(default=None, max_length=10)
+    is_primary: bool = False
 
 
 class ShippingAddressOut(BaseModel):
@@ -44,3 +45,4 @@ class ShippingAddressOut(BaseModel):
     city: str
     department: str
     postal_code: str | None
+    is_primary: bool
