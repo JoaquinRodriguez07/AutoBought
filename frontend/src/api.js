@@ -309,7 +309,31 @@ const MENSAJES_POR_STATUS_DIRECCIONES = {
   422: "Revisá los datos de la dirección.",
 };
 
-async function pedirDirecciones(url, options = {}) {
+const MENSAJES_POR_STATUS_METODOS_PAGO = {
+  ...MENSAJES_POR_STATUS_DIRECCIONES,
+  404: "No encontramos ese método de pago.",
+  422: "Revisá los datos de la tarjeta.",
+};
+
+function pedirDirecciones(url, options = {}) {
+  return pedirCuentaCliente(
+    url,
+    options,
+    MENSAJES_POR_STATUS_DIRECCIONES,
+    "No pudimos actualizar las direcciones."
+  );
+}
+
+function pedirMetodosPago(url, options = {}) {
+  return pedirCuentaCliente(
+    url,
+    options,
+    MENSAJES_POR_STATUS_METODOS_PAGO,
+    "No pudimos actualizar los métodos de pago."
+  );
+}
+
+async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGenerico) {
   const sesion = obtenerSesion();
 
   let response;
@@ -335,9 +359,7 @@ async function pedirDirecciones(url, options = {}) {
         : null;
 
     const error = new Error(
-      detalle ||
-        MENSAJES_POR_STATUS_DIRECCIONES[response.status] ||
-        "No pudimos actualizar las direcciones."
+      detalle || mensajesPorStatus[response.status] || mensajeGenerico
     );
     error.status = response.status;
     throw error;
@@ -400,6 +422,61 @@ export async function marcarDireccionPrincipal(id) {
 /** DELETE /api/v1/addresses/{id} */
 export async function eliminarDireccionAPI(id) {
   await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses/${id}`, {
+    method: "DELETE",
+  });
+}
+
+
+/* =====================================================
+   MÉTODOS DE PAGO
+   Solo se envían los últimos 4 dígitos: el número completo
+   y el CVV nunca salen del navegador.
+====================================================== */
+
+function mapearMetodoPago(m) {
+  return {
+    id: m.payment_method_id,
+    tipo: m.card_type,
+    titular: m.holder,
+    numero: m.last_four,
+    vencimiento: m.expiry,
+    principal: m.is_primary,
+  };
+}
+
+/** GET /api/v1/payment-methods */
+export async function obtenerMetodosPago() {
+  const data = await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods`);
+  return data.map(mapearMetodoPago);
+}
+
+/** POST /api/v1/payment-methods */
+export async function crearMetodoPago(f) {
+  const data = await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods`, {
+    method: "POST",
+    body: JSON.stringify({
+      card_type: f.tipo,
+      holder: f.titular,
+      last_four: f.numero.replace(/\D/g, "").slice(-4),
+      expiry: f.vencimiento,
+      is_primary: Boolean(f.principal),
+    }),
+  });
+  return mapearMetodoPago(data);
+}
+
+/** PATCH /api/v1/payment-methods/{id}/primary */
+export async function marcarMetodoPagoPrincipal(id) {
+  const data = await pedirMetodosPago(
+    `${API_BASE_URL}/api/v1/payment-methods/${id}/primary`,
+    { method: "PATCH" }
+  );
+  return mapearMetodoPago(data);
+}
+
+/** DELETE /api/v1/payment-methods/{id} */
+export async function eliminarMetodoPagoAPI(id) {
+  await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods/${id}`, {
     method: "DELETE",
   });
 }
