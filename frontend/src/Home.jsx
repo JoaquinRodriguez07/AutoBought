@@ -64,6 +64,10 @@ export default function Home({
   const [years, setYears] = useState([]);
   const [loadingYears, setLoadingYears] = useState(false);
 
+  // Se activa cuando el usuario toca el botón del hero con un borrador
+  // incompleto y un vehículo activo (ver `avisoHero`).
+  const [intentoHero, setIntentoHero] = useState(false);
+
   // ==========================================
   // SINCRONIZAR CON EL VEHÍCULO ACTIVO
   // ==========================================
@@ -106,12 +110,20 @@ export default function Home({
     selectedBrand && selectedModel && selectedYear
   );
 
+  // Hay un vehículo activo y el borrador quedó incompleto: abrir el
+  // catálogo mostraría el vehículo anterior, no lo que se ve en Home.
+  // Se deriva del estado, así que desaparece solo al completar el borrador.
+  const avisoHero =
+    intentoHero && Boolean(vehiculoActivo) && !puedeBuscar;
+
   const hayAlgoParaBorrar = Boolean(
     selectedBrand || selectedModel || selectedYear || vehiculoActivo
   );
 
   const buscarRepuestos = () => {
     if (!puedeBuscar) return;
+
+    setIntentoHero(false);
 
     activarVehiculo({
       brand: selectedBrand,
@@ -123,10 +135,14 @@ export default function Home({
   };
 
   // El botón grande del hero aplica el vehículo si la selección está
-  // completa; si no, simplemente abre el catálogo tal como esté.
+  // completa. Si hay un vehículo activo y el borrador está incompleto NO
+  // navega (el catálogo abriría con el vehículo anterior) y avisa. Sin
+  // vehículo activo, abre el catálogo completo como siempre.
   const buscarDesdeHero = () => {
     if (puedeBuscar) {
       buscarRepuestos();
+    } else if (vehiculoActivo) {
+      setIntentoHero(true);
     } else {
       onCatalogo();
     }
@@ -139,6 +155,7 @@ export default function Home({
     setSelectedModel("");
     setSelectedYear("");
     setYears([]);
+    setIntentoHero(false);
     limpiarVehiculo();
   };
 
@@ -367,6 +384,16 @@ export default function Home({
             >
               BUSCAR REPUESTOS →
             </button>
+
+            {avisoHero && (
+              <p
+                role="alert"
+                className="mt-3 text-[11px] text-orange-300 max-w-[540px]"
+              >
+                Completá marca, modelo y año para cambiar de vehículo, o
+                usá "Borrar filtros" para ver todo el catálogo.
+              </p>
+            )}
 
           </div>
 
