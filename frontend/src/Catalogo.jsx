@@ -58,12 +58,7 @@ export default function Catalogo({
   );
 
   const [orden, setOrden] = useState("Más relevantes");
-  // `busqueda` es lo que hay escrito en el input; NO dispara nada.
-  // `terminoBuscado` es lo que se ejecutó con Enter / botón de buscar:
-  // recién ese valor viaja a la API como `search`, junto con los filtros
-  // de categoría y vehículo que ya estén activos.
   const [busqueda, setBusqueda] = useState("");
-  const [terminoBuscado, setTerminoBuscado] = useState("");
   const [cantidades, setCantidades] = useState({});
 
   // ==========================================
@@ -83,7 +78,7 @@ export default function Catalogo({
   const claveVehiculo = `${vehiculoActivo?.brand ?? ""}|${
     vehiculoActivo?.model ?? ""
   }|${vehiculoActivo?.year ?? ""}`;
-  const clavePedido = `${reintento}|${categoria ?? ""}|${claveVehiculo}|${terminoBuscado}`;
+  const clavePedido = `${reintento}|${categoria ?? ""}|${claveVehiculo}`;
 
   const [respuesta, setRespuesta] = useState({
     clave: null,
@@ -123,13 +118,12 @@ export default function Catalogo({
   // ==========================================
   // CARGAR REPUESTOS
   // ==========================================
-  // Categoría, vehículo (marca, modelo, año) y texto de búsqueda son
-  // filtros del servidor y se ACUMULAN en un mismo pedido, ej:
-  // GET /api/v1/parts?categoria=Frenos&brand=Ford&model=Fiesta&year=2018&search=filtro
+  // Categoría y vehículo (marca, modelo, año) son filtros del servidor y
+  // se ACUMULAN en un mismo pedido, ej:
+  // GET /api/v1/parts?categoria=Frenos&brand=Ford&model=Fiesta&year=2018
   // El vehículo solo cambia al confirmarlo con "Buscar Repuestos" (no al
-  // mover un dropdown) y el texto solo al ejecutar la búsqueda (no al
-  // tipear). `activo` descarta respuestas viejas si el usuario cambia de
-  // filtro antes de que llegue la anterior.
+  // mover un dropdown). `activo` descarta respuestas viejas si el
+  // usuario cambia de filtro antes de que llegue la anterior.
 
   useEffect(() => {
     let activo = true;
@@ -139,7 +133,6 @@ export default function Catalogo({
       brand: vehiculoActivo?.brand || undefined,
       model: vehiculoActivo?.model || undefined,
       year: vehiculoActivo?.year || undefined,
-      search: terminoBuscado || undefined,
     })
       .then((lista) => {
         if (!activo) return;
@@ -161,7 +154,7 @@ export default function Catalogo({
     return () => {
       activo = false;
     };
-  }, [categoria, terminoBuscado, vehiculoActivo, clavePedido]);
+  }, [categoria, vehiculoActivo, clavePedido]);
 
   // ==========================================
   // CARGAR CATEGORÍAS
@@ -200,27 +193,26 @@ export default function Catalogo({
   // ==========================================
   // PRODUCTOS MOSTRADOS
   // ==========================================
-  // Categoría, vehículo y búsqueda por texto ya vienen filtrados por el
-  // backend, así que NO se le pasan a filtrarRepuestos: acá solo queda
-  // el orden, que sigue siendo del lado del cliente.
+  // Categoría y vehículo ya vienen filtrados por el backend. La búsqueda
+  // por texto (nombre, código, marcas compatibles y categoría) y el orden
+  // se resuelven en el navegador con filtrarRepuestos, en vivo mientras
+  // se escribe.
 
   const productosMostrados = useMemo(
-    () => filtrarRepuestos(productos, { orden }),
-    [productos, orden]
+    () => filtrarRepuestos(productos, { busqueda, orden }),
+    [productos, busqueda, orden]
   );
 
   // ==========================================
   // LIMPIAR FILTROS
   // ==========================================
-  // Sin categoría ni búsqueda, el efecto de arriba vuelve a pedir
-  // GET /api/v1/parts sin esos parámetros (el vehículo, si hay uno
-  // activo, se mantiene: "Limpiar filtros" es solo de categoría y
-  // búsqueda; el vehículo se quita desde el banner).
+  // Sin categoría, el efecto de arriba vuelve a pedir GET /api/v1/parts
+  // sin ese parámetro (el vehículo, si hay uno activo, se mantiene:
+  // "Limpiar filtros" es solo de categoría y búsqueda; el vehículo se
+  // quita desde el banner).
 
   const hayFiltros =
-    Boolean(categoria) ||
-    Boolean(terminoBuscado) ||
-    Boolean(busqueda.trim());
+    Boolean(categoria) || Boolean(busqueda.trim());
 
   // La categoría vive en dos lados: acá y en App (`categoriaCatalogo`,
   // que es lo que vuelve como `categoriaInicial` al entrar de nuevo al
@@ -234,7 +226,6 @@ export default function Catalogo({
   const limpiarFiltros = () => {
     cambiarCategoria(null);
     setBusqueda("");
-    setTerminoBuscado("");
   };
 
   // "Borrar filtros" del banner: quita el vehículo activo Y el resto de
@@ -339,15 +330,12 @@ export default function Catalogo({
             )}
 
             {/* BUSCADOR */}
-            {/* Escribir solo actualiza el input; la API se consulta al
-                presionar Enter o el botón de buscar (o al limpiar). */}
 
             <div className="mt-5">
 
               <SearchBar
                 value={busqueda}
                 onChange={setBusqueda}
-                onSubmit={(texto) => setTerminoBuscado(texto.trim())}
                 placeholder="Buscar repuesto por nombre o código..."
                 className="lg:max-w-[475px]"
               />
@@ -767,8 +755,8 @@ export default function Catalogo({
                   productos cargados), se muestra un mensaje genérico. */}
 
               {!cargando && !error && productosMostrados.length === 0 && (
-                terminoBuscado ? (
-                  <SinResultadosBusqueda termino={terminoBuscado} />
+                busqueda.trim() ? (
+                  <SinResultadosBusqueda termino={busqueda.trim()} />
                 ) : (
                   <div className="py-20 text-center text-gray-400 text-sm">
                     {categoria
