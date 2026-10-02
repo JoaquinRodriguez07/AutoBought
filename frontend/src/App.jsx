@@ -27,12 +27,6 @@ function App() {
   const [categoriaCatalogo, setCategoriaCatalogo] =
     useState(null);
 
-  const [filtrosVehiculo, setFiltrosVehiculo] = useState({
-    brand: "",
-    model: "",
-    year: "",
-  });
-
   const [productoSeleccionado, setProductoSeleccionado] =
     useState(null);
 
@@ -165,22 +159,12 @@ function App() {
      (antes: setPagina("x") — ahora: navigate("/x"))
   ====================================================== */
 
-  const irAlCatalogo = (
-    categoria = null,
-    vehiculo = null
-  ) => {
+  // El Vehículo Activo vive en VehicleContext y NO se toca acá: ir al
+  // catálogo (desde el navbar, el carrito, el detalle...) mantiene el
+  // auto que el cliente ya había confirmado. Se quita solo con
+  // "Borrar filtros" (ver Home y Catalogo).
+  const irAlCatalogo = (categoria = null) => {
     setCategoriaCatalogo(categoria);
-
-    if (vehiculo) {
-      setFiltrosVehiculo(vehiculo);
-    } else {
-      setFiltrosVehiculo({
-        brand: "",
-        model: "",
-        year: "",
-      });
-    }
-
     navigate("/catalogo");
   };
 
@@ -364,10 +348,7 @@ function App() {
       <Route
         path="/"
         element={
-          <Home
-            {...propsNavbar}
-            filtrosVehiculo={filtrosVehiculo}
-          />
+          <Home {...propsNavbar} />
         }
       />
 
@@ -424,7 +405,6 @@ function App() {
             {...propsNavbar}
             onDetalle={irAlDetalle}
             categoriaInicial={categoriaCatalogo}
-            filtrosVehiculo={filtrosVehiculo}
             onCategoriaSeleccionada={setCategoriaCatalogo}
             favoritos={favoritos}
             onAlternarFavorito={alternarFavorito}
@@ -441,7 +421,6 @@ function App() {
             onDetalle={irAlDetalle}
             onCatalogo={irAlCatalogo}
             producto={productoSeleccionado}
-            filtrosVehiculo={filtrosVehiculo}
             onAlternarFavorito={alternarFavorito}
             esFavorito={esFavorito}
           />
