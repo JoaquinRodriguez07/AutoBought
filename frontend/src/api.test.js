@@ -49,6 +49,15 @@ const uiPart = {
   imagen: IMAGEN_PLACEHOLDER,
 };
 
+/**
+ * Creates a fetch response stub with a resolving or rejecting JSON mock.
+ * @param {*} data - Value resolved by json() when no jsonError is supplied.
+ * @param {Object} [options={}] - Response metadata and JSON failure overrides.
+ * @param {number} [options.status=200] - HTTP status code.
+ * @param {boolean} [options.ok=true] - Success flag, independent of status.
+ * @param {Error} [options.jsonError] - Truthy error that makes json() reject.
+ * @returns {{ok: boolean, status: number, json: Function}} Fetch response stub.
+ */
 function response(data, { status = 200, ok = true, jsonError } = {}) {
   return {
     ok,

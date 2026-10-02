@@ -142,6 +142,13 @@ const startClientSession = () => {
   );
 };
 
+/**
+ * Renders test UI inside a memory router and cart provider.
+ * @param {import("react").ReactNode} ui - UI to render with the shared providers.
+ * @param {import("@testing-library/react").RenderOptions} [options] - Options
+ * forwarded to React Testing Library's render function.
+ * @returns {import("@testing-library/react").RenderResult} Queries and render utilities.
+ */
 function render(ui, options) {
   return renderBase(
     <MemoryRouter>
