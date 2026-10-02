@@ -319,12 +319,14 @@ export default function Catalogo({
                   </span>
 
                   <p className="text-[14px] font-black">
-                    {filtrosVehiculo?.brand && filtrosVehiculo?.model
-                      ? `${filtrosVehiculo.brand} ${filtrosVehiculo.model}${
-                          filtrosVehiculo.year
-                            ? ` ${filtrosVehiculo.year}`
-                            : ""
-                        }`
+                    {filtrosVehiculo?.brand
+                      ? [
+                          filtrosVehiculo.brand,
+                          filtrosVehiculo.model,
+                          filtrosVehiculo.year,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")
                       : "Sin vehículo seleccionado"}
                   </p>
 
