@@ -1,5 +1,6 @@
 import { mapearCategoria, mapearItemCarrito, mapearRepuesto } from "./mapearRepuesto";
 import { obtenerSesion } from "./auth";
+import { formatearTelefonoUY } from "./telefono";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
@@ -22,6 +23,100 @@ export async function login(email, password) {
   }
 
   return data;
+}
+
+/**
+ * POST /api/v1/auth/register
+ *
+ * El formulario pide nombre y apellido por separado, pero el backend
+ * guarda un único `name`: se envían unidos. El teléfono viaja como `phone`.
+ *
+ * 201 devuelve el mismo `{ access_token, token_type }` que el login,
+ * para dejar la sesión iniciada. 409 = correo ya registrado.
+ */
+export async function registrar({ nombre, apellido, email, telefono, password }) {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `${nombre} ${apellido}`.trim(),
+        email,
+        phone: telefono || null,
+        password,
+      }),
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    // 409 trae `detail` como string; 422 trae una lista de errores de
+    // validación que no sirve para mostrar tal cual.
+    const mensaje =
+      typeof data?.detail === "string"
+        ? data.detail
+        : response.status === 422
+          ? "Revisá los datos ingresados."
+          : "No pudimos crear tu cuenta. Intentá de nuevo.";
+    throw new Error(mensaje);
+  }
+
+  if (!data?.access_token) {
+    throw new Error("No pudimos crear tu cuenta. Intentá de nuevo.");
+  }
+
+  return data;
+}
+
+/**
+ * GET /api/v1/auth/me
+ *
+ * Perfil del cliente dueño del token. Recibe el token por parámetro (y
+ * no de la sesión guardada) porque se usa justo después del login o del
+ * registro, antes de que la sesión se persista.
+ *
+ * Devuelve el shape de la sesión de la UI. El backend guarda un único
+ * `name` (nombre + apellido), por eso `apellido` queda vacío: Navbar y
+ * Perfil muestran `nombre` + `apellido`, así que se ve igual.
+ */
+export async function obtenerPerfil(token) {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok || !data) {
+    throw new Error("No pudimos cargar tu perfil.");
+  }
+
+  return {
+    nombre: data.name,
+    apellido: "",
+    email: data.email,
+    telefono: formatearTelefonoUY(data.phone),
+  };
 }
 
 /* =====================================================

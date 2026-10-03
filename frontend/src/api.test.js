@@ -19,8 +19,10 @@ import {
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
+  obtenerPerfil,
   obtenerRecomendaciones,
   obtenerRepuestos,
+  registrar,
   vaciarCarritoAPI,
 } from "./api";
 import { obtenerSesion } from "./auth";
@@ -97,6 +99,79 @@ describe("login", () => {
     await expect(login("user@example.com", "bad")).rejects.toThrow(
       "Correo electrónico o contraseña incorrectos."
     );
+  });
+});
+
+describe("registrar", () => {
+  const datos = { nombre: "Lucia", apellido: "Gomez", email: "lucia@example.com", telefono: "099123456", password: "secreto123" };
+
+  it("posts the data with name and surname joined, the phone, and returns the token", async () => {
+    const data = { access_token: "token", token_type: "bearer" };
+    fetch.mockResolvedValue(response(data, { status: 201 }));
+
+    await expect(registrar(datos)).resolves.toEqual(data);
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Lucia Gomez",
+        email: "lucia@example.com",
+        phone: "099123456",
+        password: "secreto123",
+      }),
+    });
+  });
+
+  it("surfaces the 409 message, and a generic one for 422 lists or other errors", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "El correo ya está en uso." }, { ok: false, status: 409 }))
+      .mockResolvedValueOnce(response({ detail: [{ msg: "x" }] }, { ok: false, status: 422 }))
+      .mockResolvedValueOnce(response({}, { ok: false, status: 500 }));
+
+    await expect(registrar(datos)).rejects.toThrow("El correo ya está en uso.");
+    await expect(registrar(datos)).rejects.toThrow("Revisá los datos ingresados.");
+    await expect(registrar(datos)).rejects.toThrow("No pudimos crear tu cuenta. Intentá de nuevo.");
+  });
+
+  it("translates a network failure", async () => {
+    fetch.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await expect(registrar(datos)).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("obtenerPerfil", () => {
+  it("sends the given token and maps the profile to the session shape", async () => {
+    fetch.mockResolvedValue(
+      response({ user_id: 7, name: "Lucia Gomez", email: "lucia@example.com", phone: "+59899123456" })
+    );
+
+    await expect(obtenerPerfil("tok")).resolves.toEqual({
+      nombre: "Lucia Gomez",
+      apellido: "",
+      email: "lucia@example.com",
+      telefono: "099 123 456",
+    });
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me`, {
+      headers: { Authorization: "Bearer tok" },
+    });
+  });
+
+  it("maps a missing phone to an empty string", async () => {
+    fetch.mockResolvedValue(response({ user_id: 7, name: "Ana", email: "a@b.com", phone: null }));
+
+    await expect(obtenerPerfil("tok")).resolves.toEqual(expect.objectContaining({ telefono: "" }));
+  });
+
+  it("fails on error statuses, broken bodies and network errors", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "x" }, { ok: false, status: 401 }))
+      .mockResolvedValueOnce(response(null, { jsonError: new Error("bad json") }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
+    await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
+    await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos conectar con el servidor.");
   });
 });
 
