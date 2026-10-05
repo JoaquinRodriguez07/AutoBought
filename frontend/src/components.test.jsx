@@ -54,6 +54,8 @@ import ProtectedRoute from "./ProtectedRoute";
 import SearchBar from "./SearchBar";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { CartProvider } from "./context/CartContext";
+import { VehicleProvider } from "./context/VehicleContext";
+
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import {
   actualizarPerfil,
@@ -161,7 +163,9 @@ const startClientSession = () => {
 function render(ui, options) {
   return renderBase(
     <MemoryRouter>
-      <CartProvider>{ui}</CartProvider>
+       <CartProvider>
+        <VehicleProvider>{ui}</VehicleProvider>
+       </CartProvider>
     </MemoryRouter>,
     options
   );
@@ -283,11 +287,8 @@ describe("Home", () => {
     expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: /buscar repuestos/i })[0]);
 
-    expect(props.onCatalogo).toHaveBeenCalledWith(null, {
-      brand: "",
-      model: "",
-      year: "",
-    });
+    expect(props.onCatalogo).toHaveBeenCalledWith();
+
   });
 
   it("loads model and year options and searches with the selected vehicle", async () => {
@@ -763,7 +764,7 @@ describe("App", () => {
     const user = userEvent.setup();
     renderBase(
       <MemoryRouter>
-        <CartProvider><App /></CartProvider>
+         <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -785,7 +786,7 @@ describe("App", () => {
     });
     renderBase(
       <MemoryRouter>
-        <CartProvider><App /></CartProvider>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -814,7 +815,7 @@ describe("App sesión", () => {
 
     renderBase(
       <MemoryRouter initialEntries={["/perfil"]}>
-        <CartProvider><App /></CartProvider>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
     await user.click(await screen.findByRole("button", { name: "EDITAR" }));

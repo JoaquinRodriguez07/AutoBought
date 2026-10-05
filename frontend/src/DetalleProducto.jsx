@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
 import { useCart } from "./context/CartContext";
+import { useVehicle } from "./context/VehicleContext";
 
 export default function DetalleProducto({
   onHome,
@@ -11,11 +12,11 @@ export default function DetalleProducto({
   onFavoritos,
   cantidadFavoritos,
   producto,
-  filtrosVehiculo,
   onAlternarFavorito,
   esFavorito,
 }) {
   const { addToCart } = useCart();
+  const { vehiculoActivo: filtrosVehiculo } = useVehicle();
   const [cantidad, setCantidad] = useState(1);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [pestana, setPestana] = useState("descripcion");

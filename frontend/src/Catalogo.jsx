@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "./Navbar";
 import SearchBar from "./SearchBar";
+import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { obtenerCategorias, obtenerRepuestos } from "./api";
 import { useCart } from "./context/CartContext";
+import { useVehicle } from "./context/VehicleContext";
 
 export default function Catalogo({
   // ==========================================
@@ -33,12 +35,15 @@ export default function Catalogo({
   // ==========================================
   onDetalle,
   categoriaInicial,
-  filtrosVehiculo,
   onCategoriaSeleccionada,
   onAlternarFavorito,
   esFavorito,
 }) {
   const { addToCart } = useCart();
+
+  // Vehículo Activo (el que se confirmó con "Buscar Repuestos"). Vive en
+  // VehicleContext, así que sobrevive a ir al carrito y volver.
+  const { vehiculoActivo, limpiarVehiculo } = useVehicle();
 
   // `categoria` en null significa "todas las categorías": es lo que
   // deja el botón "Limpiar filtros" y lo que se traduce en un
@@ -70,9 +75,9 @@ export default function Catalogo({
   // pisa a una nueva.
 
   const [reintento, setReintento] = useState(0);
-  const claveVehiculo = `${filtrosVehiculo?.brand ?? ""}|${
-    filtrosVehiculo?.model ?? ""
-  }|${filtrosVehiculo?.year ?? ""}`;
+  const claveVehiculo = `${vehiculoActivo?.brand ?? ""}|${
+    vehiculoActivo?.model ?? ""
+  }|${vehiculoActivo?.year ?? ""}`;
   const clavePedido = `${reintento}|${categoria ?? ""}|${claveVehiculo}`;
 
   const [respuesta, setRespuesta] = useState({
@@ -113,19 +118,21 @@ export default function Catalogo({
   // ==========================================
   // CARGAR REPUESTOS
   // ==========================================
-  // El filtro por categoría y por vehículo (marca, modelo, año) son del
-  // servidor: cada clic en el sidebar o cambio de vehículo dispara un
-  // fetch nuevo. `activo` descarta respuestas viejas si el usuario
-  // cambia de filtro antes de que llegue la anterior.
+  // Categoría y vehículo (marca, modelo, año) son filtros del servidor y
+  // se ACUMULAN en un mismo pedido, ej:
+  // GET /api/v1/parts?categoria=Frenos&brand=Ford&model=Fiesta&year=2018
+  // El vehículo solo cambia al confirmarlo con "Buscar Repuestos" (no al
+  // mover un dropdown). `activo` descarta respuestas viejas si el
+  // usuario cambia de filtro antes de que llegue la anterior.
 
   useEffect(() => {
     let activo = true;
 
     obtenerRepuestos({
       categoria: categoria || undefined,
-      brand: filtrosVehiculo?.brand || undefined,
-      model: filtrosVehiculo?.model || undefined,
-      year: filtrosVehiculo?.year || undefined,
+      brand: vehiculoActivo?.brand || undefined,
+      model: vehiculoActivo?.model || undefined,
+      year: vehiculoActivo?.year || undefined,
     })
       .then((lista) => {
         if (!activo) return;
@@ -147,7 +154,7 @@ export default function Catalogo({
     return () => {
       activo = false;
     };
-  }, [categoria, claveVehiculo, clavePedido]);
+  }, [categoria, vehiculoActivo, clavePedido]);
 
   // ==========================================
   // CARGAR CATEGORÍAS
@@ -186,10 +193,10 @@ export default function Catalogo({
   // ==========================================
   // PRODUCTOS MOSTRADOS
   // ==========================================
-  // La categoría y el vehículo ya vienen filtrados por el backend, así
-  // que NO se le pasan a filtrarRepuestos: esa función solo se ocupa de
-  // la búsqueda por texto y del orden, que siguen siendo del lado del
-  // cliente.
+  // Categoría y vehículo ya vienen filtrados por el backend. La búsqueda
+  // por texto (nombre, código, marcas compatibles y categoría) y el orden
+  // se resuelven en el navegador con filtrarRepuestos, en vivo mientras
+  // se escribe.
 
   const productosMostrados = useMemo(
     () => filtrarRepuestos(productos, { busqueda, orden }),
@@ -199,12 +206,13 @@ export default function Catalogo({
   // ==========================================
   // LIMPIAR FILTROS
   // ==========================================
-  // Sin categoría seleccionada, el efecto de arriba vuelve a pedir
-  // GET /api/v1/parts sin ese parámetro (el vehículo, si hay uno
-  // seleccionado, se mantiene: "Limpiar filtros" es solo de categoría
-  // y búsqueda).
+  // Sin categoría, el efecto de arriba vuelve a pedir GET /api/v1/parts
+  // sin ese parámetro (el vehículo, si hay uno activo, se mantiene:
+  // "Limpiar filtros" es solo de categoría y búsqueda; el vehículo se
+  // quita desde el banner).
 
-  const hayFiltros = Boolean(categoria) || Boolean(busqueda.trim());
+  const hayFiltros =
+    Boolean(categoria) || Boolean(busqueda.trim());
 
   // La categoría vive en dos lados: acá y en App (`categoriaCatalogo`,
   // que es lo que vuelve como `categoriaInicial` al entrar de nuevo al
@@ -218,6 +226,13 @@ export default function Catalogo({
   const limpiarFiltros = () => {
     cambiarCategoria(null);
     setBusqueda("");
+  };
+
+  // "Borrar filtros" del banner: quita el vehículo activo Y el resto de
+  // los filtros, para que el catálogo vuelva a la lista completa.
+  const borrarVehiculoYFiltros = () => {
+    limpiarVehiculo();
+    limpiarFiltros();
   };
 
   // ==========================================
@@ -302,53 +317,26 @@ export default function Catalogo({
               Inicio › Repuestos › {categoria || "Todos"}
             </p>
 
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 mt-5">
+            {/* VEHÍCULO ACTIVO */}
+            {/* Oculto si no hay vehículo activo en VehicleContext. */}
 
-              {/* VEHÍCULO */}
-
-              <div className="bg-[#151719] text-white rounded-lg px-5 py-4 min-w-[430px]">
-
-                <p className="text-[9px] text-gray-400">
-                  Vehículo seleccionado:
-                </p>
-
-                <div className="flex items-center gap-3 mt-1">
-
-                  <span className="text-xl">
-                    🚗
-                  </span>
-
-                  <p className="text-[14px] font-black">
-                    {filtrosVehiculo?.brand
-                      ? [
-                          filtrosVehiculo.brand,
-                          filtrosVehiculo.model,
-                          filtrosVehiculo.year,
-                        ]
-                          .filter(Boolean)
-                          .join(" ")
-                      : "Sin vehículo seleccionado"}
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={onHome}
-                    className="text-orange-500 text-[9px] font-bold underline"
-                  >
-                    Cambiar
-                  </button>
-
-                </div>
-
+            {vehiculoActivo && (
+              <div className="mt-5">
+                <ActiveVehicleBanner
+                  onCambiar={onHome}
+                  onBorrar={borrarVehiculoYFiltros}
+                />
               </div>
+            )}
 
-              {/* BUSCADOR */}
+            {/* BUSCADOR */}
+
+            <div className="mt-5">
 
               <SearchBar
                 value={busqueda}
                 onChange={setBusqueda}
-                onSubmit={setBusqueda}
-                placeholder="Buscar repuesto por nombre, categoría, marca, código..."
+                placeholder="Buscar repuesto por nombre o código..."
                 className="lg:max-w-[475px]"
               />
 
@@ -773,6 +761,8 @@ export default function Catalogo({
                   <div className="py-20 text-center text-gray-400 text-sm">
                     {categoria
                       ? `No hay productos en la categoría "${categoria}".`
+                      : vehiculoActivo
+                      ? "No encontramos repuestos para este vehículo."
                       : "No encontramos productos."}
                   </div>
                 )
