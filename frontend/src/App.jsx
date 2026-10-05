@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { obtenerSesion, sesionValida } from "./auth";
 import { useCart } from "./context/CartContext";
+import { useVehicle } from "./context/VehicleContext";
 
 import Home from "./Home";
 import Login from "./Login";
@@ -20,18 +21,14 @@ import ProtectedRoute from "./ProtectedRoute";
 function App() {
   const navigate = useNavigate();
   const { cargarCarrito, limpiarCarritoLocal } = useCart();
+  const { activarVehiculo } = useVehicle();
+
 
   // null = sin filtro de categoría (el catálogo muestra todos los
   // repuestos). Los nombres de categoría los define el backend
   // (GET /api/v1/parts/categories), no el frontend.
   const [categoriaCatalogo, setCategoriaCatalogo] =
     useState(null);
-
-  const [filtrosVehiculo, setFiltrosVehiculo] = useState({
-    brand: "",
-    model: "",
-    year: "",
-  });
 
   const [productoSeleccionado, setProductoSeleccionado] =
     useState(null);
@@ -165,23 +162,20 @@ function App() {
      (antes: setPagina("x") — ahora: navigate("/x"))
   ====================================================== */
 
-  const irAlCatalogo = (
-    categoria = null,
-    vehiculo = null
-  ) => {
-    setCategoriaCatalogo(categoria);
+  // El Vehículo Activo vive en VehicleContext y NO se toca acá: ir al
+  // catálogo (desde el navbar, el carrito, el detalle...) mantiene el
+  // auto que el cliente ya había confirmado. Se quita solo con
+  // "Borrar filtros" (ver Home y Catalogo).
+  // Si llega un vehículo (por ejemplo, la marca elegida en Home o en
+   // /marcas), pasa a ser el Vehículo Activo.
+  const irAlCatalogo = (categoria = null, vehiculo = null) => {
+     setCategoriaCatalogo(categoria);
 
-    if (vehiculo) {
-      setFiltrosVehiculo(vehiculo);
-    } else {
-      setFiltrosVehiculo({
-        brand: "",
-        model: "",
-        year: "",
-      });
-    }
+     if (vehiculo) {
+       activarVehiculo(vehiculo);
+     }
 
-    navigate("/catalogo");
+     navigate("/catalogo");
   };
 
   const irAlDetalle = (producto) => {
@@ -364,10 +358,7 @@ function App() {
       <Route
         path="/"
         element={
-          <Home
-            {...propsNavbar}
-            filtrosVehiculo={filtrosVehiculo}
-          />
+          <Home {...propsNavbar} />
         }
       />
 
@@ -424,7 +415,6 @@ function App() {
             {...propsNavbar}
             onDetalle={irAlDetalle}
             categoriaInicial={categoriaCatalogo}
-            filtrosVehiculo={filtrosVehiculo}
             onCategoriaSeleccionada={setCategoriaCatalogo}
             favoritos={favoritos}
             onAlternarFavorito={alternarFavorito}
@@ -441,7 +431,6 @@ function App() {
             onDetalle={irAlDetalle}
             onCatalogo={irAlCatalogo}
             producto={productoSeleccionado}
-            filtrosVehiculo={filtrosVehiculo}
             onAlternarFavorito={alternarFavorito}
             esFavorito={esFavorito}
           />
