@@ -163,6 +163,43 @@ export async function actualizarPerfil({ nombre, apellido, telefono }) {
   return mapearPerfil(data);
 }
 
+export async function cambiarPassword(actual, nueva) {
+  const sesion = obtenerSesion();
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/me/password`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sesion?.token}`,
+      },
+      body: JSON.stringify({ current_password: actual, new_password: nueva }),
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  if (response.ok) return;
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  const mensaje =
+    response.status === 401
+      ? "Tu sesión venció. Iniciá sesión de nuevo."
+      : response.status === 400 && typeof data?.detail === "string"
+        ? data.detail
+        : response.status === 422
+          ? "La nueva contraseña tiene que tener entre 8 caracteres y 72 bytes."
+          : "No pudimos cambiar tu contraseña.";
+  throw new Error(mensaje);
+}
+
 /* =====================================================
    CATÁLOGO
    Las pantallas reciben los repuestos YA mapeados al shape

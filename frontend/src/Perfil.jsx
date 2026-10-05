@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import { useCart } from "./context/CartContext";
 import { actualizarPerfil, obtenerPerfil } from "./api";
+import CambiarPassword from "./CambiarPassword";
 
 const nombreCompleto = (usuario) =>
   `${usuario.nombre || ""} ${usuario.apellido || ""}`.trim();
@@ -394,6 +395,8 @@ export default function Perfil({
 
                   </div>
                 )}
+
+                {!editando && <CambiarPassword />}
 
               </section>
 
