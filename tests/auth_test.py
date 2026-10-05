@@ -211,3 +211,58 @@ def test_me_con_token_de_empleado_devuelve_403(client):
     response = client.get(ME, headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 403
+
+
+def _headers(client):
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_patch_me_actualiza_nombre_y_telefono(client):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía Pérez", "phone": "098 765 432"}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Lucía Pérez"
+    assert response.json()["phone"] == "+59898765432"
+    # Persistido: otro GET (ej. desde otro dispositivo) ve lo nuevo.
+    assert client.get(ME, headers=headers).json()["name"] == "Lucía Pérez"
+
+
+def test_patch_me_telefono_vacio_lo_borra(client):
+    response = client.patch(ME, json={"name": "Lucía Gómez", "phone": ""}, headers=_headers(client))
+
+    assert response.status_code == 200
+    assert response.json()["phone"] is None
+
+
+def test_patch_me_telefono_invalido_devuelve_422(client):
+    response = client.patch(ME, json={"name": "Lucía", "phone": "123"}, headers=_headers(client))
+
+    assert response.status_code == 422
+
+
+def test_patch_me_nombre_vacio_devuelve_422(client):
+    assert client.patch(ME, json={"name": "   "}, headers=_headers(client)).status_code == 422
+
+
+def test_patch_me_no_permite_cambiar_el_correo(client):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía", "email": "otro@example.com"}, headers=headers)
+
+    assert response.status_code == 422
+    assert client.get(ME, headers=headers).json()["email"] == "lucia@example.com"
+
+
+def test_patch_me_sin_token_devuelve_401(client):
+    assert client.patch(ME, json={"name": "Lucía"}).status_code == 401
+
+
+def test_patch_me_con_token_de_empleado_devuelve_403(client):
+    token = create_access_token(subject="1", extra_claims={"user_type": "employee"})
+
+    response = client.patch(ME, json={"name": "Lucía"}, headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 403
