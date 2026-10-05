@@ -6,6 +6,7 @@ jest.mock("./api", () => ({
   login: jest.fn(),
   registrar: jest.fn(),
   obtenerPerfil: jest.fn(),
+  actualizarPerfil: jest.fn(),
   obtenerRepuestos: jest.fn(),
   obtenerCategorias: jest.fn(),
   obtenerCarrito: jest.fn(),
@@ -53,6 +54,7 @@ import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { CartProvider } from "./context/CartContext";
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import {
+  actualizarPerfil,
   agregarItemCarrito,
   actualizarItemCarrito,
   crearDireccion,
@@ -875,9 +877,13 @@ describe("Perfil", () => {
       apellido: "Perez",
       email: "ana@example.com",
       telefono: "099123456",
-      tipoDocumento: "CI",
-      documento: "12345678",
     };
+    actualizarPerfil.mockResolvedValue({
+      nombre: "Ana Maria Perez",
+      apellido: "",
+      email: "ana@example.com",
+      telefono: "099 123 456",
+    });
 
     render(<Perfil {...props} usuario={usuario} />);
     expect(screen.getByRole("heading", { name: "MI PERFIL" })).toBeInTheDocument();
@@ -891,13 +897,55 @@ describe("Perfil", () => {
     await user.click(screen.getByRole("button", { name: /historial de compra/i }));
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));
 
+    expect(actualizarPerfil).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre: "Ana Maria", apellido: "Perez" })
+    );
     expect(props.onActualizarUsuario).toHaveBeenCalledWith(
-      expect.objectContaining({ nombre: "Ana Maria" })
+      expect.objectContaining({ id: 1, nombre: "Ana Maria Perez" })
     );
     expect(props.onDirecciones).toHaveBeenCalled();
     expect(props.onMetodosPago).toHaveBeenCalled();
     expect(props.onHistorialCompras).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
+  });
+
+  it("keeps editing and shows the error when saving fails", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onActualizarUsuario = jest.fn();
+    actualizarPerfil.mockRejectedValue(
+      new Error("Revisá el nombre y el teléfono (ej: 099 123 456).")
+    );
+
+    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+
+    expect(
+      await screen.findByText("Revisá el nombre y el teléfono (ej: 099 123 456).")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /guardar cambios/i })).toBeInTheDocument();
+    expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the session with the profile from the backend", async () => {
+    const props = navigationProps();
+    props.onActualizarUsuario = jest.fn();
+    obtenerPerfil.mockResolvedValue({
+      nombre: "Ana desde otro dispositivo",
+      apellido: "",
+      email: "ana@example.com",
+      telefono: "",
+    });
+
+    render(<Perfil {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+
+    await waitFor(() =>
+      expect(props.onActualizarUsuario).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "t", nombre: "Ana desde otro dispositivo" })
+      )
+    );
+    expect(obtenerPerfil).toHaveBeenCalledWith("t");
   });
 
   it("cancels profile edits and restores the saved values", async () => {

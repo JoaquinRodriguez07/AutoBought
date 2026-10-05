@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import { useCart } from "./context/CartContext";
+import { actualizarPerfil, obtenerPerfil } from "./api";
 
 export default function Perfil({
   onHome,
@@ -23,14 +24,14 @@ export default function Perfil({
   // valores por defecto de `useState` nunca llegan a usarse de verdad.
   const { cantidadCarrito } = useCart();
   const [editando, setEditando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
 
   const [datos, setDatos] = useState({
     nombre: usuario.nombre || "",
     apellido: usuario.apellido || "",
     email: usuario.email || "",
     telefono: usuario.telefono || "",
-    tipoDocumento: usuario.tipoDocumento || "CI",
-    documento: usuario.documento || "",
   });
 
   useEffect(() => {
@@ -39,10 +40,15 @@ export default function Perfil({
       apellido: usuario.apellido || "",
       email: usuario.email || "",
       telefono: usuario.telefono || "",
-      tipoDocumento: usuario.tipoDocumento || "CI",
-      documento: usuario.documento || "",
     });
   }, [usuario]);
+
+  useEffect(() => {
+    if (!usuario?.token) return;
+    obtenerPerfil(usuario.token)
+      .then((perfil) => onActualizarUsuario?.({ ...usuario, ...perfil }))
+      .catch(() => {});
+  }, []);
 
   if (!usuario) {
     return null;
@@ -61,24 +67,25 @@ export default function Perfil({
       apellido: usuario.apellido || "",
       email: usuario.email || "",
       telefono: usuario.telefono || "",
-      tipoDocumento: usuario.tipoDocumento || "CI",
-      documento: usuario.documento || "",
     });
 
+    setError("");
     setEditando(false);
   };
 
-  const guardarCambios = () => {
-    const usuarioActualizado = {
-      ...usuario,
-      ...datos,
-    };
+  const guardarCambios = async () => {
+    setGuardando(true);
+    setError("");
 
-    if (onActualizarUsuario) {
-      onActualizarUsuario(usuarioActualizado);
+    try {
+      const perfil = await actualizarPerfil(datos);
+      onActualizarUsuario?.({ ...usuario, ...perfil });
+      setEditando(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGuardando(false);
     }
-
-    setEditando(false);
   };
 
   return (
@@ -301,20 +308,9 @@ export default function Perfil({
                         CORREO ELECTRÓNICO
                       </label>
 
-                      {editando ? (
-                        <input
-                          type="email"
-                          value={datos.email}
-                          onChange={(e) =>
-                            cambiarDato("email", e.target.value)
-                          }
-                          className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] text-gray-700 outline-none focus:border-orange-500 transition"
-                        />
-                      ) : (
-                        <div className="mt-2 h-11 px-4 flex items-center bg-gray-50 border border-gray-200 rounded-md text-[10px] text-gray-700">
-                          {usuario.email || "No especificado"}
-                        </div>
-                      )}
+                      <div className={`mt-2 h-11 px-4 flex items-center bg-gray-50 border border-gray-200 rounded-md text-[10px] ${editando ? "text-gray-400" : "text-gray-700"}`}>
+                        {usuario.email || "No especificado"}
+                      </div>
 
                     </div>
 
@@ -344,66 +340,6 @@ export default function Perfil({
 
                     </div>
 
-                    {/* TIPO DOCUMENTO */}
-
-                    <div>
-
-                      <label className="text-[9px] font-bold text-gray-500">
-                        TIPO DE DOCUMENTO
-                      </label>
-
-                      {editando ? (
-                        <select
-                          value={datos.tipoDocumento}
-                          onChange={(e) =>
-                            cambiarDato(
-                              "tipoDocumento",
-                              e.target.value
-                            )
-                          }
-                          className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] text-gray-700 outline-none focus:border-orange-500 transition"
-                        >
-                          <option value="CI">Cédula de identidad</option>
-                          <option value="Pasaporte">Pasaporte</option>
-                        </select>
-                      ) : (
-                        <div className="mt-2 h-11 px-4 flex items-center bg-gray-50 border border-gray-200 rounded-md text-[10px] text-gray-700">
-                          {usuario.tipoDocumento || "No especificado"}
-                        </div>
-                      )}
-
-                    </div>
-
-                    {/* DOCUMENTO */}
-
-                    <div>
-
-                      <label className="text-[9px] font-bold text-gray-500">
-                        DOCUMENTO
-                      </label>
-
-                      {editando ? (
-                        <input
-                          type="text"
-                          value={datos.documento}
-                          onChange={(e) =>
-                            cambiarDato("documento", e.target.value)
-                          }
-                          placeholder={
-                            datos.tipoDocumento === "CI"
-                              ? "Ej. 12345678"
-                              : "Ej. A1234567"
-                          }
-                          className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] text-gray-700 outline-none focus:border-orange-500 transition"
-                        />
-                      ) : (
-                        <div className="mt-2 h-11 px-4 flex items-center bg-gray-50 border border-gray-200 rounded-md text-[10px] text-gray-700">
-                          {usuario.documento || "No especificado"}
-                        </div>
-                      )}
-
-                    </div>
-
                   </div>
 
                 </div>
@@ -411,6 +347,10 @@ export default function Perfil({
                 {/* =================================================
                     BOTONES EDICIÓN
                 ================================================== */}
+
+                {editando && error && (
+                  <p className="text-red-500 text-[10px] mt-6">{error}</p>
+                )}
 
                 {editando && (
                   <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
@@ -426,9 +366,10 @@ export default function Perfil({
                     <button
                       type="button"
                       onClick={guardarCambios}
-                      className="h-10 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[9px] font-black transition"
+                      disabled={guardando}
+                      className="h-10 px-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-[9px] font-black transition"
                     >
-                      GUARDAR CAMBIOS
+                      {guardando ? "GUARDANDO..." : "GUARDAR CAMBIOS"}
                     </button>
 
                   </div>

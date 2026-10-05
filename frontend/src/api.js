@@ -111,12 +111,56 @@ export async function obtenerPerfil(token) {
     throw new Error("No pudimos cargar tu perfil.");
   }
 
+  return mapearPerfil(data);
+}
+
+function mapearPerfil(data) {
   return {
     nombre: data.name,
     apellido: "",
     email: data.email,
     telefono: formatearTelefonoUY(data.phone),
   };
+}
+
+export async function actualizarPerfil({ nombre, apellido, telefono }) {
+  const sesion = obtenerSesion();
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sesion?.token}`,
+      },
+      body: JSON.stringify({
+        name: `${nombre} ${apellido}`.trim(),
+        phone: telefono || null,
+      }),
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok || !data) {
+    const mensaje =
+      response.status === 401
+        ? "Tu sesión venció. Iniciá sesión de nuevo."
+        : response.status === 422
+          ? "Revisá el nombre y el teléfono (ej: 099 123 456)."
+          : "No pudimos guardar tus datos.";
+    throw new Error(mensaje);
+  }
+
+  return mapearPerfil(data);
 }
 
 /* =====================================================
