@@ -796,6 +796,35 @@ describe("App", () => {
   });
 });
 
+describe("App sesión", () => {
+  it("does not restore the session when a save finishes after logging out", async () => {
+    const user = userEvent.setup();
+    const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+    const token = `x.${payload}.y`;
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({ id: 1, nombre: "Ana", email: "ana@example.com", token })
+    );
+    obtenerPerfil.mockResolvedValue({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
+    let responder;
+    actualizarPerfil.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+
+    renderBase(
+      <MemoryRouter initialEntries={["/perfil"]}>
+        <CartProvider><App /></CartProvider>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    await user.click(screen.getByRole("button", { name: "CERRAR SESIÓN" }));
+    responder({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+    expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+  });
+});
+
 describe("MetodosPago", () => {
   it("validates and creates a card through the API", async () => {
     const user = userEvent.setup();
@@ -927,6 +956,47 @@ describe("Perfil", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /guardar cambios/i })).toBeInTheDocument();
     expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+  });
+
+  it("ignores a late profile response once the user started editing", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onActualizarUsuario = jest.fn();
+    let responder;
+    obtenerPerfil.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+
+    render(<Perfil {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.type(screen.getByDisplayValue("Ana"), " Maria");
+    responder({ nombre: "Ana vieja", apellido: "", email: "ana@example.com", telefono: "" });
+    await waitFor(() => expect(obtenerPerfil).toHaveBeenCalled());
+
+    expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("Ana Maria")).toBeInTheDocument();
+  });
+
+  it("warns when the saved profile could not be loaded", async () => {
+    obtenerPerfil.mockRejectedValue(new Error("No pudimos cargar tu perfil."));
+
+    render(<Perfil {...navigationProps()} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+
+    expect(
+      await screen.findByText("No pudimos actualizar tus datos, puede que no estén al día.")
+    ).toBeInTheDocument();
+  });
+
+  it("clears the save error when the user edits the data again", async () => {
+    const user = userEvent.setup();
+    actualizarPerfil.mockRejectedValue(new Error("Revisá el nombre y el teléfono (ej: 099 123 456)."));
+    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+
+    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    expect(await screen.findByText("Revisá el nombre y el teléfono (ej: 099 123 456).")).toBeInTheDocument();
+
+    await user.type(screen.getByDisplayValue("Ana"), "a");
+
+    expect(screen.queryByText("Revisá el nombre y el teléfono (ej: 099 123 456).")).not.toBeInTheDocument();
   });
 
   it("refreshes the session with the profile from the backend", async () => {

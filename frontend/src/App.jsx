@@ -249,6 +249,12 @@ function App() {
   ====================================================== */
 
   const actualizarUsuario = (usuarioActualizado) => {
+    const sesionActual = obtenerSesion();
+
+    if (!sesionActual || sesionActual.token !== usuarioActualizado.token) {
+      return;
+    }
+
     setUsuario(usuarioActualizado);
 
     const storage = localStorage.getItem("autobought-sesion")
