@@ -181,7 +181,13 @@ export default function Marcas({
                   <button
                     key={marca.brand}
                     type="button"
-                    onClick={() => onCatalogo("Frenos")}
+                    onClick={() =>
+                      onCatalogo(null, {
+                        brand: marca.brand,
+                        model: "",
+                        year: "",
+                      })
+                    }
                     className="group bg-white border border-gray-100 rounded-xl h-[145px] flex flex-col items-center justify-center shadow-sm hover:shadow-lg hover:border-orange-300 hover:-translate-y-1 transition duration-300"
                   >
 
