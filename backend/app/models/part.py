@@ -17,3 +17,4 @@ class Part(Base):
     compatibilities = relationship("Compatibility", back_populates = "part")
     cart_items = relationship("CartItem", back_populates="part")
     order_items = relationship("OrderItem", back_populates="part")
+    favorites = relationship("Favorite", back_populates="part", cascade="all, delete-orphan")

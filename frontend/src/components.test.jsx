@@ -1,4 +1,4 @@
-import { fireEvent, render as renderBase, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -24,6 +24,9 @@ jest.mock("./api", () => ({
   marcarMetodoPagoPrincipal: jest.fn(),
   eliminarMetodoPagoAPI: jest.fn(),
   obtenerRecomendaciones: jest.fn(),
+  obtenerFavoritos: jest.fn(),
+  agregarFavoritoAPI: jest.fn(),
+  quitarFavoritoAPI: jest.fn(),
 }));
 jest.mock(
   "react-hot-toast",
@@ -54,7 +57,9 @@ import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
 
 import { filtrarRepuestos } from "./filtrarRepuestos";
+import toast from "react-hot-toast";
 import {
+  agregarFavoritoAPI,
   agregarItemCarrito,
   actualizarItemCarrito,
   crearDireccion,
@@ -68,12 +73,14 @@ import {
   obtenerCarrito,
   obtenerCategorias,
   obtenerDirecciones,
+  obtenerFavoritos,
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
   obtenerRepuestos,
   obtenerPerfil,
   obtenerRecomendaciones,
+  quitarFavoritoAPI,
   registrar,
   vaciarCarritoAPI,
 } from "./api";
@@ -194,6 +201,9 @@ beforeEach(() => {
   marcarMetodoPagoPrincipal.mockResolvedValue({});
   eliminarMetodoPagoAPI.mockResolvedValue({});
   obtenerRecomendaciones.mockResolvedValue([]);
+  obtenerFavoritos.mockResolvedValue([]);
+  agregarFavoritoAPI.mockResolvedValue();
+  quitarFavoritoAPI.mockResolvedValue();
 });
 
 afterEach(() => {
@@ -792,6 +802,80 @@ describe("App", () => {
     expect(screen.getByText("Tu Carrito de Compras")).toBeInTheDocument();
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     expect(agregarItemCarrito).toHaveBeenCalledWith("BP1234", 1);
+  });
+});
+
+describe("App favoritos", () => {
+  const tokenValido = () => {
+    const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+    return `x.${payload}.y`;
+  };
+
+  const corazon = async (nombre) => {
+    const imagen = await screen.findByAltText(nombre);
+    return within(imagen.parentElement).getByRole("button");
+  };
+
+  const renderApp = () =>
+    renderBase(
+      <MemoryRouter>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  beforeEach(() => {
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({ id: 1, nombre: "Test User", token: tokenValido() })
+    );
+  });
+
+  it("loads the saved favorites from the backend when there is a session", async () => {
+    const user = userEvent.setup();
+    obtenerFavoritos.mockResolvedValue([catalogProducts[1]]);
+    renderApp();
+
+    await waitFor(() => expect(obtenerFavoritos).toHaveBeenCalled());
+    await user.click(screen.getByTitle("Favoritos"));
+
+    expect(await screen.findByText("Discos de Freno Delanteros")).toBeInTheDocument();
+  });
+
+  it("does not ask the backend for favorites without a session", () => {
+    localStorage.clear();
+    renderApp();
+
+    expect(obtenerFavoritos).not.toHaveBeenCalled();
+  });
+
+  it("marks and unmarks a favorite from the catalog through the API", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    const nombre = "Pastillas de Freno Delanteras Bosch";
+    await user.click(screen.getByRole("button", { name: "Repuestos" }));
+    await user.click(await corazon(nombre));
+
+    expect(agregarFavoritoAPI).toHaveBeenCalledWith("BP1234");
+    expect(await corazon(nombre)).toHaveTextContent("♥");
+
+    await user.click(await corazon(nombre));
+
+    expect(quitarFavoritoAPI).toHaveBeenCalledWith("BP1234");
+    expect(await corazon(nombre)).toHaveTextContent("♡");
+  });
+
+  it("reverts the heart and shows the error when the API fails", async () => {
+    const user = userEvent.setup();
+    agregarFavoritoAPI.mockRejectedValue(new Error("No pudimos actualizar tus favoritos."));
+    renderApp();
+
+    const nombre = "Pastillas de Freno Delanteras Bosch";
+    await user.click(screen.getByRole("button", { name: "Repuestos" }));
+    await user.click(await corazon(nombre));
+
+    await waitFor(async () => expect(await corazon(nombre)).toHaveTextContent("♡"));
+    expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar tus favoritos.");
   });
 });
 

@@ -467,6 +467,38 @@ async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGeneri
   return data;
 }
 
+const MENSAJES_POR_STATUS_FAVORITOS = {
+  ...MENSAJES_POR_STATUS_DIRECCIONES,
+  404: "No encontramos ese repuesto.",
+};
+
+function pedirFavoritos(url, options = {}) {
+  return pedirCuentaCliente(
+    url,
+    options,
+    MENSAJES_POR_STATUS_FAVORITOS,
+    "No pudimos actualizar tus favoritos."
+  );
+}
+
+export async function obtenerFavoritos() {
+  const mensajeError = "No pudimos cargar tus favoritos.";
+  const data = await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites`);
+  return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+}
+
+export async function agregarFavoritoAPI(partId) {
+  await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+    method: "PUT",
+  });
+}
+
+export async function quitarFavoritoAPI(partId) {
+  await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+    method: "DELETE",
+  });
+}
+
 function mapearDireccion(d) {
   return {
     id: d.shipping_address_id,

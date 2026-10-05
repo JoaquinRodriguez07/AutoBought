@@ -4,6 +4,7 @@ jest.mock("./auth", () => ({
 
 import {
   actualizarItemCarrito,
+  agregarFavoritoAPI,
   agregarItemCarrito,
   crearDireccion,
   crearMetodoPago,
@@ -16,12 +17,14 @@ import {
   obtenerCarrito,
   obtenerCategorias,
   obtenerDirecciones,
+  obtenerFavoritos,
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
   obtenerPerfil,
   obtenerRecomendaciones,
   obtenerRepuestos,
+  quitarFavoritoAPI,
   registrar,
   vaciarCarritoAPI,
 } from "./api";
@@ -172,6 +175,45 @@ describe("obtenerPerfil", () => {
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("favorites API", () => {
+  it("loads the favorites with the session token and maps them like the catalog", async () => {
+    fetch.mockResolvedValue(response({ parts: [backendPart] }));
+
+    await expect(obtenerFavoritos()).resolves.toEqual([uiPart]);
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/favorites`, {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("fails when the list is missing", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(obtenerFavoritos()).rejects.toThrow("No pudimos cargar tus favoritos.");
+  });
+
+  it("marks and unmarks a part", async () => {
+    fetch.mockResolvedValue({ ok: true, status: 204, json: jest.fn() });
+
+    await expect(agregarFavoritoAPI(21)).resolves.toBeUndefined();
+    await expect(quitarFavoritoAPI(21)).resolves.toBeUndefined();
+
+    expect(fetch).toHaveBeenNthCalledWith(1, `${BASE_URL}/api/v1/favorites/21`, expect.objectContaining({ method: "PUT" }));
+    expect(fetch).toHaveBeenNthCalledWith(2, `${BASE_URL}/api/v1/favorites/21`, expect.objectContaining({ method: "DELETE" }));
+  });
+
+  it("maps errors with their status", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Repuesto no encontrado." }, { ok: false, status: 404 }))
+      .mockResolvedValueOnce(response(null, { ok: false, status: 401, jsonError: new Error("bad json") }));
+
+    await expect(agregarFavoritoAPI(999)).rejects.toThrow("Repuesto no encontrado.");
+    await expect(quitarFavoritoAPI(1)).rejects.toMatchObject({
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+      status: 401,
+    });
   });
 });
 
