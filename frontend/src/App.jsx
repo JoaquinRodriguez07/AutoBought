@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { obtenerSesion, sesionValida } from "./auth";
+import {
+  agregarFavoritoAPI,
+  obtenerFavoritos,
+  quitarFavoritoAPI,
+} from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 
@@ -46,17 +52,24 @@ function App() {
      FAVORITOS
   ====================================================== */
 
-  const [favoritos, setFavoritos] = useState(() => {
-    try {
-      return (
-        JSON.parse(
-          localStorage.getItem("autobought-favoritos")
-        ) || []
-      );
-    } catch {
-      return [];
-    }
-  });
+  const [favoritos, setFavoritos] = useState([]);
+
+  useEffect(() => {
+    if (!usuario?.token) return;
+
+    let cancelado = false;
+    obtenerFavoritos()
+      .then((lista) => {
+        if (!cancelado) setFavoritos(lista);
+      })
+      .catch(() => {
+        if (!cancelado) setFavoritos([]);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [usuario?.token]);
 
   /* =====================================================
      DIRECCIONES
@@ -112,17 +125,6 @@ function App() {
         return [];
       }
     });
-
-  /* =====================================================
-     GUARDAR FAVORITOS
-  ====================================================== */
-
-  useEffect(() => {
-    localStorage.setItem(
-      "autobought-favoritos",
-      JSON.stringify(favoritos)
-    );
-  }, [favoritos]);
 
   /* =====================================================
      GUARDAR DIRECCIONES
@@ -272,6 +274,7 @@ function App() {
     sessionStorage.removeItem("autobought-sesion");
 
     limpiarCarritoLocal();
+    setFavoritos([]);
     navigate("/");
   };
 
@@ -279,23 +282,43 @@ function App() {
      FAVORITOS
   ====================================================== */
 
-  const alternarFavorito = (producto) => {
+  const alternarFavorito = async (producto) => {
     if (!usuario) {
       navigate("/login");
       return;
     }
 
-    setFavoritos((actual) => {
-      const existe = actual.some(
-        (item) => item.id === producto.id
+    const existe = favoritos.some(
+      (item) => item.id === producto.id
+    );
+
+    setFavoritos((actual) =>
+      existe
+        ? actual.filter((item) => item.id !== producto.id)
+        : [...actual, producto]
+    );
+
+    try {
+      if (existe) {
+        await quitarFavoritoAPI(producto.partId ?? producto.id);
+      } else {
+        await agregarFavoritoAPI(producto.partId ?? producto.id);
+      }
+    } catch (error) {
+      setFavoritos((actual) =>
+        existe
+          ? [...actual, producto]
+          : actual.filter((item) => item.id !== producto.id)
       );
 
-      return existe
-        ? actual.filter(
-            (item) => item.id !== producto.id
-          )
-        : [...actual, producto];
-    });
+      if (error.status === 401) {
+        toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
+        navigate("/login");
+        return;
+      }
+
+      toast.error(error.message || "No pudimos actualizar tus favoritos.");
+    }
   };
 
   const esFavorito = (id) =>
