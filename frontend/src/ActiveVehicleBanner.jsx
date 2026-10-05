@@ -34,7 +34,7 @@ export default function ActiveVehicleBanner({ onCambiar, onBorrar }) {
             Mostrando repuestos para:{" "}
           </span>
           <span className="font-black">
-            {brand} {model} {year}
+            {[brand, model, year].filter(Boolean).join(" ")}
           </span>
         </p>
       </div>

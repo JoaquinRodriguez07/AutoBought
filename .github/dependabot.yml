@@ -1,0 +1,41 @@
+# Dependabot: revisa una vez por semana si hay versiones nuevas de las
+# librerías y abre PRs hacia dev. Cada PR pasa por el CI como cualquier otro.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Montevideo
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      menores-frontend:
+        update-types: [minor, patch]
+
+  - package-ecosystem: uv
+    directory: /backend
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Montevideo
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      menores-backend:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(ci)"

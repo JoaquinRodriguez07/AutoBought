@@ -31,14 +31,17 @@ export function vehiculoCompleto(vehiculo) {
 export function VehicleProvider({ children }) {
   const [vehiculoActivo, setVehiculoActivo] = useState(null);
 
-  const activarVehiculo = useCallback((vehiculo) => {
-    // Un vehículo incompleto nunca queda como activo.
-    if (!vehiculoCompleto(vehiculo)) return;
+    const activarVehiculo = useCallback((vehiculo) => {
+    // Sin marca no hay vehículo. Con marca sola sí: es el filtro que se
+    // aplica al tocar una marca en Home o en /marcas. La cascada
+    // completa (Marca > Modelo > Año) solo se exige en el buscador de
+    // Home, con `vehiculoCompleto`.
+    if (!vehiculo?.brand) return;
 
     setVehiculoActivo({
       brand: vehiculo.brand,
-      model: vehiculo.model,
-      year: String(vehiculo.year),
+      model: vehiculo.model || "",
+      year: vehiculo.year ? String(vehiculo.year) : "",
     });
   }, []);
 

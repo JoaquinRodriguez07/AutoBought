@@ -113,8 +113,17 @@ export default function Home({
   // Hay un vehículo activo y el borrador quedó incompleto: abrir el
   // catálogo mostraría el vehículo anterior, no lo que se ve en Home.
   // Se deriva del estado, así que desaparece solo al completar el borrador.
-  const avisoHero =
-    intentoHero && Boolean(vehiculoActivo) && !puedeBuscar;
+  const borradorIgualAlActivo =
+     Boolean(vehiculoActivo) &&
+     vehiculoActivo.brand === selectedBrand &&
+     vehiculoActivo.model === selectedModel &&
+     vehiculoActivo.year === selectedYear;
+
+   const avisoHero =
+     intentoHero &&
+     Boolean(vehiculoActivo) &&
+     !puedeBuscar &&
+     !borradorIgualAlActivo;
 
   const hayAlgoParaBorrar = Boolean(
     selectedBrand || selectedModel || selectedYear || vehiculoActivo
@@ -125,13 +134,16 @@ export default function Home({
 
     setIntentoHero(false);
 
-    activarVehiculo({
-      brand: selectedBrand,
-      model: selectedModel,
-      year: selectedYear,
-    });
+       const vehiculo = {
+     brand: selectedBrand,
+     model: selectedModel,
+     year: selectedYear,
+   };
 
-    onCatalogo();
+   activarVehiculo(vehiculo);
+   onCatalogo(null, vehiculo);
+
+   
   };
 
   // El botón grande del hero aplica el vehículo si la selección está
@@ -141,7 +153,7 @@ export default function Home({
   const buscarDesdeHero = () => {
     if (puedeBuscar) {
       buscarRepuestos();
-    } else if (vehiculoActivo) {
+    } else if (vehiculoActivo && !borradorIgualAlActivo) {
       setIntentoHero(true);
     } else {
       onCatalogo();
@@ -597,7 +609,13 @@ export default function Home({
             <button
               key={marca.nombre}
               type="button"
-              onClick={onMarcas}
+              onClick={() =>
+                onCatalogo(null, {
+                  brand: marca.nombre,
+                  model: "",
+                  year: "",
+                })
+              }
               className="h-24 bg-gray-50 border border-gray-100 rounded-lg flex flex-col items-center justify-center hover:bg-white hover:border-orange-300 hover:shadow-md transition duration-300 group"
             >
 
