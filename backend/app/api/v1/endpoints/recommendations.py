@@ -34,7 +34,15 @@ def parse_part_ids(raw: str) -> list[int]:
     return part_ids
 
 
-@router.get("", response_model=RecommendationsResponse)
+@router.get(
+    "",
+    response_model=RecommendationsResponse,
+    responses={
+        status.HTTP_404_NOT_FOUND: {
+            "description": "Algún repuesto de part_ids no existe.",
+        },
+    },
+)
 def list_recommendations(
     part_ids: str = Query(
         ...,
