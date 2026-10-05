@@ -1,5 +1,16 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
+import { registrar as registrarEnApi } from "./api";
+import { decodeToken } from "./auth";
+import {
+  MENSAJE_TELEFONO,
+  formatearTelefonoUY,
+  normalizarTelefonoUY,
+} from "./telefono";
+
+const PASSWORD_MIN = 8;
+// Mismo criterio mínimo que EmailStr del backend: algo@dominio.tld
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Registro({
   onHome,
@@ -21,8 +32,9 @@ export default function Registro({
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
   const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(false);
 
-  const registrar = (e) => {
+  const registrar = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -38,13 +50,20 @@ export default function Registro({
       return;
     }
 
-    if (!email.includes("@")) {
+    if (!EMAIL_REGEX.test(email.trim())) {
       setError("Ingresá un correo electrónico válido.");
       return;
     }
 
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+    if (!normalizarTelefonoUY(telefono)) {
+      setError(MENSAJE_TELEFONO);
+      return;
+    }
+
+    if (password.length < PASSWORD_MIN) {
+      setError(
+        `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`
+      );
       return;
     }
 
@@ -58,55 +77,35 @@ export default function Registro({
       return;
     }
 
-    let usuarios = [];
+    setCargando(true);
 
     try {
-      usuarios =
-        JSON.parse(localStorage.getItem("autobought-usuarios")) || [];
-    } catch {
-      usuarios = [];
+      const data = await registrarEnApi({
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        email: email.trim(),
+        telefono: telefono.trim(),
+        password,
+      });
+      const payload = decodeToken(data.access_token);
+
+      onRegistroExitoso({
+        token: data.access_token,
+        tokenType: data.token_type,
+        userId: payload?.sub ?? null,
+        userType: payload?.user_type ?? null,
+        // Misma forma que devuelve obtenerPerfil() al iniciar sesión:
+        // el backend guarda nombre + apellido en un solo campo.
+        nombre: `${nombre.trim()} ${apellido.trim()}`,
+        apellido: "",
+        email: email.trim().toLowerCase(),
+        telefono: formatearTelefonoUY(normalizarTelefonoUY(telefono)),
+      });
+    } catch (err) {
+      setError(err.message || "No pudimos crear tu cuenta.");
+    } finally {
+      setCargando(false);
     }
-
-    const emailExiste = usuarios.some(
-      (usuario) =>
-        usuario.email.toLowerCase() === email.trim().toLowerCase()
-    );
-
-    if (emailExiste) {
-      setError("Ya existe una cuenta con ese correo.");
-      return;
-    }
-
-    const nuevoUsuario = {
-      id: Date.now(),
-      nombre: nombre.trim(),
-      apellido: apellido.trim(),
-      email: email.trim().toLowerCase(),
-      telefono: telefono.trim(),
-      password,
-    };
-
-    usuarios.push(nuevoUsuario);
-
-    localStorage.setItem(
-      "autobought-usuarios",
-      JSON.stringify(usuarios)
-    );
-
-    const usuarioSesion = {
-      id: nuevoUsuario.id,
-      nombre: nuevoUsuario.nombre,
-      apellido: nuevoUsuario.apellido,
-      email: nuevoUsuario.email,
-      telefono: nuevoUsuario.telefono,
-    };
-
-    localStorage.setItem(
-      "autobought-sesion",
-      JSON.stringify(usuarioSesion)
-    );
-
-    onRegistroExitoso(usuarioSesion);
   };
 
   return (
@@ -135,6 +134,7 @@ export default function Registro({
 
           <form
             onSubmit={registrar}
+            noValidate
             className="p-8 md:p-12"
           >
 
@@ -223,7 +223,7 @@ export default function Registro({
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                   className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500 transition"
                 />
               </div>
@@ -265,9 +265,10 @@ export default function Registro({
 
             <button
               type="submit"
-              className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[10px] font-black mt-6 transition"
+              disabled={cargando}
+              className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[10px] font-black mt-6 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              CREAR CUENTA
+              {cargando ? "CREANDO CUENTA..." : "CREAR CUENTA"}
             </button>
 
             <p className="text-center text-[9px] text-gray-500 mt-6">

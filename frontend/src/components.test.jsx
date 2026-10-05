@@ -4,6 +4,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 jest.mock("./api", () => ({
   login: jest.fn(),
+  registrar: jest.fn(),
+  obtenerPerfil: jest.fn(),
   obtenerRepuestos: jest.fn(),
   obtenerCategorias: jest.fn(),
   obtenerCarrito: jest.fn(),
@@ -68,7 +70,9 @@ import {
   obtenerMetodosPago,
   obtenerModelos,
   obtenerRepuestos,
+  obtenerPerfil,
   obtenerRecomendaciones,
+  registrar,
   vaciarCarritoAPI,
 } from "./api";
 import {
@@ -642,6 +646,57 @@ describe("Login", () => {
     ));
   });
 
+  const loginConPerfil = async (perfil) => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onIniciarSesion = jest.fn();
+    const payload = btoa(JSON.stringify({ sub: "7", user_type: "client" }));
+    login.mockResolvedValue({ access_token: `h.${payload}.s`, token_type: "bearer" });
+    perfil();
+
+    render(<Login {...props} onRegistro={jest.fn()} />);
+    await user.type(screen.getByPlaceholderText("tu@email.com"), "Lucia@Example.com");
+    await user.type(screen.getByPlaceholderText("••••••••"), "secreto123");
+    await user.click(screen.getByRole("button", { name: "INICIAR SESIÓN" }));
+    return props;
+  };
+
+  it("loads name and phone from the backend profile into the session", async () => {
+    const props = await loginConPerfil(() =>
+      obtenerPerfil.mockResolvedValue({
+        nombre: "Lucia Gomez",
+        apellido: "",
+        email: "lucia@example.com",
+        telefono: "099 123 456",
+      })
+    );
+
+    await waitFor(() => expect(props.onIniciarSesion).toHaveBeenCalled());
+    expect(obtenerPerfil).toHaveBeenCalledWith(expect.stringMatching(/^h\./));
+    expect(props.onIniciarSesion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        token: expect.any(String),
+        userId: "7",
+        nombre: "Lucia Gomez",
+        email: "lucia@example.com",
+        telefono: "099 123 456",
+      }),
+      false
+    );
+  });
+
+  it("still logs in when the profile cannot be loaded", async () => {
+    const props = await loginConPerfil(() =>
+      obtenerPerfil.mockRejectedValue(new Error("No pudimos cargar tu perfil."))
+    );
+
+    await waitFor(() => expect(props.onIniciarSesion).toHaveBeenCalled());
+    expect(props.onIniciarSesion.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ userId: "7", email: "Lucia@Example.com" })
+    );
+    expect(props.onIniciarSesion.mock.calls[0][0].telefono).toBeUndefined();
+  });
+
   it("shows the API error when login fails and forwards registration", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -861,30 +916,119 @@ describe("Perfil", () => {
 });
 
 describe("Registro", () => {
-  it("shows validation errors and registers a new user", async () => {
+  // JWT mínimo (header.payload.firma) para que decodeToken lo pueda leer.
+  const fakeToken = () => {
+    const payload = btoa(JSON.stringify({ sub: "7", user_type: "client" }));
+    return `x.${payload}.y`;
+  };
+
+  const renderRegistro = () => {
     const user = userEvent.setup();
     const props = navigationProps();
     props.onRegistroExitoso = jest.fn();
     render(<Registro {...props} />);
+    return { user, props };
+  };
 
+  const completar = async (user, datos = {}) => {
+    const d = {
+      nombre: "Lucia",
+      apellido: "Gomez",
+      email: "Lucia@Example.com",
+      telefono: "099123456",
+      password: "secreto123",
+      confirmar: "secreto123",
+      terminos: true,
+      ...datos,
+    };
+    await user.type(screen.getByPlaceholderText("Tu nombre"), d.nombre);
+    await user.type(screen.getByPlaceholderText("Tu apellido"), d.apellido);
+    await user.type(screen.getByPlaceholderText("tu@email.com"), d.email);
+    await user.type(screen.getByPlaceholderText("099 123 456"), d.telefono);
+    await user.type(screen.getByPlaceholderText("Mínimo 8 caracteres"), d.password);
+    await user.type(screen.getByPlaceholderText("Repetí tu contraseña"), d.confirmar);
+    if (d.terminos) await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
-    expect(screen.getByText("Completá todos los campos.")).toBeInTheDocument();
+  };
 
-    await user.type(screen.getByPlaceholderText("Tu nombre"), "Lucia");
-    await user.type(screen.getByPlaceholderText("Tu apellido"), "Gomez");
-    await user.type(screen.getByPlaceholderText("tu@email.com"), "lucia@example.com");
-    await user.type(screen.getByPlaceholderText("099 123 456"), "099123456");
-    await user.type(screen.getByPlaceholderText("Mínimo 6 caracteres"), "secreto");
-    await user.type(screen.getByPlaceholderText("Repetí tu contraseña"), "secreto");
-    await user.click(screen.getByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
+  it("registers against the API and starts the session with the returned token", async () => {
+    registrar.mockResolvedValue({ access_token: fakeToken(), token_type: "bearer" });
+    const { user, props } = renderRegistro();
 
+    await completar(user);
+
+    await waitFor(() => expect(props.onRegistroExitoso).toHaveBeenCalled());
+    expect(registrar).toHaveBeenCalledWith({
+      nombre: "Lucia",
+      apellido: "Gomez",
+      email: "Lucia@Example.com",
+      telefono: "099123456",
+      password: "secreto123",
+    });
     expect(props.onRegistroExitoso).toHaveBeenCalledWith(
-      expect.objectContaining({ email: "lucia@example.com", nombre: "Lucia" })
+      expect.objectContaining({
+        token: expect.any(String),
+        userId: "7",
+        userType: "client",
+        email: "lucia@example.com",
+        nombre: "Lucia Gomez",
+        apellido: "",
+        telefono: "099 123 456",
+      })
     );
-    expect(JSON.parse(localStorage.getItem("autobought-usuarios"))).toEqual([
-      expect.objectContaining({ email: "lucia@example.com" }),
-    ]);
+    // Ya no se guardan usuarios (y menos contraseñas) en el navegador.
+    expect(localStorage.getItem("autobought-usuarios")).toBeNull();
+  });
+
+  it("shows the server message when the email is already in use", async () => {
+    registrar.mockRejectedValue(new Error("El correo ya está en uso."));
+    const { user, props } = renderRegistro();
+
+    await completar(user, { email: "test@autobought.com" });
+
+    expect(await screen.findByText("El correo ya está en uso.")).toBeInTheDocument();
+    expect(props.onRegistroExitoso).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an empty form", {}, "Completá todos los campos."],
+    ["a malformed email", { email: "no-es-un-correo" }, "Ingresá un correo electrónico válido."],
+    ["a non-Uruguayan phone", { telefono: "+54 9 11 1234 5678" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
+    ["a too short phone", { telefono: "099 12" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
+    [
+      "a password shorter than 8 characters",
+      { password: "1234567", confirmar: "1234567" },
+      "La contraseña debe tener al menos 8 caracteres.",
+    ],
+    [
+      "passwords that do not match",
+      { confirmar: "otra-cosa-123" },
+      "Las contraseñas no coinciden.",
+    ],
+    ["unaccepted terms", { terminos: false }, "Tenés que aceptar los términos y condiciones."],
+  ])("does not call the API with %s", async (_caso, datos, mensaje) => {
+    const { user, props } = renderRegistro();
+
+    if (mensaje === "Completá todos los campos.") {
+      await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
+    } else {
+      await completar(user, datos);
+    }
+
+    expect(screen.getByText(mensaje)).toBeInTheDocument();
+    expect(registrar).not.toHaveBeenCalled();
+    expect(props.onRegistroExitoso).not.toHaveBeenCalled();
+  });
+
+  it("disables the button while the request is in flight", async () => {
+    let resolver;
+    registrar.mockReturnValue(new Promise((resolve) => (resolver = resolve)));
+    const { user } = renderRegistro();
+
+    await completar(user);
+
+    expect(await screen.findByRole("button", { name: /creando cuenta/i })).toBeDisabled();
+    resolver({ access_token: fakeToken(), token_type: "bearer" });
   });
 });
 
