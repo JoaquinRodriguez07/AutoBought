@@ -515,3 +515,39 @@ export async function obtenerRecomendaciones(partIds) {
     return [];
   }
 }
+
+// Órdenes (HU 1.9 / 1.10)
+
+// Si el backend manda `detail` (ej. el 409 dice qué repuesto no alcanza),
+// pedirCuentaCliente usa ese mensaje; estos son solo el respaldo.
+const MENSAJES_POR_STATUS_ORDENES = {
+  400: "Tu carrito está vacío.",
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  403: "Esta acción requiere una cuenta de cliente.",
+  409: "No hay stock suficiente para completar la compra.",
+};
+
+function mapearPedido(p) {
+  return {
+    id: p.order_id,
+    fecha: p.created_at,
+    total: p.total ?? 0,
+    items: (p.items || []).map((item) => ({
+      partId: item.part_id,
+      nombre: item.name ?? "",
+      cantidad: item.quantity,
+      precio: item.frozen_price,
+    })),
+  };
+}
+
+/** POST /api/v1/orders — confirma la compra del carrito del cliente. */
+export async function confirmarCompra() {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/orders`,
+    { method: "POST" },
+    MENSAJES_POR_STATUS_ORDENES,
+    "No pudimos confirmar la compra."
+  );
+  return mapearPedido(data);
+}
