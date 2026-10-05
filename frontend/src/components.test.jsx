@@ -749,7 +749,7 @@ describe("Marcas", () => {
     expect(screen.getByText("Volkswagen")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Volkswagen/i }));
-    expect(props.onCatalogo).toHaveBeenCalledWith("Frenos");
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, { brand: "Volkswagen", model: "", year: "" });
   });
 });
 
