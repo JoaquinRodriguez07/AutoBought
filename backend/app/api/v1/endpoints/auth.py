@@ -69,4 +69,5 @@ def me(client: Client = Depends(get_current_client)):
 
 @router.patch("/me", response_model=ClientOut)
 def update_me(data: ClientUpdate, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
-    return crud_user.update_client(db, client, name=data.name, phone=data.phone)
+    phone = data.phone if "phone" in data.model_fields_set else client.phone
+    return crud_user.update_client(db, client, name=data.name, phone=phone)

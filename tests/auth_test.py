@@ -266,3 +266,11 @@ def test_patch_me_con_token_de_empleado_devuelve_403(client):
     response = client.patch(ME, json={"name": "Lucía"}, headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 403
+
+def test_patch_me_sin_phone_conserva_el_telefono(client):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía Pérez"}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["phone"] == "+59899123456"
