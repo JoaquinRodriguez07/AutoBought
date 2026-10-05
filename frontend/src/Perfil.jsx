@@ -3,6 +3,9 @@ import Navbar from "./Navbar";
 import { useCart } from "./context/CartContext";
 import { actualizarPerfil, obtenerPerfil } from "./api";
 
+const nombreCompleto = (usuario) =>
+  `${usuario.nombre || ""} ${usuario.apellido || ""}`.trim();
+
 export default function Perfil({
   onHome,
   onCatalogo,
@@ -28,16 +31,16 @@ export default function Perfil({
   const [error, setError] = useState("");
 
   const [datos, setDatos] = useState({
-    nombre: usuario.nombre || "",
-    apellido: usuario.apellido || "",
+    nombre: nombreCompleto(usuario),
+    apellido: "",
     email: usuario.email || "",
     telefono: usuario.telefono || "",
   });
 
   useEffect(() => {
     setDatos({
-      nombre: usuario.nombre || "",
-      apellido: usuario.apellido || "",
+      nombre: nombreCompleto(usuario),
+      apellido: "",
       email: usuario.email || "",
       telefono: usuario.telefono || "",
     });
@@ -63,8 +66,8 @@ export default function Perfil({
 
   const cancelarEdicion = () => {
     setDatos({
-      nombre: usuario.nombre || "",
-      apellido: usuario.apellido || "",
+      nombre: nombreCompleto(usuario),
+      apellido: "",
       email: usuario.email || "",
       telefono: usuario.telefono || "",
     });
@@ -252,10 +255,10 @@ export default function Perfil({
 
                     {/* NOMBRE */}
 
-                    <div>
+                    <div className="md:col-span-2">
 
                       <label className="text-[9px] font-bold text-gray-500">
-                        NOMBRE
+                        NOMBRE COMPLETO
                       </label>
 
                       {editando ? (
@@ -269,32 +272,7 @@ export default function Perfil({
                         />
                       ) : (
                         <div className="mt-2 h-11 px-4 flex items-center bg-gray-50 border border-gray-200 rounded-md text-[10px] text-gray-700">
-                          {usuario.nombre || "No especificado"}
-                        </div>
-                      )}
-
-                    </div>
-
-                    {/* APELLIDO */}
-
-                    <div>
-
-                      <label className="text-[9px] font-bold text-gray-500">
-                        APELLIDO
-                      </label>
-
-                      {editando ? (
-                        <input
-                          type="text"
-                          value={datos.apellido}
-                          onChange={(e) =>
-                            cambiarDato("apellido", e.target.value)
-                          }
-                          className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] text-gray-700 outline-none focus:border-orange-500 transition"
-                        />
-                      ) : (
-                        <div className="mt-2 h-11 px-4 flex items-center bg-gray-50 border border-gray-200 rounded-md text-[10px] text-gray-700">
-                          {usuario.apellido || "No especificado"}
+                          {nombreCompleto(usuario) || "No especificado"}
                         </div>
                       )}
 

@@ -888,9 +888,10 @@ describe("Perfil", () => {
     render(<Perfil {...props} usuario={usuario} />);
     expect(screen.getByRole("heading", { name: "MI PERFIL" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
-    const nameInput = screen.getByDisplayValue("Ana");
+    expect(screen.queryByText("APELLIDO")).not.toBeInTheDocument();
+    const nameInput = screen.getByDisplayValue("Ana Perez");
     await user.clear(nameInput);
-    await user.type(nameInput, "Ana Maria");
+    await user.type(nameInput, "Ana Maria Perez");
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
     await user.click(screen.getByRole("button", { name: /direcciones/i }));
     await user.click(screen.getByRole("button", { name: /métodos de pago/i }));
@@ -898,7 +899,7 @@ describe("Perfil", () => {
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));
 
     expect(actualizarPerfil).toHaveBeenCalledWith(
-      expect.objectContaining({ nombre: "Ana Maria", apellido: "Perez" })
+      expect.objectContaining({ nombre: "Ana Maria Perez", apellido: "" })
     );
     expect(props.onActualizarUsuario).toHaveBeenCalledWith(
       expect.objectContaining({ id: 1, nombre: "Ana Maria Perez" })
