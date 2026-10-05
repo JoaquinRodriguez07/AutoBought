@@ -5,6 +5,7 @@ jest.mock("./auth", () => ({
 import {
   actualizarItemCarrito,
   actualizarPerfil,
+  cambiarPassword,
   agregarItemCarrito,
   crearDireccion,
   crearMetodoPago,
@@ -217,6 +218,34 @@ describe("actualizarPerfil", () => {
     await expect(actualizarPerfil(datos)).rejects.toThrow("Revisá el nombre y el teléfono (ej: 099 123 456).");
     await expect(actualizarPerfil(datos)).rejects.toThrow("No pudimos guardar tus datos.");
     await expect(actualizarPerfil(datos)).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("cambiarPassword", () => {
+  it("sends both passwords with the session token", async () => {
+    fetch.mockResolvedValue({ ok: true, status: 204, json: jest.fn() });
+
+    await expect(cambiarPassword("secreto123", "nueva-clave-1")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me/password`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+      body: JSON.stringify({ current_password: "secreto123", new_password: "nueva-clave-1" }),
+    });
+  });
+
+  it("maps error statuses, broken bodies and network errors to messages", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "La contraseña actual es incorrecta." }, { ok: false, status: 400 }))
+      .mockResolvedValueOnce(response({ detail: "x" }, { ok: false, status: 401 }))
+      .mockResolvedValueOnce(response({ detail: [] }, { ok: false, status: 422 }))
+      .mockResolvedValueOnce(response(null, { ok: false, status: 500, jsonError: new Error("bad json") }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("La contraseña actual es incorrecta.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("La nueva contraseña tiene que tener entre 8 caracteres y 72 bytes.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos cambiar tu contraseña.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos conectar con el servidor.");
   });
 });
 

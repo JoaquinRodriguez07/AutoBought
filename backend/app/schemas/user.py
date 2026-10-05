@@ -49,3 +49,21 @@ class ClientUpdate(BaseModel):
         if value is None or not value.strip():
             return None
         return normalize_uy_phone(value)
+
+
+def _cabe_en_bcrypt(value: str) -> str:
+    if len(value.encode("utf-8")) > 72:
+        raise ValueError("La contraseña no puede superar los 72 bytes.")
+    return value
+
+
+class PasswordChange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=8)
+
+    @field_validator("current_password", "new_password")
+    @classmethod
+    def password_cabe_en_bcrypt(cls, value: str) -> str:
+        return _cabe_en_bcrypt(value)

@@ -7,6 +7,7 @@ jest.mock("./api", () => ({
   registrar: jest.fn(),
   obtenerPerfil: jest.fn(),
   actualizarPerfil: jest.fn(),
+  cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
   obtenerCategorias: jest.fn(),
   obtenerCarrito: jest.fn(),
@@ -34,6 +35,7 @@ jest.mock(
 
 import App from "./App";
 import BrandDropdown from "./BrandDropdown";
+import CambiarPassword from "./CambiarPassword";
 import Carrito from "./Carrito";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
@@ -57,6 +59,7 @@ import { VehicleProvider } from "./context/VehicleContext";
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import {
   actualizarPerfil,
+  cambiarPassword,
   agregarItemCarrito,
   actualizarItemCarrito,
   crearDireccion,
@@ -1032,6 +1035,84 @@ describe("Perfil", () => {
 
     expect(screen.getByRole("button", { name: "EDITAR" })).toBeInTheDocument();
     expect(screen.queryByDisplayValue("Cambio temporal")).not.toBeInTheDocument();
+  });
+});
+
+describe("CambiarPassword", () => {
+  const completar = async (user, { actual, nueva, repetir }) => {
+    await user.click(screen.getByRole("button", { name: "CAMBIAR CONTRASEÑA" }));
+    if (actual) await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), actual);
+    if (nueva) await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), nueva);
+    if (repetir) await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), repetir);
+    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+  };
+
+  it("changes the password and shows a confirmation", async () => {
+    const user = userEvent.setup();
+    cambiarPassword.mockResolvedValue();
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    expect(cambiarPassword).toHaveBeenCalledWith("secreto123", "nueva-clave-1");
+    expect(await screen.findByText("Tu contraseña se actualizó correctamente.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("CONTRASEÑA ACTUAL")).not.toBeInTheDocument();
+  });
+
+  it("validates empty fields, length and matching passwords before calling the API", async () => {
+    const user = userEvent.setup();
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123" });
+    expect(screen.getByText("Completá todos los campos.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "corta");
+    await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "corta");
+    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+    expect(screen.getByText("La nueva contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "-larga-1");
+    await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "-distinta");
+    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+    expect(screen.getByText("Las contraseñas nuevas no coinciden.")).toBeInTheDocument();
+
+    expect(cambiarPassword).not.toHaveBeenCalled();
+  });
+
+  it("shows the backend error and keeps the form open", async () => {
+    const user = userEvent.setup();
+    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    expect(await screen.findByText("La contraseña actual es incorrecta.")).toBeInTheDocument();
+    expect(screen.getByLabelText("CONTRASEÑA ACTUAL")).toBeInTheDocument();
+  });
+
+  it("clears the error when the user edits a field", async () => {
+    const user = userEvent.setup();
+    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    expect(await screen.findByText("La contraseña actual es incorrecta.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), "x");
+
+    expect(screen.queryByText("La contraseña actual es incorrecta.")).not.toBeInTheDocument();
+  });
+
+  it("clears the form when cancelling", async () => {
+    const user = userEvent.setup();
+    render(<CambiarPassword />);
+
+    await user.click(screen.getByRole("button", { name: "CAMBIAR CONTRASEÑA" }));
+    await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), "secreto123");
+    await user.click(screen.getByRole("button", { name: "CANCELAR" }));
+    await user.click(screen.getByRole("button", { name: "CAMBIAR CONTRASEÑA" }));
+
+    expect(screen.getByLabelText("CONTRASEÑA ACTUAL")).toHaveValue("");
   });
 });
 

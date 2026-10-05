@@ -57,3 +57,8 @@ def update_client(db: Session, client: Client, *, name: str, phone: str | None) 
     db.commit()
     db.refresh(client)
     return client
+
+
+def update_password(db: Session, client: Client, password_hash: str) -> None:
+    client.password = password_hash
+    db.commit()
