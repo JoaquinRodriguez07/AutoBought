@@ -15,6 +15,7 @@ export default function CambiarPassword() {
 
   const manejarCambio = (e) => {
     const { name, value } = e.target;
+    setError("");
     setFormulario((actual) => ({ ...actual, [name]: value }));
   };
 

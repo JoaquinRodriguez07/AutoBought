@@ -1089,6 +1089,19 @@ describe("CambiarPassword", () => {
     expect(screen.getByLabelText("CONTRASEÑA ACTUAL")).toBeInTheDocument();
   });
 
+  it("clears the error when the user edits a field", async () => {
+    const user = userEvent.setup();
+    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    expect(await screen.findByText("La contraseña actual es incorrecta.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), "x");
+
+    expect(screen.queryByText("La contraseña actual es incorrecta.")).not.toBeInTheDocument();
+  });
+
   it("clears the form when cancelling", async () => {
     const user = userEvent.setup();
     render(<CambiarPassword />);
