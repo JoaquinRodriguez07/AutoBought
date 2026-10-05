@@ -49,3 +49,11 @@ def create_client(
     db.commit()
     db.refresh(client)
     return client
+
+
+def update_client(db: Session, client: Client, *, name: str, phone: str | None) -> Client:
+    client.name = name
+    client.phone = phone
+    db.commit()
+    db.refresh(client)
+    return client
