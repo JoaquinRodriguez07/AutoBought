@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "./Navbar";
 import { useCart } from "./context/CartContext";
 import { actualizarPerfil, obtenerPerfil } from "./api";
@@ -30,6 +30,8 @@ export default function Perfil({
   const [editando, setEditando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [avisoCarga, setAvisoCarga] = useState(false);
+  const huboCambiosLocales = useRef(false);
 
   const [datos, setDatos] = useState({
     nombre: nombreCompleto(usuario),
@@ -49,16 +51,33 @@ export default function Perfil({
 
   useEffect(() => {
     if (!usuario?.token) return;
+
+    let desmontado = false;
     obtenerPerfil(usuario.token)
-      .then((perfil) => onActualizarUsuario?.({ ...usuario, ...perfil }))
-      .catch(() => {});
+      .then((perfil) => {
+        if (desmontado || huboCambiosLocales.current) return;
+        onActualizarUsuario?.({ ...usuario, ...perfil });
+      })
+      .catch(() => {
+        if (!desmontado) setAvisoCarga(true);
+      });
+
+    return () => {
+      desmontado = true;
+    };
   }, []);
 
   if (!usuario) {
     return null;
   }
 
+  const iniciarEdicion = () => {
+    huboCambiosLocales.current = true;
+    setEditando(true);
+  };
+
   const cambiarDato = (campo, valor) => {
+    setError("");
     setDatos((actual) => ({
       ...actual,
       [campo]: valor,
@@ -233,7 +252,7 @@ export default function Perfil({
                   {!editando && (
                     <button
                       type="button"
-                      onClick={() => setEditando(true)}
+                      onClick={iniciarEdicion}
                       className="h-9 px-5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md text-[9px] font-black transition"
                     >
                       EDITAR
@@ -251,6 +270,12 @@ export default function Perfil({
                   <h3 className="text-[10px] font-black text-gray-900 uppercase mb-4">
                     Información personal
                   </h3>
+
+                  {avisoCarga && (
+                    <p className="text-[10px] text-gray-400 -mt-2 mb-4">
+                      No pudimos actualizar tus datos, puede que no estén al día.
+                    </p>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 

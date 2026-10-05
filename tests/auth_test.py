@@ -347,3 +347,12 @@ def test_cambiar_password_sin_token_devuelve_401(client):
     response = client.patch(PASSWORD, json={"current_password": "secreto123", "new_password": "nueva-clave-1"})
 
     assert response.status_code == 401
+
+
+def test_patch_me_sin_phone_conserva_el_telefono(client):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía Pérez"}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["phone"] == "+59899123456"
