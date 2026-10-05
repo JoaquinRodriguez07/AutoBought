@@ -812,7 +812,7 @@ describe("App sesión", () => {
 
     renderBase(
       <MemoryRouter initialEntries={["/perfil"]}>
-        <CartProvider><App /></CartProvider>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
     await user.click(await screen.findByRole("button", { name: "EDITAR" }));
