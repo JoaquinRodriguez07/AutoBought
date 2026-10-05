@@ -7,7 +7,7 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.crud import user as crud_user
 from app.models.client import Client
 from app.schemas.auth import LoginRequest, RegisterRequest, Token
-from app.schemas.user import ClientOut
+from app.schemas.user import ClientOut, ClientUpdate, PasswordChange
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -65,3 +65,26 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 def me(client: Client = Depends(get_current_client)):
     """Perfil del cliente dueño del token (nombre, correo y teléfono)."""
     return client
+
+
+@router.patch("/me", response_model=ClientOut)
+def update_me(data: ClientUpdate, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
+    phone = data.phone if "phone" in data.model_fields_set else client.phone
+    return crud_user.update_client(db, client, name=data.name, phone=phone)
+
+
+@router.patch("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(data: PasswordChange, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
+    if not verify_password(data.current_password, client.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña actual es incorrecta.",
+        )
+
+    if data.new_password == data.current_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La nueva contraseña tiene que ser distinta de la actual.",
+        )
+
+    crud_user.update_password(db, client, hash_password(data.new_password))
