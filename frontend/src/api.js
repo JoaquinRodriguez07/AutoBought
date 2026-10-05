@@ -254,12 +254,12 @@ function listaDe(data, clave, mensajeError) {
  *
  * Sin filtros devuelve el catálogo completo: ese es el caso de
  * "Limpiar filtros". El filtro por categoría y por vehículo (marca,
- * modelo, año) los resuelve el backend; la búsqueda por texto y el
- * orden siguen siendo del lado del cliente (ver filtrarRepuestos.js).
+ * modelo, año) los resuelve el backend y se acumulan en un mismo
+ * pedido; la búsqueda por texto y el orden siguen siendo del lado del
+ * cliente (ver filtrarRepuestos.js).
  *
  * Se acepta un string (compatibilidad: solo categoría) o un objeto
- * `{ categoria, brand, model, year }` para combinar filtro de
- * categoría con el de vehículo.
+ * `{ categoria, brand, model, year }` para combinar los filtros.
  *
  * @param {string|{categoria?: string, brand?: string, model?: string, year?: string|number}} [filtros]
  * @returns {Promise<Array<object>>} repuestos con el shape de la UI.

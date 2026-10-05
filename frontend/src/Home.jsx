@@ -4,6 +4,7 @@ import Navbar from "./Navbar";
 import BrandDropdown from "./BrandDropdown";
 import ModelDropdown from "./ModelDropdown";
 import { obtenerCategorias } from "./api";
+import { useVehicle } from "./context/VehicleContext";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
 import BMWLogo from "./assets/Logos Vehiculos/BMW.png";
@@ -28,7 +29,6 @@ export default function Home({
   onMarcas,
   onCarrito,
   onFavoritos,
-  filtrosVehiculo,
 
   onPerfil,
   onDirecciones,
@@ -42,31 +42,43 @@ export default function Home({
   // ==========================================
   // VEHICLE SELECTION
   // ==========================================
+  // Lo que se elige en los dropdowns es un BORRADOR local. Recién al
+  // hacer clic en "Buscar Repuestos" pasa a ser el Vehículo Activo
+  // (VehicleContext) y el catálogo consulta la API.
+
+  const { vehiculoActivo, activarVehiculo, limpiarVehiculo } =
+    useVehicle();
 
   const [selectedBrand, setSelectedBrand] = useState(
-    filtrosVehiculo?.brand || ""
+    vehiculoActivo?.brand || ""
   );
 
   const [selectedModel, setSelectedModel] = useState(
-    filtrosVehiculo?.model || ""
+    vehiculoActivo?.model || ""
   );
 
   const [selectedYear, setSelectedYear] = useState(
-    filtrosVehiculo?.year || ""
+    vehiculoActivo?.year || ""
   );
 
   const [years, setYears] = useState([]);
   const [loadingYears, setLoadingYears] = useState(false);
 
+  // Se activa cuando el usuario toca el botón del hero con un borrador
+  // incompleto y un vehículo activo (ver `avisoHero`).
+  const [intentoHero, setIntentoHero] = useState(false);
+
   // ==========================================
-  // SINCRONIZAR VEHÍCULO AL VOLVER DESDE CATÁLOGO
+  // SINCRONIZAR CON EL VEHÍCULO ACTIVO
   // ==========================================
+  // Si el vehículo activo cambia desde afuera (por ejemplo, "Borrar
+  // filtros" en el catálogo), los dropdowns lo reflejan.
 
   useEffect(() => {
-    setSelectedBrand(filtrosVehiculo?.brand || "");
-    setSelectedModel(filtrosVehiculo?.model || "");
-    setSelectedYear(filtrosVehiculo?.year || "");
-  }, [filtrosVehiculo]);
+    setSelectedBrand(vehiculoActivo?.brand || "");
+    setSelectedModel(vehiculoActivo?.model || "");
+    setSelectedYear(vehiculoActivo?.year || "");
+  }, [vehiculoActivo]);
 
   // ==========================================
   // CAMBIO DE MARCA
@@ -86,6 +98,77 @@ export default function Home({
   const handleModelChange = (model) => {
     setSelectedModel(model);
     setSelectedYear("");
+  };
+
+  // ==========================================
+  // VALIDACIÓN + BUSCAR / BORRAR
+  // ==========================================
+  // Cascada mínima obligatoria: Marca > Modelo > Año. Mientras falte
+  // alguno, "Buscar Repuestos" queda deshabilitado.
+
+  const puedeBuscar = Boolean(
+    selectedBrand && selectedModel && selectedYear
+  );
+
+  // Hay un vehículo activo y el borrador quedó incompleto: abrir el
+  // catálogo mostraría el vehículo anterior, no lo que se ve en Home.
+  // Se deriva del estado, así que desaparece solo al completar el borrador.
+  const borradorIgualAlActivo =
+     Boolean(vehiculoActivo) &&
+     vehiculoActivo.brand === selectedBrand &&
+     vehiculoActivo.model === selectedModel &&
+     vehiculoActivo.year === selectedYear;
+
+   const avisoHero =
+     intentoHero &&
+     Boolean(vehiculoActivo) &&
+     !puedeBuscar &&
+     !borradorIgualAlActivo;
+
+  const hayAlgoParaBorrar = Boolean(
+    selectedBrand || selectedModel || selectedYear || vehiculoActivo
+  );
+
+  const buscarRepuestos = () => {
+    if (!puedeBuscar) return;
+
+    setIntentoHero(false);
+
+       const vehiculo = {
+     brand: selectedBrand,
+     model: selectedModel,
+     year: selectedYear,
+   };
+
+   activarVehiculo(vehiculo);
+   onCatalogo(null, vehiculo);
+
+   
+  };
+
+  // El botón grande del hero aplica el vehículo si la selección está
+  // completa. Si hay un vehículo activo y el borrador está incompleto NO
+  // navega (el catálogo abriría con el vehículo anterior) y avisa. Sin
+  // vehículo activo, abre el catálogo completo como siempre.
+  const buscarDesdeHero = () => {
+    if (puedeBuscar) {
+      buscarRepuestos();
+    } else if (vehiculoActivo && !borradorIgualAlActivo) {
+      setIntentoHero(true);
+    } else {
+      onCatalogo();
+    }
+  };
+
+  // Vuelve todo al estado inicial (solo Marca habilitado) y quita el
+  // vehículo activo: el catálogo vuelve a la lista completa.
+  const borrarFiltros = () => {
+    setSelectedBrand("");
+    setSelectedModel("");
+    setSelectedYear("");
+    setYears([]);
+    setIntentoHero(false);
+    limpiarVehiculo();
   };
 
   // ==========================================
@@ -308,17 +391,21 @@ export default function Home({
 
             <button
               type="button"
-              onClick={() =>
-                onCatalogo(null, {
-                  brand: selectedBrand,
-                  model: selectedModel,
-                  year: selectedYear,
-                })
-              }
+              onClick={buscarDesdeHero}
               className="mt-8 bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-lg text-[11px] font-black transition"
             >
               BUSCAR REPUESTOS →
             </button>
+
+            {avisoHero && (
+              <p
+                role="alert"
+                className="mt-3 text-[11px] text-orange-300 max-w-[540px]"
+              >
+                Completá marca, modelo y año para cambiar de vehículo, o
+                usá "Borrar filtros" para ver todo el catálogo.
+              </p>
+            )}
 
           </div>
 
@@ -407,16 +494,20 @@ export default function Home({
 
             <button
               type="button"
-              onClick={() =>
-                onCatalogo(null, {
-                  brand: selectedBrand,
-                  model: selectedModel,
-                  year: selectedYear,
-                })
-              }
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-md px-7 py-3 text-[10px] font-black transition"
+              onClick={buscarRepuestos}
+              disabled={!puedeBuscar}
+              className="bg-orange-500 hover:bg-orange-600 text-white rounded-md px-7 py-3 text-[10px] font-black transition disabled:bg-gray-500 disabled:text-gray-300 disabled:hover:bg-gray-500 disabled:cursor-not-allowed"
             >
               BUSCAR REPUESTOS
+            </button>
+
+            <button
+              type="button"
+              onClick={borrarFiltros}
+              disabled={!hayAlgoParaBorrar}
+              className="border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md px-5 py-3 text-[10px] font-black transition disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-orange-500 disabled:cursor-not-allowed"
+            >
+              BORRAR FILTROS
             </button>
 
           </div>
