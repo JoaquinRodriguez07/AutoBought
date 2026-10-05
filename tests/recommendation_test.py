@@ -51,8 +51,6 @@ def make_catalog(db_session):
         "amortiguador_cronos_sin_stock": make_part(
             db_session, "SUS-0001", "Amortiguador delantero Fiat Cronos",
             "Suspensión", 0, (cronos, 2018, 2024)),
-        "escobilla": make_part(db_session, "ACC-0001", "Escobilla limpiaparabrisas",
-                               "Accesorios", 5, (onix, 2013, 2020), (cronos, 2018, 2024)),
         "llavero": make_part(db_session, "OTR-0001", "Llavero AutoBought",
                              "Otros", 50, (onix, 2013, 2020)),
     }
@@ -223,7 +221,7 @@ def test_part_ids_es_obligatorio(client):
 
 
 def test_part_ids_invalidos_devuelven_422(client):
-    for raw in ("abc", "1,x", " , ", "-1"):
+    for raw in ("abc", "1,x", " , ", "-1", "²", "１"):
         response = client.get("/api/v1/recommendations", params={"part_ids": raw})
         assert response.status_code == 422, raw
 
@@ -257,3 +255,22 @@ def test_ids_repetidos_no_cambian_el_resultado(client, db_session):
 
     assert repetido.status_code == 200
     assert repetido.json() == simple.json()
+
+
+def test_id_fuera_de_rango_devuelve_404(client, db_session):
+    make_catalog(db_session)
+
+    response = client.get(
+        "/api/v1/recommendations", params={"part_ids": "99999999999999999999"}
+    )
+
+    assert response.status_code == 404
+
+
+def test_demasiados_part_ids_devuelven_422(client):
+    response = client.get(
+        "/api/v1/recommendations",
+        params={"part_ids": ",".join(str(i) for i in range(1, 52))},
+    )
+
+    assert response.status_code == 422

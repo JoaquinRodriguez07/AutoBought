@@ -22,9 +22,15 @@ COMPLEMENTARY_CATEGORIES = {
 }
 
 
+# Part.id es un Integer de 32 bits; un id mayor no puede existir y, si se
+# manda a la base, la consulta falla en vez de no encontrar nada.
+MAX_PART_ID = 2**31 - 1
+
+
 def find_missing_part_ids(db: Session, part_ids: list[int]) -> list[int]:
     """Devuelve los ids de `part_ids` que no existen en la base."""
-    existing = set(db.scalars(select(Part.id).where(Part.id.in_(part_ids))))
+    in_range = [part_id for part_id in part_ids if part_id <= MAX_PART_ID]
+    existing = set(db.scalars(select(Part.id).where(Part.id.in_(in_range))))
     return [part_id for part_id in part_ids if part_id not in existing]
 
 

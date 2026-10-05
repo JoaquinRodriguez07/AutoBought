@@ -10,6 +10,11 @@ from app.schemas.recommendation import RecommendationsResponse
 router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
 
+# Un carrito real tiene pocos repuestos distintos; el tope evita que una
+# consulta con miles de ids dispare miles de queries.
+MAX_PART_IDS = 50
+
+
 def parse_part_ids(raw: str) -> list[int]:
     """Convierte "1,5" en [1, 5], sin repetidos y respetando el orden."""
     part_ids = []
@@ -17,19 +22,25 @@ def parse_part_ids(raw: str) -> list[int]:
         chunk = chunk.strip()
         if not chunk:
             continue
-        if not chunk.isdigit():
+        # isascii: isdigit solo también acepta "²" o "１", que int() no
+        # convierte o convierte de forma inesperada.
+        if not (chunk.isascii() and chunk.isdigit()):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="part_ids debe ser una lista de ids numéricos separados por coma.",
             )
-        part_id = int(chunk)
-        if part_id not in part_ids:
-            part_ids.append(part_id)
+        part_ids.append(int(chunk))
+    part_ids = list(dict.fromkeys(part_ids))
 
     if not part_ids:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="part_ids debe incluir al menos un id.",
+        )
+    if len(part_ids) > MAX_PART_IDS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"part_ids admite como máximo {MAX_PART_IDS} ids.",
         )
     return part_ids
 
