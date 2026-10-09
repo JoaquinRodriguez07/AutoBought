@@ -72,5 +72,7 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Sin --passWithNoTests: si Jest no encuentra tests (por ejemplo, porque
+      # se movieron o se renombraron), el job falla en lugar de pasar en verde.
       - name: Tests unitarios (Jest)
-        run: npm test -- --passWithNoTests
+        run: npm test
