@@ -7,7 +7,11 @@ from app.api.deps import get_current_client, get_db
 from app.crud import order as crud_order
 from app.crud import part as crud_part
 from app.models.client import Client
-from app.schemas.order import OrderDetailOut, build_order_detail_out
+from app.schemas.order import (
+    OrderDetailOut,
+    OrderListOut,
+    build_order_detail_out,
+)
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -62,6 +66,33 @@ def confirm_order(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tu carrito está vacío.",
+        )
+
+    return build_order_detail_out(order)
+
+
+@router.get("", response_model=OrderListOut)
+def list_orders(
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client),
+):
+    orders = crud_order.list_order_by_client(db, client.user_id)
+    return {
+        "orders": [build_order_detail_out(order) for order in orders],
+    }
+
+
+@router.get("/{order_id}", response_model=OrderDetailOut)
+def get_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client),
+):
+    order = crud_order.get_order_for_client(db, order_id, client.user_id)
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pedido no encontrado.",
         )
 
     return build_order_detail_out(order)

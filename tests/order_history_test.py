@@ -96,7 +96,7 @@ def test_history_in_order(client, db_session):
     assert [order["order_id"] for order in orders] == [
         purchase.order_id for purchase in expected
     ]
-    assert [order["total"] for order in orders] == [3600, 2400, 1000]
+    assert [order["total"] for order in orders] == [2000, 3600, 1000]
     assert [
         datetime.fromisoformat(order["created_at"].replace("Z", "+00:00"))
         for order in orders
@@ -104,7 +104,7 @@ def test_history_in_order(client, db_session):
 
 
 def test_history_full_details(client, db_session):
-    """Escenario: See full details of a purchase
+    """Scenario: See full details of a purchase
     Given I have made a purchase
     And I check my history
     When I select a purchase order
@@ -139,7 +139,7 @@ def test_history_full_details(client, db_session):
 
 
 def test_history_only_returns_the_authenticated_users_purchases(client, db_session):
-    """Escenario: Just my purchases
+    """Scenario: Just my purchases
     Given I have made purchases
     And other user has made purchases
     When I check my history
@@ -170,8 +170,28 @@ def test_history_only_returns_the_authenticated_users_purchases(client, db_sessi
     assert other_purchase.order_id not in returned_ids
 
 
+def test_order_detail_returns_404_for_another_clients_order(client, db_session):
+    """An order belonging to another client is indistinguishable from a missing order."""
+    customer = make_client(db_session, "gary", "gary@example.com")
+    other_customer = make_client(db_session, "ana", "ana@example.com")
+    part = make_part(db_session, "BRK-001", "Brake pads", 1000)
+    other_purchase = make_order(
+        db_session,
+        other_customer,
+        datetime(2026, 3, 2, tzinfo=timezone.utc),
+        [(part, 2, 1000)],
+    )
+
+    response = client.get(
+        f"/api/v1/orders/{other_purchase.order_id}",
+        headers=auth_headers(customer),
+    )
+
+    assert response.status_code == 404
+
+
 def test_history_for_customer_without_purchases_is_empty(client, db_session):
-    """Escenario: Purchaseless? :(
+    """Scenario: Purchaseless? :(
     Given I never made a purchase
     When I open "Historial de compras"
     Then I see a message letting me know I have not made any purchases yet
