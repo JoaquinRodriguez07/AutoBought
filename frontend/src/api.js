@@ -759,3 +759,29 @@ export async function confirmarCompra() {
   );
   return mapearPedido(data);
 }
+
+/** GET /api/v1/orders — lista el historial de compras del cliente. */
+export async function obtenerHistorialCompras() {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/orders`,
+    {},
+    MENSAJES_POR_STATUS_ORDENES,
+    "No pudimos cargar tu historial de compras."
+  );
+  return listaDe(
+    data,
+    "orders",
+    "No pudimos cargar tu historial de compras."
+  ).map(mapearPedido);
+}
+
+/** GET /api/v1/orders/{orderId} — trae el detalle de una compra. */
+export async function obtenerDetalleCompra(orderId) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/orders/${orderId}`,
+    {},
+    MENSAJES_POR_STATUS_ORDENES,
+    "No pudimos cargar el detalle de la compra."
+  );
+  return mapearPedido(data);
+}
