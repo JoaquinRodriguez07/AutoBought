@@ -65,3 +65,24 @@ def place_order(db: Session, client_id: int) -> Order:
 
         cart.items.clear()
         return order
+
+
+def list_order_by_client(db: Session, client_id: int) -> list[Order]:
+    query = (
+        select(Order)
+        .where(Order.client_id == client_id)
+        .options(selectinload(Order.items).selectinload(OrderItem.part))
+        .order_by(Order.created_at.desc())
+    )
+    return list(db.scalars(query).all())
+
+
+def get_order_for_client(
+    db: Session, order_id: int, client_id: int
+) -> Order | None:
+    query = (
+        select(Order)
+        .where(Order.order_id == order_id, Order.client_id == client_id)
+        .options(selectinload(Order.items).selectinload(OrderItem.part))
+    )
+    return db.scalar(query)
