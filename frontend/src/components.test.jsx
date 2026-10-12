@@ -27,6 +27,8 @@ jest.mock("./api", () => ({
   eliminarMetodoPagoAPI: jest.fn(),
   obtenerRecomendaciones: jest.fn(),
   obtenerFavoritos: jest.fn(),
+  obtenerHistorialCompras: jest.fn(),
+  obtenerDetalleCompra: jest.fn(),
   agregarFavoritoAPI: jest.fn(),
   quitarFavoritoAPI: jest.fn(),
 }));
@@ -79,6 +81,8 @@ import {
   obtenerCategorias,
   obtenerDirecciones,
   obtenerFavoritos,
+  obtenerHistorialCompras,
+  obtenerDetalleCompra,
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
@@ -207,6 +211,8 @@ beforeEach(() => {
   eliminarMetodoPagoAPI.mockResolvedValue({});
   obtenerRecomendaciones.mockResolvedValue([]);
   obtenerFavoritos.mockResolvedValue([]);
+  obtenerHistorialCompras.mockResolvedValue([]);
+  obtenerDetalleCompra.mockResolvedValue({});
   agregarFavoritoAPI.mockResolvedValue();
   quitarFavoritoAPI.mockResolvedValue();
 });
@@ -1374,28 +1380,24 @@ describe("Direcciones", () => {
 });
 
 describe("HistorialCompras", () => {
-  it("renders an empty state and stored purchase details", () => {
+  it("renders an empty state and API-provided purchase details", async () => {
     const props = navigationProps();
     render(<HistorialCompras {...props} onPerfil={jest.fn()} />);
-    expect(screen.getByText("Todavía no realizaste ninguna compra.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Todavía no realizaste ninguna compra.")
+    ).toBeInTheDocument();
 
-    localStorage.setItem(
-      "autobought-compras",
-      JSON.stringify([
-        {
-          id: "ORD-1",
-          fecha: "2026-01-15T00:00:00.000Z",
-          estado: "ENTREGADA",
-          total: 2500,
-          productos: [{ nombre: "Filtro", cantidad: 2, precio: 1250 }],
-        },
-      ])
-    );
+    obtenerHistorialCompras.mockResolvedValue([
+      {
+        id: "ORD-1",
+        fecha: "2026-01-15T00:00:00.000Z",
+        total: 2500,
+        items: [],
+      },
+    ]);
     render(<HistorialCompras {...props} onPerfil={jest.fn()} />);
 
-    expect(screen.getByText("#ORD-1")).toBeInTheDocument();
-    expect(screen.getByText("ENTREGADA")).toBeInTheDocument();
-    expect(screen.getByText("Filtro")).toBeInTheDocument();
+    expect(await screen.findByText("#ORD-1")).toBeInTheDocument();
   });
 });
 

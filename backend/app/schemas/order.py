@@ -42,6 +42,10 @@ class OrderDetailOut(BaseModel):
     items: list[OrderItemDetailOut]
 
 
+class OrderListOut(BaseModel):
+    orders: list[OrderDetailOut]
+
+
 def build_order_detail_out(order: Order) -> OrderDetailOut:
     items = []
     total = 0
