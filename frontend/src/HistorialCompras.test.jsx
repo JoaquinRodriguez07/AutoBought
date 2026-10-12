@@ -108,4 +108,23 @@ describe("HistorialCompras", () => {
       screen.queryByText("Todavía no realizaste ninguna compra.")
     ).not.toBeInTheDocument();
   });
+
+  test("keeps the purchase list visible when a detail fails to load", async () => {
+    obtenerHistorialCompras.mockResolvedValue(compras);
+    obtenerDetalleCompra.mockRejectedValue(
+      new Error("No pudimos cargar el detalle de la compra.")
+    );
+
+    renderHistorial();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Ver detalle del pedido #42" })
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No pudimos cargar el detalle de la compra."
+    );
+    expect(
+      screen.getByRole("list", { name: "Compras realizadas" })
+    ).toBeInTheDocument();
+  });
 });

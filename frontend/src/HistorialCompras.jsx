@@ -19,6 +19,8 @@ export default function HistorialCompras({
   const [cargando, setCargando] = useState(true);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [error, setError] = useState("");
+  const [errorDetalle, setErrorDetalle] = useState("");
+
 
   useEffect(() => {
     let cancelado = false;
@@ -61,14 +63,16 @@ export default function HistorialCompras({
     });
   };
 
-  const verDetalle = async (compra) => {
+    const verDetalle = async (compra) => {
     setCargandoDetalle(true);
-    setError("");
+    setErrorDetalle("");
     try {
       const detalle = await obtenerDetalleCompra(compra.id);
       setCompraSeleccionada(detalle);
     } catch (errorCarga) {
-      setError(errorCarga.message || "No pudimos cargar el detalle de la compra.");
+      setErrorDetalle(
+        errorCarga.message || "No pudimos cargar el detalle de la compra."
+      );
     } finally {
       setCargandoDetalle(false);
     }
@@ -118,6 +122,12 @@ export default function HistorialCompras({
               </p>
             )}
 
+            {errorDetalle && (
+              <p role="alert" className="text-center text-red-600 font-bold mb-6">
+                {errorDetalle}
+              </p>
+            )}
+
             {cargando ? (
               <p role="status" className="text-center text-gray-500">
                 Cargando historial de compras...
@@ -128,7 +138,7 @@ export default function HistorialCompras({
                   type="button"
                   onClick={() => {
                     setCompraSeleccionada(null);
-                    setError("");
+                    setErrorDetalle("");
                   }}
                   className="text-orange-500 text-sm font-bold hover:underline mb-6"
                 >
