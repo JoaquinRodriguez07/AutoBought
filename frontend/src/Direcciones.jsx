@@ -1,5 +1,44 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
+import {
+  obtenerDirecciones,
+  crearDireccion,
+  marcarDireccionPrincipal,
+  eliminarDireccionAPI,
+} from "./api";
+
+const DEPARTAMENTOS = [
+  "Artigas",
+  "Canelones",
+  "Cerro Largo",
+  "Colonia",
+  "Durazno",
+  "Flores",
+  "Florida",
+  "Lavalleja",
+  "Maldonado",
+  "Montevideo",
+  "Paysandú",
+  "Río Negro",
+  "Rivera",
+  "Rocha",
+  "Salto",
+  "San José",
+  "Soriano",
+  "Tacuarembó",
+  "Treinta y Tres",
+];
+
+const FORMULARIO_VACIO = {
+  nombre: "",
+  calle: "",
+  numero: "",
+  apartamento: "",
+  ciudad: "",
+  departamento: "",
+  codigoPostal: "",
+  principal: false,
+};
 
 export default function Direcciones({
   onHome,
@@ -12,47 +51,29 @@ export default function Direcciones({
   cantidadFavoritos = 0,
   onPerfil,
 }) {
-  const [direcciones, setDirecciones] = useState(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem("autobought-direcciones")
-      ) || [];
-    } catch {
-      return [];
-    }
-  });
-
+  const [direcciones, setDirecciones] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [formulario, setFormulario] = useState(FORMULARIO_VACIO);
 
-  const [formulario, setFormulario] = useState({
-    nombre: "",
-    calle: "",
-    numero: "",
-    apartamento: "",
-    ciudad: "",
-    departamento: "",
-    codigoPostal: "",
-  });
-
-  const guardarDirecciones = (nuevasDirecciones) => {
-    setDirecciones(nuevasDirecciones);
-
-    localStorage.setItem(
-      "autobought-direcciones",
-      JSON.stringify(nuevasDirecciones)
-    );
-  };
+  useEffect(() => {
+    obtenerDirecciones()
+      .then(setDirecciones)
+      .catch((e) => setError(e.message))
+      .finally(() => setCargando(false));
+  }, []);
 
   const manejarCambio = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
 
     setFormulario((actual) => ({
       ...actual,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const agregarDireccion = (e) => {
+  const agregarDireccion = async (e) => {
     e.preventDefault();
 
     if (
@@ -66,47 +87,33 @@ export default function Direcciones({
       return;
     }
 
-    const nuevaDireccion = {
-      id: Date.now(),
-      ...formulario,
-      principal: direcciones.length === 0,
-    };
-
-    guardarDirecciones([
-      ...direcciones,
-      nuevaDireccion,
-    ]);
-
-    setFormulario({
-      nombre: "",
-      calle: "",
-      numero: "",
-      apartamento: "",
-      ciudad: "",
-      departamento: "",
-      codigoPostal: "",
-    });
-
-    setMostrarFormulario(false);
+    try {
+      await crearDireccion(formulario);
+      setDirecciones(await obtenerDirecciones());
+      setError("");
+      setFormulario(FORMULARIO_VACIO);
+      setMostrarFormulario(false);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const eliminarDireccion = (id) => {
-    const nuevasDirecciones = direcciones.filter(
-      (direccion) => direccion.id !== id
-    );
-
-    guardarDirecciones(nuevasDirecciones);
+  const eliminarDireccion = async (id) => {
+    try {
+      await eliminarDireccionAPI(id);
+      setDirecciones(await obtenerDirecciones());
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
-  const marcarPrincipal = (id) => {
-    const nuevasDirecciones = direcciones.map(
-      (direccion) => ({
-        ...direccion,
-        principal: direccion.id === id,
-      })
-    );
-
-    guardarDirecciones(nuevasDirecciones);
+  const marcarPrincipal = async (id) => {
+    try {
+      await marcarDireccionPrincipal(id);
+      setDirecciones(await obtenerDirecciones());
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (
@@ -200,6 +207,7 @@ export default function Direcciones({
                       value={formulario.nombre}
                       onChange={manejarCambio}
                       placeholder="Ej: Casa"
+                      maxLength={50}
                       className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
                     />
                   </div>
@@ -214,6 +222,7 @@ export default function Direcciones({
                       value={formulario.ciudad}
                       onChange={manejarCambio}
                       placeholder="Ej: Montevideo"
+                      maxLength={50}
                       className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
                     />
                   </div>
@@ -228,6 +237,7 @@ export default function Direcciones({
                       value={formulario.calle}
                       onChange={manejarCambio}
                       placeholder="Ej: Av. Italia"
+                      maxLength={50}
                       className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
                     />
                   </div>
@@ -242,6 +252,7 @@ export default function Direcciones({
                       value={formulario.numero}
                       onChange={manejarCambio}
                       placeholder="Ej: 1234"
+                      maxLength={10}
                       className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
                     />
                   </div>
@@ -256,6 +267,7 @@ export default function Direcciones({
                       value={formulario.apartamento}
                       onChange={manejarCambio}
                       placeholder="Opcional"
+                      maxLength={10}
                       className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
                     />
                   </div>
@@ -265,13 +277,19 @@ export default function Direcciones({
                       DEPARTAMENTO *
                     </label>
 
-                    <input
+                    <select
                       name="departamento"
                       value={formulario.departamento}
                       onChange={manejarCambio}
-                      placeholder="Ej: Montevideo"
                       className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
-                    />
+                    >
+                      <option value="">Seleccioná un departamento</option>
+                      {DEPARTAMENTOS.map((departamento) => (
+                        <option key={departamento} value={departamento}>
+                          {departamento}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -284,11 +302,23 @@ export default function Direcciones({
                       value={formulario.codigoPostal}
                       onChange={manejarCambio}
                       placeholder="Opcional"
+                      maxLength={10}
                       className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
                     />
                   </div>
 
                 </div>
+
+                <label className="flex items-center gap-2 mt-5 text-[9px] font-bold text-gray-500 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="principal"
+                    checked={formulario.principal}
+                    onChange={manejarCambio}
+                    className="accent-orange-500"
+                  />
+                  MARCAR COMO DIRECCIÓN PRINCIPAL
+                </label>
 
                 <div className="flex justify-end mt-6">
 
@@ -306,7 +336,19 @@ export default function Direcciones({
 
             {/* DIRECCIONES */}
 
-            {direcciones.length === 0 ? (
+            {cargando ? (
+
+              <p className="text-center text-gray-400 text-sm py-16">
+                Cargando…
+              </p>
+
+            ) : error ? (
+
+              <p className="text-center text-red-500 text-sm py-16">
+                {error}
+              </p>
+
+            ) : direcciones.length === 0 ? (
 
               <div className="text-center py-16">
 
@@ -331,14 +373,13 @@ export default function Direcciones({
                     className="border border-gray-200 rounded-xl p-6 relative"
                   >
 
-                    {direccion.principal && (
-                      <span className="absolute top-4 right-4 text-[7px] font-black bg-orange-100 text-orange-500 px-2 py-1 rounded">
-                        PRINCIPAL
-                      </span>
-                    )}
-
                     <h3 className="font-black text-gray-900 text-sm uppercase">
                       {direccion.nombre}
+                      {direccion.principal && (
+                        <span className="ml-2 align-middle text-[8px] bg-orange-500 text-white rounded px-2 py-0.5 tracking-wider">
+                          PRINCIPAL
+                        </span>
+                      )}
                     </h3>
 
                     <p className="text-[10px] text-gray-600 mt-4">
@@ -362,12 +403,10 @@ export default function Direcciones({
                       {!direccion.principal && (
                         <button
                           type="button"
-                          onClick={() =>
-                            marcarPrincipal(direccion.id)
-                          }
+                          onClick={() => marcarPrincipal(direccion.id)}
                           className="text-[8px] text-orange-500 font-bold hover:underline"
                         >
-                          MARCAR PRINCIPAL
+                          MARCAR COMO PRINCIPAL
                         </button>
                       )}
 

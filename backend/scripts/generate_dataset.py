@@ -83,37 +83,37 @@ SEGMENT_FACTOR = {
 
 # name, category, base price, color
 ENGINE_PARTS = [
-    ("Oil filter", "Filters", 750, None),
-    ("Air filter", "Filters", 900, None),
-    ("Spark plug", "Ignition", 620, None),
-    ("Ignition coil", "Ignition", 3400, None),
-    ("Timing belt kit", "Engine", 8900, None),
-    ("Water pump", "Engine", 5200, None),
+    ("Filtro de aceite", "Filtros", 750, None),
+    ("Filtro de aire", "Filtros", 900, None),
+    ("Bujía", "Encendido", 620, None),
+    ("Bobina de encendido", "Encendido", 3400, None),
+    ("Kit de distribución", "Motor", 8900, None),
+    ("Bomba de agua", "Motor", 5200, None),
 ]
 
 MODEL_PARTS = [
-    ("Front brake pads", "Brakes", 2800, None),
-    ("Front shock absorber", "Suspension", 6100, None),
-    ("Headlight", "Body", 6900, "Black"),
-    ("Radiator", "Cooling", 8700, None),
+    ("Pastillas de freno delanteras", "Frenos", 2800, None),
+    ("Amortiguador delantero", "Suspensión", 6100, None),
+    ("Faro delantero", "Carrocería", 6900, "Negro"),
+    ("Radiador", "Refrigeración", 8700, None),
 ]
 
 UNIVERSAL_PARTS = [
-    ("Coolant 1L", "Cooling", 480, "Green"),
-    ("Engine oil 5W30 4L", "Lubricants", 2600, None),
-    ("Windshield wiper blade", "Accessories", 890, None),
+    ("Refrigerante 1L", "Refrigeración", 480, "Verde"),
+    ("Aceite de motor 5W30 4L", "Lubricantes", 2600, None),
+    ("Escobilla limpiaparabrisas", "Accesorios", 890, None),
 ]
 
 PREFIXES = {
-    "Filters": "FIL",
-    "Ignition": "IGN",
-    "Engine": "ENG",
-    "Brakes": "BRK",
-    "Suspension": "SUS",
-    "Body": "BOD",
-    "Cooling": "COL",
-    "Lubricants": "LUB",
-    "Accessories": "ACC",
+    "Filtros": "FIL",
+    "Encendido": "IGN",
+    "Motor": "ENG",
+    "Frenos": "BRK",
+    "Suspensión": "SUS",
+    "Carrocería": "BOD",
+    "Refrigeración": "COL",
+    "Lubricantes": "LUB",
+    "Accesorios": "ACC",
 }
 
 
@@ -147,7 +147,7 @@ def calc_stock(part_code, category):
     seed = sum(ord(ch) for ch in part_code)
     if seed % 17 == 0:
         return 0
-    cap = 60 if category in ("Filters", "Lubricants", "Accessories") else 25
+    cap = 60 if category in ("Filtros", "Lubricantes", "Accesorios") else 25
     return seed % cap + 1
 
 

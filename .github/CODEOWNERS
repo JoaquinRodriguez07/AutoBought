@@ -1,0 +1,10 @@
+# Responsables por área. GitHub pide revisión automáticamente a estas
+# personas cuando un PR toca la carpeta, y con "Require review from Code
+# Owners" activado en el ruleset, al menos una de ellas tiene que aprobar.
+# El PM (Joaquín) figura en todo el código.
+
+/backend/             @JoaquinRodriguez07 @PaoloPortugal @Ture179
+/frontend/            @JoaquinRodriguez07 @Santipii
+/tests/               @JoaquinRodriguez07 @snyczka
+/.github/             @JoaquinRodriguez07
+/docker-compose.yml   @JoaquinRodriguez07 @PaoloPortugal

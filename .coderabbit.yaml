@@ -1,0 +1,6 @@
+# Configuración de CodeRabbit para AutoBought.
+# Referencia de claves: https://docs.coderabbit.ai/reference/configuration
+language: "es-AR"
+tone_instructions: "Escribí en español rioplatense, claro y breve. Explicá el problema y la solución concreta."
+reviews:
+  profile: "chill"

@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { obtenerSesion, sesionValida } from "./auth";
+import {
+  agregarFavoritoAPI,
+  obtenerFavoritos,
+  quitarFavoritoAPI,
+} from "./api";
 import { useCart } from "./context/CartContext";
+import { useVehicle } from "./context/VehicleContext";
 
 import Home from "./Home";
 import Login from "./Login";
@@ -20,18 +27,14 @@ import ProtectedRoute from "./ProtectedRoute";
 function App() {
   const navigate = useNavigate();
   const { cargarCarrito, limpiarCarritoLocal } = useCart();
+  const { activarVehiculo } = useVehicle();
+
 
   // null = sin filtro de categoría (el catálogo muestra todos los
   // repuestos). Los nombres de categoría los define el backend
   // (GET /api/v1/parts/categories), no el frontend.
   const [categoriaCatalogo, setCategoriaCatalogo] =
     useState(null);
-
-  const [filtrosVehiculo, setFiltrosVehiculo] = useState({
-    brand: "",
-    model: "",
-    year: "",
-  });
 
   const [productoSeleccionado, setProductoSeleccionado] =
     useState(null);
@@ -49,17 +52,24 @@ function App() {
      FAVORITOS
   ====================================================== */
 
-  const [favoritos, setFavoritos] = useState(() => {
-    try {
-      return (
-        JSON.parse(
-          localStorage.getItem("autobought-favoritos")
-        ) || []
-      );
-    } catch {
-      return [];
-    }
-  });
+  const [favoritos, setFavoritos] = useState([]);
+
+  useEffect(() => {
+    if (!usuario?.token) return;
+
+    let cancelado = false;
+    obtenerFavoritos()
+      .then((lista) => {
+        if (!cancelado) setFavoritos(lista);
+      })
+      .catch(() => {
+        if (!cancelado) setFavoritos([]);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [usuario?.token]);
 
   /* =====================================================
      DIRECCIONES
@@ -117,17 +127,6 @@ function App() {
     });
 
   /* =====================================================
-     GUARDAR FAVORITOS
-  ====================================================== */
-
-  useEffect(() => {
-    localStorage.setItem(
-      "autobought-favoritos",
-      JSON.stringify(favoritos)
-    );
-  }, [favoritos]);
-
-  /* =====================================================
      GUARDAR DIRECCIONES
   ====================================================== */
 
@@ -165,23 +164,20 @@ function App() {
      (antes: setPagina("x") — ahora: navigate("/x"))
   ====================================================== */
 
-  const irAlCatalogo = (
-    categoria = null,
-    vehiculo = null
-  ) => {
-    setCategoriaCatalogo(categoria);
+  // El Vehículo Activo vive en VehicleContext y NO se toca acá: ir al
+  // catálogo (desde el navbar, el carrito, el detalle...) mantiene el
+  // auto que el cliente ya había confirmado. Se quita solo con
+  // "Borrar filtros" (ver Home y Catalogo).
+  // Si llega un vehículo (por ejemplo, la marca elegida en Home o en
+   // /marcas), pasa a ser el Vehículo Activo.
+  const irAlCatalogo = (categoria = null, vehiculo = null) => {
+     setCategoriaCatalogo(categoria);
 
-    if (vehiculo) {
-      setFiltrosVehiculo(vehiculo);
-    } else {
-      setFiltrosVehiculo({
-        brand: "",
-        model: "",
-        year: "",
-      });
-    }
+     if (vehiculo) {
+       activarVehiculo(vehiculo);
+     }
 
-    navigate("/catalogo");
+     navigate("/catalogo");
   };
 
   const irAlDetalle = (producto) => {
@@ -249,6 +245,12 @@ function App() {
   ====================================================== */
 
   const actualizarUsuario = (usuarioActualizado) => {
+    const sesionActual = obtenerSesion();
+
+    if (!sesionActual || sesionActual.token !== usuarioActualizado.token) {
+      return;
+    }
+
     setUsuario(usuarioActualizado);
 
     const storage = localStorage.getItem("autobought-sesion")
@@ -272,6 +274,7 @@ function App() {
     sessionStorage.removeItem("autobought-sesion");
 
     limpiarCarritoLocal();
+    setFavoritos([]);
     navigate("/");
   };
 
@@ -279,23 +282,43 @@ function App() {
      FAVORITOS
   ====================================================== */
 
-  const alternarFavorito = (producto) => {
+  const alternarFavorito = async (producto) => {
     if (!usuario) {
       navigate("/login");
       return;
     }
 
-    setFavoritos((actual) => {
-      const existe = actual.some(
-        (item) => item.id === producto.id
+    const existe = favoritos.some(
+      (item) => item.id === producto.id
+    );
+
+    setFavoritos((actual) =>
+      existe
+        ? actual.filter((item) => item.id !== producto.id)
+        : [...actual, producto]
+    );
+
+    try {
+      if (existe) {
+        await quitarFavoritoAPI(producto.partId ?? producto.id);
+      } else {
+        await agregarFavoritoAPI(producto.partId ?? producto.id);
+      }
+    } catch (error) {
+      setFavoritos((actual) =>
+        existe
+          ? [...actual, producto]
+          : actual.filter((item) => item.id !== producto.id)
       );
 
-      return existe
-        ? actual.filter(
-            (item) => item.id !== producto.id
-          )
-        : [...actual, producto];
-    });
+      if (error.status === 401) {
+        toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
+        navigate("/login");
+        return;
+      }
+
+      toast.error(error.message || "No pudimos actualizar tus favoritos.");
+    }
   };
 
   const esFavorito = (id) =>
@@ -364,10 +387,7 @@ function App() {
       <Route
         path="/"
         element={
-          <Home
-            {...propsNavbar}
-            filtrosVehiculo={filtrosVehiculo}
-          />
+          <Home {...propsNavbar} />
         }
       />
 
@@ -424,7 +444,6 @@ function App() {
             {...propsNavbar}
             onDetalle={irAlDetalle}
             categoriaInicial={categoriaCatalogo}
-            filtrosVehiculo={filtrosVehiculo}
             onCategoriaSeleccionada={setCategoriaCatalogo}
             favoritos={favoritos}
             onAlternarFavorito={alternarFavorito}
@@ -441,7 +460,6 @@ function App() {
             onDetalle={irAlDetalle}
             onCatalogo={irAlCatalogo}
             producto={productoSeleccionado}
-            filtrosVehiculo={filtrosVehiculo}
             onAlternarFavorito={alternarFavorito}
             esFavorito={esFavorito}
           />

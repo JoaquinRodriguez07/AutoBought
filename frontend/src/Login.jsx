@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
-import { login } from "./api";
+import { login, obtenerPerfil } from "./api";
 import { decodeToken } from "./auth";
 
 export default function Login({
@@ -40,13 +40,21 @@ export default function Login({
       const data = await login(email.trim(), password);
       const payload = decodeToken(data.access_token);
 
-      const sesion = {
+      let sesion = {
         token: data.access_token,
         tokenType: data.token_type,
         userId: payload?.sub ?? null,
         userType: payload?.user_type ?? null,
         email: email.trim(),
       };
+
+      // Nombre y teléfono viven en el backend. Si el perfil no carga, el
+      // login igual es válido: la sesión queda sin esos datos.
+      try {
+        sesion = { ...sesion, ...(await obtenerPerfil(data.access_token)) };
+      } catch {
+        // se sigue con la sesión mínima
+      }
 
       onIniciarSesion(sesion, remember);
     } catch (err) {

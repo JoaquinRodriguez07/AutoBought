@@ -20,8 +20,16 @@ class PartOut(BaseModel):
     stock: int
 
 
+class SearchEntities(BaseModel):
+    part: Optional[str] = None
+    brand: Optional[str] = None
+    model: Optional[str] = None
+    year: Optional[int] = None
+
+
 class PartsResponse(BaseModel):
     parts: list[PartOut]
+    entities: Optional[SearchEntities] = None
 
 
 class CategoryOut(BaseModel):

@@ -2,14 +2,15 @@ services:
   postgres:
     image: postgres:17
     container_name: postgres
+    profiles: ["local"]
     restart: unless-stopped
 
     cpus: 2
 
     environment:
-      POSTGRES_USER: ingsoft2
-      POSTGRES_PASSWORD: estoesunacontrasenia1234!
-      POSTGRES_DB: ingsoft2db
+      POSTGRES_USER: ${LOCAL_DB_USER:-ingsoft2}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:?Falta LOCAL_DB_PASSWORD en el .env de la raíz (ver .env.example)}
+      POSTGRES_DB: ${LOCAL_DB_NAME:-ingsoft2db}
 
     ports:
       - "5432:5432"
@@ -18,7 +19,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ingsoft2 -d ingsoft2db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -26,10 +27,12 @@ services:
   backend:
     build: ./backend
     container_name: backend
+    profiles: ["local"]
     restart: unless-stopped
 
     environment:
-      DATABASE_URL: postgresql+psycopg2://ingsoft2:estoesunacontrasenia1234!@postgres:5432/ingsoft2db
+      DATABASE_URL: postgresql+psycopg2://${LOCAL_DB_USER:-ingsoft2}:${LOCAL_DB_PASSWORD}@${LOCAL_DB_HOST:-postgres}:${LOCAL_DB_PORT:-5432}/${LOCAL_DB_NAME:-ingsoft2db}
+      SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en el .env de la raíz (ver .env.example)}
 
     ports:
       - "8000:8000"
@@ -41,6 +44,63 @@ services:
     volumes:
       - ./backend:/app
       - /app/.venv
+
+  backend-remote:
+    build: ./backend
+    container_name: backend-remote
+    profiles: ["remoto"]
+    restart: unless-stopped
+
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${REMOTE_DB_USER:-}:${REMOTE_DB_PASSWORD:-}@${REMOTE_DB_HOST:-}:${REMOTE_DB_PORT:-5432}/${REMOTE_DB_NAME:-ingsoft2db}
+      SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en el .env de la raíz (ver .env.example)}
+
+    ports:
+      - "8001:8000"
+
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    profiles: ["local"]
+    restart: unless-stopped
+
+    environment:
+      VITE_API_URL: http://localhost:8000
+      VITE_PROXY_TARGET: http://backend:8000
+
+    ports:
+      - "5173:5173"
+
+    depends_on:
+      - backend
+
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+  frontend-remote:
+    build: ./frontend
+    container_name: frontend-remote
+    profiles: ["remoto"]
+    restart: unless-stopped
+
+    environment:
+      VITE_API_URL: http://localhost:8001
+      VITE_PROXY_TARGET: http://backend-remote:8000
+
+    ports:
+      - "5174:5173"
+
+    depends_on:
+      - backend-remote
+
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
 
 volumes:
   postgres_data:
