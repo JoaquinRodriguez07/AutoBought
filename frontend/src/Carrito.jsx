@@ -51,7 +51,7 @@ export default function Carrito({
   };
 
   const resumen = (
-    <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit shadow-sm">
+    <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit shadow-xs">
       <h2 className="text-[13px] font-black">Resumen del pedido</h2>
       <div className="mt-6 space-y-4">
         <div className="flex justify-between text-[10px]"><span className="text-gray-500">Subtotal</span><span className="font-bold">{precio(subtotal)}</span></div>
@@ -133,7 +133,7 @@ export default function Carrito({
 
         {productos.length === 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_310px] gap-6">
-            <div className="bg-white border border-gray-200 rounded-xl p-16 text-center shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-xl p-16 text-center shadow-xs">
               <div className="text-5xl mb-4">🛒</div>
               <h2 className="text-xl font-black">Tu carrito está vacío</h2>
               <p className="text-[10px] text-gray-400 mt-2">Agregá repuestos desde el catálogo para verlos acá.</p>
@@ -157,8 +157,8 @@ export default function Carrito({
               {productos.map((producto) => {
                 const alcanzoMaximo = producto.cantidad >= producto.stock;
                 return (
-                  <div key={producto.id} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row gap-4 shadow-sm">
-                    <button onClick={() => onDetalle(producto)} className="w-full md:w-[150px] h-[115px] rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                  <div key={producto.id} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row gap-4 shadow-xs">
+                    <button onClick={() => onDetalle(producto)} className="w-full md:w-[150px] h-[115px] rounded-lg overflow-hidden bg-gray-100 shrink-0">
                       <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
                     </button>
 

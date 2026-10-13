@@ -61,7 +61,7 @@ export default function SearchBar({
   return (
     <div
       role="search"
-      className={`flex w-full bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 ${className}`}
+      className={`flex w-full bg-white rounded-lg shadow-xs overflow-hidden border border-gray-100 ${className}`}
     >
       <input
         value={interno}
@@ -71,7 +71,7 @@ export default function SearchBar({
         autoFocus={autoFocus}
         aria-label="Buscar repuesto por nombre o código"
         placeholder={placeholder}
-        className="flex-1 px-4 py-4 text-[10px] outline-none"
+        className="flex-1 px-4 py-4 text-[10px] outline-hidden"
       />
 
       {interno && (

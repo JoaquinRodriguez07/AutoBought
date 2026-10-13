@@ -66,7 +66,7 @@ export default function SugerenciasCarrito() {
   return (
     <section
       aria-labelledby="titulo-sugerencias"
-      className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mt-6"
+      className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs"
     >
       <h2 id="titulo-sugerencias" className="text-[13px] font-black">
         También podrías necesitar esto...

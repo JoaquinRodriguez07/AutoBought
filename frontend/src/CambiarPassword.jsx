@@ -4,7 +4,7 @@ import { cambiarPassword } from "./api";
 const FORMULARIO_VACIO = { actual: "", nueva: "", repetir: "" };
 
 const claseInput =
-  "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] text-gray-700 outline-none focus:border-orange-500 transition";
+  "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] text-gray-700 outline-hidden focus:border-orange-500 transition";
 
 export default function CambiarPassword() {
   const [abierto, setAbierto] = useState(false);

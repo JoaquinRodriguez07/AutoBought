@@ -117,7 +117,7 @@ export default function Direcciones({
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-gradient-to-b from-black to-[#492202]">
+    <div className="min-h-screen flex flex-col font-sans bg-linear-to-b from-black to-[#492202]">
 
       <Navbar
         paginaActual="perfil"
@@ -208,7 +208,7 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Ej: Casa"
                       maxLength={50}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     />
                   </div>
 
@@ -223,7 +223,7 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Ej: Montevideo"
                       maxLength={50}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     />
                   </div>
 
@@ -238,7 +238,7 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Ej: Av. Italia"
                       maxLength={50}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     />
                   </div>
 
@@ -253,7 +253,7 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Ej: 1234"
                       maxLength={10}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     />
                   </div>
 
@@ -268,7 +268,7 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Opcional"
                       maxLength={10}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     />
                   </div>
 
@@ -281,7 +281,7 @@ export default function Direcciones({
                       name="departamento"
                       value={formulario.departamento}
                       onChange={manejarCambio}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     >
                       <option value="">Seleccioná un departamento</option>
                       {DEPARTAMENTOS.map((departamento) => (
@@ -303,7 +303,7 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Opcional"
                       maxLength={10}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     />
                   </div>
 
@@ -376,7 +376,7 @@ export default function Direcciones({
                     <h3 className="font-black text-gray-900 text-sm uppercase">
                       {direccion.nombre}
                       {direccion.principal && (
-                        <span className="ml-2 align-middle text-[8px] bg-orange-500 text-white rounded px-2 py-0.5 tracking-wider">
+                        <span className="ml-2 align-middle text-[8px] leading-5 bg-orange-500 text-white rounded-sm px-2 py-0.5 tracking-wider">
                           PRINCIPAL
                         </span>
                       )}
