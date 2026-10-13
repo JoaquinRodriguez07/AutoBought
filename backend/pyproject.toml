@@ -8,7 +8,7 @@ dependencies = [
     "psycopg2-binary>=2.9.13",
     "pyjwt>=2.15.1",
     "python-dotenv>=1.2.4",
-    "sqlalchemy>=2.1.2",
+    "sqlalchemy>=2.1.4",
 ]
 
 [dependency-groups]
