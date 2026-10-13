@@ -79,7 +79,7 @@ export default function HistorialCompras({
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-gradient-to-b from-black to-[#492202]">
+    <div className="min-h-screen flex flex-col font-sans bg-linear-to-b from-black to-[#492202]">
       <Navbar
         paginaActual="perfil"
         onHome={onHome}

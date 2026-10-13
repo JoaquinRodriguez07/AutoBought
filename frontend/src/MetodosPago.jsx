@@ -106,7 +106,7 @@ export default function MetodosPago({
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-gradient-to-b from-black to-[#492202]">
+    <div className="min-h-screen flex flex-col font-sans bg-linear-to-b from-black to-[#492202]">
 
       <Navbar
         paginaActual="perfil"
@@ -193,7 +193,7 @@ export default function MetodosPago({
                       name="tipo"
                       value={formulario.tipo}
                       onChange={manejarCambio}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     >
                       <option value="Visa">
                         Visa
@@ -220,7 +220,7 @@ export default function MetodosPago({
                       value={formulario.titular}
                       onChange={manejarCambio}
                       placeholder="Nombre del titular"
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     />
                   </div>
 
@@ -240,7 +240,7 @@ export default function MetodosPago({
                       }
                       maxLength={19}
                       placeholder="1234 5678 9012 3456"
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     />
                   </div>
 
@@ -255,7 +255,7 @@ export default function MetodosPago({
                       onChange={manejarCambio}
                       placeholder="MM/AA"
                       maxLength={5}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500"
+                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
                     />
                   </div>
 
@@ -330,7 +330,7 @@ export default function MetodosPago({
                   >
 
                     {metodo.principal && (
-                      <span className="absolute top-4 right-4 text-[7px] font-black bg-orange-100 text-orange-500 px-2 py-1 rounded">
+                      <span className="absolute top-4 right-4 text-[7px] font-black bg-orange-100 text-orange-500 px-2 py-1 rounded-sm">
                         PRINCIPAL
                       </span>
                     )}

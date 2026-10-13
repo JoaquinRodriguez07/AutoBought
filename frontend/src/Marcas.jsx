@@ -188,7 +188,7 @@ export default function Marcas({
                         year: "",
                       })
                     }
-                    className="group bg-white border border-gray-100 rounded-xl h-[145px] flex flex-col items-center justify-center shadow-sm hover:shadow-lg hover:border-orange-300 hover:-translate-y-1 transition duration-300"
+                    className="group bg-white border border-gray-100 rounded-xl h-[145px] flex flex-col items-center justify-center shadow-xs hover:shadow-lg hover:border-orange-300 hover:-translate-y-1 transition duration-300"
                   >
 
                     <div className="h-16 w-28 flex items-center justify-center">

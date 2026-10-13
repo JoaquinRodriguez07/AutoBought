@@ -115,7 +115,7 @@ export default function DetalleProducto({
 
             <div>
               <p className="text-orange-500 text-[11px] font-black">{productoActual.marcaPrincipal ?? productoActual.marca}</p>
-              <h1 className="text-2xl md:text-3xl font-black mt-2 leading-tight">{productoActual.nombre}</h1>
+              <h1 className="text-2xl md:text-3xl font-black mt-2 leading-tight md:leading-9">{productoActual.nombre}</h1>
               <p className="text-[10px] text-gray-400 mt-2">Código: {productoActual.codigo}</p>
               <p className="text-3xl font-black text-orange-500 mt-5">${productoActual.precio.toLocaleString("es-UY")}</p>
               {sinStock ? (
@@ -159,7 +159,7 @@ export default function DetalleProducto({
             </div>
 
             <div className="space-y-3">
-              <div className="border border-gray-100 rounded-xl shadow-sm p-5">
+              <div className="border border-gray-100 rounded-xl shadow-xs p-5">
                 <p className="text-[10px] font-black">🛡 Garantía</p>
                 <p className="text-[9px] text-gray-500 mt-1">{productoActual.garantia || "Consultar garantía."}</p>
                 <div className="border-t my-4" />
