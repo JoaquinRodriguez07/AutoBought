@@ -474,6 +474,55 @@ describe("Catalogo", () => {
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("DB5678", 2));
   });
 
+  it("shows the add confirmation and supports undo, dismissal, and cart navigation", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+    startClientSession();
+    agregarItemCarrito.mockResolvedValue({
+      items: [{
+        part_id: "BP1234",
+        name: "Pastillas de Freno Delanteras Bosch",
+        price: 1500,
+        amount: 1,
+        subtotal: 1500,
+        stock: 5,
+        category: "Frenos",
+      }],
+      total: 1500,
+    });
+
+    render(<Catalogo {...props} categoriaInicial="Frenos" />);
+    await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
+
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Parte agregada al carrito.")).toBeInTheDocument();
+    expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
+      .toEqual(["Deshacer", "Ok", "Ver carrito"]);
+
+    fireEvent.click(dialog.parentElement);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
+    dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Ok" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
+    dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("BP1234"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
+    dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
+    expect(props.onCarrito).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("changes category and toggles a product favorite", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -521,7 +570,7 @@ describe("Catalogo", () => {
 });
 
 describe("DetalleProducto", () => {
-  it("changes quantity, adds the product, and switches detail tabs", async () => {
+  it("shows the add confirmation and supports undo and cart navigation", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
     props.onAlternarFavorito = jest.fn();
@@ -532,9 +581,24 @@ describe("DetalleProducto", () => {
 
     await user.click(screen.getByRole("button", { name: "+" }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
-    await user.click(screen.getByRole("button", { name: "Especificaciones" }));
 
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 2));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Parte agregada al carrito.")).toBeInTheDocument();
+    expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
+      .toEqual(["Deshacer", "Ok", "Ver carrito"]);
+
+    await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
+    dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
+    expect(props.onCarrito).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Especificaciones" }));
     expect(screen.getByText("Especificaciones técnicas")).toBeInTheDocument();
     expect(screen.getByText("Semi-metalico")).toBeInTheDocument();
   });
