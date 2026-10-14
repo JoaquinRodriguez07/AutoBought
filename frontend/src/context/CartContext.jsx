@@ -81,10 +81,10 @@ export function CartProvider({ children }) {
     if (!sesionValida(obtenerSesion())) {
       toast.error("Iniciá sesión para agregar productos al carrito.");
       navigate("/login");
-      return;
+      return false;
     }
 
-    if (!producto || producto.stock === 0) return;
+    if (!producto || producto.stock === 0) return false;
 
     const cantidadPedida = Math.max(1, Number(cantidad) || 1);
     const partId = producto.partId ?? producto.id;
@@ -92,8 +92,10 @@ export function CartProvider({ children }) {
     try {
       const carrito = await agregarItemCarrito(partId, cantidadPedida);
       aplicarRespuesta(carrito);
+      return true;
     } catch (error) {
       manejarError(error);
+      return false;
     }
   };
 
