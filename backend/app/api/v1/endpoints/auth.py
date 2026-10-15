@@ -61,6 +61,23 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     return Token(access_token=access_token)
 
 
+@router.post("/refresh", response_model=Token)
+def refresh(client: Client = Depends(get_current_client)):
+    """Entrega un token nuevo a partir de uno todavía válido.
+
+    El token vigente se valida con la misma dependencia que el resto de los
+    endpoints de cliente: 401 si falta, es inválido o ya venció (un token
+    vencido NO se puede renovar: hay que volver a iniciar sesión), o si el
+    cliente ya no existe. El token nuevo repite los datos del usuario que
+    están guardados en la base y vuelve a empezar la vigencia completa.
+    """
+    access_token = create_access_token(
+        subject=str(client.user_id),
+        extra_claims={"user_type": client.user_type},
+    )
+    return Token(access_token=access_token)
+
+
 @router.get("/me", response_model=ClientOut)
 def me(client: Client = Depends(get_current_client)):
     """Perfil del cliente dueño del token (nombre, correo y teléfono)."""

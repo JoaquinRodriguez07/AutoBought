@@ -28,6 +28,7 @@ import {
   obtenerRepuestos,
   quitarFavoritoAPI,
   registrar,
+  renovarToken,
   vaciarCarritoAPI,
 } from "./api";
 import { obtenerSesion } from "./auth";
@@ -177,6 +178,51 @@ describe("obtenerPerfil", () => {
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("renovarToken", () => {
+  it("posts the current session token and returns the new one", async () => {
+    const data = { access_token: "token-nuevo", token_type: "bearer" };
+    fetch.mockResolvedValue(response(data));
+
+    await expect(renovarToken()).resolves.toEqual(data);
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/refresh`, {
+      method: "POST",
+      headers: { Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("rejects with status 401 when the token already expired", async () => {
+    fetch.mockResolvedValue(response({ detail: "Token inválido o expirado." }, { ok: false, status: 401 }));
+
+    await expect(renovarToken()).rejects.toMatchObject({
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+      status: 401,
+    });
+  });
+
+  it("keeps the status of other server errors so the caller can retry", async () => {
+    fetch.mockResolvedValue(response({}, { ok: false, status: 503 }));
+
+    await expect(renovarToken()).rejects.toMatchObject({
+      message: "No pudimos renovar tu sesión.",
+      status: 503,
+    });
+  });
+
+  it("rejects without a status when there is no connection, or the body is not usable", async () => {
+    fetch
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(response(null, { jsonError: new Error("bad json") }))
+      .mockResolvedValueOnce(response({ token_type: "bearer" }));
+
+    const sinRed = await renovarToken().catch((e) => e);
+    expect(sinRed.message).toBe("No pudimos conectar con el servidor.");
+    expect(sinRed.status).toBeUndefined();
+
+    await expect(renovarToken()).rejects.toThrow("No pudimos renovar tu sesión.");
+    await expect(renovarToken()).rejects.toThrow("No pudimos renovar tu sesión.");
   });
 });
 

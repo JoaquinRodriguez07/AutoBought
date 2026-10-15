@@ -6,6 +6,7 @@ jest.mock("./api", () => ({
   login: jest.fn(),
   registrar: jest.fn(),
   obtenerPerfil: jest.fn(),
+  renovarToken: jest.fn(),
   actualizarPerfil: jest.fn(),
   cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
@@ -56,6 +57,7 @@ import Registro from "./Registro";
 import Direcciones from "./Direcciones";
 import HistorialCompras from "./HistorialCompras";
 import ProtectedRoute from "./ProtectedRoute";
+import { crearToken } from "./testTokens";
 import SearchBar from "./SearchBar";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { CartProvider } from "./context/CartContext";
@@ -92,6 +94,7 @@ import {
   quitarFavoritoAPI,
   registrar,
   vaciarCarritoAPI,
+  renovarToken,
 } from "./api";
 import {
   decodeToken,
@@ -916,6 +919,76 @@ describe("App sesión", () => {
 
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
     expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+  });
+});
+
+describe("App renovación de sesión", () => {
+  const MIN = 60 * 1000;
+  const sesionQueVenceEn = (minutos) => ({
+    id: 1,
+    userId: "1",
+    nombre: "Ana",
+    email: "ana@example.com",
+    token: crearToken(Date.now() + minutos * MIN),
+    tokenType: "bearer",
+  });
+
+  const renderApp = () =>
+    renderBase(
+      <MemoryRouter initialEntries={["/"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  it("replaces the token of a remembered session before it expires, keeping the rest of the session", async () => {
+    const sesion = sesionQueVenceEn(4);
+    const nuevo = crearToken(Date.now() + 60 * MIN);
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    renovarToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+
+    renderApp();
+
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe(nuevo)
+    );
+    expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({ ...sesion, token: nuevo });
+    expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+    expect(renovarToken).toHaveBeenCalledTimes(1);
+    expect(toast.error).not.toHaveBeenCalled();
+    // Los favoritos no se vuelven a pedir por cambiar el token.
+    expect(obtenerFavoritos).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a non-remembered session in sessionStorage after renewing", async () => {
+    const nuevo = crearToken(Date.now() + 60 * MIN);
+    sessionStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
+    renovarToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+
+    renderApp();
+
+    await waitFor(() =>
+      expect(JSON.parse(sessionStorage.getItem("autobought-sesion")).token).toBe(nuevo)
+    );
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+  });
+
+  it("does not ask for a new token while the current one is far from expiring", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(60)));
+
+    renderApp();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(renovarToken).not.toHaveBeenCalled();
+  });
+
+  it("closes the session and warns the client when the API answers 401", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
+    renovarToken.mockRejectedValueOnce(Object.assign(new Error("vencida"), { status: 401 }));
+
+    renderApp();
+
+    await waitFor(() => expect(localStorage.getItem("autobought-sesion")).toBeNull());
+    expect(toast.error).toHaveBeenCalledWith("Tu sesión venció. Iniciá sesión de nuevo.");
   });
 });
 

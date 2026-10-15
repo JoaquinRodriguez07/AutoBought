@@ -1,7 +1,11 @@
+from datetime import datetime, timedelta, timezone
+
+import jwt
 from sqlalchemy import select
 
 import pytest
 
+from app.core.config import JWT_ALGORITHM, SECRET_KEY
 from app.core.phone import normalize_uy_phone
 from app.core.security import create_access_token, verify_password
 from app.models.client import Client
@@ -10,6 +14,7 @@ from app.models.user import User
 REGISTER = "/api/v1/auth/register"
 LOGIN = "/api/v1/auth/login"
 ME = "/api/v1/auth/me"
+REFRESH = "/api/v1/auth/refresh"
 
 
 def payload(**overrides):
@@ -356,3 +361,115 @@ def test_patch_me_sin_phone_conserva_el_telefono(client):
 
     assert response.status_code == 200
     assert response.json()["phone"] == "+59899123456"
+
+
+# --- Renovación de token (POST /auth/refresh) ---
+
+
+def _token(subject, minutos, user_type="client"):
+    """Token firmado como el real pero con la vigencia que se pida
+    (negativa = ya vencido)."""
+    payload = {
+        "sub": str(subject),
+        "user_type": user_type,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=minutos),
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def _claims(token):
+    return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
+
+
+def _registrar_y_obtener_id(client):
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
+    return _claims(token)["sub"]
+
+
+def test_refresh_con_token_valido_devuelve_un_token_nuevo_con_vigencia_completa(client):
+    user_id = _registrar_y_obtener_id(client)
+    # Token a punto de vencer (2 minutos): el nuevo tiene que traer la hora
+    # completa, no heredar la del viejo.
+    viejo = _token(user_id, minutos=2)
+
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {viejo}"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["token_type"] == "bearer"
+    nuevo = _claims(body["access_token"])
+    assert nuevo["sub"] == user_id
+    assert nuevo["user_type"] == "client"
+    assert nuevo["exp"] > _claims(viejo)["exp"]
+    restante = nuevo["exp"] - datetime.now(timezone.utc).timestamp()
+    assert 59 * 60 < restante <= 60 * 60
+
+
+def test_el_token_renovado_sirve_para_endpoints_de_cliente(client):
+    user_id = _registrar_y_obtener_id(client)
+
+    nuevo = client.post(
+        REFRESH, headers={"Authorization": f"Bearer {_token(user_id, minutos=1)}"}
+    ).json()["access_token"]
+
+    response = client.get(ME, headers={"Authorization": f"Bearer {nuevo}"})
+    assert response.status_code == 200
+    assert response.json()["email"] == "lucia@example.com"
+
+
+def test_se_puede_renovar_varias_veces_seguidas(client):
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
+
+    for _ in range(3):
+        response = client.post(REFRESH, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+        token = response.json()["access_token"]
+
+    assert client.get(ME, headers={"Authorization": f"Bearer {token}"}).status_code == 200
+
+
+def test_refresh_con_token_vencido_devuelve_401(client):
+    user_id = _registrar_y_obtener_id(client)
+    vencido = _token(user_id, minutos=-1)
+
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {vencido}"})
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Token inválido o expirado."
+    assert "access_token" not in response.json()
+
+
+def test_refresh_sin_token_devuelve_401(client):
+    assert client.post(REFRESH).status_code == 401
+
+
+def test_refresh_con_token_basura_devuelve_401(client):
+    response = client.post(REFRESH, headers={"Authorization": "Bearer esto.no.es.un.jwt"})
+
+    assert response.status_code == 401
+
+
+def test_refresh_con_token_firmado_con_otra_clave_devuelve_401(client):
+    user_id = _registrar_y_obtener_id(client)
+    falso = jwt.encode(
+        {"sub": user_id, "user_type": "client", "exp": datetime.now(timezone.utc) + timedelta(minutes=5)},
+        "otra-clave-que-no-es-la-del-servidor-123456",
+        algorithm=JWT_ALGORITHM,
+    )
+
+    assert client.post(REFRESH, headers={"Authorization": f"Bearer {falso}"}).status_code == 401
+
+
+def test_refresh_de_un_cliente_que_ya_no_existe_devuelve_401(client):
+    # Token válido y firmado, pero el usuario fue borrado de la base.
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {_token(9999, minutos=5)}"})
+
+    assert response.status_code == 401
+
+
+def test_refresh_con_token_de_empleado_devuelve_403(client):
+    token = create_access_token(subject="1", extra_claims={"user_type": "employee"})
+
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 403
