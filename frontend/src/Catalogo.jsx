@@ -4,7 +4,7 @@ import SearchBar from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
-import { obtenerCategorias, obtenerRepuestos } from "./api";
+import { buscarTexto, obtenerCategorias, obtenerRepuestos } from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 
@@ -43,7 +43,7 @@ export default function Catalogo({
 
   // Vehículo Activo (el que se confirmó con "Buscar Repuestos"). Vive en
   // VehicleContext, así que sobrevive a ir al carrito y volver.
-  const { vehiculoActivo, limpiarVehiculo } = useVehicle();
+  const { vehiculoActivo, limpiarVehiculo, activarVehiculo} = useVehicle();
 
   // `categoria` en null significa "todas las categorías": es lo que
   // deja el botón "Limpiar filtros" y lo que se traduce en un
@@ -59,6 +59,7 @@ export default function Catalogo({
 
   const [orden, setOrden] = useState("Más relevantes");
   const [busqueda, setBusqueda] = useState("");
+  const [busquedaLibre, setBusquedaLibre] = useState("");
   const [cantidades, setCantidades] = useState({});
 
   // ==========================================
@@ -86,7 +87,9 @@ export default function Catalogo({
     error: "",
   });
 
-  const cargando = respuesta.clave !== clavePedido;
+  const cargando = busquedaLibre
+  ? false
+  : respuesta.clave !== clavePedido;
   const productos = respuesta.productos;
   const error = respuesta.error;
 
@@ -116,6 +119,71 @@ export default function Catalogo({
   }, [categoriaInicial]);
 
   // ==========================================
+  // BÚSQUEDA LIBRE
+  // ==========================================
+  useEffect(() => {
+    const parametros = new URLSearchParams(window.location.search);
+    const consulta = (parametros.get("q") || "").trim();
+
+    if (!consulta) return;
+
+    let activo = true;
+
+    setBusquedaLibre(consulta);
+
+    buscarTexto(consulta)
+      .then(({ parts, entities }) => {
+        if (!activo) return;
+
+        const tieneEntidades =
+          entities &&
+          (
+            entities.part ||
+            entities.brand ||
+            entities.model ||
+            entities.year
+          );
+
+        if (!tieneEntidades) {
+          setRespuesta({
+            clave: `libre|${consulta}`,
+            productos: [],
+            error:
+              "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual",
+          });
+          return;
+        }
+
+        if (entities.brand && entities.model && entities.year) {
+          activarVehiculo({
+            brand: entities.brand,
+            model: entities.model,
+            year: entities.year,
+          });
+        }
+
+        setRespuesta({
+          clave: `libre|${consulta}`,
+          productos: parts,
+          error: "",
+        });
+      })
+      .catch((e) => {
+        if (!activo) return;
+
+        setRespuesta({
+          clave: `libre|${consulta}`,
+          productos: [],
+          error: e.message || "No pudimos realizar la búsqueda.",
+        });
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [activarVehiculo]);
+
+  // ==========================================
   // CARGAR REPUESTOS
   // ==========================================
   // Categoría y vehículo (marca, modelo, año) son filtros del servidor y
@@ -127,6 +195,7 @@ export default function Catalogo({
 
   useEffect(() => {
     let activo = true;
+    if (busquedaLibre) return;
 
     obtenerRepuestos({
       categoria: categoria || undefined,
@@ -154,7 +223,7 @@ export default function Catalogo({
     return () => {
       activo = false;
     };
-  }, [categoria, vehiculoActivo, clavePedido]);
+  }, [categoria, vehiculoActivo, clavePedido, busquedaLibre]);
 
   // ==========================================
   // CARGAR CATEGORÍAS
