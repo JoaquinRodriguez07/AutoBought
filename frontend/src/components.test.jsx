@@ -1,4 +1,4 @@
-import { fireEvent, render as renderBase, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -6,6 +6,8 @@ jest.mock("./api", () => ({
   login: jest.fn(),
   registrar: jest.fn(),
   obtenerPerfil: jest.fn(),
+  actualizarPerfil: jest.fn(),
+  cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
   obtenerCategorias: jest.fn(),
   obtenerCarrito: jest.fn(),
@@ -24,6 +26,11 @@ jest.mock("./api", () => ({
   marcarMetodoPagoPrincipal: jest.fn(),
   eliminarMetodoPagoAPI: jest.fn(),
   obtenerRecomendaciones: jest.fn(),
+  obtenerFavoritos: jest.fn(),
+  obtenerHistorialCompras: jest.fn(),
+  obtenerDetalleCompra: jest.fn(),
+  agregarFavoritoAPI: jest.fn(),
+  quitarFavoritoAPI: jest.fn(),
 }));
 jest.mock(
   "react-hot-toast",
@@ -33,6 +40,7 @@ jest.mock(
 
 import App from "./App";
 import BrandDropdown from "./BrandDropdown";
+import CambiarPassword from "./CambiarPassword";
 import Carrito from "./Carrito";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
@@ -54,7 +62,11 @@ import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
 
 import { filtrarRepuestos } from "./filtrarRepuestos";
+import toast from "react-hot-toast";
 import {
+  agregarFavoritoAPI,
+  actualizarPerfil,
+  cambiarPassword,
   agregarItemCarrito,
   actualizarItemCarrito,
   crearDireccion,
@@ -68,12 +80,16 @@ import {
   obtenerCarrito,
   obtenerCategorias,
   obtenerDirecciones,
+  obtenerFavoritos,
+  obtenerHistorialCompras,
+  obtenerDetalleCompra,
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
   obtenerRepuestos,
   obtenerPerfil,
   obtenerRecomendaciones,
+  quitarFavoritoAPI,
   registrar,
   vaciarCarritoAPI,
 } from "./api";
@@ -194,6 +210,11 @@ beforeEach(() => {
   marcarMetodoPagoPrincipal.mockResolvedValue({});
   eliminarMetodoPagoAPI.mockResolvedValue({});
   obtenerRecomendaciones.mockResolvedValue([]);
+  obtenerFavoritos.mockResolvedValue([]);
+  obtenerHistorialCompras.mockResolvedValue([]);
+  obtenerDetalleCompra.mockResolvedValue({});
+  agregarFavoritoAPI.mockResolvedValue();
+  quitarFavoritoAPI.mockResolvedValue();
 });
 
 afterEach(() => {
@@ -795,6 +816,109 @@ describe("App", () => {
   });
 });
 
+describe("App favoritos", () => {
+  const tokenValido = () => {
+    const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+    return `x.${payload}.y`;
+  };
+
+  const corazon = async (nombre) => {
+    const imagen = await screen.findByAltText(nombre);
+    return within(imagen.parentElement).getByRole("button");
+  };
+
+  const renderApp = () =>
+    renderBase(
+      <MemoryRouter>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  beforeEach(() => {
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({ id: 1, nombre: "Test User", token: tokenValido() })
+    );
+  });
+
+  it("loads the saved favorites from the backend when there is a session", async () => {
+    const user = userEvent.setup();
+    obtenerFavoritos.mockResolvedValue([catalogProducts[1]]);
+    renderApp();
+
+    await waitFor(() => expect(obtenerFavoritos).toHaveBeenCalled());
+    await user.click(screen.getByTitle("Favoritos"));
+
+    expect(await screen.findByText("Discos de Freno Delanteros")).toBeInTheDocument();
+  });
+
+  it("does not ask the backend for favorites without a session", () => {
+    localStorage.clear();
+    renderApp();
+
+    expect(obtenerFavoritos).not.toHaveBeenCalled();
+  });
+
+  it("marks and unmarks a favorite from the catalog through the API", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    const nombre = "Pastillas de Freno Delanteras Bosch";
+    await user.click(screen.getByRole("button", { name: "Repuestos" }));
+    await user.click(await corazon(nombre));
+
+    expect(agregarFavoritoAPI).toHaveBeenCalledWith("BP1234");
+    expect(await corazon(nombre)).toHaveTextContent("♥");
+
+    await user.click(await corazon(nombre));
+
+    expect(quitarFavoritoAPI).toHaveBeenCalledWith("BP1234");
+    expect(await corazon(nombre)).toHaveTextContent("♡");
+  });
+
+  it("reverts the heart and shows the error when the API fails", async () => {
+    const user = userEvent.setup();
+    agregarFavoritoAPI.mockRejectedValue(new Error("No pudimos actualizar tus favoritos."));
+    renderApp();
+
+    const nombre = "Pastillas de Freno Delanteras Bosch";
+    await user.click(screen.getByRole("button", { name: "Repuestos" }));
+    await user.click(await corazon(nombre));
+
+    await waitFor(async () => expect(await corazon(nombre)).toHaveTextContent("♡"));
+    expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar tus favoritos.");
+  });
+});
+
+describe("App sesión", () => {
+  it("does not restore the session when a save finishes after logging out", async () => {
+    const user = userEvent.setup();
+    const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+    const token = `x.${payload}.y`;
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({ id: 1, nombre: "Ana", email: "ana@example.com", token })
+    );
+    obtenerPerfil.mockResolvedValue({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
+    let responder;
+    actualizarPerfil.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+
+    renderBase(
+      <MemoryRouter initialEntries={["/perfil"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+    await user.click(await screen.findByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    await user.click(screen.getByRole("button", { name: "CERRAR SESIÓN" }));
+    responder({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+    expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+  });
+});
+
 describe("MetodosPago", () => {
   it("validates and creates a card through the API", async () => {
     const user = userEvent.setup();
@@ -876,29 +1000,117 @@ describe("Perfil", () => {
       apellido: "Perez",
       email: "ana@example.com",
       telefono: "099123456",
-      tipoDocumento: "CI",
-      documento: "12345678",
     };
+    actualizarPerfil.mockResolvedValue({
+      nombre: "Ana Maria Perez",
+      apellido: "",
+      email: "ana@example.com",
+      telefono: "099 123 456",
+    });
 
     render(<Perfil {...props} usuario={usuario} />);
     expect(screen.getByRole("heading", { name: "MI PERFIL" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
-    const nameInput = screen.getByDisplayValue("Ana");
+    expect(screen.queryByText("APELLIDO")).not.toBeInTheDocument();
+    const nameInput = screen.getByDisplayValue("Ana Perez");
     await user.clear(nameInput);
-    await user.type(nameInput, "Ana Maria");
+    await user.type(nameInput, "Ana Maria Perez");
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
     await user.click(screen.getByRole("button", { name: /direcciones/i }));
     await user.click(screen.getByRole("button", { name: /métodos de pago/i }));
     await user.click(screen.getByRole("button", { name: /historial de compra/i }));
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));
 
+    expect(actualizarPerfil).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre: "Ana Maria Perez", apellido: "" })
+    );
     expect(props.onActualizarUsuario).toHaveBeenCalledWith(
-      expect.objectContaining({ nombre: "Ana Maria" })
+      expect.objectContaining({ id: 1, nombre: "Ana Maria Perez" })
     );
     expect(props.onDirecciones).toHaveBeenCalled();
     expect(props.onMetodosPago).toHaveBeenCalled();
     expect(props.onHistorialCompras).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
+  });
+
+  it("keeps editing and shows the error when saving fails", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onActualizarUsuario = jest.fn();
+    actualizarPerfil.mockRejectedValue(
+      new Error("Revisá el nombre y el teléfono (ej: 099 123 456).")
+    );
+
+    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+
+    expect(
+      await screen.findByText("Revisá el nombre y el teléfono (ej: 099 123 456).")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /guardar cambios/i })).toBeInTheDocument();
+    expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+  });
+
+  it("ignores a late profile response once the user started editing", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onActualizarUsuario = jest.fn();
+    let responder;
+    obtenerPerfil.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+
+    render(<Perfil {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.type(screen.getByDisplayValue("Ana"), " Maria");
+    responder({ nombre: "Ana vieja", apellido: "", email: "ana@example.com", telefono: "" });
+    await waitFor(() => expect(obtenerPerfil).toHaveBeenCalled());
+
+    expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("Ana Maria")).toBeInTheDocument();
+  });
+
+  it("warns when the saved profile could not be loaded", async () => {
+    obtenerPerfil.mockRejectedValue(new Error("No pudimos cargar tu perfil."));
+
+    render(<Perfil {...navigationProps()} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+
+    expect(
+      await screen.findByText("No pudimos actualizar tus datos, puede que no estén al día.")
+    ).toBeInTheDocument();
+  });
+
+  it("clears the save error when the user edits the data again", async () => {
+    const user = userEvent.setup();
+    actualizarPerfil.mockRejectedValue(new Error("Revisá el nombre y el teléfono (ej: 099 123 456)."));
+    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+
+    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    expect(await screen.findByText("Revisá el nombre y el teléfono (ej: 099 123 456).")).toBeInTheDocument();
+
+    await user.type(screen.getByDisplayValue("Ana"), "a");
+
+    expect(screen.queryByText("Revisá el nombre y el teléfono (ej: 099 123 456).")).not.toBeInTheDocument();
+  });
+
+  it("refreshes the session with the profile from the backend", async () => {
+    const props = navigationProps();
+    props.onActualizarUsuario = jest.fn();
+    obtenerPerfil.mockResolvedValue({
+      nombre: "Ana desde otro dispositivo",
+      apellido: "",
+      email: "ana@example.com",
+      telefono: "",
+    });
+
+    render(<Perfil {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+
+    await waitFor(() =>
+      expect(props.onActualizarUsuario).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "t", nombre: "Ana desde otro dispositivo" })
+      )
+    );
+    expect(obtenerPerfil).toHaveBeenCalledWith("t");
   });
 
   it("cancels profile edits and restores the saved values", async () => {
@@ -913,6 +1125,84 @@ describe("Perfil", () => {
 
     expect(screen.getByRole("button", { name: "EDITAR" })).toBeInTheDocument();
     expect(screen.queryByDisplayValue("Cambio temporal")).not.toBeInTheDocument();
+  });
+});
+
+describe("CambiarPassword", () => {
+  const completar = async (user, { actual, nueva, repetir }) => {
+    await user.click(screen.getByRole("button", { name: "CAMBIAR CONTRASEÑA" }));
+    if (actual) await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), actual);
+    if (nueva) await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), nueva);
+    if (repetir) await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), repetir);
+    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+  };
+
+  it("changes the password and shows a confirmation", async () => {
+    const user = userEvent.setup();
+    cambiarPassword.mockResolvedValue();
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    expect(cambiarPassword).toHaveBeenCalledWith("secreto123", "nueva-clave-1");
+    expect(await screen.findByText("Tu contraseña se actualizó correctamente.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("CONTRASEÑA ACTUAL")).not.toBeInTheDocument();
+  });
+
+  it("validates empty fields, length and matching passwords before calling the API", async () => {
+    const user = userEvent.setup();
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123" });
+    expect(screen.getByText("Completá todos los campos.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "corta");
+    await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "corta");
+    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+    expect(screen.getByText("La nueva contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "-larga-1");
+    await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "-distinta");
+    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+    expect(screen.getByText("Las contraseñas nuevas no coinciden.")).toBeInTheDocument();
+
+    expect(cambiarPassword).not.toHaveBeenCalled();
+  });
+
+  it("shows the backend error and keeps the form open", async () => {
+    const user = userEvent.setup();
+    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    expect(await screen.findByText("La contraseña actual es incorrecta.")).toBeInTheDocument();
+    expect(screen.getByLabelText("CONTRASEÑA ACTUAL")).toBeInTheDocument();
+  });
+
+  it("clears the error when the user edits a field", async () => {
+    const user = userEvent.setup();
+    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    expect(await screen.findByText("La contraseña actual es incorrecta.")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), "x");
+
+    expect(screen.queryByText("La contraseña actual es incorrecta.")).not.toBeInTheDocument();
+  });
+
+  it("clears the form when cancelling", async () => {
+    const user = userEvent.setup();
+    render(<CambiarPassword />);
+
+    await user.click(screen.getByRole("button", { name: "CAMBIAR CONTRASEÑA" }));
+    await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), "secreto123");
+    await user.click(screen.getByRole("button", { name: "CANCELAR" }));
+    await user.click(screen.getByRole("button", { name: "CAMBIAR CONTRASEÑA" }));
+
+    expect(screen.getByLabelText("CONTRASEÑA ACTUAL")).toHaveValue("");
   });
 });
 
@@ -1090,28 +1380,24 @@ describe("Direcciones", () => {
 });
 
 describe("HistorialCompras", () => {
-  it("renders an empty state and stored purchase details", () => {
+  it("renders an empty state and API-provided purchase details", async () => {
     const props = navigationProps();
     render(<HistorialCompras {...props} onPerfil={jest.fn()} />);
-    expect(screen.getByText("Todavía no realizaste ninguna compra.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Todavía no realizaste ninguna compra.")
+    ).toBeInTheDocument();
 
-    localStorage.setItem(
-      "autobought-compras",
-      JSON.stringify([
-        {
-          id: "ORD-1",
-          fecha: "2026-01-15T00:00:00.000Z",
-          estado: "ENTREGADA",
-          total: 2500,
-          productos: [{ nombre: "Filtro", cantidad: 2, precio: 1250 }],
-        },
-      ])
-    );
+    obtenerHistorialCompras.mockResolvedValue([
+      {
+        id: "ORD-1",
+        fecha: "2026-01-15T00:00:00.000Z",
+        total: 2500,
+        items: [],
+      },
+    ]);
     render(<HistorialCompras {...props} onPerfil={jest.fn()} />);
 
-    expect(screen.getByText("#ORD-1")).toBeInTheDocument();
-    expect(screen.getByText("ENTREGADA")).toBeInTheDocument();
-    expect(screen.getByText("Filtro")).toBeInTheDocument();
+    expect(await screen.findByText("#ORD-1")).toBeInTheDocument();
   });
 });
 

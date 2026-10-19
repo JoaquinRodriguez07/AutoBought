@@ -365,7 +365,7 @@ export default function Home({
 
         <div className="absolute inset-0 bg-black/65" />
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-black/20" />
+        <div className="absolute inset-0 bg-linear-to-r from-black/80 via-black/50 to-black/20" />
 
         <div className="relative z-10 max-w-[1200px] w-full mx-auto px-6 md:px-10 pt-20">
 
@@ -375,7 +375,7 @@ export default function Home({
               PREMIUM PERFORMANCE PARTS
             </p>
 
-            <h1 className="text-white text-4xl md:text-6xl font-black italic uppercase leading-[0.95]">
+            <h1 className="text-white text-4xl md:text-6xl font-black italic uppercase leading-[0.95] md:leading-none">
               REPUESTOS QUE TE
               <br />
               MANTIENEN EN
@@ -383,7 +383,7 @@ export default function Home({
               MOVIMIENTO
             </h1>
 
-            <p className="text-gray-300 text-sm md:text-base mt-7 max-w-[540px] leading-relaxed">
+            <p className="text-gray-300 text-sm md:text-base mt-7 max-w-[540px] leading-relaxed md:leading-6">
               Calidad, confianza y las mejores marcas en un solo
               lugar. Encontrá el repuesto exacto para potenciar
               el rendimiento de tu vehículo.
@@ -439,7 +439,7 @@ export default function Home({
               <BrandDropdown
                 value={selectedBrand}
                 onChange={handleBrandChange}
-                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-none"
+                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-hidden"
               />
 
             </div>
@@ -456,7 +456,7 @@ export default function Home({
                 brand={selectedBrand}
                 value={selectedModel}
                 onChange={handleModelChange}
-                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-none"
+                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-hidden"
               />
 
             </div>
@@ -473,7 +473,7 @@ export default function Home({
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
                 disabled={!selectedModel || loadingYears}
-                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-none disabled:bg-gray-200 disabled:text-gray-400"
+                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-hidden disabled:bg-gray-200 disabled:text-gray-400"
               >
                 <option value="">
                   {!selectedModel

@@ -595,7 +595,7 @@ export default function Catalogo({
                   onChange={(e) =>
                     setOrden(e.target.value)
                   }
-                  className="border border-gray-200 rounded-md px-3 py-2 text-[9px] outline-none"
+                  className="border border-gray-200 rounded-md px-3 py-2 text-[9px] outline-hidden"
                 >
 
                   <option>
@@ -667,7 +667,7 @@ export default function Catalogo({
 
                     <div
                       key={producto.id}
-                      className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition"
+                      className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition"
                     >
 
                       {/* IMAGEN */}

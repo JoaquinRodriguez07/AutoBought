@@ -111,12 +111,93 @@ export async function obtenerPerfil(token) {
     throw new Error("No pudimos cargar tu perfil.");
   }
 
+  return mapearPerfil(data);
+}
+
+function mapearPerfil(data) {
   return {
     nombre: data.name,
     apellido: "",
     email: data.email,
     telefono: formatearTelefonoUY(data.phone),
   };
+}
+
+export async function actualizarPerfil({ nombre, apellido, telefono }) {
+  const sesion = obtenerSesion();
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sesion?.token}`,
+      },
+      body: JSON.stringify({
+        name: `${nombre} ${apellido}`.trim(),
+        phone: telefono || null,
+      }),
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok || !data) {
+    const mensaje =
+      response.status === 401
+        ? "Tu sesión venció. Iniciá sesión de nuevo."
+        : response.status === 422
+          ? "Revisá el nombre y el teléfono (ej: 099 123 456)."
+          : "No pudimos guardar tus datos.";
+    throw new Error(mensaje);
+  }
+
+  return mapearPerfil(data);
+}
+
+export async function cambiarPassword(actual, nueva) {
+  const sesion = obtenerSesion();
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/me/password`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sesion?.token}`,
+      },
+      body: JSON.stringify({ current_password: actual, new_password: nueva }),
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  if (response.ok) return;
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  const mensaje =
+    response.status === 401
+      ? "Tu sesión venció. Iniciá sesión de nuevo."
+      : response.status === 400 && typeof data?.detail === "string"
+        ? data.detail
+        : response.status === 422
+          ? "La nueva contraseña tiene que tener entre 8 caracteres y 72 bytes."
+          : "No pudimos cambiar tu contraseña.";
+  throw new Error(mensaje);
 }
 
 /* =====================================================
@@ -494,6 +575,38 @@ async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGeneri
   return data;
 }
 
+const MENSAJES_POR_STATUS_FAVORITOS = {
+  ...MENSAJES_POR_STATUS_DIRECCIONES,
+  404: "No encontramos ese repuesto.",
+};
+
+function pedirFavoritos(url, options = {}) {
+  return pedirCuentaCliente(
+    url,
+    options,
+    MENSAJES_POR_STATUS_FAVORITOS,
+    "No pudimos actualizar tus favoritos."
+  );
+}
+
+export async function obtenerFavoritos() {
+  const mensajeError = "No pudimos cargar tus favoritos.";
+  const data = await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites`);
+  return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+}
+
+export async function agregarFavoritoAPI(partId) {
+  await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+    method: "PUT",
+  });
+}
+
+export async function quitarFavoritoAPI(partId) {
+  await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+    method: "DELETE",
+  });
+}
+
 function mapearDireccion(d) {
   return {
     id: d.shipping_address_id,
@@ -670,6 +783,32 @@ export async function confirmarCompra() {
     { method: "POST" },
     MENSAJES_POR_STATUS_ORDENES,
     "No pudimos confirmar la compra."
+  );
+  return mapearPedido(data);
+}
+
+/** GET /api/v1/orders — lista el historial de compras del cliente. */
+export async function obtenerHistorialCompras() {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/orders`,
+    {},
+    MENSAJES_POR_STATUS_ORDENES,
+    "No pudimos cargar tu historial de compras."
+  );
+  return listaDe(
+    data,
+    "orders",
+    "No pudimos cargar tu historial de compras."
+  ).map(mapearPedido);
+}
+
+/** GET /api/v1/orders/{orderId} — trae el detalle de una compra. */
+export async function obtenerDetalleCompra(orderId) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/orders/${orderId}`,
+    {},
+    MENSAJES_POR_STATUS_ORDENES,
+    "No pudimos cargar el detalle de la compra."
   );
   return mapearPedido(data);
 }

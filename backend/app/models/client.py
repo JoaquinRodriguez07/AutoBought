@@ -28,4 +28,9 @@ class Client(User):
         cascade="all, delete-orphan",
     )
     orders = relationship("Order", back_populates="client")
+    favorites = relationship(
+        "Favorite",
+        back_populates="client",
+        cascade="all, delete-orphan",
+    )
     __mapper_args__ = {"polymorphic_identity": "client"}

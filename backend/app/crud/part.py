@@ -34,10 +34,12 @@ def list_parts(
     )
 
     if brand:
-        query = query.where(CarModel.brand == brand)
+        brand_term = brand.strip()
+        query = query.where(func.lower(CarModel.brand) == brand_term.lower())
 
     if model:
-        query = query.where(CarModel.model == model)
+        model_term = model.strip()
+        query = query.where(func.lower(CarModel.model) == model_term.lower())
 
     if year:
         query = query.where(

@@ -33,7 +33,7 @@ export default function Favoritos({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
             {favoritos.map((producto) => (
-              <div key={producto.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition">
+              <div key={producto.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition">
                 <div className="relative h-[190px] bg-gray-50">
                   <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
                   <button onClick={() => onAlternarFavorito(producto)}

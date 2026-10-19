@@ -4,6 +4,9 @@ jest.mock("./auth", () => ({
 
 import {
   actualizarItemCarrito,
+  agregarFavoritoAPI,
+  actualizarPerfil,
+  cambiarPassword,
   agregarItemCarrito,
   crearDireccion,
   crearMetodoPago,
@@ -16,12 +19,14 @@ import {
   obtenerCarrito,
   obtenerCategorias,
   obtenerDirecciones,
+  obtenerFavoritos,
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
   obtenerPerfil,
   obtenerRecomendaciones,
   obtenerRepuestos,
+  quitarFavoritoAPI,
   registrar,
   vaciarCarritoAPI,
 } from "./api";
@@ -172,6 +177,117 @@ describe("obtenerPerfil", () => {
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("favorites API", () => {
+  it("loads the favorites with the session token and maps them like the catalog", async () => {
+    fetch.mockResolvedValue(response({ parts: [backendPart] }));
+
+    await expect(obtenerFavoritos()).resolves.toEqual([uiPart]);
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/favorites`, {
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("fails when the list is missing", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(obtenerFavoritos()).rejects.toThrow("No pudimos cargar tus favoritos.");
+  });
+
+  it("marks and unmarks a part", async () => {
+    fetch.mockResolvedValue({ ok: true, status: 204, json: jest.fn() });
+
+    await expect(agregarFavoritoAPI(21)).resolves.toBeUndefined();
+    await expect(quitarFavoritoAPI(21)).resolves.toBeUndefined();
+
+    expect(fetch).toHaveBeenNthCalledWith(1, `${BASE_URL}/api/v1/favorites/21`, expect.objectContaining({ method: "PUT" }));
+    expect(fetch).toHaveBeenNthCalledWith(2, `${BASE_URL}/api/v1/favorites/21`, expect.objectContaining({ method: "DELETE" }));
+  });
+
+  it("maps errors with their status", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Repuesto no encontrado." }, { ok: false, status: 404 }))
+      .mockResolvedValueOnce(response(null, { ok: false, status: 401, jsonError: new Error("bad json") }));
+
+    await expect(agregarFavoritoAPI(999)).rejects.toThrow("Repuesto no encontrado.");
+    await expect(quitarFavoritoAPI(1)).rejects.toMatchObject({
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+      status: 401,
+    });
+  });
+});
+
+describe("actualizarPerfil", () => {
+  it("sends name and phone with the session token and maps the response", async () => {
+    fetch.mockResolvedValue(
+      response({ user_id: 7, name: "Lucia Perez", email: "lucia@example.com", phone: "+59898765432" })
+    );
+
+    await expect(
+      actualizarPerfil({ nombre: "Lucia", apellido: "Perez", telefono: "098 765 432" })
+    ).resolves.toEqual({
+      nombre: "Lucia Perez",
+      apellido: "",
+      email: "lucia@example.com",
+      telefono: "098 765 432",
+    });
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+      body: JSON.stringify({ name: "Lucia Perez", phone: "098 765 432" }),
+    });
+  });
+
+  it("sends a null phone when it is empty", async () => {
+    fetch.mockResolvedValue(response({ user_id: 7, name: "Ana", email: "a@b.com", phone: null }));
+
+    await actualizarPerfil({ nombre: "Ana", apellido: "", telefono: "" });
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: "Ana", phone: null });
+  });
+
+  it("maps error statuses, broken bodies and network errors to messages", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "x" }, { ok: false, status: 401 }))
+      .mockResolvedValueOnce(response({ detail: [] }, { ok: false, status: 422 }))
+      .mockResolvedValueOnce(response(null, { jsonError: new Error("bad json") }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const datos = { nombre: "Ana", apellido: "", telefono: "" };
+    await expect(actualizarPerfil(datos)).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
+    await expect(actualizarPerfil(datos)).rejects.toThrow("Revisá el nombre y el teléfono (ej: 099 123 456).");
+    await expect(actualizarPerfil(datos)).rejects.toThrow("No pudimos guardar tus datos.");
+    await expect(actualizarPerfil(datos)).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("cambiarPassword", () => {
+  it("sends both passwords with the session token", async () => {
+    fetch.mockResolvedValue({ ok: true, status: 204, json: jest.fn() });
+
+    await expect(cambiarPassword("secreto123", "nueva-clave-1")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me/password`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+      body: JSON.stringify({ current_password: "secreto123", new_password: "nueva-clave-1" }),
+    });
+  });
+
+  it("maps error statuses, broken bodies and network errors to messages", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "La contraseña actual es incorrecta." }, { ok: false, status: 400 }))
+      .mockResolvedValueOnce(response({ detail: "x" }, { ok: false, status: 401 }))
+      .mockResolvedValueOnce(response({ detail: [] }, { ok: false, status: 422 }))
+      .mockResolvedValueOnce(response(null, { ok: false, status: 500, jsonError: new Error("bad json") }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("La contraseña actual es incorrecta.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("La nueva contraseña tiene que tener entre 8 caracteres y 72 bytes.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos cambiar tu contraseña.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos conectar con el servidor.");
   });
 });
 
