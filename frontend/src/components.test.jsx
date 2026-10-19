@@ -1138,7 +1138,7 @@ describe("Perfil", () => {
       new Error("Revisá el nombre y el teléfono (ej: 099 123 456).")
     );
 
-    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
@@ -1147,6 +1147,18 @@ describe("Perfil", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /guardar cambios/i })).toBeInTheDocument();
     expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+  });
+
+  it("does not let the user remove the phone, only change it", async () => {
+    const user = userEvent.setup();
+    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
+
+    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.clear(screen.getByDisplayValue("099 123 456"));
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+
+    expect(screen.getByText("Ingresá tu teléfono.")).toBeInTheDocument();
+    expect(actualizarPerfil).not.toHaveBeenCalled();
   });
 
   it("ignores a late profile response once the user started editing", async () => {
@@ -1179,7 +1191,7 @@ describe("Perfil", () => {
   it("clears the save error when the user edits the data again", async () => {
     const user = userEvent.setup();
     actualizarPerfil.mockRejectedValue(new Error("Revisá el nombre y el teléfono (ej: 099 123 456)."));
-    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
 
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));

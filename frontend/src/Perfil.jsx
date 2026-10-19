@@ -99,11 +99,14 @@ export default function Perfil({
   };
 
   const guardarCambios = async () => {
+    // El teléfono se puede cambiar pero no borrar.
     const errorDatos =
       validarNombrePersona(datos.nombre) ||
-      (limpiar(datos.telefono) && !normalizarTelefonoUY(datos.telefono)
-        ? MENSAJE_TELEFONO
-        : null);
+      (!limpiar(datos.telefono)
+        ? "Ingresá tu teléfono."
+        : normalizarTelefonoUY(datos.telefono)
+          ? null
+          : MENSAJE_TELEFONO);
     if (errorDatos) {
       setError(errorDatos);
       return;

@@ -43,9 +43,11 @@ class ClientUpdate(BaseModel):
 
     @field_validator("phone")
     @classmethod
-    def phone_uruguayo(cls, value: str | None) -> str | None:
+    def phone_uruguayo(cls, value: str | None) -> str:
+        # Se puede cambiar pero no borrar. Si no viene, el endpoint deja
+        # el que estaba (este validador no corre con el default).
         if value is None or not value.strip():
-            return None
+            raise ValueError("El teléfono es obligatorio.")
         return normalize_uy_phone(value)
 
 

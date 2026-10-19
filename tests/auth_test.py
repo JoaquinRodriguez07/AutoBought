@@ -192,13 +192,13 @@ def test_me_devuelve_el_perfil_con_el_telefono_guardado(client):
     assert "password" not in response.json()
 
 
-def test_me_devuelve_phone_null_si_el_cliente_no_tiene_telefono(client):
-    # Solo se puede quedar sin teléfono borrándolo desde el perfil.
+def test_me_devuelve_phone_null_si_el_cliente_no_tiene_telefono(client, db_session):
+    # Clientes registrados antes de que el teléfono fuera obligatorio.
     token = client.post(REGISTER, json=payload()).json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-    client.patch(ME, json={"name": "Lucía Gómez", "phone": ""}, headers=headers)
+    db_session.scalars(select(Client)).one().phone = None
+    db_session.commit()
 
-    response = client.get(ME, headers=headers)
+    response = client.get(ME, headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
     assert response.json()["phone"] is None
@@ -233,11 +233,23 @@ def test_patch_me_actualiza_nombre_y_telefono(client):
     assert client.get(ME, headers=headers).json()["name"] == "Lucía Pérez"
 
 
-def test_patch_me_telefono_vacio_lo_borra(client):
-    response = client.patch(ME, json={"name": "Lucía Gómez", "phone": ""}, headers=_headers(client))
+@pytest.mark.parametrize("phone", ["", "   ", None])
+def test_patch_me_no_permite_borrar_el_telefono(client, phone):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía Gómez", "phone": phone}, headers=headers)
+
+    assert response.status_code == 422
+    assert client.get(ME, headers=headers).json()["phone"] == "+59899123456"
+
+
+def test_patch_me_sin_telefono_mantiene_el_que_estaba(client):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía Pérez"}, headers=headers)
 
     assert response.status_code == 200
-    assert response.json()["phone"] is None
+    assert response.json()["phone"] == "+59899123456"
 
 
 def test_patch_me_telefono_invalido_devuelve_422(client):
