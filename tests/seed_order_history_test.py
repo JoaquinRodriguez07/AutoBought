@@ -59,11 +59,11 @@ def generada():
     db.close()
 
 
-def _unidades_por_mes(db, categoria):
+def _unidades_por_mes(db, categoria, nombre=""):
     unidades = Counter()
     for o in db.scalars(select(Order)):
         for i in o.items:
-            if i.part.category == categoria:
+            if i.part.category == categoria and i.part.name.startswith(nombre):
                 unidades[o.created_at.month] += i.quantity
     return unidades
 
@@ -133,14 +133,24 @@ def test_las_ventas_crecen_a_lo_largo_del_anio(generada):
     assert por_mes[meses[-2]] > 1.4 * por_mes[meses[0]]
 
 
-def test_estacionalidad_encendido_en_invierno_y_refrigeracion_en_verano(generada):
+def test_estacionalidad_por_epoca_del_anio(generada):
     db, _, _ = generada
+    invierno, verano, primavera = (6, 7, 8), (12, 1, 2), (9, 10, 11)
+
+    def total(unidades, meses):
+        return sum(unidades[m] for m in meses)
+
+    baterias = _unidades_por_mes(db, "Eléctrico")
     encendido = _unidades_por_mes(db, "Encendido")
     refrigeracion = _unidades_por_mes(db, "Refrigeración")
-    invierno, verano = (6, 7, 8), (12, 1, 2)
+    habitaculo = _unidades_por_mes(db, "Filtros", nombre="Filtro de habitáculo")
 
-    assert sum(encendido[m] for m in invierno) > 2 * sum(encendido[m] for m in verano)
-    assert sum(refrigeracion[m] for m in verano) > 2 * sum(refrigeracion[m] for m in invierno)
+    assert total(baterias, invierno) > 2 * total(baterias, verano)
+    assert total(encendido, invierno) > 2 * total(encendido, verano)
+    assert total(refrigeracion, verano) > 2 * total(refrigeracion, invierno)
+    # Menos margen: octubre va incompleto y el invierno cae más tarde en el
+    # año, con la tendencia ya más alta.
+    assert total(habitaculo, primavera) > 1.5 * total(habitaculo, invierno)
 
 
 def test_pocos_repuestos_estrella_y_muchos_lentos(generada):
@@ -170,3 +180,15 @@ def test_hay_repuestos_en_riesgo_con_stock_bajo_y_ventas_altas(generada):
     assert len(resumen.en_riesgo) == 8
     # Venden en un mes más de lo que tienen en stock.
     assert all(ultimos_30_dias[codigo] > stock[codigo] for codigo in resumen.en_riesgo)
+
+
+def test_cada_auto_del_catalogo_tiene_una_bateria():
+    parts = json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"]
+    modelos = json.loads((PARTS_JSON.parent / "car_models.json").read_text(encoding="utf-8"))["car_models"]
+    baterias = Counter(
+        (c["brand"], c["model"], c["engine_code"])
+        for p in parts if p["category"] == "Eléctrico"
+        for c in p["compatibilities"]
+    )
+
+    assert all(baterias[(m["brand"], m["model"], m["engine_code"])] == 1 for m in modelos)

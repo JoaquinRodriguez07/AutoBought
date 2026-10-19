@@ -16,14 +16,15 @@ se guarda.
 Forma de los datos:
 - Tendencia: las ventas crecen a lo largo del año.
 - Estacionalidad: diciembre es el mes más fuerte y enero el más flojo;
-  refrigeración se vende más en verano, encendido en invierno (arranques
-  en frío) y escobillas en otoño e invierno (lluvias).
+  refrigeración se vende más en verano, baterías y encendido en invierno
+  (arranques en frío), escobillas en otoño e invierno (lluvias) y filtros
+  de habitáculo en primavera (antes de usar el aire acondicionado).
 - Los consumibles (aceite, escobillas, filtros, pastillas, bujías) se
   venden más que un faro, y dentro de eso hay pocos repuestos estrella y
   muchos lentos (distribución de Zipf).
-- Repuestos en riesgo: los 2 de menos stock de encendido, frenos, motor y
-  refrigeración venden en el último mes ~2 veces su stock, para que las
-  alertas de reposición tengan casos.
+- Repuestos en riesgo: los 2 de menos stock (desde 5 unidades) de
+  encendido, frenos, motor y refrigeración venden en el último mes ~2
+  veces su stock, para que las alertas de reposición tengan casos.
 
 Reproducible: con la misma semilla y la misma fecha `--hasta` se generan
 exactamente los mismos pedidos. Sin `--hasta` se usa hoy, así que en
@@ -70,7 +71,7 @@ PEDIDOS_ULTIMO_MES = 650
 # escobillas, filtros, pastillas, bujías) mucho más que un faro.
 DEMANDA_CATEGORIA = {
     "Lubricantes": 15, "Accesorios": 8, "Filtros": 4, "Frenos": 3, "Encendido": 3,
-    "Suspensión": 1.2, "Motor": 1, "Refrigeración": 1, "Carrocería": 0.6,
+    "Eléctrico": 2, "Suspensión": 1.2, "Motor": 1, "Refrigeración": 1, "Carrocería": 0.6,
 }
 # Dentro de cada categoría, a cada repuesto le toca un puesto al azar: unos
 # pocos se venden mucho más que el resto (Zipf: el puesto n pesa 1 / n^0.7).
@@ -86,6 +87,8 @@ PROB_JUEGO_DE_BUJIAS = 0.6
 CATEGORIAS_EN_RIESGO = ["Encendido", "Frenos", "Motor", "Refrigeración"]
 EN_RIESGO_POR_CATEGORIA = 2
 VENTAS_SOBRE_STOCK = 2
+# Con menos stock, "vende el doble" son 2 o 3 unidades: no luce como alerta.
+STOCK_MINIMO_EN_RIESGO = 5
 
 URUGUAY = timezone(timedelta(hours=-3))
 
@@ -100,6 +103,15 @@ ESTACIONALIDAD_CATEGORIA = {
     "Refrigeración": {11: 1.4, 12: 2.2, 1: 2.5, 2: 2.0, 3: 1.3, 6: 0.6, 7: 0.6, 8: 0.6},
     "Encendido": {5: 1.3, 6: 2.0, 7: 2.3, 8: 1.8, 9: 1.2, 12: 0.7, 1: 0.6, 2: 0.7},
     "Accesorios": {4: 1.5, 5: 1.8, 6: 2.0, 7: 2.0, 8: 1.6, 12: 0.6, 1: 0.5, 2: 0.6},
+    # El frío es lo que más baterías mata.
+    "Eléctrico": {5: 1.4, 6: 2.2, 7: 2.5, 8: 2.0, 9: 1.3, 12: 0.6, 1: 0.5, 2: 0.6},
+}
+
+# Igual, pero para repuestos sueltos (por cómo empieza el nombre), cuando
+# no es toda la categoría: el de habitáculo se cambia antes del verano,
+# para usar el aire acondicionado.
+ESTACIONALIDAD_REPUESTO = {
+    "Filtro de habitáculo": {9: 1.4, 10: 1.8, 11: 2.0, 12: 1.8, 1: 1.3, 5: 0.6, 6: 0.5, 7: 0.5},
 }
 
 NOMBRES = [
@@ -201,7 +213,7 @@ def _popularidad(parts: list[Part], rng: random.Random) -> tuple[dict[int, float
     en_riesgo = []
     for categoria in CATEGORIAS_EN_RIESGO:
         con_stock = sorted(
-            (p for p in parts if p.category == categoria and p.stock > 0),
+            (p for p in parts if p.category == categoria and p.stock >= STOCK_MINIMO_EN_RIESGO),
             key=lambda p: (p.stock, p.part_code),
         )
         en_riesgo += con_stock[:EN_RIESGO_POR_CATEGORIA]
@@ -219,6 +231,14 @@ def _popularidad(parts: list[Part], rng: random.Random) -> tuple[dict[int, float
         peso[p.id] = participaciones[p.id] * resto / (1 - sum(participaciones.values()))
 
     return peso, en_riesgo
+
+
+def _estacionalidad(part: Part, mes: int) -> float:
+    factor = ESTACIONALIDAD_CATEGORIA.get(part.category, {}).get(mes, 1.0)
+    for prefijo, por_mes in ESTACIONALIDAD_REPUESTO.items():
+        if part.name.startswith(prefijo):
+            factor *= por_mes.get(mes, 1.0)
+    return factor
 
 
 def _estado(creado: date, hasta: date, rng: random.Random) -> OrderStatus:
@@ -277,10 +297,9 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
             tendencia * ESTACIONALIDAD_GENERAL[inicio.month] * rng.uniform(0.9, 1.1) * fraccion
         )
 
-        estacion = {
-            p.id: ESTACIONALIDAD_CATEGORIA.get(p.category, {}).get(inicio.month, 1.0) for p in parts
-        }
-        pesos_acumulados = list(accumulate(peso_base[p.id] * estacion[p.id] for p in parts))
+        pesos_acumulados = list(accumulate(
+            peso_base[p.id] * _estacionalidad(p, inicio.month) for p in parts
+        ))
 
         pedidos_del_mes = []
         for _ in range(cantidad):

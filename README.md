@@ -19,7 +19,9 @@ Sin Docker, desde `backend/` y con el `.venv` activado: `python -m scripts.seed`
 
 ### Catálogo
 
-`scripts.seed` carga `backend/data/car_models.json` y `backend/data/parts.json`. Esos archivos se generan con `scripts.generate_dataset`: para agregar un auto o un repuesto, se edita ese script y se vuelve a correr.
+`scripts.seed` carga `backend/data/car_models.json` (50 modelos) y `backend/data/parts.json` (509 repuestos). Esos archivos se generan con `scripts.generate_dataset`: para agregar un auto o un repuesto, se edita ese script y se vuelve a correr. Los repuestos nuevos van al final de sus listas (`EXTRA_ENGINE_PARTS`, etc.), para no cambiar el código ni el stock de los que ya existen.
+
+`scripts.seed` no actualiza un catálogo ya cargado: para ver repuestos nuevos hay que recrear la base.
 
 ### Usuarios de prueba
 
@@ -36,7 +38,7 @@ Sin Docker, desde `backend/` y con el `.venv` activado: `python -m scripts.seed`
 `scripts.seed_order_history` crea unos 6.000 pedidos de 300 clientes ficticios (`clienteNNN@historico.autobought.com`, sin contraseña utilizable) repartidos en los últimos 12 meses. Se guardan como pedidos reales, para que el dashboard del vendedor (más vendidos, evolución de ventas, proyección de demanda, riesgo de agotamiento y alertas de reposición) tenga datos con forma:
 
 - **Tendencia:** las ventas crecen a lo largo del año.
-- **Estacionalidad:** diciembre es el mes más fuerte y enero el más flojo; refrigeración se vende más en verano, encendido en invierno y escobillas en otoño e invierno.
+- **Estacionalidad:** diciembre es el mes más fuerte y enero el más flojo; refrigeración se vende más en verano, baterías y encendido en invierno, escobillas en otoño e invierno y filtros de habitáculo en primavera.
 - **Estrellas y lentos:** aceite, escobillas, filtros, pastillas y bujías se venden mucho más que un faro, y en cada categoría hay pocos repuestos que se venden mucho y muchos que se venden poco.
 - **Repuestos en riesgo:** algunos con stock bajo venden en el último mes más de lo que tienen, para que las alertas tengan casos. El script imprime cuáles son.
 
