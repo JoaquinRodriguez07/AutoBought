@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Navbar from "./Navbar";
 import SearchBar from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
@@ -62,6 +63,9 @@ export default function Catalogo({
   const [busquedaLibre, setBusquedaLibre] = useState("");
   const [cantidades, setCantidades] = useState({});
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const consulta = (searchParams.get("q") || "").trim();
+
   // ==========================================
   // DATOS DE LA API
   // ==========================================
@@ -87,9 +91,9 @@ export default function Catalogo({
     error: "",
   });
 
-  const cargando = busquedaLibre
-  ? false
-  : respuesta.clave !== clavePedido;
+  const cargando = consulta
+    ? respuesta.clave !== `libre|${consulta}`
+    : respuesta.clave !== clavePedido;
   const productos = respuesta.productos;
   const error = respuesta.error;
 
@@ -122,66 +126,59 @@ export default function Catalogo({
   // BÚSQUEDA LIBRE
   // ==========================================
   useEffect(() => {
-    const parametros = new URLSearchParams(window.location.search);
-    const consulta = (parametros.get("q") || "").trim();
+  if (!consulta) return;
 
-    if (!consulta) return;
+  let activo = true;
 
-    let activo = true;
+  buscarTexto(consulta)
+    .then(({ parts, entities }) => {
+      if (!activo) return;
 
-    setBusquedaLibre(consulta);
+      const tieneEntidades =
+        entities &&
+        (entities.part ||
+          entities.brand ||
+          entities.model ||
+          entities.year);
 
-    buscarTexto(consulta)
-      .then(({ parts, entities }) => {
-        if (!activo) return;
-
-        const tieneEntidades =
-          entities &&
-          (
-            entities.part ||
-            entities.brand ||
-            entities.model ||
-            entities.year
-          );
-
-        if (!tieneEntidades) {
-          setRespuesta({
-            clave: `libre|${consulta}`,
-            productos: [],
-            error:
-              "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual",
-          });
-          return;
-        }
-
-        if (entities.brand && entities.model && entities.year) {
-          activarVehiculo({
-            brand: entities.brand,
-            model: entities.model,
-            year: entities.year,
-          });
-        }
-
-        setRespuesta({
-          clave: `libre|${consulta}`,
-          productos: parts,
-          error: "",
-        });
-      })
-      .catch((e) => {
-        if (!activo) return;
-
+      if (!tieneEntidades) {
         setRespuesta({
           clave: `libre|${consulta}`,
           productos: [],
-          error: e.message || "No pudimos realizar la búsqueda.",
+          error:
+            "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual",
         });
-      });
+        return;
+      }
 
-    return () => {
-      activo = false;
-    };
-  }, [activarVehiculo]);
+      if (entities.brand) {
+        activarVehiculo({
+          brand: entities.brand,
+          model: entities.model || "",
+          year: entities.year || "",
+        });
+      }
+
+      setRespuesta({
+        clave: `libre|${consulta}`,
+        productos: parts,
+        error: "",
+      });
+    })
+    .catch((e) => {
+      if (!activo) return;
+
+      setRespuesta({
+        clave: `libre|${consulta}`,
+        productos: [],
+        error: e.message || "No pudimos realizar la búsqueda.",
+      });
+    });
+
+  return () => {
+    activo = false;
+  };
+}, [consulta, activarVehiculo]);
 
   // ==========================================
   // CARGAR REPUESTOS
@@ -195,7 +192,7 @@ export default function Catalogo({
 
   useEffect(() => {
     let activo = true;
-    if (busquedaLibre) return;
+    if (consulta) return;
 
     obtenerRepuestos({
       categoria: categoria || undefined,
@@ -223,7 +220,7 @@ export default function Catalogo({
     return () => {
       activo = false;
     };
-  }, [categoria, vehiculoActivo, clavePedido, busquedaLibre]);
+  }, [categoria, vehiculoActivo, clavePedido, consulta]);
 
   // ==========================================
   // CARGAR CATEGORÍAS
@@ -288,11 +285,19 @@ export default function Catalogo({
   // catálogo). Se cambian siempre juntas: si solo se limpiara la de
   // acá, volver con el botón Atrás reaplicaría el filtro viejo.
   const cambiarCategoria = (nueva) => {
+    if (consulta) {
+      setSearchParams({});
+    }
+
     setCategoria(nueva);
     onCategoriaSeleccionada?.(nueva);
   };
 
   const limpiarFiltros = () => {
+    if (consulta) {
+      setSearchParams({});
+    }
+
     cambiarCategoria(null);
     setBusqueda("");
   };

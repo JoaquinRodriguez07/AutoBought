@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -46,7 +47,11 @@ function conCarrito(cart, cargarCarrito = jest.fn().mockResolvedValue(undefined)
 }
 
 function renderCarrito() {
-  return render(<Carrito onCatalogo={jest.fn()} onDetalle={jest.fn()} />);
+  return render(
+    <MemoryRouter>
+      <Carrito onCatalogo={jest.fn()} onDetalle={jest.fn()} />
+    </MemoryRouter>
+  );
 }
 
 beforeEach(() => {

@@ -1,50 +1,17 @@
+
 import { useState } from "react";
-import { buscarTexto } from "./api";
+import { useNavigate } from "react-router-dom";
 
-export default function BusquedaCabecera({ onResultados }) {
+export default function BusquedaCabecera() {
   const [texto, setTexto] = useState("");
-  const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
-  const realizarBusqueda = async () => {
+  const realizarBusqueda = () => {
     const textoLimpio = texto.trim();
 
-    // Búsqueda vacía: no hacer nada
-    if (!textoLimpio) {
-      return;
-    }
+    if (!textoLimpio) return;
 
-    setCargando(true);
-    setError("");
-
-    try {
-      const resultado = await buscarTexto(textoLimpio);
-
-      const tieneEntidades =
-        resultado.entities &&
-        (
-          resultado.entities.part ||
-          resultado.entities.brand ||
-          resultado.entities.model ||
-          resultado.entities.year
-        );
-
-      if (!tieneEntidades) {
-        setError(
-          "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual"
-        );
-        return;
-      }
-
-      window.location.href = `/catalogo?q=${encodeURIComponent(textoLimpio)}`;
-    } catch (e) {
-      setError(
-        e.message ||
-          "No pudimos realizar la búsqueda."
-      );
-    } finally {
-      setCargando(false);
-    }
+    navigate(`/catalogo?q=${encodeURIComponent(textoLimpio)}`);
   };
 
   const manejarKeyDown = (event) => {
@@ -59,31 +26,20 @@ export default function BusquedaCabecera({ onResultados }) {
         <input
           type="text"
           value={texto}
-          onChange={(event) => {
-            setTexto(event.target.value);
-            setError("");
-          }}
+          onChange={(event) => setTexto(event.target.value)}
           onKeyDown={manejarKeyDown}
           placeholder="¿Qué repuesto estás buscando?"
           className="w-full outline-none text-[11px] text-gray-800 placeholder:text-gray-400"
-          disabled={cargando}
         />
 
         <button
           type="button"
           onClick={realizarBusqueda}
-          disabled={cargando}
-          className="shrink-0 text-[10px] font-bold text-orange-500 hover:text-orange-600 transition disabled:opacity-50"
+          className="shrink-0 text-[10px] font-bold text-orange-500 hover:text-orange-600 transition"
         >
-          {cargando ? "..." : "Buscar"}
+          Buscar
         </button>
       </div>
-
-      {error && (
-        <p className="absolute left-0 top-full mt-2 w-full text-[9px] text-red-500">
-          {error}
-        </p>
-      )}
     </div>
   );
 }
