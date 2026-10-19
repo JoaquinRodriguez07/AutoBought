@@ -278,3 +278,19 @@ def test_order_keeps_address_and_payment_after_they_are_deleted(client, db_sessi
 	assert response.status_code == 200
 	assert response.json()["shipping_address"]["street"] == "Av. Italia"
 	assert response.json()["payment_method"] == "Visa •••• 1234"
+
+
+def test_confirm_order_with_expired_card_returns_422(client, db_session):
+	cliente = make_client(db_session)
+	make_address(db_session, cliente)
+	vencida = make_payment_method(db_session, cliente, expiry="01/20")
+	make_cart(db_session, cliente, [(make_part(db_session), 1)])
+	vencida_id = vencida.payment_method_id
+
+	# Tanto eligiéndola como usándola por ser la principal.
+	for body in ({"payment_method_id": vencida_id}, {}):
+		response = client.post("/api/v1/orders", json=body, headers=auth_headers(cliente))
+
+		assert response.status_code == 422
+		assert "vencida" in response.json()["detail"]
+	assert db_session.query(Order).count() == 0

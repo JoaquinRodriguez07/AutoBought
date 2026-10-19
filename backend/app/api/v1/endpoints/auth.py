@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_client, get_db
+from app.core import validators
 from app.core.security import create_access_token, hash_password, verify_password
 from app.crud import user as crud_user
 from app.models.client import Client
@@ -86,5 +87,12 @@ def change_password(data: PasswordChange, db: Session = Depends(get_db), client:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La nueva contraseña tiene que ser distinta de la actual.",
         )
+
+    try:
+        validators.password_segura(data.new_password, client.email)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
+        ) from None
 
     crud_user.update_password(db, client, hash_password(data.new_password))

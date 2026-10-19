@@ -68,7 +68,9 @@ export async function registrar({ nombre, apellido, email, telefono, password })
         : response.status === 422
           ? "Revisá los datos ingresados."
           : "No pudimos crear tu cuenta. Intentá de nuevo.";
-    throw new Error(mensaje);
+    const error = new Error(mensaje);
+    error.campos = camposConError(data?.detail);
+    throw error;
   }
 
   if (!data?.access_token) {
@@ -155,7 +157,8 @@ export async function actualizarPerfil({ nombre, apellido, telefono }) {
       response.status === 401
         ? "Tu sesión venció. Iniciá sesión de nuevo."
         : response.status === 422
-          ? "Revisá el nombre y el teléfono (ej: 099 123 456)."
+          ? Object.values(camposConError(data?.detail))[0] ||
+            "Revisá el nombre y el teléfono (ej: 099 123 456)."
           : "No pudimos guardar tus datos.";
     throw new Error(mensaje);
   }
@@ -192,10 +195,11 @@ export async function cambiarPassword(actual, nueva) {
   const mensaje =
     response.status === 401
       ? "Tu sesión venció. Iniciá sesión de nuevo."
-      : response.status === 400 && typeof data?.detail === "string"
+      : typeof data?.detail === "string"
         ? data.detail
         : response.status === 422
-          ? "La nueva contraseña tiene que tener entre 8 caracteres y 72 bytes."
+          ? Object.values(camposConError(data?.detail))[0] ||
+            "Revisá la nueva contraseña."
           : "No pudimos cambiar tu contraseña.";
   throw new Error(mensaje);
 }
@@ -482,12 +486,14 @@ const MENSAJES_POR_STATUS_DIRECCIONES = {
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "Esta acción requiere una cuenta de cliente.",
   404: "No encontramos esa dirección.",
+  409: "Ya tenés guardada esa dirección.",
   422: "Revisá los datos de la dirección.",
 };
 
 const MENSAJES_POR_STATUS_METODOS_PAGO = {
   ...MENSAJES_POR_STATUS_DIRECCIONES,
   404: "No encontramos ese método de pago.",
+  409: "Ya tenés guardada esa tarjeta.",
   422: "Revisá los datos de la tarjeta.",
 };
 
@@ -507,6 +513,23 @@ function pedirMetodosPago(url, options = {}) {
     MENSAJES_POR_STATUS_METODOS_PAGO,
     "No pudimos actualizar los métodos de pago."
   );
+}
+
+/**
+ * Un 422 de validación trae `detail` como lista de errores con el campo
+ * en `loc` (ej: ["body", "holder"]). Devuelve { holder: "mensaje" }, para
+ * mostrar cada error debajo de su campo.
+ */
+export function camposConError(detail) {
+  if (!Array.isArray(detail)) return {};
+  const campos = {};
+  for (const item of detail) {
+    const campo = item?.loc?.[0] === "body" ? item.loc[1] : null;
+    if (campo && !campos[campo]) {
+      campos[campo] = String(item.msg ?? "").replace(/^Value error, /, "");
+    }
+  }
+  return campos;
 }
 
 async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGenerico) {
@@ -538,6 +561,7 @@ async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGeneri
       detalle || mensajesPorStatus[response.status] || mensajeGenerico
     );
     error.status = response.status;
+    error.campos = data !== SIN_JSON ? camposConError(data?.detail) : {};
     throw error;
   }
 
@@ -649,6 +673,7 @@ function mapearMetodoPago(m) {
     numero: m.last_four,
     vencimiento: m.expiry,
     principal: m.is_primary,
+    vencida: Boolean(m.is_expired),
   };
 }
 
@@ -658,16 +683,20 @@ export async function obtenerMetodosPago() {
   return data.map(mapearMetodoPago);
 }
 
-/** POST /api/v1/payment-methods */
-export async function crearMetodoPago(f) {
+/**
+ * POST /api/v1/payment-methods
+ * Recibe la tarjeta ya pasada por tokenizarTarjeta (pasarelaPagos.js):
+ * marca, últimos 4 dígitos y vencimiento. Nada más sale hacia la API.
+ */
+export async function crearMetodoPago({ tarjeta, titular, principal }) {
   const data = await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods`, {
     method: "POST",
     body: JSON.stringify({
-      card_type: f.tipo,
-      holder: f.titular,
-      last_four: f.numero.replace(/\D/g, "").slice(-4),
-      expiry: f.vencimiento,
-      is_primary: Boolean(f.principal),
+      card_type: tarjeta.marca,
+      holder: titular,
+      last_four: tarjeta.ultimosCuatro,
+      expiry: tarjeta.vencimiento,
+      is_primary: Boolean(principal),
     }),
   });
   return mapearMetodoPago(data);

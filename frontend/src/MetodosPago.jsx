@@ -6,14 +6,41 @@ import {
   marcarMetodoPagoPrincipal,
   eliminarMetodoPagoAPI,
 } from "./api";
+import ErrorCampo from "./ErrorCampo";
+import { conError, propsError } from "./erroresCampo";
+import { tokenizarTarjeta } from "./pasarelaPagos";
+import {
+  MARCAS_TARJETA,
+  detectarMarca,
+  formatearNumeroTarjeta,
+  soloDigitos,
+  validarTarjeta,
+} from "./validaciones";
 
 const FORMULARIO_VACIO = {
   tipo: "Visa",
   titular: "",
   numero: "",
   vencimiento: "",
+  cvv: "",
   principal: false,
 };
+
+// Campos del backend → campos del formulario, para mostrar sus errores 422.
+const CAMPOS_API = { holder: "titular", expiry: "vencimiento", card_type: "tipo" };
+
+const claseInput =
+  "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500";
+
+const LARGO_MAXIMO_NUMERO = Math.max(
+  ...Object.values(MARCAS_TARJETA).flatMap((marca) => marca.largos)
+);
+
+/** "1228" → "12/28" mientras se escribe. */
+function formatearVencimiento(valor) {
+  const digitos = soloDigitos(valor).slice(0, 4);
+  return digitos.length > 2 ? `${digitos.slice(0, 2)}/${digitos.slice(2)}` : digitos;
+}
 
 export default function MetodosPago({
   onHome,
@@ -31,6 +58,9 @@ export default function MetodosPago({
   const [error, setError] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [formulario, setFormulario] = useState(FORMULARIO_VACIO);
+  const [errores, setErrores] = useState({});
+  const [errorFormulario, setErrorFormulario] = useState("");
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     obtenerMetodosPago()
@@ -39,51 +69,71 @@ export default function MetodosPago({
       .finally(() => setCargando(false));
   }, []);
 
-  const manejarCambio = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    setFormulario((actual) => ({
-      ...actual,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+  const actualizar = (cambios) => {
+    setFormulario((actual) => ({ ...actual, ...cambios }));
+    setErrores((actuales) => {
+      const siguientes = { ...actuales };
+      for (const campo of Object.keys(cambios)) delete siguientes[campo];
+      // Cambiar la marca puede arreglar el número o el CVV.
+      if ("tipo" in cambios) {
+        delete siguientes.numero;
+        delete siguientes.cvv;
+      }
+      return siguientes;
+    });
+    setErrorFormulario("");
   };
 
-  const formatearTarjeta = (numero) => {
-    const limpio = numero.replace(/\D/g, "");
+  const manejarCambio = (e) => {
+    const { name, value, type, checked } = e.target;
+    actualizar({ [name]: type === "checkbox" ? checked : value });
+  };
 
-    return limpio.replace(/(.{4})/g, "$1 ").trim();
+  // Si el número es de una marca conocida, se elige sola.
+  const cambiarNumero = (e) => {
+    const numero = soloDigitos(e.target.value).slice(0, LARGO_MAXIMO_NUMERO);
+    const detectada = detectarMarca(numero);
+    actualizar(detectada ? { numero, tipo: detectada } : { numero });
+  };
+
+  const alternarFormulario = () => {
+    setMostrarFormulario(!mostrarFormulario);
+    setFormulario(FORMULARIO_VACIO);
+    setErrores({});
+    setErrorFormulario("");
   };
 
   const agregarMetodo = async (e) => {
     e.preventDefault();
 
-    if (
-      !formulario.titular ||
-      !formulario.numero ||
-      !formulario.vencimiento
-    ) {
-      alert("Completá todos los campos.");
-      return;
-    }
+    const erroresFormulario = validarTarjeta(formulario);
+    setErrores(erroresFormulario);
+    if (Object.keys(erroresFormulario).length > 0) return;
 
-    if (formulario.numero.replace(/\D/g, "").length < 13) {
-      alert("Ingresá un número de tarjeta válido.");
-      return;
-    }
-
-    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(formulario.vencimiento)) {
-      alert("El vencimiento debe tener el formato MM/AA.");
-      return;
-    }
-
+    setGuardando(true);
     try {
-      await crearMetodoPago(formulario);
+      // El número completo y el CVV se quedan en la pasarela: a la API
+      // solo llegan la marca, los últimos 4 dígitos y el vencimiento.
+      const tarjeta = await tokenizarTarjeta(formulario);
+      await crearMetodoPago({
+        tarjeta,
+        titular: formulario.titular,
+        principal: formulario.principal,
+      });
       setMetodos(await obtenerMetodosPago());
       setError("");
       setFormulario(FORMULARIO_VACIO);
       setMostrarFormulario(false);
     } catch (err) {
-      alert(err.message);
+      const campos = Object.fromEntries(
+        Object.entries(err.campos || {})
+          .filter(([campo]) => CAMPOS_API[campo])
+          .map(([campo, mensaje]) => [CAMPOS_API[campo], mensaje])
+      );
+      if (Object.keys(campos).length > 0) setErrores(campos);
+      else setErrorFormulario(err.message);
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -158,9 +208,7 @@ export default function MetodosPago({
 
               <button
                 type="button"
-                onClick={() =>
-                  setMostrarFormulario(!mostrarFormulario)
-                }
+                onClick={alternarFormulario}
                 className="h-10 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[9px] font-black transition"
               >
                 {mostrarFormulario
@@ -175,6 +223,7 @@ export default function MetodosPago({
             {mostrarFormulario && (
               <form
                 onSubmit={agregarMetodo}
+                noValidate
                 className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8"
               >
 
@@ -185,78 +234,108 @@ export default function MetodosPago({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
                   <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      TIPO DE TARJETA
-                    </label>
-
-                    <select
-                      name="tipo"
-                      value={formulario.tipo}
-                      onChange={manejarCambio}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
-                    >
-                      <option value="Visa">
-                        Visa
-                      </option>
-
-                      <option value="Mastercard">
-                        Mastercard
-                      </option>
-
-                      <option value="American Express">
-                        American Express
-                      </option>
-
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      TITULAR *
-                    </label>
-
-                    <input
-                      name="titular"
-                      value={formulario.titular}
-                      onChange={manejarCambio}
-                      placeholder="Nombre del titular"
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
+                    <label htmlFor="tarjeta-numero" className="text-[9px] font-bold text-gray-500">
                       NÚMERO DE TARJETA *
                     </label>
 
                     <input
+                      id="tarjeta-numero"
                       name="numero"
-                      value={formatearTarjeta(formulario.numero)}
-                      onChange={(e) =>
-                        setFormulario((actual) => ({
-                          ...actual,
-                          numero: e.target.value.replace(/\D/g, ""),
-                        }))
-                      }
-                      maxLength={19}
+                      value={formatearNumeroTarjeta(formulario.numero, formulario.tipo)}
+                      onChange={cambiarNumero}
+                      inputMode="numeric"
+                      autoComplete="cc-number"
                       placeholder="1234 5678 9012 3456"
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
+                      className={conError(claseInput, errores.numero)}
+                      {...propsError("numero", errores.numero)}
                     />
+                    <ErrorCampo campo="numero" mensaje={errores.numero} />
                   </div>
 
                   <div>
-                    <label className="text-[9px] font-bold text-gray-500">
+                    <label htmlFor="tarjeta-tipo" className="text-[9px] font-bold text-gray-500">
+                      TIPO DE TARJETA
+                    </label>
+
+                    {/* Visa, Mastercard y Amex se detectan por el número; OCA se elige. */}
+                    <select
+                      id="tarjeta-tipo"
+                      name="tipo"
+                      value={formulario.tipo}
+                      onChange={manejarCambio}
+                      disabled={detectarMarca(formulario.numero) !== null}
+                      className={conError(claseInput, errores.tipo)}
+                    >
+                      {Object.keys(MARCAS_TARJETA).map((marca) => (
+                        <option key={marca} value={marca}>
+                          {marca}
+                        </option>
+                      ))}
+                    </select>
+                    <ErrorCampo campo="tipo" mensaje={errores.tipo} />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label htmlFor="tarjeta-titular" className="text-[9px] font-bold text-gray-500">
+                      TITULAR *
+                    </label>
+
+                    <input
+                      id="tarjeta-titular"
+                      name="titular"
+                      value={formulario.titular}
+                      onChange={manejarCambio}
+                      maxLength={120}
+                      autoComplete="cc-name"
+                      placeholder="Como figura en la tarjeta"
+                      className={conError(claseInput, errores.titular)}
+                      {...propsError("titular", errores.titular)}
+                    />
+                    <ErrorCampo campo="titular" mensaje={errores.titular} />
+                  </div>
+
+                  <div>
+                    <label htmlFor="tarjeta-vencimiento" className="text-[9px] font-bold text-gray-500">
                       VENCIMIENTO *
                     </label>
 
                     <input
+                      id="tarjeta-vencimiento"
                       name="vencimiento"
                       value={formulario.vencimiento}
-                      onChange={manejarCambio}
+                      onChange={(e) =>
+                        actualizar({ vencimiento: formatearVencimiento(e.target.value) })
+                      }
+                      inputMode="numeric"
+                      autoComplete="cc-exp"
                       placeholder="MM/AA"
                       maxLength={5}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
+                      className={conError(claseInput, errores.vencimiento)}
+                      {...propsError("vencimiento", errores.vencimiento)}
                     />
+                    <ErrorCampo campo="vencimiento" mensaje={errores.vencimiento} />
+                  </div>
+
+                  <div>
+                    <label htmlFor="tarjeta-cvv" className="text-[9px] font-bold text-gray-500">
+                      CÓDIGO DE SEGURIDAD *
+                    </label>
+
+                    <input
+                      id="tarjeta-cvv"
+                      name="cvv"
+                      type="password"
+                      value={formulario.cvv}
+                      onChange={(e) =>
+                        actualizar({ cvv: soloDigitos(e.target.value).slice(0, 4) })
+                      }
+                      inputMode="numeric"
+                      autoComplete="cc-csc"
+                      placeholder={formulario.tipo === "American Express" ? "4 dígitos" : "3 dígitos"}
+                      className={conError(claseInput, errores.cvv)}
+                      {...propsError("cvv", errores.cvv)}
+                    />
+                    <ErrorCampo campo="cvv" mensaje={errores.cvv} />
                   </div>
 
                 </div>
@@ -273,16 +352,24 @@ export default function MetodosPago({
                 </label>
 
                 <p className="text-[8px] text-gray-400 mt-5">
-                Por seguridad, solo guardamos los últimos 4 dígitos de la tarjeta.
+                  Por seguridad, solo guardamos la marca, los últimos 4 dígitos y el
+                  vencimiento. El número completo y el código de seguridad no se guardan.
                 </p>
+
+                {errorFormulario && (
+                  <p role="alert" className="text-red-500 text-[10px] mt-4">
+                    {errorFormulario}
+                  </p>
+                )}
 
                 <div className="flex justify-end mt-5">
 
                   <button
                     type="submit"
-                    className="h-10 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[9px] font-black"
+                    disabled={guardando}
+                    className="h-10 px-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-md text-[9px] font-black"
                   >
-                    GUARDAR TARJETA
+                    {guardando ? "GUARDANDO..." : "GUARDAR TARJETA"}
                   </button>
 
                 </div>
@@ -329,7 +416,11 @@ export default function MetodosPago({
                     className="border border-gray-200 rounded-xl p-6 relative"
                   >
 
-                    {metodo.principal && (
+                    {metodo.vencida ? (
+                      <span className="absolute top-4 right-4 text-[7px] font-black bg-red-100 text-red-600 px-2 py-1 rounded-sm">
+                        VENCIDA
+                      </span>
+                    ) : metodo.principal && (
                       <span className="absolute top-4 right-4 text-[7px] font-black bg-orange-100 text-orange-500 px-2 py-1 rounded-sm">
                         PRINCIPAL
                       </span>
@@ -347,13 +438,13 @@ export default function MetodosPago({
                       {metodo.titular}
                     </p>
 
-                    <p className="text-[9px] text-gray-400 mt-1">
-                      Vence: {metodo.vencimiento}
+                    <p className={`text-[9px] mt-1 ${metodo.vencida ? "text-red-500 font-bold" : "text-gray-400"}`}>
+                      {metodo.vencida ? "Venció" : "Vence"}: {metodo.vencimiento}
                     </p>
 
                     <div className="flex gap-3 mt-6">
 
-                      {!metodo.principal && (
+                      {!metodo.principal && !metodo.vencida && (
                         <button
                           type="button"
                           onClick={() =>

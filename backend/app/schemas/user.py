@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core import validators
 from app.core.phone import normalize_uy_phone
 
 class UserBase(BaseModel):
@@ -37,11 +38,8 @@ class ClientUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_no_vacio(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("El nombre no puede estar vacío.")
-        return value
+    def name_valido(cls, value: str) -> str:
+        return validators.nombre_persona(value)
 
     @field_validator("phone")
     @classmethod
@@ -61,9 +59,16 @@ class PasswordChange(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     current_password: str = Field(min_length=1)
-    new_password: str = Field(min_length=8)
+    new_password: str
 
-    @field_validator("current_password", "new_password")
+    @field_validator("current_password")
     @classmethod
     def password_cabe_en_bcrypt(cls, value: str) -> str:
         return _cabe_en_bcrypt(value)
+
+    @field_validator("new_password")
+    @classmethod
+    def password_nueva_segura(cls, value: str) -> str:
+        # La regla de que no contenga el correo se chequea en el endpoint,
+        # que es el que conoce al cliente.
+        return validators.password_segura(value)

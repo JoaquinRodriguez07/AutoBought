@@ -34,8 +34,8 @@ const direccion = (id, calle, principal) => ({
   id, nombre: "Ana", calle, numero: "1234", apartamento: "", ciudad: "Montevideo",
   departamento: "Montevideo", codigoPostal: "", principal,
 });
-const tarjeta = (id, numero, principal) => ({
-  id, tipo: "Visa", titular: "Ana", numero, vencimiento: "12/30", principal,
+const tarjeta = (id, numero, principal, vencida = false) => ({
+  id, tipo: "Visa", titular: "Ana", numero, vencimiento: vencida ? "01/20" : "12/30", principal, vencida,
 });
 
 const pastillas = itemCarrito(1, "Pastillas de freno", 1000, 2);
@@ -170,6 +170,34 @@ describe("Carrito: dirección de envío y método de pago", () => {
     renderCarrito({ onMetodosPago });
     const dialogo = await abrirConfirmacion(user);
 
+    expect(within(dialogo).getByRole("button", { name: "CONFIRMAR COMPRA" })).toBeDisabled();
+    await user.click(within(dialogo).getByRole("button", { name: "Agregar una tarjeta" }));
+    expect(onMetodosPago).toHaveBeenCalledTimes(1);
+  });
+
+  test("Las tarjetas vencidas no se pueden elegir y se preselecciona una vigente", async () => {
+    const user = userEvent.setup();
+    conCarrito([pastillas]);
+    obtenerMetodosPago.mockResolvedValue([tarjeta(7, "1234", true, true), tarjeta(8, "9876", false)]);
+
+    renderCarrito();
+    const dialogo = await abrirConfirmacion(user);
+
+    expect(within(dialogo).getByLabelText("MÉTODO DE PAGO")).toHaveValue("8");
+    expect(within(dialogo).getByRole("option", { name: "Visa •••• 1234 (vencida)" })).toBeDisabled();
+    expect(within(dialogo).getByRole("button", { name: "CONFIRMAR COMPRA" })).toBeEnabled();
+  });
+
+  test("Si todas las tarjetas están vencidas, pide agregar una y no deja confirmar", async () => {
+    const user = userEvent.setup();
+    const onMetodosPago = jest.fn();
+    conCarrito([pastillas]);
+    obtenerMetodosPago.mockResolvedValue([tarjeta(7, "1234", true, true)]);
+
+    renderCarrito({ onMetodosPago });
+    const dialogo = await abrirConfirmacion(user);
+
+    expect(within(dialogo).getByText(/Tus tarjetas guardadas están vencidas/)).toBeInTheDocument();
     expect(within(dialogo).getByRole("button", { name: "CONFIRMAR COMPRA" })).toBeDisabled();
     await user.click(within(dialogo).getByRole("button", { name: "Agregar una tarjeta" }));
     expect(onMetodosPago).toHaveBeenCalledTimes(1);
