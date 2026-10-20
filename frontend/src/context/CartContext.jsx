@@ -81,10 +81,10 @@ export function CartProvider({ children }) {
     if (!sesionValida(obtenerSesion())) {
       toast.error("Iniciá sesión para agregar productos al carrito.");
       navigate("/login");
-      return;
+      return false;
     }
 
-    if (!producto || producto.stock === 0) return;
+    if (!producto || producto.stock === 0) return false;
 
     const cantidadPedida = Math.max(1, Number(cantidad) || 1);
     const partId = producto.partId ?? producto.id;
@@ -92,8 +92,10 @@ export function CartProvider({ children }) {
     try {
       const carrito = await agregarItemCarrito(partId, cantidadPedida);
       aplicarRespuesta(carrito);
+      return true;
     } catch (error) {
       manejarError(error);
+      return false;
     }
   };
 
@@ -123,6 +125,17 @@ export function CartProvider({ children }) {
     }
   };
 
+  // Deshace un "agregar al carrito": descuenta solo la cantidad que se
+  // acaba de agregar. Si no quedan unidades previas, elimina la línea.
+  const deshacerAgregado = async (productoId, cantidadAgregada) => {
+    const item = cart.find((it) => it.id === String(productoId));
+    if (item && item.cantidad > cantidadAgregada) {
+      await updateQuantity(productoId, item.cantidad - cantidadAgregada);
+    } else {
+      await removeFromCart(productoId);
+    }
+  };
+
   const clearCart = async () => {
     try {
       const carrito = await vaciarCarritoAPI();
@@ -139,6 +152,7 @@ export function CartProvider({ children }) {
     addToCart,
     updateQuantity,
     removeFromCart,
+    deshacerAgregado,
     clearCart,
     cantidadCarrito,
     total,
