@@ -10,9 +10,11 @@ from app.models.cart_item import CartItem
 from app.models.client import Client
 from app.models.compatibility import Compatibility
 from app.models.employee import Employee
-from app.models.order import Order
+from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
+from app.models.payment_method import PaymentMethod
+from app.models.shipping_address import ShippingAddress
 from app.models.user import User
 from app.schemas.part import build_part_out
 
@@ -90,6 +92,18 @@ def test_parts_endpoint_serializes_compatibilities(client, db_session):
 	assert response.json()["parts"][0]["compatible_models"] == ["Corolla", "Yaris"]
 
 
+def add_primary_address_and_card(client):
+	"""place_order necesita una dirección y un método de pago principales."""
+	client.shipping_addresses.append(ShippingAddress(
+		personal_name=client.name, street="Av. Italia", number="1234",
+		city="Montevideo", department="Montevideo", is_primary=True,
+	))
+	client.payment_methods.append(PaymentMethod(
+		method="Visa •••• 1234", card_type="Visa", holder=client.name,
+		last_four="1234", expiry="12/30", is_primary=True,
+	))
+
+
 def test_place_order_decreases_stock_clears_cart_and_freezes_price(db_session):
 	client = Client(
 		username="ana",
@@ -104,6 +118,7 @@ def test_place_order_decreases_stock_clears_cart_and_freezes_price(db_session):
 		price=3000,
 		stock=4,
 	)
+	add_primary_address_and_card(client)
 	cart = Cart(client=client, items=[CartItem(part=part, amount=2)])
 	db_session.add(cart)
 	db_session.commit()
@@ -134,6 +149,7 @@ def test_place_order_rejects_insufficient_stock(db_session):
 		price=50000,
 		stock=1,
 	)
+	add_primary_address_and_card(client)
 	db_session.add(Cart(client=client, items=[CartItem(part=part, amount=2)]))
 	db_session.commit()
 	client_id = client.user_id
@@ -185,13 +201,22 @@ def test_order_persists_items_and_links_client_and_parts(db_session):
 		price=2200,
 		stock=6,
 	)
-	order = Order(client=client)
+	order = Order(
+		client=client,
+		ship_personal_name="Olga",
+		ship_street="Av. Italia",
+		ship_number="1234",
+		ship_city="Montevideo",
+		ship_department="Montevideo",
+		payment_method_label="Visa •••• 1234",
+	)
 	order.items.append(OrderItem(part=part, quantity=2, frozen_price=2200))
 	db_session.add(order)
 	db_session.commit()
 	db_session.refresh(order)
 
 	assert order.client.username == "olga"
+	assert order.status == OrderStatus.CONFIRMED
 	assert order.items[0].part.part_code == "SPK-001"
 	assert order.items[0].quantity == 2
 	assert order.items[0].frozen_price == 2200

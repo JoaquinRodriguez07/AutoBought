@@ -1,7 +1,11 @@
+from datetime import datetime, timedelta, timezone
+
+import jwt
 from sqlalchemy import select
 
 import pytest
 
+from app.core.config import JWT_ALGORITHM, SECRET_KEY
 from app.core.phone import normalize_uy_phone
 from app.core.security import create_access_token, verify_password
 from app.models.client import Client
@@ -10,6 +14,7 @@ from app.models.user import User
 REGISTER = "/api/v1/auth/register"
 LOGIN = "/api/v1/auth/login"
 ME = "/api/v1/auth/me"
+REFRESH = "/api/v1/auth/refresh"
 
 
 def payload(**overrides):
@@ -100,7 +105,7 @@ def test_password_corta_devuelve_422(client, db_session):
 
 
 def test_password_de_exactamente_8_caracteres_es_valida(client):
-    assert client.post(REGISTER, json=payload(password="12345678")).status_code == 201
+    assert client.post(REGISTER, json=payload(password="clave123")).status_code == 201
 
 
 def test_password_de_mas_de_72_bytes_devuelve_422_y_no_500(client):
@@ -122,10 +127,10 @@ def test_usernames_no_colisionan_con_correos_de_igual_parte_local(client, db_ses
     assert len(usernames) == 2
 
 
-def test_telefono_es_opcional_y_vacio_se_guarda_como_null(client, db_session):
-    assert client.post(REGISTER, json=payload(phone="   ")).status_code == 201
-
-    assert db_session.scalars(select(Client)).one().phone is None
+@pytest.mark.parametrize("phone", ["   ", None])
+def test_telefono_es_obligatorio_en_el_registro(client, db_session, phone):
+    assert client.post(REGISTER, json=payload(phone=phone)).status_code == 422
+    assert db_session.scalars(select(Client)).all() == []
 
 
 def test_telefono_demasiado_largo_devuelve_422(client):
@@ -192,8 +197,11 @@ def test_me_devuelve_el_perfil_con_el_telefono_guardado(client):
     assert "password" not in response.json()
 
 
-def test_me_devuelve_phone_null_si_el_cliente_no_tiene_telefono(client):
-    token = client.post(REGISTER, json=payload(phone=None)).json()["access_token"]
+def test_me_devuelve_phone_null_si_el_cliente_no_tiene_telefono(client, db_session):
+    # Clientes registrados antes de que el teléfono fuera obligatorio.
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
+    db_session.scalars(select(Client)).one().phone = None
+    db_session.commit()
 
     response = client.get(ME, headers={"Authorization": f"Bearer {token}"})
 
@@ -230,11 +238,23 @@ def test_patch_me_actualiza_nombre_y_telefono(client):
     assert client.get(ME, headers=headers).json()["name"] == "Lucía Pérez"
 
 
-def test_patch_me_telefono_vacio_lo_borra(client):
-    response = client.patch(ME, json={"name": "Lucía Gómez", "phone": ""}, headers=_headers(client))
+@pytest.mark.parametrize("phone", ["", "   ", None])
+def test_patch_me_no_permite_borrar_el_telefono(client, phone):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía Gómez", "phone": phone}, headers=headers)
+
+    assert response.status_code == 422
+    assert client.get(ME, headers=headers).json()["phone"] == "+59899123456"
+
+
+def test_patch_me_sin_telefono_mantiene_el_que_estaba(client):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía Pérez"}, headers=headers)
 
     assert response.status_code == 200
-    assert response.json()["phone"] is None
+    assert response.json()["phone"] == "+59899123456"
 
 
 def test_patch_me_telefono_invalido_devuelve_422(client):
@@ -356,3 +376,155 @@ def test_patch_me_sin_phone_conserva_el_telefono(client):
 
     assert response.status_code == 200
     assert response.json()["phone"] == "+59899123456"
+
+
+# --- Renovación de token (POST /auth/refresh) ---
+
+
+def _token(subject, minutos, user_type="client"):
+    """Token firmado como el real pero con la vigencia que se pida
+    (negativa = ya vencido)."""
+    payload = {
+        "sub": str(subject),
+        "user_type": user_type,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=minutos),
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def _claims(token):
+    return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
+
+
+def _registrar_y_obtener_id(client):
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
+    return _claims(token)["sub"]
+
+
+def test_refresh_con_token_valido_devuelve_un_token_nuevo_con_vigencia_completa(client):
+    user_id = _registrar_y_obtener_id(client)
+    # Token a punto de vencer (2 minutos): el nuevo tiene que traer la hora
+    # completa, no heredar la del viejo.
+    viejo = _token(user_id, minutos=2)
+
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {viejo}"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["token_type"] == "bearer"
+    nuevo = _claims(body["access_token"])
+    assert nuevo["sub"] == user_id
+    assert nuevo["user_type"] == "client"
+    assert nuevo["exp"] > _claims(viejo)["exp"]
+    restante = nuevo["exp"] - datetime.now(timezone.utc).timestamp()
+    assert 59 * 60 < restante <= 60 * 60
+
+
+def test_el_token_renovado_sirve_para_endpoints_de_cliente(client):
+    user_id = _registrar_y_obtener_id(client)
+
+    nuevo = client.post(
+        REFRESH, headers={"Authorization": f"Bearer {_token(user_id, minutos=1)}"}
+    ).json()["access_token"]
+
+    response = client.get(ME, headers={"Authorization": f"Bearer {nuevo}"})
+    assert response.status_code == 200
+    assert response.json()["email"] == "lucia@example.com"
+
+
+def test_se_puede_renovar_varias_veces_seguidas(client):
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
+
+    for _ in range(3):
+        response = client.post(REFRESH, headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+        token = response.json()["access_token"]
+
+    assert client.get(ME, headers={"Authorization": f"Bearer {token}"}).status_code == 200
+
+
+def test_refresh_con_token_vencido_devuelve_401(client):
+    user_id = _registrar_y_obtener_id(client)
+    vencido = _token(user_id, minutos=-1)
+
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {vencido}"})
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Token inválido o expirado."
+    assert "access_token" not in response.json()
+
+
+def test_refresh_sin_token_devuelve_401(client):
+    assert client.post(REFRESH).status_code == 401
+
+
+def test_refresh_con_token_basura_devuelve_401(client):
+    response = client.post(REFRESH, headers={"Authorization": "Bearer esto.no.es.un.jwt"})
+
+    assert response.status_code == 401
+
+
+def test_refresh_con_token_firmado_con_otra_clave_devuelve_401(client):
+    user_id = _registrar_y_obtener_id(client)
+    falso = jwt.encode(
+        {"sub": user_id, "user_type": "client", "exp": datetime.now(timezone.utc) + timedelta(minutes=5)},
+        "otra-clave-que-no-es-la-del-servidor-123456",
+        algorithm=JWT_ALGORITHM,
+    )
+
+    assert client.post(REFRESH, headers={"Authorization": f"Bearer {falso}"}).status_code == 401
+
+
+def test_refresh_de_un_cliente_que_ya_no_existe_devuelve_401(client):
+    # Token válido y firmado, pero el usuario fue borrado de la base.
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {_token(9999, minutos=5)}"})
+
+    assert response.status_code == 401
+
+
+def test_refresh_con_token_de_empleado_devuelve_403(client):
+    token = create_access_token(subject="1", extra_claims={"user_type": "employee"})
+
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 403
+
+
+# =====================================================
+# Validaciones de nombre y contraseña
+# =====================================================
+
+
+@pytest.mark.parametrize("name", ["123", "Lucía @@", "L"])
+def test_nombre_invalido_en_el_registro_devuelve_422(client, db_session, name):
+    response = client.post(REGISTER, json=payload(name=name))
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "name"]
+    assert db_session.scalars(select(User)).all() == []
+
+
+@pytest.mark.parametrize("password", ["abcdefgh", "12345678", "Password1", "lucia2026"])
+def test_password_debil_en_el_registro_devuelve_422(client, db_session, password):
+    response = client.post(REGISTER, json=payload(password=password))
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "password"]
+
+
+def test_nombre_invalido_al_editar_el_perfil_devuelve_422(client):
+    response = client.patch(ME, json={"name": "Lucía 123"}, headers=_headers(client))
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("nueva", ["solotexto", "qwerty123", "lucia-2026"])
+def test_cambiar_password_por_una_debil_devuelve_422(client, nueva):
+    response = client.patch(
+        PASSWORD,
+        json={"current_password": "secreto123", "new_password": nueva},
+        headers=_headers(client),
+    )
+
+    assert response.status_code == 422
+    assert client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}).status_code == 200

@@ -104,6 +104,39 @@ UNIVERSAL_PARTS = [
     ("Escobilla limpiaparabrisas", "Accesorios", 890, None),
 ]
 
+# Repuestos agregados después del catálogo original. Se generan al final
+# para no cambiar los códigos (ni el stock, que se calcula del código) de
+# los que ya existían. Lo nuevo va siempre al final de estas listas.
+EXTRA_ENGINE_PARTS = [
+    ("Filtro de combustible", "Filtros", 850, None),
+]
+
+EXTRA_MODEL_PARTS = [
+    ("Discos de freno delanteros", "Frenos", 3600, None),
+]
+
+# Uno por modelo (no por motor): depende de la carrocería.
+BODY_PARTS = [
+    ("Filtro de habitáculo", "Filtros", 700, None),
+]
+
+DIESEL_ENGINES = {
+    "1.6 HDi", "2.0 Multijet", "2.0 TDI", "2.3 YS23", "2.8 1GD", "2.8 Duramax", "3.2 Duratorq",
+}
+
+# name, price (fijo: ya están separadas por tamaño), qué autos la usan
+BATTERIES = [
+    ("Batería 12V 45Ah", 4500,
+     lambda m: m["segment"] == "hatchback" and m["engine_code"] not in DIESEL_ENGINES),
+    ("Batería 12V 60Ah", 5600,
+     lambda m: m["segment"] in ("sedan", "suv", "minivan", "van")
+     and m["engine_code"] not in DIESEL_ENGINES),
+    ("Batería 12V 75Ah", 6700,
+     lambda m: m["segment"] == "pickup" and m["engine_code"] not in DIESEL_ENGINES),
+    ("Batería 12V 90Ah", 8200,
+     lambda m: m["engine_code"] in DIESEL_ENGINES),
+]
+
 PREFIXES = {
     "Filtros": "FIL",
     "Encendido": "IGN",
@@ -114,6 +147,7 @@ PREFIXES = {
     "Refrigeración": "COL",
     "Lubricantes": "LUB",
     "Accesorios": "ACC",
+    "Eléctrico": "ELE",
 }
 
 
@@ -135,6 +169,13 @@ def group_by_engine(car_models):
     groups = {}
     for car_model in car_models:
         groups.setdefault(car_model["engine_code"], []).append(car_model)
+    return groups
+
+
+def group_by_model(car_models):
+    groups = {}
+    for car_model in car_models:
+        groups.setdefault((car_model["brand"], car_model["model"]), []).append(car_model)
     return groups
 
 
@@ -170,7 +211,7 @@ def build_parts(car_models):
         counters[prefix] += 1
         return f"{prefix}-{counters[prefix]:04d}"
 
-    def add(name, category, base_price, color, compatible):
+    def add(name, category, base_price, color, compatible, by_segment=True):
         code = next_code(category)
         parts.append(
             {
@@ -178,7 +219,7 @@ def build_parts(car_models):
                 "name": name,
                 "category": category,
                 "color": color,
-                "price": calc_price(base_price, compatible),
+                "price": calc_price(base_price, compatible) if by_segment else base_price,
                 "stock": calc_stock(code, category),
                 "compatibilities": [compatibility_entry(m) for m in compatible],
             }
@@ -200,6 +241,28 @@ def build_parts(car_models):
 
     for name, category, base_price, color in UNIVERSAL_PARTS:
         add(name, category, base_price, color, car_models)
+
+    # --- Agregados después: siempre al final (ver EXTRA_ENGINE_PARTS).
+    for engine_code, models in group_by_engine(car_models).items():
+        for name, category, base_price, color in EXTRA_ENGINE_PARTS:
+            add(f"{name} {engine_code}", category, base_price, color, models)
+
+    for car_model in car_models:
+        for name, category, base_price, color in EXTRA_MODEL_PARTS:
+            add(
+                f"{name} {car_model['brand']} {car_model['model']}",
+                category,
+                base_price,
+                color,
+                [car_model],
+            )
+
+    for (brand, model), models in group_by_model(car_models).items():
+        for name, category, base_price, color in BODY_PARTS:
+            add(f"{name} {brand} {model}", category, base_price, color, models)
+
+    for name, price, fits in BATTERIES:
+        add(name, "Eléctrico", price, None, [m for m in car_models if fits(m)], by_segment=False)
 
     return parts
 

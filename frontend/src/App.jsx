@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { obtenerSesion, sesionValida } from "./auth";
+import { guardarSesion, obtenerSesion, sesionValida } from "./auth";
+import { useRenovacionSesion } from "./useRenovacionSesion";
 import {
   agregarFavoritoAPI,
   obtenerFavoritos,
@@ -54,8 +55,14 @@ function App() {
 
   const [favoritos, setFavoritos] = useState([]);
 
+  // El efecto depende de quién es el usuario y de si hay token, NO del
+  // valor del token: renovarlo cada ~55 minutos no tiene que volver a
+  // pedir (y pisar) los favoritos.
+  const userId = usuario?.userId;
+  const haySesionConToken = Boolean(usuario?.token);
+
   useEffect(() => {
-    if (!usuario?.token) return;
+    if (!haySesionConToken) return;
 
     let cancelado = false;
     obtenerFavoritos()
@@ -69,7 +76,7 @@ function App() {
     return () => {
       cancelado = true;
     };
-  }, [usuario?.token]);
+  }, [userId, haySesionConToken]);
 
   /* =====================================================
      DIRECCIONES
@@ -252,15 +259,7 @@ function App() {
     }
 
     setUsuario(usuarioActualizado);
-
-    const storage = localStorage.getItem("autobought-sesion")
-      ? localStorage
-      : sessionStorage;
-
-    storage.setItem(
-      "autobought-sesion",
-      JSON.stringify(usuarioActualizado)
-    );
+    guardarSesion(usuarioActualizado);
   };
 
   /* =====================================================
@@ -277,6 +276,41 @@ function App() {
     setFavoritos([]);
     navigate("/");
   };
+
+  /* =====================================================
+     RENOVACIÓN AUTOMÁTICA DE LA SESIÓN
+     Un rato antes de que venza el token se pide uno nuevo y
+     se reemplaza en la sesión, sin que el cliente lo note.
+  ====================================================== */
+
+  const reemplazarToken = ({ access_token, token_type }) => {
+    // Si no hay sesión guardada, el cliente cerró sesión en otra pestaña:
+    // no se la resucita, se cierra también acá.
+    if (!obtenerSesion()) {
+      cerrarSesion();
+      return;
+    }
+
+    const renovada = {
+      ...obtenerSesion(),
+      token: access_token,
+      ...(token_type ? { tokenType: token_type } : {}),
+    };
+
+    guardarSesion(renovada);
+    setUsuario((actual) => (actual ? { ...actual, ...renovada } : actual));
+  };
+
+  const sesionVencida = () => {
+    cerrarSesion();
+    toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
+    navigate("/login");
+  };
+
+  useRenovacionSesion(usuario?.token, {
+    onRenovada: reemplazarToken,
+    onVencida: sesionVencida,
+  });
 
   /* =====================================================
      FAVORITOS
@@ -478,6 +512,8 @@ function App() {
             <Carrito
               {...propsNavbar}
               onDetalle={irAlDetalle}
+              onDirecciones={() => navigate("/direcciones")}
+              onMetodosPago={() => navigate("/metodos-pago")}
             />
           }
         />

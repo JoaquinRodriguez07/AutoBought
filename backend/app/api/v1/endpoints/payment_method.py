@@ -16,12 +16,18 @@ def list_payment_methods(db: Session = Depends(get_db), client: Client = Depends
 
 @router.post("", response_model=PaymentMethodOut, status_code=status.HTTP_201_CREATED)
 def create_payment_method(body: PaymentMethodCreate, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
-    return crud_payment.create_payment_method(db, client.user_id, body)
+    try:
+        return crud_payment.create_payment_method(db, client.user_id, body)
+    except crud_payment.PaymentMethodConflict as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
 
 
 @router.patch("/{payment_method_id}/primary", response_model=PaymentMethodOut)
 def set_primary_payment_method(payment_method_id: int, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
-    method = crud_payment.set_primary(db, client.user_id, payment_method_id)
+    try:
+        method = crud_payment.set_primary(db, client.user_id, payment_method_id)
+    except crud_payment.PaymentMethodConflict as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
     if method is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Método de pago no encontrado.")
     return method

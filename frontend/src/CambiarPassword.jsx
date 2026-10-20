@@ -1,21 +1,26 @@
 import { useState } from "react";
 import { cambiarPassword } from "./api";
+import ErrorCampo from "./ErrorCampo";
+import { conError, propsError } from "./erroresCampo";
+import { validarCambioPassword } from "./validaciones";
 
 const FORMULARIO_VACIO = { actual: "", nueva: "", repetir: "" };
 
 const claseInput =
   "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] text-gray-700 outline-hidden focus:border-orange-500 transition";
 
-export default function CambiarPassword() {
+export default function CambiarPassword({ email = "" }) {
   const [abierto, setAbierto] = useState(false);
   const [formulario, setFormulario] = useState(FORMULARIO_VACIO);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [errores, setErrores] = useState({});
   const [exito, setExito] = useState(false);
 
   const manejarCambio = (e) => {
     const { name, value } = e.target;
     setError("");
+    setErrores((actuales) => ({ ...actuales, [name]: undefined }));
     setFormulario((actual) => ({ ...actual, [name]: value }));
   };
 
@@ -27,26 +32,16 @@ export default function CambiarPassword() {
   const cancelar = () => {
     setFormulario(FORMULARIO_VACIO);
     setError("");
+    setErrores({});
     setAbierto(false);
   };
 
   const guardar = async (e) => {
     e.preventDefault();
 
-    if (!formulario.actual || !formulario.nueva || !formulario.repetir) {
-      setError("Completá todos los campos.");
-      return;
-    }
-
-    if (formulario.nueva.length < 8) {
-      setError("La nueva contraseña tiene que tener al menos 8 caracteres.");
-      return;
-    }
-
-    if (formulario.nueva !== formulario.repetir) {
-      setError("Las contraseñas nuevas no coinciden.");
-      return;
-    }
+    const erroresFormulario = validarCambioPassword(formulario, email);
+    setErrores(erroresFormulario);
+    if (Object.keys(erroresFormulario).length > 0) return;
 
     setGuardando(true);
     setError("");
@@ -98,6 +93,10 @@ export default function CambiarPassword() {
       {abierto && (
         <form onSubmit={guardar} className="mt-5">
 
+          <p className="text-[8px] text-gray-400 mb-4">
+            Mínimo 8 caracteres, con al menos una letra y un número.
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             <div>
@@ -111,8 +110,10 @@ export default function CambiarPassword() {
                 autoComplete="current-password"
                 value={formulario.actual}
                 onChange={manejarCambio}
-                className={claseInput}
+                className={conError(claseInput, errores.actual)}
+                {...propsError("actual", errores.actual)}
               />
+              <ErrorCampo campo="actual" mensaje={errores.actual} />
             </div>
 
             <div>
@@ -126,8 +127,10 @@ export default function CambiarPassword() {
                 autoComplete="new-password"
                 value={formulario.nueva}
                 onChange={manejarCambio}
-                className={claseInput}
+                className={conError(claseInput, errores.nueva)}
+                {...propsError("nueva", errores.nueva)}
               />
+              <ErrorCampo campo="nueva" mensaje={errores.nueva} />
             </div>
 
             <div>
@@ -141,8 +144,10 @@ export default function CambiarPassword() {
                 autoComplete="new-password"
                 value={formulario.repetir}
                 onChange={manejarCambio}
-                className={claseInput}
+                className={conError(claseInput, errores.repetir)}
+                {...propsError("repetir", errores.repetir)}
               />
+              <ErrorCampo campo="repetir" mensaje={errores.repetir} />
             </div>
 
           </div>

@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, ValidationInfo, field_validator
 
+from app.core import validators
 from app.core.phone import normalize_uy_phone
 
 
@@ -11,32 +12,27 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     email: EmailStr
-    password: str = Field(min_length=8)
-    phone: str | None = Field(default=None, max_length=30)
+    password: str
+    phone: str = Field(max_length=30)
 
     @field_validator("phone")
     @classmethod
-    def phone_uruguayo(cls, value: str | None) -> str | None:
-        if value is None or not value.strip():
-            return None
+    def phone_uruguayo(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("El teléfono es obligatorio.")
         return normalize_uy_phone(value)
 
     @field_validator("name")
     @classmethod
-    def name_no_vacio(cls, value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError("El nombre no puede estar vacío.")
-        return value
+    def name_valido(cls, value: str) -> str:
+        return validators.nombre_persona(value)
 
     @field_validator("password")
     @classmethod
-    def password_cabe_en_bcrypt(cls, value: str) -> str:
-        # bcrypt solo admite 72 bytes (y bcrypt>=5 lanza ValueError si se
-        # pasa de ahí): se rechaza con 422 en vez de tirar un 500.
-        if len(value.encode("utf-8")) > 72:
-            raise ValueError("La contraseña no puede superar los 72 bytes.")
-        return value
+    def password_valida(cls, value: str, info: ValidationInfo) -> str:
+        # `email` se declara antes: si es válido, ya está en info.data.
+        # Incluye el límite de 72 bytes de bcrypt (con más daría un 500).
+        return validators.password_segura(value, info.data.get("email"))
 
 
 class Token(BaseModel):
