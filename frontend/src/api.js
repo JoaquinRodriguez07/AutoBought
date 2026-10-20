@@ -733,12 +733,16 @@ const MENSAJES_POR_STATUS_ORDENES = {
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "Esta acción requiere una cuenta de cliente.",
   409: "No hay stock suficiente para completar la compra.",
+  422: "Revisá la dirección y el método de pago elegidos.",
 };
 
 function mapearPedido(p) {
   return {
     id: p.order_id,
     fecha: p.created_at,
+    estado: p.status,
+    direccion: p.shipping_address ? mapearDireccion(p.shipping_address) : null,
+    metodoPago: p.payment_method ?? "",
     total: p.total ?? 0,
     items: (p.items || []).map((item) => ({
       partId: item.part_id,
@@ -749,11 +753,20 @@ function mapearPedido(p) {
   };
 }
 
-/** POST /api/v1/orders — confirma la compra del carrito del cliente. */
-export async function confirmarCompra() {
+/**
+ * POST /api/v1/orders — confirma la compra del carrito del cliente con la
+ * dirección y el método de pago elegidos (sin elegir, usa los principales).
+ */
+export async function confirmarCompra({ direccionId, metodoPagoId } = {}) {
   const data = await pedirCuentaCliente(
     `${API_BASE_URL}/api/v1/orders`,
-    { method: "POST" },
+    {
+      method: "POST",
+      body: JSON.stringify({
+        shipping_address_id: direccionId ?? null,
+        payment_method_id: metodoPagoId ?? null,
+      }),
+    },
     MENSAJES_POR_STATUS_ORDENES,
     "No pudimos confirmar la compra."
   );

@@ -1,14 +1,16 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Carrito from "./Carrito";
-import { confirmarCompra } from "./api";
+import { confirmarCompra, obtenerDirecciones, obtenerMetodosPago } from "./api";
 import { useCart } from "./context/CartContext";
 
 // api.js usa import.meta.env (Vite) y CartContext necesita el router y
 // la sesión: en estos tests se reemplazan por dobles controlados.
 jest.mock("./api", () => ({
   confirmarCompra: jest.fn(),
+  obtenerDirecciones: jest.fn(),
+  obtenerMetodosPago: jest.fn(),
 }));
 
 jest.mock("./context/CartContext", () => ({
@@ -28,6 +30,14 @@ const itemCarrito = (partId, nombre, precio, cantidad, stock = 10) => ({
   imagen: "imagen.jpg",
 });
 
+const direccion = (id, calle, principal) => ({
+  id, nombre: "Ana", calle, numero: "1234", apartamento: "", ciudad: "Montevideo",
+  departamento: "Montevideo", codigoPostal: "", principal,
+});
+const tarjeta = (id, numero, principal) => ({
+  id, tipo: "Visa", titular: "Ana", numero, vencimiento: "12/30", principal,
+});
+
 const pastillas = itemCarrito(1, "Pastillas de freno", 1000, 2);
 const filtro = itemCarrito(2, "Filtro de aire", 3000, 1);
 
@@ -45,12 +55,23 @@ function conCarrito(cart, cargarCarrito = jest.fn().mockResolvedValue(undefined)
   return cargarCarrito;
 }
 
-function renderCarrito() {
-  return render(<Carrito onCatalogo={jest.fn()} onDetalle={jest.fn()} />);
+function renderCarrito(props = {}) {
+  return render(<Carrito onCatalogo={jest.fn()} onDetalle={jest.fn()} {...props} />);
+}
+
+// Abre el modal y espera a que terminen de cargar direcciones y tarjetas.
+async function abrirConfirmacion(user) {
+  await user.click(screen.getByRole("button", { name: "FINALIZAR COMPRA" }));
+  await waitFor(() =>
+    expect(screen.queryByText("Cargando tus datos de envío y pago...")).not.toBeInTheDocument()
+  );
+  return screen.getByRole("dialog");
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
+  obtenerDirecciones.mockResolvedValue([direccion(1, "Av. Italia", true)]);
+  obtenerMetodosPago.mockResolvedValue([tarjeta(7, "1234", true)]);
 });
 
 describe("Carrito: confirmación de compra (HU 1.9)", () => {
@@ -60,9 +81,7 @@ describe("Carrito: confirmación de compra (HU 1.9)", () => {
     confirmarCompra.mockResolvedValue({ id: 42, total: 5000, items: [] });
 
     renderCarrito();
-    await user.click(screen.getByRole("button", { name: "FINALIZAR COMPRA" }));
-
-    const dialogo = screen.getByRole("dialog");
+    const dialogo = await abrirConfirmacion(user);
     expect(within(dialogo).getByText("Pastillas de freno × 2")).toBeInTheDocument();
     expect(within(dialogo).getByText("Filtro de aire × 1")).toBeInTheDocument();
     expect(within(dialogo).getByText(`$${(5000).toLocaleString("es-UY")}`)).toBeInTheDocument();
@@ -70,7 +89,7 @@ describe("Carrito: confirmación de compra (HU 1.9)", () => {
     await user.click(within(dialogo).getByRole("button", { name: "CONFIRMAR COMPRA" }));
 
     expect(await screen.findByText("#42")).toBeInTheDocument();
-    expect(confirmarCompra).toHaveBeenCalledTimes(1);
+    expect(confirmarCompra).toHaveBeenCalledWith({ direccionId: 1, metodoPagoId: 7 });
     expect(cargarCarrito).toHaveBeenCalledTimes(1);
   });
 
@@ -82,7 +101,7 @@ describe("Carrito: confirmación de compra (HU 1.9)", () => {
     confirmarCompra.mockRejectedValue(error);
 
     renderCarrito();
-    await user.click(screen.getByRole("button", { name: "FINALIZAR COMPRA" }));
+    await abrirConfirmacion(user);
     await user.click(screen.getByRole("button", { name: "CONFIRMAR COMPRA" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -98,5 +117,61 @@ describe("Carrito: confirmación de compra (HU 1.9)", () => {
     renderCarrito();
 
     expect(screen.getByRole("button", { name: "FINALIZAR COMPRA" })).toBeDisabled();
+  });
+});
+
+describe("Carrito: dirección de envío y método de pago", () => {
+  test("Preselecciona los principales y confirma con los elegidos", async () => {
+    const user = userEvent.setup();
+    conCarrito([pastillas]);
+    obtenerDirecciones.mockResolvedValue([
+      direccion(1, "Av. Italia", false),
+      direccion(2, "Bv. Artigas", true),
+    ]);
+    obtenerMetodosPago.mockResolvedValue([tarjeta(7, "1234", true), tarjeta(8, "9876", false)]);
+    confirmarCompra.mockResolvedValue({ id: 50, total: 2000, items: [] });
+
+    renderCarrito();
+    const dialogo = await abrirConfirmacion(user);
+
+    const selectorDireccion = within(dialogo).getByLabelText("DIRECCIÓN DE ENVÍO");
+    const selectorPago = within(dialogo).getByLabelText("MÉTODO DE PAGO");
+    expect(selectorDireccion).toHaveValue("2");
+    expect(selectorPago).toHaveValue("7");
+
+    await user.selectOptions(selectorPago, "Visa •••• 9876");
+    await user.click(within(dialogo).getByRole("button", { name: "CONFIRMAR COMPRA" }));
+
+    expect(await screen.findByText("#50")).toBeInTheDocument();
+    expect(confirmarCompra).toHaveBeenCalledWith({ direccionId: 2, metodoPagoId: 8 });
+  });
+
+  test("Sin dirección guardada: muestra un enlace para agregarla y no deja confirmar", async () => {
+    const user = userEvent.setup();
+    const onDirecciones = jest.fn();
+    conCarrito([pastillas]);
+    obtenerDirecciones.mockResolvedValue([]);
+
+    renderCarrito({ onDirecciones });
+    const dialogo = await abrirConfirmacion(user);
+
+    expect(within(dialogo).getByRole("button", { name: "CONFIRMAR COMPRA" })).toBeDisabled();
+    await user.click(within(dialogo).getByRole("button", { name: "Agregar una dirección" }));
+    expect(onDirecciones).toHaveBeenCalledTimes(1);
+    expect(confirmarCompra).not.toHaveBeenCalled();
+  });
+
+  test("Sin tarjeta guardada: muestra un enlace para agregarla y no deja confirmar", async () => {
+    const user = userEvent.setup();
+    const onMetodosPago = jest.fn();
+    conCarrito([pastillas]);
+    obtenerMetodosPago.mockResolvedValue([]);
+
+    renderCarrito({ onMetodosPago });
+    const dialogo = await abrirConfirmacion(user);
+
+    expect(within(dialogo).getByRole("button", { name: "CONFIRMAR COMPRA" })).toBeDisabled();
+    await user.click(within(dialogo).getByRole("button", { name: "Agregar una tarjeta" }));
+    expect(onMetodosPago).toHaveBeenCalledTimes(1);
   });
 });
