@@ -40,7 +40,7 @@ export default function Catalogo({
   onAlternarFavorito,
   esFavorito,
 }) {
-  const { addToCart, removeFromCart } = useCart();
+  const { addToCart, deshacerAgregado } = useCart();
 
   // Vehículo Activo (el que se confirmó con "Buscar Repuestos"). Vive en
   // VehicleContext, así que sobrevive a ir al carrito y volver.
@@ -260,17 +260,17 @@ export default function Catalogo({
   const agregar = async (producto) => {
     if (producto.stock === 0) return;
 
-    const agregado = await addToCart(
-      producto,
-      cantidades[producto.id] || 1
-    );
+    const cantidadPedida = cantidades[producto.id] || 1;
+    const agregado = await addToCart(producto, cantidadPedida);
 
     setCantidades((actual) => ({
       ...actual,
       [producto.id]: 1,
     }));
 
-    if (agregado) setProductoAgregado(producto);
+    if (agregado) {
+      setProductoAgregado({ ...producto, cantidadAgregada: cantidadPedida });
+    }
   };
 
   // ==========================================
@@ -281,7 +281,7 @@ export default function Catalogo({
     <div className="min-h-screen bg-white text-gray-900 font-sans">
       <ConfirmacionAgregarCarrito
         producto={productoAgregado}
-        onDeshacer={(item) => removeFromCart(item.id)}
+        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
         onCerrar={() => setProductoAgregado(null)}
         onVerCarrito={() => {
           setProductoAgregado(null);

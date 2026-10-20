@@ -16,7 +16,7 @@ export default function DetalleProducto({
   onAlternarFavorito,
   esFavorito,
 }) {
-  const { addToCart, removeFromCart } = useCart();
+  const { addToCart, deshacerAgregado } = useCart();
   const { vehiculoActivo: filtrosVehiculo } = useVehicle();
   const [cantidad, setCantidad] = useState(1);
   const [imagenActiva, setImagenActiva] = useState(0);
@@ -69,9 +69,12 @@ export default function DetalleProducto({
   const agregar = async () => {
     if (sinStock) return;
 
-    const agregado = await addToCart(productoActual, cantidad);
+    const cantidadPedida = cantidad;
+    const agregado = await addToCart(productoActual, cantidadPedida);
     setCantidad(1);
-    if (agregado) setProductoAgregado(productoActual);
+    if (agregado) {
+      setProductoAgregado({ ...productoActual, cantidadAgregada: cantidadPedida });
+    }
   };
 
   const tabs = [
@@ -86,7 +89,7 @@ export default function DetalleProducto({
     <div className="min-h-screen bg-white text-gray-900 font-sans">
       <ConfirmacionAgregarCarrito
         producto={productoAgregado}
-        onDeshacer={(item) => removeFromCart(item.id)}
+        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
         onCerrar={() => setProductoAgregado(null)}
         onVerCarrito={() => {
           setProductoAgregado(null);

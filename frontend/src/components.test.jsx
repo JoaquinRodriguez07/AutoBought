@@ -498,7 +498,7 @@ describe("Catalogo", () => {
     await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
 
     let dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Parte agregada al carrito.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Repuesto agregado al carrito.")).toBeInTheDocument();
     expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
       .toEqual(["Deshacer", "Ok", "Ver carrito"]);
 
@@ -521,6 +521,29 @@ describe("Catalogo", () => {
     await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
     expect(props.onCarrito).toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("undo only removes the quantity that was just added", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+    startClientSession();
+    // El carrito ya tenía 2 unidades: después de agregar 1 quedan 3.
+    agregarItemCarrito.mockResolvedValue({
+      items: [{ id: "BP1234", partId: "BP1234", nombre: "Pastillas de Freno Delanteras Bosch", precio: 1500, cantidad: 3 }],
+      total: 4500,
+    });
+
+    render(<Catalogo {...props} categoriaInicial="Frenos" />);
+    await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
+
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
+
+    await waitFor(() => expect(actualizarItemCarrito).toHaveBeenCalledWith("BP1234", 2));
+    expect(eliminarItemCarrito).not.toHaveBeenCalled();
   });
 
   it("changes category and toggles a product favorite", async () => {
@@ -584,7 +607,7 @@ describe("DetalleProducto", () => {
 
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 2));
     let dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Parte agregada al carrito.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Repuesto agregado al carrito.")).toBeInTheDocument();
     expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
       .toEqual(["Deshacer", "Ok", "Ver carrito"]);
 

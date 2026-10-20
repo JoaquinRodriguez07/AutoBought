@@ -19,7 +19,7 @@ export default function ConfirmacionAgregarCarrito({
         onClick={(event) => event.stopPropagation()}
       >
         <h2 id="titulo-producto-agregado" className="text-lg font-black">
-          Parte agregada al carrito.
+          Repuesto agregado al carrito.
         </h2>
         <p className="mt-2 text-[10px] text-gray-500">{producto.nombre}</p>
         <div className="mt-6 flex gap-3">

@@ -125,6 +125,17 @@ export function CartProvider({ children }) {
     }
   };
 
+  // Deshace un "agregar al carrito": descuenta solo la cantidad que se
+  // acaba de agregar. Si no quedan unidades previas, elimina la línea.
+  const deshacerAgregado = async (productoId, cantidadAgregada) => {
+    const item = cart.find((it) => it.id === String(productoId));
+    if (item && item.cantidad > cantidadAgregada) {
+      await updateQuantity(productoId, item.cantidad - cantidadAgregada);
+    } else {
+      await removeFromCart(productoId);
+    }
+  };
+
   const clearCart = async () => {
     try {
       const carrito = await vaciarCarritoAPI();
@@ -141,6 +152,7 @@ export function CartProvider({ children }) {
     addToCart,
     updateQuantity,
     removeFromCart,
+    deshacerAgregado,
     clearCart,
     cantidadCarrito,
     total,
