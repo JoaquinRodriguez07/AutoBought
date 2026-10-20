@@ -32,6 +32,14 @@ class PartsResponse(BaseModel):
     entities: Optional[SearchEntities] = None
 
 
+class BestSellerOut(PartOut):
+    units_sold: int
+
+
+class BestSellersResponse(BaseModel):
+    parts: list[BestSellerOut]
+
+
 class CategoryOut(BaseModel):
     name: str
     count: int

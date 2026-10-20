@@ -6,7 +6,12 @@ from sqlalchemy.orm import Session
 from app.crud import text_search
 from app.api.deps import get_db
 from app.crud import part as crud_part
-from app.schemas.part import CategoriesResponse, PartsResponse, build_part_out
+from app.schemas.part import (
+    BestSellersResponse,
+    CategoriesResponse,
+    PartsResponse,
+    build_part_out,
+)
 
 
 router = APIRouter(prefix="/parts", tags=["parts"])
@@ -87,5 +92,32 @@ def list_categories(db: Session = Depends(get_db)):
     return {
         "categories": [
             {"name": name, "count": count} for name, count in categorias
+        ]
+    }
+
+
+# Igual que "/categories", debe declararse antes de cualquier ruta "/{id}".
+@router.get("/best-sellers", response_model=BestSellersResponse)
+def list_best_sellers(
+    limit: int = Query(4, ge=1, le=20, description="Cantidad de repuestos a devolver."),
+    days: Optional[int] = Query(
+        None,
+        ge=1,
+        le=3650,
+        description="Contar solo las ventas de los últimos N días. Sin valor: todas.",
+    ),
+    in_stock: bool = Query(
+        False,
+        description="Si es true, saltea los repuestos que hoy no tienen stock.",
+    ),
+    db: Session = Depends(get_db),
+):
+    best_sellers = crud_part.list_best_sellers(
+        db, limit=limit, days=days, in_stock=in_stock
+    )
+    return {
+        "parts": [
+            {**build_part_out(part).model_dump(), "units_sold": units_sold}
+            for part, units_sold in best_sellers
         ]
     }

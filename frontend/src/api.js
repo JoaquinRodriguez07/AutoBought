@@ -412,6 +412,31 @@ export async function obtenerCategorias() {
   return listaDe(data, "categories", mensajeError).map(mapearCategoria);
 }
 
+/**
+ * GET /api/v1/parts/best-sellers
+ *
+ * Los repuestos más vendidos de los últimos `dias` días, solo los que
+ * tienen stock: la tienda no ofrece lo que no se puede comprar. El
+ * dashboard del vendedor puede pedir la misma ruta sin `in_stock`.
+ *
+ * @returns {Promise<Array<object>>} repuestos con el shape de la UI.
+ */
+export async function obtenerMasVendidos({ limite = 4, dias = 90 } = {}) {
+  const params = new URLSearchParams({
+    limit: limite,
+    days: dias,
+    in_stock: "true",
+  });
+
+  const mensajeError = "No pudimos cargar los más vendidos.";
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/parts/best-sellers?${params.toString()}`,
+    mensajeError
+  );
+
+  return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+}
+
 /* =====================================================
    CARRITO
    A diferencia del catálogo, estas rutas van con el JWT

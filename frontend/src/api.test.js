@@ -18,6 +18,7 @@ import {
   marcarMetodoPagoPrincipal,
   obtenerCarrito,
   obtenerCategorias,
+  obtenerMasVendidos,
   obtenerDirecciones,
   obtenerFavoritos,
   obtenerMarcas,
@@ -380,6 +381,15 @@ describe("catalog API", () => {
     await expect(obtenerCategorias()).resolves.toEqual([
       { nombre: "Frenos", cantidad: 3 },
     ]);
+  });
+
+  it("asks for the best sellers of the last 90 days with stock", async () => {
+    fetch.mockResolvedValueOnce(response({ parts: [{ ...backendPart, units_sold: 7 }] }));
+
+    await expect(obtenerMasVendidos()).resolves.toEqual([uiPart]);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/parts/best-sellers?limit=4&days=90&in_stock=true`
+    );
   });
 
   it("reports network, HTTP, invalid JSON, and malformed list failures", async () => {
