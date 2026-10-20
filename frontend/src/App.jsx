@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { guardarSesion, obtenerSesion, sesionValida } from "./auth";
 import { useRenovacionSesion } from "./useRenovacionSesion";
@@ -24,6 +24,7 @@ import Marcas from "./Marcas";
 import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
 import ProtectedRoute from "./ProtectedRoute";
+import PaginaNoEncontrada from "./PaginaNoEncontrada";
 
 function App() {
   const navigate = useNavigate();
@@ -517,101 +518,96 @@ function App() {
             />
           }
         />
-      </Route>
 
-      {/* =================================================
-          FAVORITOS
-          (mismo comportamiento de antes: pantalla en
-          blanco si no hay sesión — no forma parte del
-          DoD de esta tarea)
-      ================================================== */}
+        {/* FAVORITOS */}
 
-      <Route
-        path="/favoritos"
-        element={
-          usuario ? (
+        <Route
+          path="/favoritos"
+          element={
             <Favoritos
               {...propsNavbar}
               favoritos={favoritos}
               onAlternarFavorito={alternarFavorito}
               onDetalle={irAlDetalle}
             />
-          ) : null
-        }
-      />
+          }
+        />
 
-      {/* =================================================
-          PERFIL
-      ================================================== */}
+        {/* PERFIL
+            ProtectedRoute mira la sesión guardada y `usuario` es el
+            estado de App: si alguna vez no coinciden (ej. sesión
+            iniciada en otra pestaña), se manda al login en vez de
+            renderizar Perfil sin usuario. */}
 
-      <Route
-        path="/perfil"
-        element={
-          usuario ? (
-            <Perfil
-              {...propsNavbar}
-              usuario={usuario}
-              onCerrarSesion={cerrarSesion}
-              onActualizarUsuario={actualizarUsuario}
-              onDirecciones={() => navigate("/direcciones")}
-              onMetodosPago={() => navigate("/metodos-pago")}
-              onHistorialCompras={() => navigate("/historial")}
-            />
-          ) : null
-        }
-      />
+        <Route
+          path="/perfil"
+          element={
+            usuario ? (
+              <Perfil
+                {...propsNavbar}
+                usuario={usuario}
+                onCerrarSesion={cerrarSesion}
+                onActualizarUsuario={actualizarUsuario}
+                onDirecciones={() => navigate("/direcciones")}
+                onMetodosPago={() => navigate("/metodos-pago")}
+                onHistorialCompras={() => navigate("/historial")}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
 
-      {/* =================================================
-          DIRECCIONES
-      ================================================== */}
+        {/* DIRECCIONES */}
 
-      <Route
-        path="/direcciones"
-        element={
-          usuario ? (
+        <Route
+          path="/direcciones"
+          element={
             <Direcciones
               {...propsNavbar}
               direcciones={direcciones}
               setDirecciones={setDirecciones}
               onPerfil={() => navigate("/perfil")}
             />
-          ) : null
-        }
-      />
+          }
+        />
 
-      {/* =================================================
-          MÉTODOS DE PAGO
-      ================================================== */}
+        {/* MÉTODOS DE PAGO */}
 
-      <Route
-        path="/metodos-pago"
-        element={
-          usuario ? (
+        <Route
+          path="/metodos-pago"
+          element={
             <MetodosPago
               {...propsNavbar}
               metodosPago={metodosPago}
               setMetodosPago={setMetodosPago}
               onPerfil={() => navigate("/perfil")}
             />
-          ) : null
-        }
-      />
+          }
+        />
 
-      {/* =================================================
-          HISTORIAL DE COMPRAS
-      ================================================== */}
+        {/* HISTORIAL DE COMPRAS */}
 
-      <Route
-        path="/historial"
-        element={
-          usuario ? (
+        <Route
+          path="/historial"
+          element={
             <HistorialCompras
               {...propsNavbar}
               historialCompras={historialCompras}
               onPerfil={() => navigate("/perfil")}
             />
-          ) : null
-        }
+          }
+        />
+      </Route>
+
+      {/* =================================================
+          PÁGINA NO ENCONTRADA
+          Cualquier dirección que no coincide con las de arriba.
+      ================================================== */}
+
+      <Route
+        path="*"
+        element={<PaginaNoEncontrada {...propsNavbar} />}
       />
     </Routes>
   );

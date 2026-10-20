@@ -1112,6 +1112,34 @@ describe("App sesión", () => {
   });
 });
 
+describe("App rutas", () => {
+  const renderEn = (ruta) =>
+    renderBase(
+      <MemoryRouter initialEntries={[ruta]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  it.each(["/favoritos", "/perfil", "/direcciones", "/metodos-pago", "/historial"])(
+    "sends anonymous users from %s to the login instead of a blank page",
+    (ruta) => {
+      renderEn(ruta);
+
+      expect(screen.getByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
+    }
+  );
+
+  it("shows the not found page for an unknown address and goes back home", async () => {
+    const user = userEvent.setup();
+    renderEn("/no-existe");
+
+    expect(screen.getByRole("heading", { name: "Esta página no existe" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "VOLVER AL INICIO" }));
+
+    expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
+  });
+});
+
 describe("App renovación de sesión", () => {
   const MIN = 60 * 1000;
   const sesionQueVenceEn = (minutos) => ({
