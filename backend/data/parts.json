@@ -8319,6 +8319,2726 @@
           "year_to": 2023
         }
       ]
+    },
+    {
+      "part_code": "FIL-0059",
+      "name": "Filtro de combustible 1.4 8V",
+      "category": "Filtros",
+      "color": null,
+      "price": 890,
+      "stock": 51,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Onix",
+          "engine_code": "1.4 8V",
+          "year_from": 2013,
+          "year_to": 2019
+        },
+        {
+          "brand": "Chevrolet",
+          "model": "Prisma",
+          "engine_code": "1.4 8V",
+          "year_from": 2013,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0060",
+      "name": "Filtro de combustible 1.0 Turbo",
+      "category": "Filtros",
+      "color": null,
+      "price": 850,
+      "stock": 43,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Onix",
+          "engine_code": "1.0 Turbo",
+          "year_from": 2020,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0061",
+      "name": "Filtro de combustible 1.6 8V",
+      "category": "Filtros",
+      "color": null,
+      "price": 850,
+      "stock": 44,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Corsa",
+          "engine_code": "1.6 8V",
+          "year_from": 2000,
+          "year_to": 2010
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0062",
+      "name": "Filtro de combustible 1.8 8V",
+      "category": "Filtros",
+      "color": null,
+      "price": 1020,
+      "stock": 45,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Spin",
+          "engine_code": "1.8 8V",
+          "year_from": 2013,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0063",
+      "name": "Filtro de combustible 1.4 Turbo",
+      "category": "Filtros",
+      "color": null,
+      "price": 890,
+      "stock": 46,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Cruze",
+          "engine_code": "1.4 Turbo",
+          "year_from": 2017,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0064",
+      "name": "Filtro de combustible 1.2 Turbo",
+      "category": "Filtros",
+      "color": null,
+      "price": 1100,
+      "stock": 47,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Tracker",
+          "engine_code": "1.2 Turbo",
+          "year_from": 2020,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0065",
+      "name": "Filtro de combustible 2.8 Duramax",
+      "category": "Filtros",
+      "color": null,
+      "price": 1280,
+      "stock": 48,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "S10",
+          "engine_code": "2.8 Duramax",
+          "year_from": 2012,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0066",
+      "name": "Filtro de combustible 1.3 Firefly",
+      "category": "Filtros",
+      "color": null,
+      "price": 890,
+      "stock": 49,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Cronos",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Fiat",
+          "model": "Argo",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0067",
+      "name": "Filtro de combustible 1.4 Fire",
+      "category": "Filtros",
+      "color": null,
+      "price": 1280,
+      "stock": 50,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Palio",
+          "engine_code": "1.4 Fire",
+          "year_from": 2004,
+          "year_to": 2016
+        },
+        {
+          "brand": "Fiat",
+          "model": "Siena",
+          "engine_code": "1.4 Fire",
+          "year_from": 2004,
+          "year_to": 2016
+        },
+        {
+          "brand": "Fiat",
+          "model": "Uno",
+          "engine_code": "1.4 Fire",
+          "year_from": 2010,
+          "year_to": 2021
+        },
+        {
+          "brand": "Fiat",
+          "model": "Strada",
+          "engine_code": "1.4 Fire",
+          "year_from": 2009,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0068",
+      "name": "Filtro de combustible 2.0 Multijet",
+      "category": "Filtros",
+      "color": null,
+      "price": 1280,
+      "stock": 51,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Toro",
+          "engine_code": "2.0 Multijet",
+          "year_from": 2016,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0069",
+      "name": "Filtro de combustible 1.6 MSI",
+      "category": "Filtros",
+      "color": null,
+      "price": 1280,
+      "stock": 52,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Gol",
+          "engine_code": "1.6 MSI",
+          "year_from": 2013,
+          "year_to": 2023
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Voyage",
+          "engine_code": "1.6 MSI",
+          "year_from": 2013,
+          "year_to": 2022
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Saveiro",
+          "engine_code": "1.6 MSI",
+          "year_from": 2010,
+          "year_to": 2023
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Polo",
+          "engine_code": "1.6 MSI",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Virtus",
+          "engine_code": "1.6 MSI",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0070",
+      "name": "Filtro de combustible 1.0 TSI",
+      "category": "Filtros",
+      "color": null,
+      "price": 1100,
+      "stock": 44,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "T-Cross",
+          "engine_code": "1.0 TSI",
+          "year_from": 2019,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0071",
+      "name": "Filtro de combustible 2.0 TDI",
+      "category": "Filtros",
+      "color": null,
+      "price": 1280,
+      "stock": 45,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Amarok",
+          "engine_code": "2.0 TDI",
+          "year_from": 2011,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0072",
+      "name": "Filtro de combustible 1.6 Sigma",
+      "category": "Filtros",
+      "color": null,
+      "price": 850,
+      "stock": 46,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Fiesta",
+          "engine_code": "1.6 Sigma",
+          "year_from": 2011,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0073",
+      "name": "Filtro de combustible 2.0 Duratec",
+      "category": "Filtros",
+      "color": null,
+      "price": 850,
+      "stock": 47,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Focus",
+          "engine_code": "2.0 Duratec",
+          "year_from": 2009,
+          "year_to": 2018
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0074",
+      "name": "Filtro de combustible 1.5 Dragon",
+      "category": "Filtros",
+      "color": null,
+      "price": 1100,
+      "stock": 48,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Ka",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2023
+        },
+        {
+          "brand": "Ford",
+          "model": "EcoSport",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0075",
+      "name": "Filtro de combustible 3.2 Duratorq",
+      "category": "Filtros",
+      "color": null,
+      "price": 1280,
+      "stock": 49,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Ranger",
+          "engine_code": "3.2 Duratorq",
+          "year_from": 2012,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0076",
+      "name": "Filtro de combustible 1.6 K4M",
+      "category": "Filtros",
+      "color": null,
+      "price": 1100,
+      "stock": 50,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Sandero",
+          "engine_code": "1.6 K4M",
+          "year_from": 2012,
+          "year_to": 2020
+        },
+        {
+          "brand": "Renault",
+          "model": "Logan",
+          "engine_code": "1.6 K4M",
+          "year_from": 2010,
+          "year_to": 2020
+        },
+        {
+          "brand": "Renault",
+          "model": "Stepway",
+          "engine_code": "1.6 K4M",
+          "year_from": 2013,
+          "year_to": 2020
+        },
+        {
+          "brand": "Renault",
+          "model": "Duster",
+          "engine_code": "1.6 K4M",
+          "year_from": 2012,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0077",
+      "name": "Filtro de combustible 1.0 SCe",
+      "category": "Filtros",
+      "color": null,
+      "price": 850,
+      "stock": 51,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Kwid",
+          "engine_code": "1.0 SCe",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0078",
+      "name": "Filtro de combustible 1.6 K7M",
+      "category": "Filtros",
+      "color": null,
+      "price": 980,
+      "stock": 52,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Kangoo",
+          "engine_code": "1.6 K7M",
+          "year_from": 2008,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0079",
+      "name": "Filtro de combustible 1.6 EC5",
+      "category": "Filtros",
+      "color": null,
+      "price": 1100,
+      "stock": 53,
+      "compatibilities": [
+        {
+          "brand": "Peugeot",
+          "model": "208",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
+        },
+        {
+          "brand": "Peugeot",
+          "model": "2008",
+          "engine_code": "1.6 EC5",
+          "year_from": 2016,
+          "year_to": 2022
+        },
+        {
+          "brand": "Citroen",
+          "model": "C3",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0080",
+      "name": "Filtro de combustible 1.6 HDi",
+      "category": "Filtros",
+      "color": null,
+      "price": 980,
+      "stock": 45,
+      "compatibilities": [
+        {
+          "brand": "Peugeot",
+          "model": "Partner",
+          "engine_code": "1.6 HDi",
+          "year_from": 2010,
+          "year_to": 2020
+        },
+        {
+          "brand": "Citroen",
+          "model": "Berlingo",
+          "engine_code": "1.6 HDi",
+          "year_from": 2010,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0081",
+      "name": "Filtro de combustible 1.5 2NR",
+      "category": "Filtros",
+      "color": null,
+      "price": 850,
+      "stock": 46,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Etios",
+          "engine_code": "1.5 2NR",
+          "year_from": 2013,
+          "year_to": 2022
+        },
+        {
+          "brand": "Toyota",
+          "model": "Yaris",
+          "engine_code": "1.5 2NR",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0082",
+      "name": "Filtro de combustible 1.8 2ZR",
+      "category": "Filtros",
+      "color": null,
+      "price": 890,
+      "stock": 47,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Corolla",
+          "engine_code": "1.8 2ZR",
+          "year_from": 2015,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0083",
+      "name": "Filtro de combustible 2.8 1GD",
+      "category": "Filtros",
+      "color": null,
+      "price": 1280,
+      "stock": 48,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Hilux",
+          "engine_code": "2.8 1GD",
+          "year_from": 2016,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0084",
+      "name": "Filtro de combustible 1.6 HR16",
+      "category": "Filtros",
+      "color": null,
+      "price": 1100,
+      "stock": 49,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "March",
+          "engine_code": "1.6 HR16",
+          "year_from": 2011,
+          "year_to": 2020
+        },
+        {
+          "brand": "Nissan",
+          "model": "Versa",
+          "engine_code": "1.6 HR16",
+          "year_from": 2015,
+          "year_to": 2024
+        },
+        {
+          "brand": "Nissan",
+          "model": "Kicks",
+          "engine_code": "1.6 HR16",
+          "year_from": 2017,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0085",
+      "name": "Filtro de combustible 2.3 YS23",
+      "category": "Filtros",
+      "color": null,
+      "price": 1280,
+      "stock": 50,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "Frontier",
+          "engine_code": "2.3 YS23",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0086",
+      "name": "Filtro de combustible 1.6 Gamma",
+      "category": "Filtros",
+      "color": null,
+      "price": 1100,
+      "stock": 51,
+      "compatibilities": [
+        {
+          "brand": "Hyundai",
+          "model": "HB20",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2013,
+          "year_to": 2022
+        },
+        {
+          "brand": "Hyundai",
+          "model": "Creta",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2017,
+          "year_to": 2024
+        },
+        {
+          "brand": "Kia",
+          "model": "Rio",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2012,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0087",
+      "name": "Filtro de combustible 2.0 Nu",
+      "category": "Filtros",
+      "color": null,
+      "price": 1100,
+      "stock": 52,
+      "compatibilities": [
+        {
+          "brand": "Kia",
+          "model": "Sportage",
+          "engine_code": "2.0 Nu",
+          "year_from": 2016,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0051",
+      "name": "Discos de freno delanteros Chevrolet Onix",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 17,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Onix",
+          "engine_code": "1.4 8V",
+          "year_from": 2013,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0052",
+      "name": "Discos de freno delanteros Chevrolet Onix",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 18,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Onix",
+          "engine_code": "1.0 Turbo",
+          "year_from": 2020,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0053",
+      "name": "Discos de freno delanteros Chevrolet Prisma",
+      "category": "Frenos",
+      "color": null,
+      "price": 3780,
+      "stock": 19,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Prisma",
+          "engine_code": "1.4 8V",
+          "year_from": 2013,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0054",
+      "name": "Discos de freno delanteros Chevrolet Corsa",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 20,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Corsa",
+          "engine_code": "1.6 8V",
+          "year_from": 2000,
+          "year_to": 2010
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0055",
+      "name": "Discos de freno delanteros Chevrolet Spin",
+      "category": "Frenos",
+      "color": null,
+      "price": 4320,
+      "stock": 21,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Spin",
+          "engine_code": "1.8 8V",
+          "year_from": 2013,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0056",
+      "name": "Discos de freno delanteros Chevrolet Cruze",
+      "category": "Frenos",
+      "color": null,
+      "price": 3780,
+      "stock": 22,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Cruze",
+          "engine_code": "1.4 Turbo",
+          "year_from": 2017,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0057",
+      "name": "Discos de freno delanteros Chevrolet Tracker",
+      "category": "Frenos",
+      "color": null,
+      "price": 4680,
+      "stock": 23,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Tracker",
+          "engine_code": "1.2 Turbo",
+          "year_from": 2020,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0058",
+      "name": "Discos de freno delanteros Chevrolet S10",
+      "category": "Frenos",
+      "color": null,
+      "price": 5400,
+      "stock": 24,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "S10",
+          "engine_code": "2.8 Duramax",
+          "year_from": 2012,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0059",
+      "name": "Discos de freno delanteros Fiat Cronos",
+      "category": "Frenos",
+      "color": null,
+      "price": 3780,
+      "stock": 25,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Cronos",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0060",
+      "name": "Discos de freno delanteros Fiat Argo",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 17,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Argo",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0061",
+      "name": "Discos de freno delanteros Fiat Palio",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 18,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Palio",
+          "engine_code": "1.4 Fire",
+          "year_from": 2004,
+          "year_to": 2016
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0062",
+      "name": "Discos de freno delanteros Fiat Siena",
+      "category": "Frenos",
+      "color": null,
+      "price": 3780,
+      "stock": 19,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Siena",
+          "engine_code": "1.4 Fire",
+          "year_from": 2004,
+          "year_to": 2016
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0063",
+      "name": "Discos de freno delanteros Fiat Uno",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 20,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Uno",
+          "engine_code": "1.4 Fire",
+          "year_from": 2010,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0064",
+      "name": "Discos de freno delanteros Fiat Strada",
+      "category": "Frenos",
+      "color": null,
+      "price": 5400,
+      "stock": 21,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Strada",
+          "engine_code": "1.4 Fire",
+          "year_from": 2009,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0065",
+      "name": "Discos de freno delanteros Fiat Toro",
+      "category": "Frenos",
+      "color": null,
+      "price": 5400,
+      "stock": 22,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Toro",
+          "engine_code": "2.0 Multijet",
+          "year_from": 2016,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0066",
+      "name": "Discos de freno delanteros Volkswagen Gol",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 23,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Gol",
+          "engine_code": "1.6 MSI",
+          "year_from": 2013,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0067",
+      "name": "Discos de freno delanteros Volkswagen Voyage",
+      "category": "Frenos",
+      "color": null,
+      "price": 3780,
+      "stock": 24,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Voyage",
+          "engine_code": "1.6 MSI",
+          "year_from": 2013,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0068",
+      "name": "Discos de freno delanteros Volkswagen Saveiro",
+      "category": "Frenos",
+      "color": null,
+      "price": 5400,
+      "stock": 25,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Saveiro",
+          "engine_code": "1.6 MSI",
+          "year_from": 2010,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0069",
+      "name": "Discos de freno delanteros Volkswagen Polo",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 1,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Polo",
+          "engine_code": "1.6 MSI",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0070",
+      "name": "Discos de freno delanteros Volkswagen Virtus",
+      "category": "Frenos",
+      "color": null,
+      "price": 3780,
+      "stock": 18,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Virtus",
+          "engine_code": "1.6 MSI",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0071",
+      "name": "Discos de freno delanteros Volkswagen T-Cross",
+      "category": "Frenos",
+      "color": null,
+      "price": 4680,
+      "stock": 19,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "T-Cross",
+          "engine_code": "1.0 TSI",
+          "year_from": 2019,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0072",
+      "name": "Discos de freno delanteros Volkswagen Amarok",
+      "category": "Frenos",
+      "color": null,
+      "price": 5400,
+      "stock": 20,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Amarok",
+          "engine_code": "2.0 TDI",
+          "year_from": 2011,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0073",
+      "name": "Discos de freno delanteros Ford Fiesta",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 21,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Fiesta",
+          "engine_code": "1.6 Sigma",
+          "year_from": 2011,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0074",
+      "name": "Discos de freno delanteros Ford Focus",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 22,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Focus",
+          "engine_code": "2.0 Duratec",
+          "year_from": 2009,
+          "year_to": 2018
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0075",
+      "name": "Discos de freno delanteros Ford Ka",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 23,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Ka",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0076",
+      "name": "Discos de freno delanteros Ford EcoSport",
+      "category": "Frenos",
+      "color": null,
+      "price": 4680,
+      "stock": 24,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "EcoSport",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0077",
+      "name": "Discos de freno delanteros Ford Ranger",
+      "category": "Frenos",
+      "color": null,
+      "price": 5400,
+      "stock": 25,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Ranger",
+          "engine_code": "3.2 Duratorq",
+          "year_from": 2012,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0078",
+      "name": "Discos de freno delanteros Renault Sandero",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 1,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Sandero",
+          "engine_code": "1.6 K4M",
+          "year_from": 2012,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0079",
+      "name": "Discos de freno delanteros Renault Logan",
+      "category": "Frenos",
+      "color": null,
+      "price": 3780,
+      "stock": 0,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Logan",
+          "engine_code": "1.6 K4M",
+          "year_from": 2010,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0080",
+      "name": "Discos de freno delanteros Renault Stepway",
+      "category": "Frenos",
+      "color": null,
+      "price": 4680,
+      "stock": 19,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Stepway",
+          "engine_code": "1.6 K4M",
+          "year_from": 2013,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0081",
+      "name": "Discos de freno delanteros Renault Duster",
+      "category": "Frenos",
+      "color": null,
+      "price": 4680,
+      "stock": 20,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Duster",
+          "engine_code": "1.6 K4M",
+          "year_from": 2012,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0082",
+      "name": "Discos de freno delanteros Renault Kwid",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 21,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Kwid",
+          "engine_code": "1.0 SCe",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0083",
+      "name": "Discos de freno delanteros Renault Kangoo",
+      "category": "Frenos",
+      "color": null,
+      "price": 4140,
+      "stock": 22,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Kangoo",
+          "engine_code": "1.6 K7M",
+          "year_from": 2008,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0084",
+      "name": "Discos de freno delanteros Peugeot 208",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 23,
+      "compatibilities": [
+        {
+          "brand": "Peugeot",
+          "model": "208",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0085",
+      "name": "Discos de freno delanteros Peugeot 2008",
+      "category": "Frenos",
+      "color": null,
+      "price": 4680,
+      "stock": 24,
+      "compatibilities": [
+        {
+          "brand": "Peugeot",
+          "model": "2008",
+          "engine_code": "1.6 EC5",
+          "year_from": 2016,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0086",
+      "name": "Discos de freno delanteros Peugeot Partner",
+      "category": "Frenos",
+      "color": null,
+      "price": 4140,
+      "stock": 25,
+      "compatibilities": [
+        {
+          "brand": "Peugeot",
+          "model": "Partner",
+          "engine_code": "1.6 HDi",
+          "year_from": 2010,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0087",
+      "name": "Discos de freno delanteros Citroen C3",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 1,
+      "compatibilities": [
+        {
+          "brand": "Citroen",
+          "model": "C3",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0088",
+      "name": "Discos de freno delanteros Citroen Berlingo",
+      "category": "Frenos",
+      "color": null,
+      "price": 4140,
+      "stock": 0,
+      "compatibilities": [
+        {
+          "brand": "Citroen",
+          "model": "Berlingo",
+          "engine_code": "1.6 HDi",
+          "year_from": 2010,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0089",
+      "name": "Discos de freno delanteros Toyota Etios",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 3,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Etios",
+          "engine_code": "1.5 2NR",
+          "year_from": 2013,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0090",
+      "name": "Discos de freno delanteros Toyota Yaris",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 20,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Yaris",
+          "engine_code": "1.5 2NR",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0091",
+      "name": "Discos de freno delanteros Toyota Corolla",
+      "category": "Frenos",
+      "color": null,
+      "price": 3780,
+      "stock": 21,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Corolla",
+          "engine_code": "1.8 2ZR",
+          "year_from": 2015,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0092",
+      "name": "Discos de freno delanteros Toyota Hilux",
+      "category": "Frenos",
+      "color": null,
+      "price": 5400,
+      "stock": 22,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Hilux",
+          "engine_code": "2.8 1GD",
+          "year_from": 2016,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0093",
+      "name": "Discos de freno delanteros Nissan March",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 23,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "March",
+          "engine_code": "1.6 HR16",
+          "year_from": 2011,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0094",
+      "name": "Discos de freno delanteros Nissan Versa",
+      "category": "Frenos",
+      "color": null,
+      "price": 3780,
+      "stock": 24,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "Versa",
+          "engine_code": "1.6 HR16",
+          "year_from": 2015,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0095",
+      "name": "Discos de freno delanteros Nissan Kicks",
+      "category": "Frenos",
+      "color": null,
+      "price": 4680,
+      "stock": 25,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "Kicks",
+          "engine_code": "1.6 HR16",
+          "year_from": 2017,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0096",
+      "name": "Discos de freno delanteros Nissan Frontier",
+      "category": "Frenos",
+      "color": null,
+      "price": 5400,
+      "stock": 1,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "Frontier",
+          "engine_code": "2.3 YS23",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0097",
+      "name": "Discos de freno delanteros Hyundai HB20",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 0,
+      "compatibilities": [
+        {
+          "brand": "Hyundai",
+          "model": "HB20",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2013,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0098",
+      "name": "Discos de freno delanteros Hyundai Creta",
+      "category": "Frenos",
+      "color": null,
+      "price": 4680,
+      "stock": 3,
+      "compatibilities": [
+        {
+          "brand": "Hyundai",
+          "model": "Creta",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2017,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0099",
+      "name": "Discos de freno delanteros Kia Rio",
+      "category": "Frenos",
+      "color": null,
+      "price": 3600,
+      "stock": 4,
+      "compatibilities": [
+        {
+          "brand": "Kia",
+          "model": "Rio",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2012,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "BRK-0100",
+      "name": "Discos de freno delanteros Kia Sportage",
+      "category": "Frenos",
+      "color": null,
+      "price": 4680,
+      "stock": 12,
+      "compatibilities": [
+        {
+          "brand": "Kia",
+          "model": "Sportage",
+          "engine_code": "2.0 Nu",
+          "year_from": 2016,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0088",
+      "name": "Filtro de habit\u00e1culo Chevrolet Onix",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 53,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Onix",
+          "engine_code": "1.4 8V",
+          "year_from": 2013,
+          "year_to": 2019
+        },
+        {
+          "brand": "Chevrolet",
+          "model": "Onix",
+          "engine_code": "1.0 Turbo",
+          "year_from": 2020,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0089",
+      "name": "Filtro de habit\u00e1culo Chevrolet Prisma",
+      "category": "Filtros",
+      "color": null,
+      "price": 740,
+      "stock": 54,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Prisma",
+          "engine_code": "1.4 8V",
+          "year_from": 2013,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0090",
+      "name": "Filtro de habit\u00e1culo Chevrolet Corsa",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 46,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Corsa",
+          "engine_code": "1.6 8V",
+          "year_from": 2000,
+          "year_to": 2010
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0091",
+      "name": "Filtro de habit\u00e1culo Chevrolet Spin",
+      "category": "Filtros",
+      "color": null,
+      "price": 840,
+      "stock": 47,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Spin",
+          "engine_code": "1.8 8V",
+          "year_from": 2013,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0092",
+      "name": "Filtro de habit\u00e1culo Chevrolet Cruze",
+      "category": "Filtros",
+      "color": null,
+      "price": 740,
+      "stock": 48,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Cruze",
+          "engine_code": "1.4 Turbo",
+          "year_from": 2017,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0093",
+      "name": "Filtro de habit\u00e1culo Chevrolet Tracker",
+      "category": "Filtros",
+      "color": null,
+      "price": 910,
+      "stock": 49,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Tracker",
+          "engine_code": "1.2 Turbo",
+          "year_from": 2020,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0094",
+      "name": "Filtro de habit\u00e1culo Chevrolet S10",
+      "category": "Filtros",
+      "color": null,
+      "price": 1050,
+      "stock": 50,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "S10",
+          "engine_code": "2.8 Duramax",
+          "year_from": 2012,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0095",
+      "name": "Filtro de habit\u00e1culo Fiat Cronos",
+      "category": "Filtros",
+      "color": null,
+      "price": 740,
+      "stock": 51,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Cronos",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0096",
+      "name": "Filtro de habit\u00e1culo Fiat Argo",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 52,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Argo",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0097",
+      "name": "Filtro de habit\u00e1culo Fiat Palio",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 53,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Palio",
+          "engine_code": "1.4 Fire",
+          "year_from": 2004,
+          "year_to": 2016
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0098",
+      "name": "Filtro de habit\u00e1culo Fiat Siena",
+      "category": "Filtros",
+      "color": null,
+      "price": 740,
+      "stock": 54,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Siena",
+          "engine_code": "1.4 Fire",
+          "year_from": 2004,
+          "year_to": 2016
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0099",
+      "name": "Filtro de habit\u00e1culo Fiat Uno",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 55,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Uno",
+          "engine_code": "1.4 Fire",
+          "year_from": 2010,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0100",
+      "name": "Filtro de habit\u00e1culo Fiat Strada",
+      "category": "Filtros",
+      "color": null,
+      "price": 1050,
+      "stock": 38,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Strada",
+          "engine_code": "1.4 Fire",
+          "year_from": 2009,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0101",
+      "name": "Filtro de habit\u00e1culo Fiat Toro",
+      "category": "Filtros",
+      "color": null,
+      "price": 1050,
+      "stock": 39,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Toro",
+          "engine_code": "2.0 Multijet",
+          "year_from": 2016,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0102",
+      "name": "Filtro de habit\u00e1culo Volkswagen Gol",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 0,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Gol",
+          "engine_code": "1.6 MSI",
+          "year_from": 2013,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0103",
+      "name": "Filtro de habit\u00e1culo Volkswagen Voyage",
+      "category": "Filtros",
+      "color": null,
+      "price": 740,
+      "stock": 41,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Voyage",
+          "engine_code": "1.6 MSI",
+          "year_from": 2013,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0104",
+      "name": "Filtro de habit\u00e1culo Volkswagen Saveiro",
+      "category": "Filtros",
+      "color": null,
+      "price": 1050,
+      "stock": 42,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Saveiro",
+          "engine_code": "1.6 MSI",
+          "year_from": 2010,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0105",
+      "name": "Filtro de habit\u00e1culo Volkswagen Polo",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 43,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Polo",
+          "engine_code": "1.6 MSI",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0106",
+      "name": "Filtro de habit\u00e1culo Volkswagen Virtus",
+      "category": "Filtros",
+      "color": null,
+      "price": 740,
+      "stock": 44,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Virtus",
+          "engine_code": "1.6 MSI",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0107",
+      "name": "Filtro de habit\u00e1culo Volkswagen T-Cross",
+      "category": "Filtros",
+      "color": null,
+      "price": 910,
+      "stock": 45,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "T-Cross",
+          "engine_code": "1.0 TSI",
+          "year_from": 2019,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0108",
+      "name": "Filtro de habit\u00e1culo Volkswagen Amarok",
+      "category": "Filtros",
+      "color": null,
+      "price": 1050,
+      "stock": 46,
+      "compatibilities": [
+        {
+          "brand": "Volkswagen",
+          "model": "Amarok",
+          "engine_code": "2.0 TDI",
+          "year_from": 2011,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0109",
+      "name": "Filtro de habit\u00e1culo Ford Fiesta",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 47,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Fiesta",
+          "engine_code": "1.6 Sigma",
+          "year_from": 2011,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0110",
+      "name": "Filtro de habit\u00e1culo Ford Focus",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 39,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Focus",
+          "engine_code": "2.0 Duratec",
+          "year_from": 2009,
+          "year_to": 2018
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0111",
+      "name": "Filtro de habit\u00e1culo Ford Ka",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 0,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Ka",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0112",
+      "name": "Filtro de habit\u00e1culo Ford EcoSport",
+      "category": "Filtros",
+      "color": null,
+      "price": 910,
+      "stock": 41,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "EcoSport",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0113",
+      "name": "Filtro de habit\u00e1culo Ford Ranger",
+      "category": "Filtros",
+      "color": null,
+      "price": 1050,
+      "stock": 42,
+      "compatibilities": [
+        {
+          "brand": "Ford",
+          "model": "Ranger",
+          "engine_code": "3.2 Duratorq",
+          "year_from": 2012,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0114",
+      "name": "Filtro de habit\u00e1culo Renault Sandero",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 43,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Sandero",
+          "engine_code": "1.6 K4M",
+          "year_from": 2012,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0115",
+      "name": "Filtro de habit\u00e1culo Renault Logan",
+      "category": "Filtros",
+      "color": null,
+      "price": 740,
+      "stock": 44,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Logan",
+          "engine_code": "1.6 K4M",
+          "year_from": 2010,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0116",
+      "name": "Filtro de habit\u00e1culo Renault Stepway",
+      "category": "Filtros",
+      "color": null,
+      "price": 910,
+      "stock": 45,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Stepway",
+          "engine_code": "1.6 K4M",
+          "year_from": 2013,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0117",
+      "name": "Filtro de habit\u00e1culo Renault Duster",
+      "category": "Filtros",
+      "color": null,
+      "price": 910,
+      "stock": 46,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Duster",
+          "engine_code": "1.6 K4M",
+          "year_from": 2012,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0118",
+      "name": "Filtro de habit\u00e1culo Renault Kwid",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 47,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Kwid",
+          "engine_code": "1.0 SCe",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0119",
+      "name": "Filtro de habit\u00e1culo Renault Kangoo",
+      "category": "Filtros",
+      "color": null,
+      "price": 800,
+      "stock": 48,
+      "compatibilities": [
+        {
+          "brand": "Renault",
+          "model": "Kangoo",
+          "engine_code": "1.6 K7M",
+          "year_from": 2008,
+          "year_to": 2019
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0120",
+      "name": "Filtro de habit\u00e1culo Peugeot 208",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 0,
+      "compatibilities": [
+        {
+          "brand": "Peugeot",
+          "model": "208",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0121",
+      "name": "Filtro de habit\u00e1culo Peugeot 2008",
+      "category": "Filtros",
+      "color": null,
+      "price": 910,
+      "stock": 41,
+      "compatibilities": [
+        {
+          "brand": "Peugeot",
+          "model": "2008",
+          "engine_code": "1.6 EC5",
+          "year_from": 2016,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0122",
+      "name": "Filtro de habit\u00e1culo Peugeot Partner",
+      "category": "Filtros",
+      "color": null,
+      "price": 800,
+      "stock": 42,
+      "compatibilities": [
+        {
+          "brand": "Peugeot",
+          "model": "Partner",
+          "engine_code": "1.6 HDi",
+          "year_from": 2010,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0123",
+      "name": "Filtro de habit\u00e1culo Citroen C3",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 43,
+      "compatibilities": [
+        {
+          "brand": "Citroen",
+          "model": "C3",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0124",
+      "name": "Filtro de habit\u00e1culo Citroen Berlingo",
+      "category": "Filtros",
+      "color": null,
+      "price": 800,
+      "stock": 44,
+      "compatibilities": [
+        {
+          "brand": "Citroen",
+          "model": "Berlingo",
+          "engine_code": "1.6 HDi",
+          "year_from": 2010,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0125",
+      "name": "Filtro de habit\u00e1culo Toyota Etios",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 45,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Etios",
+          "engine_code": "1.5 2NR",
+          "year_from": 2013,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0126",
+      "name": "Filtro de habit\u00e1culo Toyota Yaris",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 46,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Yaris",
+          "engine_code": "1.5 2NR",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0127",
+      "name": "Filtro de habit\u00e1culo Toyota Corolla",
+      "category": "Filtros",
+      "color": null,
+      "price": 740,
+      "stock": 47,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Corolla",
+          "engine_code": "1.8 2ZR",
+          "year_from": 2015,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0128",
+      "name": "Filtro de habit\u00e1culo Toyota Hilux",
+      "category": "Filtros",
+      "color": null,
+      "price": 1050,
+      "stock": 48,
+      "compatibilities": [
+        {
+          "brand": "Toyota",
+          "model": "Hilux",
+          "engine_code": "2.8 1GD",
+          "year_from": 2016,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0129",
+      "name": "Filtro de habit\u00e1culo Nissan March",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 49,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "March",
+          "engine_code": "1.6 HR16",
+          "year_from": 2011,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0130",
+      "name": "Filtro de habit\u00e1culo Nissan Versa",
+      "category": "Filtros",
+      "color": null,
+      "price": 740,
+      "stock": 41,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "Versa",
+          "engine_code": "1.6 HR16",
+          "year_from": 2015,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0131",
+      "name": "Filtro de habit\u00e1culo Nissan Kicks",
+      "category": "Filtros",
+      "color": null,
+      "price": 910,
+      "stock": 42,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "Kicks",
+          "engine_code": "1.6 HR16",
+          "year_from": 2017,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0132",
+      "name": "Filtro de habit\u00e1culo Nissan Frontier",
+      "category": "Filtros",
+      "color": null,
+      "price": 1050,
+      "stock": 43,
+      "compatibilities": [
+        {
+          "brand": "Nissan",
+          "model": "Frontier",
+          "engine_code": "2.3 YS23",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0133",
+      "name": "Filtro de habit\u00e1culo Hyundai HB20",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 44,
+      "compatibilities": [
+        {
+          "brand": "Hyundai",
+          "model": "HB20",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2013,
+          "year_to": 2022
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0134",
+      "name": "Filtro de habit\u00e1culo Hyundai Creta",
+      "category": "Filtros",
+      "color": null,
+      "price": 910,
+      "stock": 45,
+      "compatibilities": [
+        {
+          "brand": "Hyundai",
+          "model": "Creta",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2017,
+          "year_to": 2024
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0135",
+      "name": "Filtro de habit\u00e1culo Kia Rio",
+      "category": "Filtros",
+      "color": null,
+      "price": 700,
+      "stock": 46,
+      "compatibilities": [
+        {
+          "brand": "Kia",
+          "model": "Rio",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2012,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "FIL-0136",
+      "name": "Filtro de habit\u00e1culo Kia Sportage",
+      "category": "Filtros",
+      "color": null,
+      "price": 910,
+      "stock": 47,
+      "compatibilities": [
+        {
+          "brand": "Kia",
+          "model": "Sportage",
+          "engine_code": "2.0 Nu",
+          "year_from": 2016,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "ELE-0001",
+      "name": "Bater\u00eda 12V 45Ah",
+      "category": "El\u00e9ctrico",
+      "color": null,
+      "price": 4500,
+      "stock": 3,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Onix",
+          "engine_code": "1.4 8V",
+          "year_from": 2013,
+          "year_to": 2019
+        },
+        {
+          "brand": "Chevrolet",
+          "model": "Onix",
+          "engine_code": "1.0 Turbo",
+          "year_from": 2020,
+          "year_to": 2024
+        },
+        {
+          "brand": "Chevrolet",
+          "model": "Corsa",
+          "engine_code": "1.6 8V",
+          "year_from": 2000,
+          "year_to": 2010
+        },
+        {
+          "brand": "Fiat",
+          "model": "Argo",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Fiat",
+          "model": "Palio",
+          "engine_code": "1.4 Fire",
+          "year_from": 2004,
+          "year_to": 2016
+        },
+        {
+          "brand": "Fiat",
+          "model": "Uno",
+          "engine_code": "1.4 Fire",
+          "year_from": 2010,
+          "year_to": 2021
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Gol",
+          "engine_code": "1.6 MSI",
+          "year_from": 2013,
+          "year_to": 2023
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Polo",
+          "engine_code": "1.6 MSI",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Ford",
+          "model": "Fiesta",
+          "engine_code": "1.6 Sigma",
+          "year_from": 2011,
+          "year_to": 2019
+        },
+        {
+          "brand": "Ford",
+          "model": "Focus",
+          "engine_code": "2.0 Duratec",
+          "year_from": 2009,
+          "year_to": 2018
+        },
+        {
+          "brand": "Ford",
+          "model": "Ka",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2023
+        },
+        {
+          "brand": "Renault",
+          "model": "Sandero",
+          "engine_code": "1.6 K4M",
+          "year_from": 2012,
+          "year_to": 2020
+        },
+        {
+          "brand": "Renault",
+          "model": "Kwid",
+          "engine_code": "1.0 SCe",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Peugeot",
+          "model": "208",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
+        },
+        {
+          "brand": "Citroen",
+          "model": "C3",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
+        },
+        {
+          "brand": "Toyota",
+          "model": "Etios",
+          "engine_code": "1.5 2NR",
+          "year_from": 2013,
+          "year_to": 2022
+        },
+        {
+          "brand": "Toyota",
+          "model": "Yaris",
+          "engine_code": "1.5 2NR",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Nissan",
+          "model": "March",
+          "engine_code": "1.6 HR16",
+          "year_from": 2011,
+          "year_to": 2020
+        },
+        {
+          "brand": "Hyundai",
+          "model": "HB20",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2013,
+          "year_to": 2022
+        },
+        {
+          "brand": "Kia",
+          "model": "Rio",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2012,
+          "year_to": 2020
+        }
+      ]
+    },
+    {
+      "part_code": "ELE-0002",
+      "name": "Bater\u00eda 12V 60Ah",
+      "category": "El\u00e9ctrico",
+      "color": null,
+      "price": 5600,
+      "stock": 4,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "Prisma",
+          "engine_code": "1.4 8V",
+          "year_from": 2013,
+          "year_to": 2019
+        },
+        {
+          "brand": "Chevrolet",
+          "model": "Spin",
+          "engine_code": "1.8 8V",
+          "year_from": 2013,
+          "year_to": 2023
+        },
+        {
+          "brand": "Chevrolet",
+          "model": "Cruze",
+          "engine_code": "1.4 Turbo",
+          "year_from": 2017,
+          "year_to": 2024
+        },
+        {
+          "brand": "Chevrolet",
+          "model": "Tracker",
+          "engine_code": "1.2 Turbo",
+          "year_from": 2020,
+          "year_to": 2024
+        },
+        {
+          "brand": "Fiat",
+          "model": "Cronos",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Fiat",
+          "model": "Siena",
+          "engine_code": "1.4 Fire",
+          "year_from": 2004,
+          "year_to": 2016
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Voyage",
+          "engine_code": "1.6 MSI",
+          "year_from": 2013,
+          "year_to": 2022
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Virtus",
+          "engine_code": "1.6 MSI",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "T-Cross",
+          "engine_code": "1.0 TSI",
+          "year_from": 2019,
+          "year_to": 2024
+        },
+        {
+          "brand": "Ford",
+          "model": "EcoSport",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2022
+        },
+        {
+          "brand": "Renault",
+          "model": "Logan",
+          "engine_code": "1.6 K4M",
+          "year_from": 2010,
+          "year_to": 2020
+        },
+        {
+          "brand": "Renault",
+          "model": "Stepway",
+          "engine_code": "1.6 K4M",
+          "year_from": 2013,
+          "year_to": 2020
+        },
+        {
+          "brand": "Renault",
+          "model": "Duster",
+          "engine_code": "1.6 K4M",
+          "year_from": 2012,
+          "year_to": 2021
+        },
+        {
+          "brand": "Renault",
+          "model": "Kangoo",
+          "engine_code": "1.6 K7M",
+          "year_from": 2008,
+          "year_to": 2019
+        },
+        {
+          "brand": "Peugeot",
+          "model": "2008",
+          "engine_code": "1.6 EC5",
+          "year_from": 2016,
+          "year_to": 2022
+        },
+        {
+          "brand": "Toyota",
+          "model": "Corolla",
+          "engine_code": "1.8 2ZR",
+          "year_from": 2015,
+          "year_to": 2024
+        },
+        {
+          "brand": "Nissan",
+          "model": "Versa",
+          "engine_code": "1.6 HR16",
+          "year_from": 2015,
+          "year_to": 2024
+        },
+        {
+          "brand": "Nissan",
+          "model": "Kicks",
+          "engine_code": "1.6 HR16",
+          "year_from": 2017,
+          "year_to": 2024
+        },
+        {
+          "brand": "Hyundai",
+          "model": "Creta",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2017,
+          "year_to": 2024
+        },
+        {
+          "brand": "Kia",
+          "model": "Sportage",
+          "engine_code": "2.0 Nu",
+          "year_from": 2016,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "ELE-0003",
+      "name": "Bater\u00eda 12V 75Ah",
+      "category": "El\u00e9ctrico",
+      "color": null,
+      "price": 6700,
+      "stock": 5,
+      "compatibilities": [
+        {
+          "brand": "Fiat",
+          "model": "Strada",
+          "engine_code": "1.4 Fire",
+          "year_from": 2009,
+          "year_to": 2020
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Saveiro",
+          "engine_code": "1.6 MSI",
+          "year_from": 2010,
+          "year_to": 2023
+        }
+      ]
+    },
+    {
+      "part_code": "ELE-0004",
+      "name": "Bater\u00eda 12V 90Ah",
+      "category": "El\u00e9ctrico",
+      "color": null,
+      "price": 8200,
+      "stock": 6,
+      "compatibilities": [
+        {
+          "brand": "Chevrolet",
+          "model": "S10",
+          "engine_code": "2.8 Duramax",
+          "year_from": 2012,
+          "year_to": 2024
+        },
+        {
+          "brand": "Fiat",
+          "model": "Toro",
+          "engine_code": "2.0 Multijet",
+          "year_from": 2016,
+          "year_to": 2024
+        },
+        {
+          "brand": "Volkswagen",
+          "model": "Amarok",
+          "engine_code": "2.0 TDI",
+          "year_from": 2011,
+          "year_to": 2024
+        },
+        {
+          "brand": "Ford",
+          "model": "Ranger",
+          "engine_code": "3.2 Duratorq",
+          "year_from": 2012,
+          "year_to": 2022
+        },
+        {
+          "brand": "Peugeot",
+          "model": "Partner",
+          "engine_code": "1.6 HDi",
+          "year_from": 2010,
+          "year_to": 2020
+        },
+        {
+          "brand": "Citroen",
+          "model": "Berlingo",
+          "engine_code": "1.6 HDi",
+          "year_from": 2010,
+          "year_to": 2020
+        },
+        {
+          "brand": "Toyota",
+          "model": "Hilux",
+          "engine_code": "2.8 1GD",
+          "year_from": 2016,
+          "year_to": 2024
+        },
+        {
+          "brand": "Nissan",
+          "model": "Frontier",
+          "engine_code": "2.3 YS23",
+          "year_from": 2018,
+          "year_to": 2024
+        }
+      ]
     }
   ]
 }

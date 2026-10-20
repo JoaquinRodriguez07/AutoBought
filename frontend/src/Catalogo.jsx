@@ -621,7 +621,7 @@ export default function Catalogo({
 
                       <div className="relative h-[190px] bg-gray-50">
 
-                        {/* Sin filtro, el catálogo completo son ~377
+                        {/* Sin filtro, el catálogo completo son ~500
                             tarjetas: lazy evita decodificar todas las
                             imágenes que están fuera de pantalla. */}
 
