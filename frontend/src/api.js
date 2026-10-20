@@ -81,6 +81,48 @@ export async function registrar({ nombre, apellido, email, telefono, password })
 }
 
 /**
+ * POST /api/v1/auth/refresh
+ *
+ * Cambia el token vigente de la sesión por uno nuevo (mismo shape que el
+ * login: `{ access_token, token_type }`). Si el token ya venció o no es
+ * válido, el backend contesta 401: se propaga en `error.status` para que
+ * quien llama distinga "la sesión terminó" (401) de un problema pasajero
+ * de red o de servidor, que se puede reintentar.
+ */
+export async function renovarToken() {
+  const sesion = obtenerSesion();
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${sesion?.token}` },
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok || !data?.access_token) {
+    const error = new Error(
+      response.status === 401
+        ? "Tu sesión venció. Iniciá sesión de nuevo."
+        : "No pudimos renovar tu sesión."
+    );
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+}
+
+/**
  * GET /api/v1/auth/me
  *
  * Perfil del cliente dueño del token. Recibe el token por parámetro (y
