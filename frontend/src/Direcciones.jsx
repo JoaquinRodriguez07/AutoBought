@@ -6,28 +6,23 @@ import {
   marcarDireccionPrincipal,
   eliminarDireccionAPI,
 } from "./api";
+import ErrorCampo from "./ErrorCampo";
+import { conError, propsError } from "./erroresCampo";
+import { DEPARTAMENTOS, validarDireccion } from "./validaciones";
 
-const DEPARTAMENTOS = [
-  "Artigas",
-  "Canelones",
-  "Cerro Largo",
-  "Colonia",
-  "Durazno",
-  "Flores",
-  "Florida",
-  "Lavalleja",
-  "Maldonado",
-  "Montevideo",
-  "Paysandú",
-  "Río Negro",
-  "Rivera",
-  "Rocha",
-  "Salto",
-  "San José",
-  "Soriano",
-  "Tacuarembó",
-  "Treinta y Tres",
-];
+// Campos del backend → campos del formulario, para mostrar sus errores 422.
+const CAMPOS_API = {
+  personal_name: "nombre",
+  street: "calle",
+  number: "numero",
+  apartment: "apartamento",
+  city: "ciudad",
+  department: "departamento",
+  postal_code: "codigoPostal",
+};
+
+const claseInput =
+  "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500";
 
 const FORMULARIO_VACIO = {
   nombre: "",
@@ -56,6 +51,8 @@ export default function Direcciones({
   const [error, setError] = useState("");
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [formulario, setFormulario] = useState(FORMULARIO_VACIO);
+  const [errores, setErrores] = useState({});
+  const [errorFormulario, setErrorFormulario] = useState("");
 
   useEffect(() => {
     obtenerDirecciones()
@@ -71,21 +68,28 @@ export default function Direcciones({
       ...actual,
       [name]: type === "checkbox" ? checked : value,
     }));
+    // La ciudad también se valida contra el departamento.
+    setErrores((actuales) => ({
+      ...actuales,
+      [name]: undefined,
+      ...(name === "ciudad" ? { departamento: undefined } : {}),
+    }));
+    setErrorFormulario("");
+  };
+
+  const alternarFormulario = () => {
+    setMostrarFormulario(!mostrarFormulario);
+    setFormulario(FORMULARIO_VACIO);
+    setErrores({});
+    setErrorFormulario("");
   };
 
   const agregarDireccion = async (e) => {
     e.preventDefault();
 
-    if (
-      !formulario.nombre ||
-      !formulario.calle ||
-      !formulario.numero ||
-      !formulario.ciudad ||
-      !formulario.departamento
-    ) {
-      alert("Completá los campos obligatorios.");
-      return;
-    }
+    const erroresFormulario = validarDireccion(formulario);
+    setErrores(erroresFormulario);
+    if (Object.keys(erroresFormulario).length > 0) return;
 
     try {
       await crearDireccion(formulario);
@@ -94,7 +98,13 @@ export default function Direcciones({
       setFormulario(FORMULARIO_VACIO);
       setMostrarFormulario(false);
     } catch (err) {
-      alert(err.message);
+      const campos = Object.fromEntries(
+        Object.entries(err.campos || {})
+          .filter(([campo]) => CAMPOS_API[campo])
+          .map(([campo, mensaje]) => [CAMPOS_API[campo], mensaje])
+      );
+      if (Object.keys(campos).length > 0) setErrores(campos);
+      else setErrorFormulario(err.message);
     }
   };
 
@@ -171,9 +181,7 @@ export default function Direcciones({
 
               <button
                 type="button"
-                onClick={() =>
-                  setMostrarFormulario(!mostrarFormulario)
-                }
+                onClick={alternarFormulario}
                 className="h-10 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[9px] font-black transition"
               >
                 {mostrarFormulario
@@ -188,6 +196,7 @@ export default function Direcciones({
             {mostrarFormulario && (
               <form
                 onSubmit={agregarDireccion}
+                noValidate
                 className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8"
               >
 
@@ -208,8 +217,10 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Ej: Casa"
                       maxLength={50}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
+                      className={conError(claseInput, errores.nombre)}
+                      {...propsError("nombre", errores.nombre)}
                     />
+                    <ErrorCampo campo="nombre" mensaje={errores.nombre} />
                   </div>
 
                   <div>
@@ -223,8 +234,10 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Ej: Montevideo"
                       maxLength={50}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
+                      className={conError(claseInput, errores.ciudad)}
+                      {...propsError("ciudad", errores.ciudad)}
                     />
+                    <ErrorCampo campo="ciudad" mensaje={errores.ciudad} />
                   </div>
 
                   <div>
@@ -238,8 +251,10 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Ej: Av. Italia"
                       maxLength={50}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
+                      className={conError(claseInput, errores.calle)}
+                      {...propsError("calle", errores.calle)}
                     />
+                    <ErrorCampo campo="calle" mensaje={errores.calle} />
                   </div>
 
                   <div>
@@ -251,10 +266,12 @@ export default function Direcciones({
                       name="numero"
                       value={formulario.numero}
                       onChange={manejarCambio}
-                      placeholder="Ej: 1234"
+                      placeholder="Ej: 1234 o S/N"
                       maxLength={10}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
+                      className={conError(claseInput, errores.numero)}
+                      {...propsError("numero", errores.numero)}
                     />
+                    <ErrorCampo campo="numero" mensaje={errores.numero} />
                   </div>
 
                   <div>
@@ -268,8 +285,10 @@ export default function Direcciones({
                       onChange={manejarCambio}
                       placeholder="Opcional"
                       maxLength={10}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
+                      className={conError(claseInput, errores.apartamento)}
+                      {...propsError("apartamento", errores.apartamento)}
                     />
+                    <ErrorCampo campo="apartamento" mensaje={errores.apartamento} />
                   </div>
 
                   <div>
@@ -281,7 +300,8 @@ export default function Direcciones({
                       name="departamento"
                       value={formulario.departamento}
                       onChange={manejarCambio}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
+                      className={conError(claseInput, errores.departamento)}
+                      {...propsError("departamento", errores.departamento)}
                     >
                       <option value="">Seleccioná un departamento</option>
                       {DEPARTAMENTOS.map((departamento) => (
@@ -290,6 +310,7 @@ export default function Direcciones({
                         </option>
                       ))}
                     </select>
+                    <ErrorCampo campo="departamento" mensaje={errores.departamento} />
                   </div>
 
                   <div>
@@ -301,10 +322,13 @@ export default function Direcciones({
                       name="codigoPostal"
                       value={formulario.codigoPostal}
                       onChange={manejarCambio}
-                      placeholder="Opcional"
-                      maxLength={10}
-                      className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500"
+                      placeholder="Opcional (ej: 11300)"
+                      inputMode="numeric"
+                      maxLength={5}
+                      className={conError(claseInput, errores.codigoPostal)}
+                      {...propsError("codigoPostal", errores.codigoPostal)}
                     />
+                    <ErrorCampo campo="codigoPostal" mensaje={errores.codigoPostal} />
                   </div>
 
                 </div>
@@ -319,6 +343,12 @@ export default function Direcciones({
                   />
                   MARCAR COMO DIRECCIÓN PRINCIPAL
                 </label>
+
+                {errorFormulario && (
+                  <p role="alert" className="text-red-500 text-[10px] mt-5">
+                    {errorFormulario}
+                  </p>
+                )}
 
                 <div className="flex justify-end mt-6">
 

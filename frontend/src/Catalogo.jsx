@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "./Navbar";
+import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import SearchBar from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import { filtrarRepuestos } from "./filtrarRepuestos";
@@ -39,7 +40,7 @@ export default function Catalogo({
   onAlternarFavorito,
   esFavorito,
 }) {
-  const { addToCart } = useCart();
+  const { addToCart, deshacerAgregado } = useCart();
 
   // Vehículo Activo (el que se confirmó con "Buscar Repuestos"). Vive en
   // VehicleContext, así que sobrevive a ir al carrito y volver.
@@ -60,6 +61,7 @@ export default function Catalogo({
   const [orden, setOrden] = useState("Más relevantes");
   const [busqueda, setBusqueda] = useState("");
   const [cantidades, setCantidades] = useState({});
+  const [productoAgregado, setProductoAgregado] = useState(null);
 
   // ==========================================
   // DATOS DE LA API
@@ -255,15 +257,20 @@ export default function Catalogo({
   // AGREGAR AL CARRITO
   // ==========================================
 
-  const agregar = (producto) => {
+  const agregar = async (producto) => {
     if (producto.stock === 0) return;
 
-    addToCart(producto, cantidades[producto.id] || 1);
+    const cantidadPedida = cantidades[producto.id] || 1;
+    const agregado = await addToCart(producto, cantidadPedida);
 
     setCantidades((actual) => ({
       ...actual,
       [producto.id]: 1,
     }));
+
+    if (agregado) {
+      setProductoAgregado({ ...producto, cantidadAgregada: cantidadPedida });
+    }
   };
 
   // ==========================================
@@ -272,6 +279,15 @@ export default function Catalogo({
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
+      <ConfirmacionAgregarCarrito
+        producto={productoAgregado}
+        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
+        onCerrar={() => setProductoAgregado(null)}
+        onVerCarrito={() => {
+          setProductoAgregado(null);
+          onCarrito();
+        }}
+      />
 
       {/* =================================================
           NAVBAR
@@ -605,7 +621,7 @@ export default function Catalogo({
 
                       <div className="relative h-[190px] bg-gray-50">
 
-                        {/* Sin filtro, el catálogo completo son ~377
+                        {/* Sin filtro, el catálogo completo son ~500
                             tarjetas: lazy evita decodificar todas las
                             imágenes que están fuera de pantalla. */}
 

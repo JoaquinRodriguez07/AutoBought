@@ -321,6 +321,17 @@ describe("cambiarPassword", () => {
     });
   });
 
+  it("shows the backend validation message for a weak new password", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Esa contraseña es muy común. Elegí otra." }, { ok: false, status: 422 }))
+      .mockResolvedValueOnce(response({
+        detail: [{ loc: ["body", "new_password"], msg: "Value error, La contraseña tiene que tener al menos una letra y un número." }],
+      }, { ok: false, status: 422 }));
+
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("Esa contraseña es muy común. Elegí otra.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("La contraseña tiene que tener al menos una letra y un número.");
+  });
+
   it("maps error statuses, broken bodies and network errors to messages", async () => {
     fetch
       .mockResolvedValueOnce(response({ detail: "La contraseña actual es incorrecta." }, { ok: false, status: 400 }))
@@ -331,7 +342,7 @@ describe("cambiarPassword", () => {
 
     await expect(cambiarPassword("a", "b")).rejects.toThrow("La contraseña actual es incorrecta.");
     await expect(cambiarPassword("a", "b")).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
-    await expect(cambiarPassword("a", "b")).rejects.toThrow("La nueva contraseña tiene que tener entre 8 caracteres y 72 bytes.");
+    await expect(cambiarPassword("a", "b")).rejects.toThrow("Revisá la nueva contraseña.");
     await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos cambiar tu contraseña.");
     await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos conectar con el servidor.");
   });
@@ -563,6 +574,7 @@ describe("payment method API", () => {
     last_four: "4242",
     expiry: "12/30",
     is_primary: true,
+    is_expired: false,
   };
   const uiMethod = {
     id: 8,
@@ -571,6 +583,7 @@ describe("payment method API", () => {
     numero: "4242",
     vencimiento: "12/30",
     principal: true,
+    vencida: false,
   };
 
   it("maps methods and only submits the final four card digits", async () => {
@@ -582,12 +595,9 @@ describe("payment method API", () => {
 
     await expect(obtenerMetodosPago()).resolves.toEqual([uiMethod]);
     await expect(crearMetodoPago({
-      tipo: "Visa",
+      tarjeta: { marca: "Visa", ultimosCuatro: "4242", vencimiento: "12/30" },
       titular: "Ana Pérez",
-      numero: "4111 1111 1111 4242",
-      vencimiento: "12/30",
       principal: true,
-      cvv: "123",
     })).resolves.toEqual(uiMethod);
     await expect(marcarMetodoPagoPrincipal(8)).resolves.toEqual(uiMethod);
     await expect(eliminarMetodoPagoAPI(8)).resolves.toBeUndefined();
@@ -612,6 +622,28 @@ describe("payment method API", () => {
     await expect(obtenerMetodosPago()).rejects.toMatchObject({
       message: "Revisá los datos de la tarjeta.",
       status: 422,
+    });
+  });
+
+  it("maps expired cards and 422 field errors", async () => {
+    fetch
+      .mockResolvedValueOnce(response([{ ...backendMethod, is_expired: true }]))
+      .mockResolvedValueOnce(response({
+        detail: [
+          { loc: ["body", "holder"], msg: "Value error, El nombre del titular tiene que tener al menos 2 letras." },
+          { loc: ["body", "expiry"], msg: "Value error, La tarjeta está vencida." },
+        ],
+      }, { ok: false, status: 422 }));
+
+    await expect(obtenerMetodosPago()).resolves.toEqual([{ ...uiMethod, vencida: true }]);
+    await expect(crearMetodoPago({
+      tarjeta: { marca: "Visa", ultimosCuatro: "4242", vencimiento: "01/20" },
+      titular: "A",
+    })).rejects.toMatchObject({
+      campos: {
+        holder: "El nombre del titular tiene que tener al menos 2 letras.",
+        expiry: "La tarjeta está vencida.",
+      },
     });
   });
 });

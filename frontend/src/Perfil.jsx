@@ -3,6 +3,8 @@ import Navbar from "./Navbar";
 import { useCart } from "./context/CartContext";
 import { actualizarPerfil, obtenerPerfil } from "./api";
 import CambiarPassword from "./CambiarPassword";
+import { MENSAJE_TELEFONO, normalizarTelefonoUY } from "./telefono";
+import { limpiar, validarNombrePersona } from "./validaciones";
 
 const nombreCompleto = (usuario) =>
   `${usuario.nombre || ""} ${usuario.apellido || ""}`.trim();
@@ -97,6 +99,19 @@ export default function Perfil({
   };
 
   const guardarCambios = async () => {
+    // El teléfono se puede cambiar pero no borrar.
+    const errorDatos =
+      validarNombrePersona(datos.nombre) ||
+      (!limpiar(datos.telefono)
+        ? "Ingresá tu teléfono."
+        : normalizarTelefonoUY(datos.telefono)
+          ? null
+          : MENSAJE_TELEFONO);
+    if (errorDatos) {
+      setError(errorDatos);
+      return;
+    }
+
     setGuardando(true);
     setError("");
 
@@ -294,6 +309,7 @@ export default function Perfil({
                           onChange={(e) =>
                             cambiarDato("nombre", e.target.value)
                           }
+                          maxLength={120}
                           className="w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] text-gray-700 outline-hidden focus:border-orange-500 transition"
                         />
                       ) : (
@@ -421,7 +437,7 @@ export default function Perfil({
                   </div>
                 )}
 
-                {!editando && <CambiarPassword />}
+                {!editando && <CambiarPassword email={usuario.email} />}
 
               </section>
 

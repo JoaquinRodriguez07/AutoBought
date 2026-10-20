@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.models.order import Order
+from app.models.order import Order, OrderStatus
 
 
 class OrderItemCreate(BaseModel):
@@ -22,6 +22,13 @@ class OrderCreate(BaseModel):
     items: list[OrderItemCreate] = Field(default_factory=list)
 
 
+class OrderConfirm(BaseModel):
+    """Body opcional de POST /orders; lo que no se envía usa el principal."""
+
+    shipping_address_id: int | None = None
+    payment_method_id: int | None = None
+
+
 class OrderOut(BaseModel):
     order_id: int
     client_id: int
@@ -35,9 +42,22 @@ class OrderItemDetailOut(BaseModel):
     frozen_price: int
 
 
+class OrderShippingAddressOut(BaseModel):
+    personal_name: str
+    street: str
+    number: str
+    apartment: str | None
+    city: str
+    department: str
+    postal_code: str | None
+
+
 class OrderDetailOut(BaseModel):
     order_id: int
     created_at: datetime
+    status: OrderStatus
+    shipping_address: OrderShippingAddressOut
+    payment_method: str
     total: int
     items: list[OrderItemDetailOut]
 
@@ -64,6 +84,17 @@ def build_order_detail_out(order: Order) -> OrderDetailOut:
     return OrderDetailOut(
         order_id=order.order_id,
         created_at=order.created_at,
+        status=order.status,
+        shipping_address=OrderShippingAddressOut(
+            personal_name=order.ship_personal_name,
+            street=order.ship_street,
+            number=order.ship_number,
+            apartment=order.ship_apartment,
+            city=order.ship_city,
+            department=order.ship_department,
+            postal_code=order.ship_postal_code,
+        ),
+        payment_method=order.payment_method_label,
         total=total,
         items=items,
     )

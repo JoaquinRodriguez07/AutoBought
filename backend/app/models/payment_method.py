@@ -1,6 +1,7 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, false, text
 from sqlalchemy.orm import relationship
 
+from app.core.validators import tarjeta_vencida
 from app.db.base import Base
 
 
@@ -28,3 +29,7 @@ class PaymentMethod(Base):
     )
 
     client = relationship("Client", back_populates="payment_methods")
+
+    @property
+    def is_expired(self) -> bool:
+        return tarjeta_vencida(self.expiry)

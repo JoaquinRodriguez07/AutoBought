@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from app.core.security import create_access_token
 from app.models.client import Client
-from app.models.order import Order
+from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
 
@@ -42,11 +42,18 @@ def make_part(db_session, part_code, name, price):
     return part
 
 
-def make_order(db_session, client, created_at, items):
+def make_order(db_session, client, created_at, items, status=OrderStatus.CONFIRMED):
     """Create a past order from (part, quantity, frozen unit price) tuples."""
     order = Order(
         client_id=client.user_id,
         created_at=created_at,
+        status=status,
+        ship_personal_name=client.name,
+        ship_street="Av. Italia",
+        ship_number="1234",
+        ship_city="Montevideo",
+        ship_department="Montevideo",
+        payment_method_label="Visa •••• 1234",
         items=[
             OrderItem(part=part, quantity=quantity, frozen_price=unit_price)
             for part, quantity, unit_price in items
@@ -202,3 +209,27 @@ def test_history_for_customer_without_purchases_is_empty(client, db_session):
 
     assert response.status_code == 200
     assert response.json()["orders"] == []
+
+def test_history_shows_the_status_of_each_order(client, db_session):
+    """Scenario: Status in the history
+    When I check my purchase history
+    Then I see the status of each order
+    """
+    customer = make_client(db_session, "ana", "ana@example.com")
+    pads = make_part(db_session, "BRK-001", "Brake pads", 1000)
+    make_order(
+        db_session, customer, datetime(2026, 1, 1, tzinfo=timezone.utc),
+        [(pads, 1, 1000)], status=OrderStatus.DELIVERED,
+    )
+    make_order(
+        db_session, customer, datetime(2026, 2, 1, tzinfo=timezone.utc),
+        [(pads, 1, 1000)],
+    )
+
+    response = client.get("/api/v1/orders", headers=auth_headers(customer))
+
+    assert response.status_code == 200
+    assert [order["status"] for order in response.json()["orders"]] == [
+        "confirmed",
+        "delivered",
+    ]

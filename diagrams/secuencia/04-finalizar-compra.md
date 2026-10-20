@@ -1,17 +1,15 @@
-# Secuencia: finalizar compra *(planificado)*
+# Secuencia: finalizar compra
 
-> **Estado actual:** el botón "FINALIZAR COMPRA" de `Carrito.jsx` todavía no tiene
-> acción y no existe ningún endpoint de pedidos. Lo único implementado es la
-> transacción `place_order()` en `backend/app/crud/order.py` (recuadro amarillo
-> en el diagrama).
+> **Implementado:** `POST /api/v1/orders` con body opcional
+> `{shipping_address_id, payment_method_id}` (sin elegir, usa los principales) y la
+> transacción `place_order()` de `backend/app/crud/order.py` (recuadro amarillo). El
+> pedido nace en estado `confirmed` y guarda una copia de la dirección y del método de
+> pago, para que el historial no cambie si el cliente los edita o borra.
 >
-> **Propuesto (a confirmar con el equipo):** el endpoint `POST /api/v1/orders`, los
-> códigos de respuesta (400 / 409 / 402 / 201), la integración con la pasarela y el
-> orden "primero se reserva el stock y se crea el pedido, después se cobra". Con ese
-> orden nunca se cobra un pedido que no se puede cumplir, pero un pago rechazado
-> obliga a deshacer el pedido. `Order` todavía no tiene un campo de estado
-> (pendiente / pagado / cancelado), así que cómo representar eso es una decisión
-> pendiente.
+> **Planificado (a confirmar con el equipo):** la integración con la pasarela (bloque
+> "Pedido creado"), con el orden "primero se reserva el stock y se crea el pedido,
+> después se cobra". El estado del cobro iría en una entidad de pago aparte; el
+> `status` del pedido es solo logístico (confirmado / enviado / entregado / cancelado).
 
 ```mermaid
 ---
@@ -43,7 +41,7 @@ sequenceDiagram
     Note over R,Seg: 401 / 403 igual que en el diagrama 03
     Seg-->>R: cliente
 
-    R->>L: place_order(client_id)
+    R->>L: place_order(client_id, dirección?, método de pago?)
     rect rgb(255,248,220)
         Note over L,DB: place_order() — implementado en crud/order.py
         L->>DB: BEGIN · SELECT cart + items FOR UPDATE
@@ -53,6 +51,18 @@ sequenceDiagram
             L-->>R: error
             R-->>A: 400 El carrito está vacío
         else Carrito con items
+            L->>DB: SELECT dirección y método de pago<br/>(elegidos o principales, del cliente)
+
+            alt Sin dirección o sin método de pago guardado
+                L->>DB: ROLLBACK
+                L-->>R: error
+                R-->>A: 400 Agregá una dirección / un método de pago
+            else Dirección o método de otro cliente
+                L->>DB: ROLLBACK
+                L-->>R: error
+                R-->>A: 422 La dirección / el método elegido no es válido
+            end
+
             L->>DB: SELECT part WHERE id IN (…) FOR UPDATE
             DB-->>L: repuestos (bloqueados)
 
@@ -61,7 +71,7 @@ sequenceDiagram
                 L-->>R: error
                 R-->>A: 409 No hay stock suficiente
             else Stock suficiente
-                L->>DB: INSERT order · INSERT order_item<br/>(frozen_price = precio actual)
+                L->>DB: INSERT order (status = confirmed,<br/>copia de dirección y método de pago)<br/>INSERT order_item (frozen_price = precio actual)
                 L->>DB: UPDATE part.stock -= cantidad · DELETE cart_item
                 L->>DB: COMMIT
                 L-->>R: pedido
@@ -87,7 +97,7 @@ sequenceDiagram
     alt 201
         A-->>P: pedido
         P-->>C: Confirmación de compra
-    else 400 / 402 / 409
+    else 400 / 402 / 409 / 422
         A-->>P: error
         P-->>C: Informa el motivo
     end
