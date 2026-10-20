@@ -11,6 +11,7 @@ sequenceDiagram
 
     box rgb(227,240,255) Frontend
         participant P as Pantallas<br/>(Home / Catálogo)
+        participant V as Vehículo activo<br/>(VehicleContext)
         participant A as Cliente API
     end
 
@@ -24,12 +25,14 @@ sequenceDiagram
     C->>P: Abre la página de inicio
 
     par Marcas (selector de vehículo)
-        P->>R: GET /api/v1/brands
+        P->>A: obtenerMarcas()
+        A->>R: GET /api/v1/brands
         R->>L: Listar marcas con sus modelos
         L->>DB: SELECT DISTINCT brand, model FROM car_model
         DB-->>L: filas
         L-->>R: marcas
-        R-->>P: { brands }
+        R-->>A: { brands }
+        A-->>P: marcas
     and Categorías destacadas
         P->>A: obtenerCategorias()
         A->>R: GET /api/v1/parts/categories
@@ -41,17 +44,18 @@ sequenceDiagram
         A-->>P: categorías
     end
 
-    Note over P,R: Marcas, modelos y años se piden directo desde los<br/>componentes del selector, sin pasar por Cliente API
-
     C->>P: Elige marca
-    P->>R: GET /api/v1/models?brand
+    P->>A: obtenerModelos(brand)
+    A->>R: GET /api/v1/models?brand
     R->>L: Listar modelos de la marca
     L->>DB: SELECT DISTINCT model WHERE brand
     DB-->>L: filas
     L-->>R: modelos
-    R-->>P: { brand, models }
+    R-->>A: { brand, models }
+    A-->>P: modelos
 
     C->>P: Elige modelo
+    Note over P,R: Los años se piden directo desde Home,<br/>sin pasar por Cliente API
     P->>R: GET /api/v1/years?brand&model
     R->>L: Listar años compatibles
     L->>DB: SELECT year_from, year_to FROM compatibility JOIN car_model
@@ -60,9 +64,14 @@ sequenceDiagram
     L-->>R: años
     R-->>P: { brand, model, years }
 
-    C->>P: Elige año y presiona "Buscar repuestos"
-    P->>P: Navega a /catalogo con el vehículo elegido
-    Note over P: Los filtros vacíos (marca, modelo o año)<br/>no se envían
+    C->>P: Elige año
+    Note over P: "Buscar repuestos" queda deshabilitado<br/>hasta tener marca, modelo y año
+    C->>P: Presiona "Buscar repuestos"
+    P->>V: activarVehiculo({ brand, model, year })
+    Note over V: El vehículo activo se mantiene al navegar<br/>(carrito, detalle…) hasta "Borrar filtros"
+    P->>P: Navega a /catalogo
+    P->>V: Leer vehículo activo
+    V-->>P: { brand, model, year }
 
     par Repuestos
         P->>A: obtenerRepuestos({ brand, model, year })
@@ -91,10 +100,11 @@ sequenceDiagram
     opt Elige una categoría en el sidebar
         C->>P: Clic en categoría
         P->>A: obtenerRepuestos({ categoria, brand, model, year })
+        Note over P,A: Los filtros vacíos no se envían
         A->>R: GET /api/v1/parts?categoria&brand&model&year
         R-->>A: { parts }
         A-->>P: repuestos
-        P-->>C: Catálogo filtrado por categoría
+        P-->>C: Catálogo filtrado por categoría y vehículo
     end
 
     opt Búsqueda por texto u orden

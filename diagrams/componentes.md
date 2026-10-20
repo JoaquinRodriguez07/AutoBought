@@ -14,15 +14,15 @@ flowchart TB
 
     subgraph Vercel["Vercel"]
         subgraph FE["Frontend — React"]
-            Pantallas["«component»<br/><b>Pantallas Cliente</b><br/>catálogo · carrito · cuenta"]:::component
+            Pantallas["«component»<br/><b>Pantallas Cliente</b><br/>catálogo · carrito · compras · cuenta"]:::component
             PanelEmp["«component»<br/><b>Panel Empleado</b><br/>dashboard · gestión"]:::planned
-            Estado["«component»<br/><b>Estado y Sesión</b><br/>CartContext · auth.js"]:::component
+            Estado["«component»<br/><b>Estado y Sesión</b><br/>CartContext · VehicleContext · auth.js"]:::component
             ApiCli["«component»<br/><b>Cliente API</b><br/>api.js"]:::component
         end
 
         subgraph BE["Backend — FastAPI"]
-            API["«component»<br/><b>API REST /api/v1</b><br/>auth · catálogo · carrito"]:::component
-            Nuevos["«component»<br/><b>Pedidos · Pagos · Gestión</b>"]:::planned
+            API["«component»<br/><b>API REST /api/v1</b><br/>auth · perfil · catálogo · carrito · pedidos<br/>favoritos · direcciones · métodos de pago<br/>recomendaciones"]:::component
+            Nuevos["«component»<br/><b>Cobro · Gestión</b>"]:::planned
             Seg["«component»<br/><b>Seguridad</b><br/>JWT · bcrypt"]:::component
             Logica["«component»<br/><b>Lógica de negocio</b><br/>CRUD"]:::component
             ORM["«component»<br/><b>Acceso a datos</b><br/>SQLAlchemy"]:::component

@@ -55,6 +55,21 @@ sequenceDiagram
                 P->>S: decodeToken(access_token)
                 S-->>P: userId, userType
 
+                P->>A: obtenerPerfil(access_token)
+                A->>R: GET /api/v1/auth/me (Bearer JWT)
+                R->>Seg: get_current_client(token)
+                Seg->>DB: Buscar cliente por id (sub)
+                DB-->>Seg: cliente
+                Seg-->>R: cliente
+                R-->>A: 200 { name, email, phone }
+                alt Perfil cargado
+                    A-->>P: nombre, email, teléfono
+                    P->>P: Agregar el perfil a la sesión
+                else Error al cargar el perfil
+                    A-->>P: error
+                    Note over P: El login sigue igual,<br/>con la sesión sin nombre ni teléfono
+                end
+
                 P->>S: iniciarSesion(sesión, recordarme)
                 Note over P,S: App.jsx · iniciarSesion()
                 alt recordarme = sí
