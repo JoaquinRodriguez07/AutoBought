@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="810" viewBox="0 0 680 810">
+<title>Diagrama de despliegue — Desarrollo (Docker Compose)</title>
+<style>
+text{font-family:'Segoe UI',Arial,sans-serif}
+.t{font-size:14px;font-weight:600;fill:#1f1f1d}
+.s{font-size:12px;fill:#5f5e5a}
+.c{text-anchor:middle;dominant-baseline:central}
+.m{text-anchor:middle}
+.node{fill:#f4f4f1;stroke:#5f5e5a}
+.face{fill:#e4e3dd;stroke:#5f5e5a}
+.env{fill:#ffffff;stroke:#5f5e5a}
+.envf{fill:#efeeea;stroke:#5f5e5a}
+.art{fill:#E1F5EE;stroke:#0F6E56}
+.at{fill:#085041}
+.dash{fill:none;stroke:#5f5e5a;stroke-dasharray:5 4}
+.path{fill:none;stroke:#444441;stroke-width:1.2}
+</style>
+<rect width="680" height="810" fill="#ffffff"/>
+
+<!-- Nodos -->
+<rect class="node" x="40" y="52" width="600" height="528"/><polygon class="face" points="40,52 52,40 652,40 640,52"/><polygon class="face" points="640,52 652,40 652,568 640,580"/>
+<rect class="node" x="236" y="620" width="388" height="144"/><polygon class="face" points="236,620 248,608 636,608 624,620"/><polygon class="face" points="624,620 636,608 636,752 624,764"/>
+
+<!-- Entornos de ejecución -->
+<rect class="env" x="56" y="220" width="160" height="312"/><polygon class="envf" points="56,220 64,212 224,212 216,220"/><polygon class="envf" points="216,220 224,212 224,524 216,532"/>
+<rect class="env" x="236" y="140" width="388" height="420"/><polygon class="envf" points="236,140 244,132 632,132 624,140"/><polygon class="envf" points="624,140 632,132 632,552 624,560"/>
+<rect class="env" x="252" y="676" width="356" height="74"/><polygon class="envf" points="252,676 260,668 616,668 608,676"/><polygon class="envf" points="608,676 616,668 616,742 608,750"/>
+
+<!-- Perfiles de compose -->
+<rect class="dash" x="250" y="192" width="360" height="168"/>
+<rect class="dash" x="250" y="376" width="176" height="168"/>
+
+<!-- PC del desarrollador -->
+<text class="s" x="56" y="72">«device»</text><text class="t" x="56" y="90">PC del desarrollador</text>
+<rect class="art" x="330" y="66" width="120" height="44" rx="2"/><text class="s c at" x="390" y="80">«artifact»</text><text class="t c at" x="390" y="98">.env</text>
+<rect class="art" x="466" y="66" width="150" height="44" rx="2"/><text class="s c at" x="541" y="80">«artifact»</text><text class="t c at" x="541" y="98">Código fuente</text>
+<text class="s m" x="136" y="240">«executionEnvironment»</text><text class="t m" x="136" y="258">Navegador web</text>
+<text class="s" x="250" y="158">«executionEnvironment»</text><text class="t" x="250" y="176">Docker Engine · docker compose</text>
+
+<!-- Perfil local -->
+<text class="s" x="262" y="210">perfil local</text>
+<rect class="art" x="262" y="220" width="150" height="56" rx="2"/><text class="s c at" x="337" y="234">«container»</text><text class="t c at" x="337" y="250">frontend</text><text class="s c at" x="337" y="266">Vite dev · :5173</text>
+<rect class="dash" x="446" y="220" width="150" height="56"/><text class="s c" x="521" y="240">«volume»</text><text class="t c" x="521" y="258">postgres_data</text>
+<rect class="art" x="262" y="292" width="150" height="56" rx="2"/><text class="s c at" x="337" y="306">«container»</text><text class="t c at" x="337" y="322">backend</text><text class="s c at" x="337" y="338">fastapi dev · :8000</text>
+<rect class="art" x="446" y="292" width="150" height="56" rx="2"/><text class="s c at" x="521" y="306">«container»</text><text class="t c at" x="521" y="322">postgres</text><text class="s c at" x="521" y="338">postgres:17 · :5432</text>
+
+<!-- Perfil remoto -->
+<text class="s" x="262" y="394">perfil remoto</text>
+<rect class="art" x="262" y="404" width="150" height="56" rx="2"/><text class="s c at" x="337" y="418">«container»</text><text class="t c at" x="337" y="434">frontend-remote</text><text class="s c at" x="337" y="450">Vite dev · :5174</text>
+<rect class="art" x="262" y="476" width="150" height="56" rx="2"/><text class="s c at" x="337" y="490">«container»</text><text class="t c at" x="337" y="506">backend-remote</text><text class="s c at" x="337" y="522">fastapi dev · :8001</text>
+
+<!-- VM Oracle Cloud -->
+<text class="s" x="252" y="640">«device»</text><text class="t" x="252" y="656">VM Oracle Cloud (OCI)</text>
+<text class="s" x="266" y="704">«executionEnvironment»</text><text class="t" x="266" y="722">Docker Engine</text>
+<rect class="art" x="430" y="688" width="170" height="50" rx="2"/><text class="s c at" x="515" y="704">«container» postgres:17</text><text class="t c at" x="515" y="722">PostgreSQL</text>
+
+<!-- Vías de comunicación -->
+<line class="path" x1="216" y1="248" x2="262" y2="248"/>
+<line class="path" x1="216" y1="320" x2="262" y2="320"/>
+<line class="path" x1="216" y1="432" x2="262" y2="432"/>
+<line class="path" x1="216" y1="504" x2="262" y2="504"/>
+<line class="path" x1="412" y1="320" x2="446" y2="320"/>
+<line class="path" x1="521" y1="276" x2="521" y2="292"/>
+<polyline class="path" points="337,532 337,600 515,600 515,688"/>
+<line class="path" x1="390" y1="110" x2="390" y2="132" stroke-dasharray="4 3"/>
+<line class="path" x1="541" y1="110" x2="541" y2="132" stroke-dasharray="4 3"/>
+<text class="s" x="523" y="646">TCP 5432 · Internet</text>
+
+<text class="s" x="40" y="788">Navegador → contenedores: HTTP a localhost:&lt;puerto&gt;. backend → postgres: TCP 5432 por la red de compose.</text>
+<text class="s" x="40" y="804">Punteado: perfiles de compose, volumen, y .env / código montados en los contenedores (bind mount).</text>
+</svg>
