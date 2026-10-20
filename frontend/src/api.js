@@ -368,16 +368,6 @@ export async function obtenerRepuestos(filtros) {
 }
 
 /**
- * GET /api/v1/parts/categories
- *
- * Devuelve las categorías con productos (alfabéticas, sin las vacías)
- * y su cantidad real, ya con el shape `{ nombre, cantidad }` que usa
- * el sidebar del catálogo.
- *
- * @returns {Promise<Array<{nombre: string, cantidad: number}>>}
- */
-
-/**
  * Búsqueda libre en lenguaje natural.
  * Ejemplo: "pastillas de freno onix 2020"
  */
@@ -403,6 +393,15 @@ export async function buscarTexto(texto) {
   };
 }
 
+/**
+ * GET /api/v1/parts/categories
+ *
+ * Devuelve las categorías con productos (alfabéticas, sin las vacías)
+ * y su cantidad real, ya con el shape `{ nombre, cantidad }` que usa
+ * el sidebar del catálogo.
+ *
+ * @returns {Promise<Array<{nombre: string, cantidad: number}>>}
+ */
 export async function obtenerCategorias() {
   const mensajeError = "No pudimos cargar las categorías.";
   const data = await pedirJson(

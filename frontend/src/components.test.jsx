@@ -630,6 +630,48 @@ it("exits free search mode when changing category", async () => {
   );
 });
 
+it("shows free search results and activates the detected vehicle", async () => {
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno", brand: "Chevrolet", model: "Onix", year: 2020 },
+  });
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?q=pastillas%20de%20freno%20onix%202020"] }
+  );
+
+  expect(
+    await screen.findByText("Pastillas de Freno Delanteras Bosch")
+  ).toBeInTheDocument();
+  expect(buscarTexto).toHaveBeenCalledWith("pastillas de freno onix 2020");
+  expect(await screen.findByText("Chevrolet Onix 2020")).toBeInTheDocument();
+  expect(obtenerRepuestos).not.toHaveBeenCalled();
+});
+
+it("shows the manual filter message when the search cannot be interpreted", async () => {
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [],
+    entities: { part: null, brand: null, model: null, year: null },
+  });
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?q=xyz%20qwerty"] }
+  );
+
+  expect(
+    await screen.findByText(
+      "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual"
+    )
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+});
+
   it("shows an API error and retries the catalog request", async () => {
     const user = userEvent.setup();
     obtenerRepuestos

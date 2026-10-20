@@ -22,14 +22,14 @@ export default function BusquedaCabecera() {
 
   return (
     <div className="relative">
-      <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2 shadow-sm">
+      <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2 shadow-xs">
         <input
           type="text"
           value={texto}
           onChange={(event) => setTexto(event.target.value)}
           onKeyDown={manejarKeyDown}
           placeholder="¿Qué repuesto estás buscando?"
-          className="w-full outline-none text-[11px] text-gray-800 placeholder:text-gray-400"
+          className="w-full outline-hidden text-[11px] text-gray-800 placeholder:text-gray-400"
         />
 
         <button

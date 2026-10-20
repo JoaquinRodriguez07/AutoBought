@@ -45,7 +45,7 @@ export default function Catalogo({
 
   // Vehículo Activo (el que se confirmó con "Buscar Repuestos"). Vive en
   // VehicleContext, así que sobrevive a ir al carrito y volver.
-  const { vehiculoActivo, limpiarVehiculo, activarVehiculo} = useVehicle();
+  const { vehiculoActivo, limpiarVehiculo, activarVehiculo } = useVehicle();
 
   // `categoria` en null significa "todas las categorías": es lo que
   // deja el botón "Limpiar filtros" y lo que se traduce en un
@@ -61,7 +61,6 @@ export default function Catalogo({
 
   const [orden, setOrden] = useState("Más relevantes");
   const [busqueda, setBusqueda] = useState("");
-  const [busquedaLibre, setBusquedaLibre] = useState("");
   const [cantidades, setCantidades] = useState({});
   const [productoAgregado, setProductoAgregado] = useState(null);
 
