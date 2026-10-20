@@ -368,6 +368,32 @@ export async function obtenerRepuestos(filtros) {
 }
 
 /**
+ * Búsqueda libre en lenguaje natural.
+ * Ejemplo: "pastillas de freno onix 2020"
+ */
+export async function buscarTexto(texto) {
+  const mensajeError = "No pudimos realizar la búsqueda.";
+
+  const params = new URLSearchParams();
+  params.set("q", texto);
+
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/parts?${params.toString()}`,
+    mensajeError
+  );
+
+  return {
+    parts: listaDe(data, "parts", mensajeError).map(mapearRepuesto),
+    entities: data.entities || {
+      part: null,
+      brand: null,
+      model: null,
+      year: null,
+    },
+  };
+}
+
+/**
  * GET /api/v1/parts/categories
  *
  * Devuelve las categorías con productos (alfabéticas, sin las vacías)

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 jest.mock("./api", () => ({
+  buscarTexto: jest.fn(),
   login: jest.fn(),
   registrar: jest.fn(),
   obtenerPerfil: jest.fn(),
@@ -41,6 +42,7 @@ jest.mock(
 
 import App from "./App";
 import BrandDropdown from "./BrandDropdown";
+import BusquedaCabecera from "./BusquedaCabecera";
 import CambiarPassword from "./CambiarPassword";
 import Carrito from "./Carrito";
 import Catalogo from "./Catalogo";
@@ -66,6 +68,7 @@ import { VehicleProvider } from "./context/VehicleContext";
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import toast from "react-hot-toast";
 import {
+  buscarTexto,
   agregarFavoritoAPI,
   actualizarPerfil,
   cambiarPassword,
@@ -174,14 +177,29 @@ const startClientSession = () => {
  * forwarded to React Testing Library's render function.
  * @returns {import("@testing-library/react").RenderResult} Queries and render utilities.
  */
-function render(ui, options) {
+
+function render(ui, options = {}) {
+  const { initialEntries = ["/"], ...renderOptions } = options;
+
   return renderBase(
-    <MemoryRouter>
-       <CartProvider>
+    <MemoryRouter initialEntries={initialEntries}>
+      <CartProvider>
         <VehicleProvider>{ui}</VehicleProvider>
-       </CartProvider>
+      </CartProvider>
     </MemoryRouter>,
-    options
+    renderOptions
+  );
+}
+
+function RutaActual() {
+  const { useLocation } = require("react-router-dom");
+  const location = useLocation();
+
+  return (
+    <p data-testid="ruta-actual">
+      {location.pathname}
+      {location.search}
+    </p>
   );
 }
 
@@ -573,6 +591,87 @@ describe("Catalogo", () => {
     );
   });
 
+it("exits free search mode when changing category", async () => {
+  const user = userEvent.setup();
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [],
+    entities: { part: true },
+  });
+
+  render(
+    <>
+      <Catalogo
+        {...props}
+        categoriaInicial="Frenos"
+        esFavorito={() => false}
+      />
+      <RutaActual />
+    </>,
+    { initialEntries: ["/catalogo?q=pastillas"] }
+  );
+
+  await user.click(
+    await screen.findByRole("button", { name: /Motor/ })
+  );
+
+  await waitFor(() => {
+    expect(obtenerRepuestos).toHaveBeenCalledWith(
+      expect.objectContaining({ categoria: "Motor" })
+    );
+  });
+
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+    "/catalogo"
+  );
+  expect(screen.getByTestId("ruta-actual")).not.toHaveTextContent(
+    "?q=pastillas"
+  );
+});
+
+it("shows free search results and activates the detected vehicle", async () => {
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno", brand: "Chevrolet", model: "Onix", year: 2020 },
+  });
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?q=pastillas%20de%20freno%20onix%202020"] }
+  );
+
+  expect(
+    await screen.findByText("Pastillas de Freno Delanteras Bosch")
+  ).toBeInTheDocument();
+  expect(buscarTexto).toHaveBeenCalledWith("pastillas de freno onix 2020");
+  expect(await screen.findByText("Chevrolet Onix 2020")).toBeInTheDocument();
+  expect(obtenerRepuestos).not.toHaveBeenCalled();
+});
+
+it("shows the manual filter message when the search cannot be interpreted", async () => {
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [],
+    entities: { part: null, brand: null, model: null, year: null },
+  });
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?q=xyz%20qwerty"] }
+  );
+
+  expect(
+    await screen.findByText(
+      "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual"
+    )
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+});
+
   it("shows an API error and retries the catalog request", async () => {
     const user = userEvent.setup();
     obtenerRepuestos
@@ -599,6 +698,10 @@ describe("DetalleProducto", () => {
   it("shows the add confirmation and supports undo and cart navigation", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
+    buscarTexto.mockResolvedValue({
+      parts: [],
+      entities: { part: true },
+    });
     props.onAlternarFavorito = jest.fn();
     props.esFavorito = jest.fn(() => false);
 
@@ -1823,4 +1926,48 @@ describe("SearchBar and search helpers", () => {
     render(<SinResultadosBusqueda termino="bujía" />);
     expect(screen.getByRole("status")).toHaveTextContent("bujía");
   });
+});
+
+describe("BusquedaCabecera", () => {
+  it("no navega ni consulta la API cuando la búsqueda está vacía", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <BusquedaCabecera />
+        <RutaActual />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(screen.getByTestId("ruta-actual")).not.toHaveTextContent(
+      "/catalogo"
+    );
+    expect(buscarTexto).not.toHaveBeenCalled();
+  });
+
+  it("navega al catálogo al presionar Enter", async () => {
+  const user = userEvent.setup();
+
+  render(
+    <>
+      <BusquedaCabecera />
+      <RutaActual />
+    </>
+  );
+
+  const input = screen.getByPlaceholderText(
+    "¿Qué repuesto estás buscando?"
+  );
+
+  await user.type(input, "pastillas de freno onix 2020");
+  await user.keyboard("{Enter}");
+
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+    "/catalogo?q=pastillas%20de%20freno%20onix%202020"
+  );
+  expect(buscarTexto).not.toHaveBeenCalled();
+});
+
 });

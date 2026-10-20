@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -56,7 +57,12 @@ function conCarrito(cart, cargarCarrito = jest.fn().mockResolvedValue(undefined)
 }
 
 function renderCarrito(props = {}) {
-  return render(<Carrito onCatalogo={jest.fn()} onDetalle={jest.fn()} {...props} />);
+  // La Navbar incluye la búsqueda libre, que usa useNavigate: hace falta un router.
+  return render(
+    <MemoryRouter>
+      <Carrito onCatalogo={jest.fn()} onDetalle={jest.fn()} {...props} />
+    </MemoryRouter>
+  );
 }
 
 // Abre el modal y espera a que terminen de cargar direcciones y tarjetas.

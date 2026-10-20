@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Navbar from "./Navbar";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import SearchBar from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
-import { obtenerCategorias, obtenerRepuestos } from "./api";
+import { buscarTexto, obtenerCategorias, obtenerRepuestos } from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 
@@ -44,7 +45,7 @@ export default function Catalogo({
 
   // Vehículo Activo (el que se confirmó con "Buscar Repuestos"). Vive en
   // VehicleContext, así que sobrevive a ir al carrito y volver.
-  const { vehiculoActivo, limpiarVehiculo } = useVehicle();
+  const { vehiculoActivo, limpiarVehiculo, activarVehiculo } = useVehicle();
 
   // `categoria` en null significa "todas las categorías": es lo que
   // deja el botón "Limpiar filtros" y lo que se traduce en un
@@ -62,6 +63,9 @@ export default function Catalogo({
   const [busqueda, setBusqueda] = useState("");
   const [cantidades, setCantidades] = useState({});
   const [productoAgregado, setProductoAgregado] = useState(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const consulta = (searchParams.get("q") || "").trim();
 
   // ==========================================
   // DATOS DE LA API
@@ -88,7 +92,9 @@ export default function Catalogo({
     error: "",
   });
 
-  const cargando = respuesta.clave !== clavePedido;
+  const cargando = consulta
+    ? respuesta.clave !== `libre|${consulta}`
+    : respuesta.clave !== clavePedido;
   const productos = respuesta.productos;
   const error = respuesta.error;
 
@@ -118,6 +124,64 @@ export default function Catalogo({
   }, [categoriaInicial]);
 
   // ==========================================
+  // BÚSQUEDA LIBRE
+  // ==========================================
+  useEffect(() => {
+  if (!consulta) return;
+
+  let activo = true;
+
+  buscarTexto(consulta)
+    .then(({ parts, entities }) => {
+      if (!activo) return;
+
+      const tieneEntidades =
+        entities &&
+        (entities.part ||
+          entities.brand ||
+          entities.model ||
+          entities.year);
+
+      if (!tieneEntidades) {
+        setRespuesta({
+          clave: `libre|${consulta}`,
+          productos: [],
+          error:
+            "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual",
+        });
+        return;
+      }
+
+      if (entities.brand) {
+        activarVehiculo({
+          brand: entities.brand,
+          model: entities.model || "",
+          year: entities.year || "",
+        });
+      }
+
+      setRespuesta({
+        clave: `libre|${consulta}`,
+        productos: parts,
+        error: "",
+      });
+    })
+    .catch((e) => {
+      if (!activo) return;
+
+      setRespuesta({
+        clave: `libre|${consulta}`,
+        productos: [],
+        error: e.message || "No pudimos realizar la búsqueda.",
+      });
+    });
+
+  return () => {
+    activo = false;
+  };
+}, [consulta, activarVehiculo]);
+
+  // ==========================================
   // CARGAR REPUESTOS
   // ==========================================
   // Categoría y vehículo (marca, modelo, año) son filtros del servidor y
@@ -129,6 +193,7 @@ export default function Catalogo({
 
   useEffect(() => {
     let activo = true;
+    if (consulta) return;
 
     obtenerRepuestos({
       categoria: categoria || undefined,
@@ -156,7 +221,7 @@ export default function Catalogo({
     return () => {
       activo = false;
     };
-  }, [categoria, vehiculoActivo, clavePedido]);
+  }, [categoria, vehiculoActivo, clavePedido, consulta]);
 
   // ==========================================
   // CARGAR CATEGORÍAS
@@ -221,11 +286,19 @@ export default function Catalogo({
   // catálogo). Se cambian siempre juntas: si solo se limpiara la de
   // acá, volver con el botón Atrás reaplicaría el filtro viejo.
   const cambiarCategoria = (nueva) => {
+    if (consulta) {
+      setSearchParams({});
+    }
+
     setCategoria(nueva);
     onCategoriaSeleccionada?.(nueva);
   };
 
   const limpiarFiltros = () => {
+    if (consulta) {
+      setSearchParams({});
+    }
+
     cambiarCategoria(null);
     setBusqueda("");
   };
