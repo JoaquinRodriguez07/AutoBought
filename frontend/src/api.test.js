@@ -26,10 +26,14 @@ import {
   obtenerPerfil,
   obtenerRecomendaciones,
   obtenerRepuestos,
+  pedirRecuperacion,
   quitarFavoritoAPI,
+  reenviarVerificacion,
   registrar,
   renovarToken,
+  restablecerPassword,
   vaciarCarritoAPI,
+  verificarCorreo,
 } from "./api";
 import { obtenerSesion } from "./auth";
 import { IMAGEN_PLACEHOLDER } from "./mapearRepuesto";
@@ -149,7 +153,13 @@ describe("registrar", () => {
 describe("obtenerPerfil", () => {
   it("sends the given token and maps the profile to the session shape", async () => {
     fetch.mockResolvedValue(
-      response({ user_id: 7, name: "Lucia Gomez", email: "lucia@example.com", phone: "+59899123456" })
+      response({
+        user_id: 7,
+        name: "Lucia Gomez",
+        email: "lucia@example.com",
+        phone: "+59899123456",
+        email_verified: false,
+      })
     );
 
     await expect(obtenerPerfil("tok")).resolves.toEqual({
@@ -157,6 +167,7 @@ describe("obtenerPerfil", () => {
       apellido: "",
       email: "lucia@example.com",
       telefono: "099 123 456",
+      emailVerificado: false,
     });
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me`, {
       headers: { Authorization: "Bearer tok" },
@@ -178,6 +189,81 @@ describe("obtenerPerfil", () => {
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("mails de cuenta", () => {
+  const jsonPost = (body, headers = {}) => ({
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  it("verifica el correo con el token del enlace", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await expect(verificarCorreo("tok-mail")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/verify-email`,
+      jsonPost({ token: "tok-mail" })
+    );
+  });
+
+  it("reenvía la verificación con la sesión actual", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await reenviarVerificacion();
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/verify-email/resend`,
+      jsonPost(undefined, { Authorization: "Bearer jwt-token" })
+    );
+  });
+
+  it("pide la recuperación y devuelve el mensaje del backend", async () => {
+    fetch.mockResolvedValue(response({ detail: "Si el correo está registrado..." }, { status: 202 }));
+
+    await expect(pedirRecuperacion("ana@example.com")).resolves.toBe("Si el correo está registrado...");
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/password/forgot`,
+      jsonPost({ email: "ana@example.com" })
+    );
+  });
+
+  it("restablece la contraseña con el token y la contraseña nueva", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await restablecerPassword("tok-reset", "Nueva2026x");
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/password/reset`,
+      jsonPost({ token: "tok-reset", new_password: "Nueva2026x" })
+    );
+  });
+
+  it("propaga el detalle del backend y el código de estado", async () => {
+    fetch.mockResolvedValue(
+      response({ detail: "El enlace no es válido o ya venció. Pedí uno nuevo." }, { ok: false, status: 400 })
+    );
+
+    await expect(restablecerPassword("viejo", "Nueva2026x")).rejects.toMatchObject({
+      message: "El enlace no es válido o ya venció. Pedí uno nuevo.",
+      status: 400,
+    });
+  });
+
+  it("usa el error de validación de pydantic o un mensaje por defecto", async () => {
+    fetch
+      .mockResolvedValueOnce(response(
+        { detail: [{ loc: ["body", "new_password"], msg: "Value error, La contraseña es muy corta." }] },
+        { ok: false, status: 422 }
+      ))
+      .mockResolvedValueOnce(response(null, { ok: false, status: 500, jsonError: new Error("html") }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    await expect(restablecerPassword("tok", "corta")).rejects.toThrow("La contraseña es muy corta.");
+    await expect(verificarCorreo("tok")).rejects.toThrow("No pudimos verificar tu correo.");
+    await expect(pedirRecuperacion("a@b.com")).rejects.toThrow("No pudimos conectar con el servidor.");
   });
 });
 

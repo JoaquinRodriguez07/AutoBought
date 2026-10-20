@@ -14,6 +14,7 @@ export default function Login({
   cantidadFavoritos,
   onIniciarSesion,
   onRegistro,
+  onOlvidePassword,
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -161,6 +162,7 @@ export default function Login({
 
                 <button
                   type="button"
+                  onClick={onOlvidePassword}
                   className="text-[8px] text-orange-500 font-bold hover:underline"
                 >
                   ¿Olvidaste tu contraseña?

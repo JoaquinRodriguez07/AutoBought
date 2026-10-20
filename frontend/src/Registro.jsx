@@ -81,6 +81,8 @@ export default function Registro({
         apellido: "",
         email: email.trim().toLowerCase(),
         telefono: formatearTelefonoUY(normalizarTelefonoUY(telefono)),
+        // Recién registrado: el mail de verificación acaba de salir.
+        emailVerificado: false,
       });
     } catch (err) {
       const campos = Object.fromEntries(

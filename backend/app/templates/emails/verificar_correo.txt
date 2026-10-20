@@ -1,0 +1,6 @@
+Hola {{ nombre }}, gracias por registrarte en AutoBought.
+
+Para poder confirmar compras, verificá que este correo es tuyo entrando a este enlace:
+{{ enlace }}
+
+El enlace vence en 24 horas. Si no creaste una cuenta, ignorá este mail.

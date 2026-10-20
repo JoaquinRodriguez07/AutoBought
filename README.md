@@ -52,3 +52,13 @@ docker exec backend uv run python -m scripts.seed_order_history --semilla 7 --ha
 ```
 
 Si cambia algo del catálogo o de los pedidos y hay que regenerar todo, lo más simple es recrear la base (`docker compose down -v`, que borra todos los datos locales) y volver a correr los tres scripts.
+
+## Mails
+
+El backend manda mails para verificar el correo al registrarse, recuperar la contraseña y avisar cuando la contraseña cambia.
+
+**En local** no hace falta configurar nada: `docker compose up -d` levanta **Mailpit**, un servidor de mail falso. Todos los mails que manda el backend, a cualquier dirección, se ven en http://localhost:8025 y no llega nada a ningún correo real.
+
+**Para mandarlos de verdad** se usa la cuenta de Gmail del equipo con una *contraseña de aplicación* (la cuenta necesita la verificación en dos pasos activada; la contraseña se crea en *Cuenta de Google → Seguridad → Contraseñas de aplicación*). Se completan las variables `SMTP_*` y `EMAIL_FROM` del `.env` siguiendo el ejemplo de `.env.example`, y se recrea el backend (`docker compose up -d backend`). La contraseña de aplicación se comparte por un canal privado: nunca se sube al repositorio.
+
+Los usuarios de prueba de `scripts.seed_demo_users` ya tienen el correo verificado. Un usuario nuevo puede navegar y usar el carrito, pero para confirmar una compra tiene que verificar el correo con el enlace del mail.
