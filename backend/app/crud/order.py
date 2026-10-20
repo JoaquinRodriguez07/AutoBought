@@ -64,6 +64,9 @@ def place_order(
             if payment_method_id is None:
                 raise ValueError("Client has no payment method")
             raise ValueError("Payment method not found")
+        # Una tarjeta válida al guardarla puede vencer después.
+        if payment_method.is_expired:
+            raise ValueError("Payment method expired")
 
         part_ids = [item.part_id for item in cart.items]
         parts = db.scalars(

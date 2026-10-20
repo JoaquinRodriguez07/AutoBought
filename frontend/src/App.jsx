@@ -478,6 +478,8 @@ function App() {
             <Carrito
               {...propsNavbar}
               onDetalle={irAlDetalle}
+              onDirecciones={() => navigate("/direcciones")}
+              onMetodosPago={() => navigate("/metodos-pago")}
             />
           }
         />

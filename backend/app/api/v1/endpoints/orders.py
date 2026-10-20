@@ -35,6 +35,10 @@ _ERRORES_DATOS_COMPRA = {
         status.HTTP_422_UNPROCESSABLE_CONTENT,
         "El método de pago elegido no es válido.",
     ),
+    "Payment method expired": (
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "La tarjeta elegida está vencida. Elegí otra o agregá una nueva.",
+    ),
 }
 
 

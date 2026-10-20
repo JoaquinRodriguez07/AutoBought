@@ -100,7 +100,7 @@ def test_password_corta_devuelve_422(client, db_session):
 
 
 def test_password_de_exactamente_8_caracteres_es_valida(client):
-    assert client.post(REGISTER, json=payload(password="12345678")).status_code == 201
+    assert client.post(REGISTER, json=payload(password="clave123")).status_code == 201
 
 
 def test_password_de_mas_de_72_bytes_devuelve_422_y_no_500(client):
@@ -122,10 +122,10 @@ def test_usernames_no_colisionan_con_correos_de_igual_parte_local(client, db_ses
     assert len(usernames) == 2
 
 
-def test_telefono_es_opcional_y_vacio_se_guarda_como_null(client, db_session):
-    assert client.post(REGISTER, json=payload(phone="   ")).status_code == 201
-
-    assert db_session.scalars(select(Client)).one().phone is None
+@pytest.mark.parametrize("phone", ["   ", None])
+def test_telefono_es_obligatorio_en_el_registro(client, db_session, phone):
+    assert client.post(REGISTER, json=payload(phone=phone)).status_code == 422
+    assert db_session.scalars(select(Client)).all() == []
 
 
 def test_telefono_demasiado_largo_devuelve_422(client):
@@ -192,8 +192,11 @@ def test_me_devuelve_el_perfil_con_el_telefono_guardado(client):
     assert "password" not in response.json()
 
 
-def test_me_devuelve_phone_null_si_el_cliente_no_tiene_telefono(client):
-    token = client.post(REGISTER, json=payload(phone=None)).json()["access_token"]
+def test_me_devuelve_phone_null_si_el_cliente_no_tiene_telefono(client, db_session):
+    # Clientes registrados antes de que el teléfono fuera obligatorio.
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
+    db_session.scalars(select(Client)).one().phone = None
+    db_session.commit()
 
     response = client.get(ME, headers={"Authorization": f"Bearer {token}"})
 
@@ -230,11 +233,23 @@ def test_patch_me_actualiza_nombre_y_telefono(client):
     assert client.get(ME, headers=headers).json()["name"] == "Lucía Pérez"
 
 
-def test_patch_me_telefono_vacio_lo_borra(client):
-    response = client.patch(ME, json={"name": "Lucía Gómez", "phone": ""}, headers=_headers(client))
+@pytest.mark.parametrize("phone", ["", "   ", None])
+def test_patch_me_no_permite_borrar_el_telefono(client, phone):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía Gómez", "phone": phone}, headers=headers)
+
+    assert response.status_code == 422
+    assert client.get(ME, headers=headers).json()["phone"] == "+59899123456"
+
+
+def test_patch_me_sin_telefono_mantiene_el_que_estaba(client):
+    headers = _headers(client)
+
+    response = client.patch(ME, json={"name": "Lucía Pérez"}, headers=headers)
 
     assert response.status_code == 200
-    assert response.json()["phone"] is None
+    assert response.json()["phone"] == "+59899123456"
 
 
 def test_patch_me_telefono_invalido_devuelve_422(client):
@@ -356,3 +371,43 @@ def test_patch_me_sin_phone_conserva_el_telefono(client):
 
     assert response.status_code == 200
     assert response.json()["phone"] == "+59899123456"
+
+
+# =====================================================
+# Validaciones de nombre y contraseña
+# =====================================================
+
+
+@pytest.mark.parametrize("name", ["123", "Lucía @@", "L"])
+def test_nombre_invalido_en_el_registro_devuelve_422(client, db_session, name):
+    response = client.post(REGISTER, json=payload(name=name))
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "name"]
+    assert db_session.scalars(select(User)).all() == []
+
+
+@pytest.mark.parametrize("password", ["abcdefgh", "12345678", "Password1", "lucia2026"])
+def test_password_debil_en_el_registro_devuelve_422(client, db_session, password):
+    response = client.post(REGISTER, json=payload(password=password))
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "password"]
+
+
+def test_nombre_invalido_al_editar_el_perfil_devuelve_422(client):
+    response = client.patch(ME, json={"name": "Lucía 123"}, headers=_headers(client))
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("nueva", ["solotexto", "qwerty123", "lucia-2026"])
+def test_cambiar_password_por_una_debil_devuelve_422(client, nueva):
+    response = client.patch(
+        PASSWORD,
+        json={"current_password": "secreto123", "new_password": nueva},
+        headers=_headers(client),
+    )
+
+    assert response.status_code == 422
+    assert client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}).status_code == 200

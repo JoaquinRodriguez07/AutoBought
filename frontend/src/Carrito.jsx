@@ -27,8 +27,10 @@ export default function Carrito({
   const [metodoPagoId, setMetodoPagoId] = useState("");
   const [cargandoDatos, setCargandoDatos] = useState(false);
 
+  // La principal, o la primera que se pueda usar (las vencidas no).
   const idPrincipal = (lista) => {
-    const principal = lista.find((item) => item.principal) ?? lista[0];
+    const usables = lista.filter((item) => !item.vencida);
+    const principal = usables.find((item) => item.principal) ?? usables[0];
     return principal ? String(principal.id) : "";
   };
 
@@ -57,7 +59,9 @@ export default function Carrito({
 
   const textoDireccion = (d) =>
     `${d.calle} ${d.numero}${d.apartamento ? ` apto ${d.apartamento}` : ""}, ${d.ciudad}`;
-  const textoMetodoPago = (m) => `${m.tipo} •••• ${m.numero}`;
+  const textoMetodoPago = (m) =>
+    `${m.tipo} •••• ${m.numero}${m.vencida ? " (vencida)" : ""}`;
+  const hayTarjetaVigente = metodosPago.some((m) => !m.vencida);
   const puedeConfirmar = !enviando && !cargandoDatos && direccionId !== "" && metodoPagoId !== "";
 
   const cerrarConfirmacion = () => {
@@ -156,16 +160,18 @@ export default function Carrito({
                     </div>
                     <div>
                       <label htmlFor="metodo-pago" className="block text-[9px] font-black text-gray-500">MÉTODO DE PAGO</label>
-                      {metodosPago.length > 0 ? (
+                      {hayTarjetaVigente ? (
                         <select id="metodo-pago" value={metodoPagoId} onChange={(e) => setMetodoPagoId(e.target.value)}
                           className="w-full mt-1 border border-gray-200 rounded-md px-3 py-2 text-[10px] bg-white outline-hidden focus:border-orange-500">
                           {metodosPago.map((m) => (
-                            <option key={m.id} value={String(m.id)}>{textoMetodoPago(m)}</option>
+                            <option key={m.id} value={String(m.id)} disabled={m.vencida}>{textoMetodoPago(m)}</option>
                           ))}
                         </select>
                       ) : (
                         <p className="mt-1 text-[10px] text-gray-500">
-                          No tenés tarjetas guardadas.{" "}
+                          {metodosPago.length > 0
+                            ? "Tus tarjetas guardadas están vencidas."
+                            : "No tenés tarjetas guardadas."}{" "}
                           <button type="button" onClick={onMetodosPago} className="text-orange-500 font-bold hover:underline">
                             Agregar una tarjeta
                           </button>
