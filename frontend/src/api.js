@@ -165,6 +165,7 @@ function mapearPerfil(data) {
     email: data.email,
     telefono: formatearTelefonoUY(data.phone),
     emailVerificado: data.email_verified,
+    recibeOfertas: data.marketing_emails,
   };
 }
 
@@ -327,6 +328,25 @@ export async function restablecerPassword(token, nueva) {
     { token, new_password: nueva },
     "No pudimos cambiar tu contraseña."
   );
+}
+
+/** POST /api/v1/auth/unsubscribe — enlace de baja de los mails comerciales. */
+export async function darseDeBaja(token) {
+  await postCuenta("unsubscribe", { token }, "No pudimos procesar la baja.");
+}
+
+/**
+ * PUT /api/v1/auth/me/preferences — interruptor «Ofertas y recordatorios
+ * por mail» del perfil. Devuelve el perfil actualizado.
+ */
+export async function guardarPreferenciasMails(recibeOfertas) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/auth/me/preferences`,
+    { method: "PUT", body: JSON.stringify({ marketing_emails: recibeOfertas }) },
+    { 401: "Tu sesión venció. Iniciá sesión de nuevo." },
+    "No pudimos guardar tu preferencia."
+  );
+  return mapearPerfil(data);
 }
 
 /* =====================================================
@@ -751,6 +771,43 @@ export async function agregarFavoritoAPI(partId) {
 
 export async function quitarFavoritoAPI(partId) {
   await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+    method: "DELETE",
+  });
+}
+
+/* =====================================================
+   AVISOS DE STOCK
+   «Avisame cuando haya» en los repuestos agotados.
+====================================================== */
+
+const MENSAJES_POR_STATUS_AVISOS = {
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  404: "No encontramos ese repuesto.",
+};
+
+function pedirAvisosStock(url, options = {}) {
+  return pedirCuentaCliente(
+    url,
+    options,
+    MENSAJES_POR_STATUS_AVISOS,
+    "No pudimos actualizar el aviso."
+  );
+}
+
+/** GET /api/v1/stock-alerts — ids de los repuestos con aviso pedido. */
+export async function obtenerAvisosStock() {
+  const data = await pedirAvisosStock(`${API_BASE_URL}/api/v1/stock-alerts`);
+  return Array.isArray(data?.part_ids) ? data.part_ids : [];
+}
+
+export async function agregarAvisoStock(partId) {
+  await pedirAvisosStock(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
+    method: "PUT",
+  });
+}
+
+export async function quitarAvisoStock(partId) {
+  await pedirAvisosStock(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
     method: "DELETE",
   });
 }

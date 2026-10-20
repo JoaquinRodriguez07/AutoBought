@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, true
 from sqlalchemy.orm import relationship
 
 from app.models.user import User
@@ -11,6 +11,9 @@ class Client(User):
     # Nullable: los clientes creados antes de esta columna (y los seeds)
     # no tienen teléfono.
     phone = Column(String(30), nullable=True)
+    # Mails comerciales (carrito abandonado, mantenimiento, baja de precio).
+    # Los de la cuenta y los pedidos se mandan siempre.
+    marketing_emails = Column(Boolean, nullable=False, default=True, server_default=true())
     payment_methods = relationship(
         "PaymentMethod",
         back_populates="client",

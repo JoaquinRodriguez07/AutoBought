@@ -3,6 +3,7 @@ import Navbar from "./Navbar";
 import { useCart } from "./context/CartContext";
 import { actualizarPerfil, obtenerPerfil } from "./api";
 import CambiarPassword from "./CambiarPassword";
+import PreferenciasMails from "./PreferenciasMails";
 import { MENSAJE_TELEFONO, normalizarTelefonoUY } from "./telefono";
 import { limpiar, validarNombrePersona } from "./validaciones";
 
@@ -438,6 +439,9 @@ export default function Perfil({
                 )}
 
                 {!editando && <CambiarPassword email={usuario.email} />}
+                {!editando && (
+                  <PreferenciasMails usuario={usuario} onActualizarUsuario={onActualizarUsuario} />
+                )}
 
               </section>
 

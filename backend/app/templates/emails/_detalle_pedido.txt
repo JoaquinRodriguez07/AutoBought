@@ -1,0 +1,5 @@
+{% for item in items %}- {{ item.cantidad }} x {{ item.nombre }}: {{ item.subtotal }}
+{% endfor %}Total: {{ total }}
+
+Envío a: {{ direccion }}
+Pago: {{ pago }}

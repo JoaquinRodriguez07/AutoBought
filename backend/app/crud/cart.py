@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.cart import Cart
@@ -29,6 +29,12 @@ def get_or_create_cart(db: Session, client_id: int) -> Cart:
     return get_cart(db, client_id)
 
 
+def _marcar_cambio(db: Session, client_id: int) -> None:
+    """Guarda cuándo cambió el carrito por última vez, para el recordatorio
+    de carrito abandonado. Va en la misma transacción que el cambio."""
+    db.execute(update(Cart).where(Cart.client_id == client_id).values(updated_at=func.now()))
+
+
 def get_cart_item(db: Session, client_id: int, part_id: int) -> CartItem | None:
     query = select(CartItem).where(
         CartItem.cart_id == client_id, CartItem.part_id == part_id
@@ -49,6 +55,7 @@ def add_item(db: Session, client_id: int, part_id: int, amount: int) -> CartItem
     else:
         item.amount += amount
 
+    _marcar_cambio(db, client_id)
     db.commit()
     db.refresh(item)
     return item
@@ -65,6 +72,7 @@ def set_item_amount(
         return None
 
     item.amount = amount
+    _marcar_cambio(db, client_id)
     db.commit()
     db.refresh(item)
     return item
@@ -76,6 +84,7 @@ def remove_item(db: Session, client_id: int, part_id: int) -> bool:
         return False
 
     db.delete(item)
+    _marcar_cambio(db, client_id)
     db.commit()
     return True
 
@@ -84,4 +93,5 @@ def clear_cart(db: Session, client_id: int) -> None:
     query = select(CartItem).where(CartItem.cart_id == client_id)
     for item in db.scalars(query).all():
         db.delete(item)
+    _marcar_cambio(db, client_id)
     db.commit()

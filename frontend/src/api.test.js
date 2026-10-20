@@ -26,6 +26,11 @@ import {
   obtenerPerfil,
   obtenerRecomendaciones,
   obtenerRepuestos,
+  obtenerAvisosStock,
+  agregarAvisoStock,
+  quitarAvisoStock,
+  darseDeBaja,
+  guardarPreferenciasMails,
   pedirRecuperacion,
   quitarFavoritoAPI,
   reenviarVerificacion,
@@ -159,6 +164,7 @@ describe("obtenerPerfil", () => {
         email: "lucia@example.com",
         phone: "+59899123456",
         email_verified: false,
+        marketing_emails: true,
       })
     );
 
@@ -168,6 +174,7 @@ describe("obtenerPerfil", () => {
       email: "lucia@example.com",
       telefono: "099 123 456",
       emailVerificado: false,
+      recibeOfertas: true,
     });
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me`, {
       headers: { Authorization: "Bearer tok" },
@@ -264,6 +271,68 @@ describe("mails de cuenta", () => {
     await expect(restablecerPassword("tok", "corta")).rejects.toThrow("La contraseña es muy corta.");
     await expect(verificarCorreo("tok")).rejects.toThrow("No pudimos verificar tu correo.");
     await expect(pedirRecuperacion("a@b.com")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("avisos de stock y preferencias de mails", () => {
+  const authHeaders = { "Content-Type": "application/json", Authorization: "Bearer jwt-token" };
+
+  it("lista, pide y cancela avisos de stock", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ part_ids: [3, 7] }))
+      .mockResolvedValueOnce(response(null, { status: 204 }))
+      .mockResolvedValueOnce(response(null, { status: 204 }));
+
+    await expect(obtenerAvisosStock()).resolves.toEqual([3, 7]);
+    await agregarAvisoStock(7);
+    await quitarAvisoStock(7);
+
+    expect(fetch).toHaveBeenNthCalledWith(1, `${BASE_URL}/api/v1/stock-alerts`, { headers: authHeaders });
+    expect(fetch).toHaveBeenNthCalledWith(2, `${BASE_URL}/api/v1/stock-alerts/7`, { method: "PUT", headers: authHeaders });
+    expect(fetch).toHaveBeenNthCalledWith(3, `${BASE_URL}/api/v1/stock-alerts/7`, { method: "DELETE", headers: authHeaders });
+  });
+
+  it("una respuesta sin lista se toma como vacía", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(obtenerAvisosStock()).resolves.toEqual([]);
+  });
+
+  it("propaga el detalle y el estado de un aviso rechazado", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Este repuesto tiene stock: ya lo podés comprar." }, { ok: false, status: 409 }))
+      .mockResolvedValueOnce(response({}, { ok: false, status: 401 }));
+
+    await expect(agregarAvisoStock(7)).rejects.toMatchObject({
+      message: "Este repuesto tiene stock: ya lo podés comprar.",
+      status: 409,
+    });
+    await expect(agregarAvisoStock(7)).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
+  });
+
+  it("guarda la preferencia y devuelve el perfil", async () => {
+    fetch.mockResolvedValue(response({
+      user_id: 7, name: "Ana", email: "ana@example.com", phone: null, email_verified: true, marketing_emails: false,
+    }));
+
+    await expect(guardarPreferenciasMails(false)).resolves.toEqual(expect.objectContaining({ recibeOfertas: false }));
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me/preferences`, {
+      method: "PUT",
+      body: JSON.stringify({ marketing_emails: false }),
+      headers: authHeaders,
+    });
+  });
+
+  it("se da de baja con el token del enlace, sin sesión", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await darseDeBaja("tok-baja");
+
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/unsubscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: "tok-baja" }),
+    });
   });
 });
 

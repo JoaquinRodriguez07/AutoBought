@@ -1,0 +1,16 @@
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0; border-collapse:collapse; font-size:14px;">
+  {% for item in items %}
+  <tr>
+    <td style="padding:8px 0; border-bottom:1px solid #e5e7eb;">{{ item.cantidad }} × {{ item.nombre }}</td>
+    <td style="padding:8px 0; border-bottom:1px solid #e5e7eb; text-align:right; white-space:nowrap;">{{ item.subtotal }}</td>
+  </tr>
+  {% endfor %}
+  <tr>
+    <td style="padding:12px 0 0; font-weight:bold;">Total</td>
+    <td style="padding:12px 0 0; text-align:right; font-weight:900; color:#f97316; white-space:nowrap;">{{ total }}</td>
+  </tr>
+</table>
+<p style="font-size:13px; color:#4b5563;">
+  <strong>Envío a:</strong> {{ direccion }}<br>
+  <strong>Pago:</strong> {{ pago }}
+</p>

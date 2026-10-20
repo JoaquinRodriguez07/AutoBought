@@ -35,6 +35,7 @@ def create_access_token(subject: str, extra_claims: dict | None = None) -> str:
 # como token de sesión ni uno sirve en lugar del otro.
 VERIFICAR_CORREO = "verify_email"
 RECUPERAR_PASSWORD = "reset_password"
+DARSE_DE_BAJA = "unsubscribe"
 
 
 def _clave_de(proposito: str) -> str:

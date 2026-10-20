@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
+import BotonAvisoStock from "./BotonAvisoStock";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 
@@ -15,6 +16,8 @@ export default function DetalleProducto({
   producto,
   onAlternarFavorito,
   esFavorito,
+  onAlternarAvisoStock,
+  tieneAvisoStock = () => false,
 }) {
   const { addToCart, deshacerAgregado } = useCart();
   const { vehiculoActivo: filtrosVehiculo } = useVehicle();
@@ -135,7 +138,15 @@ export default function DetalleProducto({
               <p className="text-[10px] text-gray-400 mt-2">Código: {productoActual.codigo}</p>
               <p className="text-3xl font-black text-orange-500 mt-5">${productoActual.precio.toLocaleString("es-UY")}</p>
               {sinStock ? (
-                <p className="text-[10px] mt-2"><span className="text-red-500 font-bold">Sin stock</span></p>
+                <p className="text-[10px] mt-2">
+                  <span className="text-red-500 font-bold">Sin stock</span>
+                  <BotonAvisoStock
+                    producto={productoActual}
+                    tieneAviso={tieneAvisoStock(productoActual.partId)}
+                    onAlternarAviso={onAlternarAvisoStock}
+                    className="ml-3 text-[10px]"
+                  />
+                </p>
               ) : (
                 <p className="text-[10px] mt-2"><span className="text-green-600 font-bold">En stock</span><span className="text-gray-400 ml-2">({productoActual.stock} unidades)</span></p>
               )}
