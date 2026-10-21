@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import BrandDropdown from "./BrandDropdown";
 import ModelDropdown from "./ModelDropdown";
-import { obtenerCategorias } from "./api";
+import { obtenerAnios, obtenerCategorias } from "./api";
 import { useVehicle } from "./context/VehicleContext";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
@@ -181,32 +181,30 @@ export default function Home({
       return;
     }
 
+    // Si cambia la marca o el modelo antes de que llegue la respuesta,
+    // se descarta para no mostrar años del modelo anterior.
+    let activo = true;
+
     const cargarAnios = async () => {
       try {
         setLoadingYears(true);
 
-        const response = await fetch(
-          `/api/v1/years?brand=${encodeURIComponent(
-            selectedBrand
-          )}&model=${encodeURIComponent(selectedModel)}`
-        );
+        const anios = await obtenerAnios(selectedBrand, selectedModel);
 
-        if (!response.ok) {
-          throw new Error("No se pudieron obtener los años");
-        }
-
-        const data = await response.json();
-
-        setYears(data.years || []);
+        if (activo) setYears(anios);
       } catch (error) {
         console.error("Error cargando años:", error);
-        setYears([]);
+        if (activo) setYears([]);
       } finally {
-        setLoadingYears(false);
+        if (activo) setLoadingYears(false);
       }
     };
 
     cargarAnios();
+
+    return () => {
+      activo = false;
+    };
   }, [selectedBrand, selectedModel]);
 
   // ==========================================
