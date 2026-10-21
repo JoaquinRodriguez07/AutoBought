@@ -2,7 +2,8 @@ from app.core.security import verify_password
 from app.crud import user as crud_user
 from app.models.order import Order
 from app.models.part import Part
-from scripts.seed_demo_users import USUARIOS, crear_usuario
+from app.models.employee import Employee
+from scripts.seed_demo_users import USUARIOS, VENDEDORES, crear_usuario, crear_vendedor
 
 
 def _repuestos(db_session):
@@ -36,3 +37,31 @@ def test_correr_el_script_dos_veces_no_duplica_nada(db_session):
     mensajes = [crear_usuario(db_session, datos) for datos in USUARIOS]
 
     assert all("ya existe" in mensaje for mensaje in mensajes)
+
+
+def test_el_vendedor_de_prueba_se_crea_como_empleado_y_puede_iniciar_sesion(client, db_session):
+    for datos in VENDEDORES:
+        crear_vendedor(db_session, datos)
+
+    vendedor = crud_user.get_user_by_email(db_session, "vendedor@autobought.com")
+    assert isinstance(vendedor, Employee)
+    assert vendedor.user_type == "employee"
+    assert vendedor.name == "Vendedor AutoBought"
+    assert verify_password("Ventas2026x", vendedor.password)
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "vendedor@autobought.com", "password": "Ventas2026x"},
+    )
+    token = response.json()["access_token"]
+    ping = client.get("/api/v1/analytics/ping", headers={"Authorization": f"Bearer {token}"})
+    assert ping.status_code == 200
+
+
+def test_correr_el_script_dos_veces_no_duplica_al_vendedor(db_session):
+    crear_vendedor(db_session, VENDEDORES[0])
+
+    mensaje = crear_vendedor(db_session, VENDEDORES[0])
+
+    assert "ya existe" in mensaje
+    assert db_session.query(Employee).count() == 1

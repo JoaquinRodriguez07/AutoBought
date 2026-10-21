@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_client, get_db
+from app.api.deps import get_current_client, get_current_user, get_db
 from app.core import validators
 from app.core.security import create_access_token, hash_password, verify_password
 from app.crud import user as crud_user
 from app.models.client import Client
+from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest, Token
 from app.schemas.user import ClientOut, ClientUpdate, PasswordChange
 
@@ -63,18 +64,18 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=Token)
-def refresh(client: Client = Depends(get_current_client)):
+def refresh(user: User = Depends(get_current_user)):
     """Entrega un token nuevo a partir de uno todavía válido.
 
-    El token vigente se valida con la misma dependencia que el resto de los
-    endpoints de cliente: 401 si falta, es inválido o ya venció (un token
-    vencido NO se puede renovar: hay que volver a iniciar sesión), o si el
-    cliente ya no existe. El token nuevo repite los datos del usuario que
-    están guardados en la base y vuelve a empezar la vigencia completa.
+    Sirve para cualquier rol (cliente o vendedor): el token vigente se valida
+    con get_current_user, que da 401 si falta, es inválido o ya venció (un
+    token vencido NO se puede renovar: hay que volver a iniciar sesión), o si
+    el usuario ya no existe. El token nuevo repite el user_type guardado en la
+    base y vuelve a empezar la vigencia completa.
     """
     access_token = create_access_token(
-        subject=str(client.user_id),
-        extra_claims={"user_type": client.user_type},
+        subject=str(user.user_id),
+        extra_claims={"user_type": user.user_type},
     )
     return Token(access_token=access_token)
 

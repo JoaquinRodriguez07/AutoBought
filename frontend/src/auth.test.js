@@ -1,5 +1,6 @@
 import {
   MARGEN_RENOVACION_MS,
+  esVendedor,
   guardarSesion,
   msHastaRenovacion,
   obtenerSesion,
@@ -52,5 +53,18 @@ describe("guardarSesion", () => {
 
     expect(JSON.parse(sessionStorage.getItem("autobought-sesion"))).toEqual({ token: "nuevo" });
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
+  });
+});
+
+describe("esVendedor", () => {
+  it("is true only for an employee session", () => {
+    expect(esVendedor({ userType: "employee" })).toBe(true);
+    expect(esVendedor({ userType: "client" })).toBe(false);
+  });
+
+  it("is false without a session or without a user type", () => {
+    expect(esVendedor(null)).toBe(false);
+    expect(esVendedor(undefined)).toBe(false);
+    expect(esVendedor({ nombre: "Ana" })).toBe(false);
   });
 });

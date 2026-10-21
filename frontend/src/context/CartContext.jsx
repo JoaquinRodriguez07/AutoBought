@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-import { obtenerSesion, sesionValida } from "../auth";
+import { esVendedor, obtenerSesion, sesionValida } from "../auth";
 import {
   obtenerCarrito,
   agregarItemCarrito,
@@ -31,7 +31,9 @@ export function CartProvider({ children }) {
   // sesión activa, ej. refresh de página) y cuando App.jsx avisa que
   // el usuario inició sesión.
   const cargarCarrito = useCallback(async () => {
-    if (!sesionValida(obtenerSesion())) {
+    // Un vendedor no tiene carrito (la API le responde 403): no se pide.
+    const sesion = obtenerSesion();
+    if (!sesionValida(sesion) || esVendedor(sesion)) {
       setCart([]);
       setTotal(0);
       return;
@@ -81,6 +83,11 @@ export function CartProvider({ children }) {
     if (!sesionValida(obtenerSesion())) {
       toast.error("Iniciá sesión para agregar productos al carrito.");
       navigate("/login");
+      return false;
+    }
+
+    if (esVendedor(obtenerSesion())) {
+      toast.error("Los vendedores no pueden comprar.");
       return false;
     }
 
