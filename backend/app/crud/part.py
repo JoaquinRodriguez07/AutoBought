@@ -19,6 +19,7 @@ def list_parts(
     year: int | None = None,
     search: Optional[str] = None,
     category: Optional[str] = None,
+    engine_codes: list[str] | None = None,
 ) -> list[Part]:
     query = (
         select(Part)
@@ -40,6 +41,10 @@ def list_parts(
     if model:
         model_term = model.strip()
         query = query.where(func.lower(CarModel.model) == model_term.lower())
+
+    if engine_codes:
+        # Lista de motores ya en minúsculas (ej: los diésel para "gasolero").
+        query = query.where(func.lower(CarModel.engine_code).in_(engine_codes))
 
     if year:
         query = query.where(
