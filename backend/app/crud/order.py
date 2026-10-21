@@ -14,8 +14,27 @@ from app.models.payment_method import PaymentMethod
 from app.models.shipping_address import ShippingAddress
 
 
-def place_order(db: Session, client_id: int) -> Order:
-    """Place an order from a client's cart in a single transaction."""
+def _get_owned_or_primary(db: Session, model, pk_column, client_id: int, chosen_id: int | None):
+    """Devuelve la fila elegida si es del cliente; sin elección, la principal."""
+    query = select(model).where(model.client_id == client_id)
+    if chosen_id is None:
+        query = query.where(model.is_primary.is_(True))
+    else:
+        query = query.where(pk_column == chosen_id)
+    return db.scalar(query)
+
+
+def place_order(
+    db: Session,
+    client_id: int,
+    shipping_address_id: int | None = None,
+    payment_method_id: int | None = None,
+) -> Order:
+    """Place an order from a client's cart in a single transaction.
+
+    Without an explicit shipping address or payment method, the client's
+    primary ones are used. Either one must belong to the client.
+    """
     with db.begin():
         cart = db.scalar(
             select(Cart)
@@ -27,6 +46,27 @@ def place_order(db: Session, client_id: int) -> Order:
             raise ValueError("Client cart not found")
         if not cart.items:
             raise ValueError("Cannot place an order from an empty cart")
+
+        address = _get_owned_or_primary(
+            db, ShippingAddress, ShippingAddress.shipping_address_id,
+            client_id, shipping_address_id,
+        )
+        if address is None:
+            if shipping_address_id is None:
+                raise ValueError("Client has no shipping address")
+            raise ValueError("Shipping address not found")
+
+        payment_method = _get_owned_or_primary(
+            db, PaymentMethod, PaymentMethod.payment_method_id,
+            client_id, payment_method_id,
+        )
+        if payment_method is None:
+            if payment_method_id is None:
+                raise ValueError("Client has no payment method")
+            raise ValueError("Payment method not found")
+        # Una tarjeta válida al guardarla puede vencer después.
+        if payment_method.is_expired:
+            raise ValueError("Payment method expired")
 
         part_ids = [item.part_id for item in cart.items]
         parts = db.scalars(
@@ -48,7 +88,19 @@ def place_order(db: Session, client_id: int) -> Order:
                     f"requested {cart_item.amount}, available {part.stock}"
                 )
 
-        order = Order(client_id=client_id)
+        order = Order(
+            client_id=client_id,
+            shipping_address_id=address.shipping_address_id,
+            payment_method_id=payment_method.payment_method_id,
+            ship_personal_name=address.personal_name,
+            ship_street=address.street,
+            ship_number=address.number,
+            ship_apartment=address.apartment,
+            ship_city=address.city,
+            ship_department=address.department,
+            ship_postal_code=address.postal_code,
+            payment_method_label=payment_method.method,
+        )
         db.add(order)
         db.flush()
 

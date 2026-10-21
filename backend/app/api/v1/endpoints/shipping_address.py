@@ -16,7 +16,10 @@ def list_addresses(db: Session = Depends(get_db), client: Client = Depends(get_c
 
 @router.post("", response_model=ShippingAddressOut, status_code=status.HTTP_201_CREATED)
 def create_address(body: ShippingAddressCreate, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
-    return crud_address.create_address(db, client.user_id, body)
+    try:
+        return crud_address.create_address(db, client.user_id, body)
+    except crud_address.ShippingAddressConflict as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
 
 
 @router.patch("/{shipping_address_id}/primary", response_model=ShippingAddressOut)

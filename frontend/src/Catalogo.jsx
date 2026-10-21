@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Navbar from "./Navbar";
+import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import SearchBar from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
-import { obtenerCategorias, obtenerRepuestos } from "./api";
+import { buscarTexto, obtenerCategorias, obtenerRepuestos } from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 
@@ -39,11 +41,11 @@ export default function Catalogo({
   onAlternarFavorito,
   esFavorito,
 }) {
-  const { addToCart } = useCart();
+  const { addToCart, deshacerAgregado } = useCart();
 
   // Vehículo Activo (el que se confirmó con "Buscar Repuestos"). Vive en
   // VehicleContext, así que sobrevive a ir al carrito y volver.
-  const { vehiculoActivo, limpiarVehiculo } = useVehicle();
+  const { vehiculoActivo, limpiarVehiculo, activarVehiculo } = useVehicle();
 
   // `categoria` en null significa "todas las categorías": es lo que
   // deja el botón "Limpiar filtros" y lo que se traduce en un
@@ -60,6 +62,10 @@ export default function Catalogo({
   const [orden, setOrden] = useState("Más relevantes");
   const [busqueda, setBusqueda] = useState("");
   const [cantidades, setCantidades] = useState({});
+  const [productoAgregado, setProductoAgregado] = useState(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const consulta = (searchParams.get("q") || "").trim();
 
   // ==========================================
   // DATOS DE LA API
@@ -86,7 +92,9 @@ export default function Catalogo({
     error: "",
   });
 
-  const cargando = respuesta.clave !== clavePedido;
+  const cargando = consulta
+    ? respuesta.clave !== `libre|${consulta}`
+    : respuesta.clave !== clavePedido;
   const productos = respuesta.productos;
   const error = respuesta.error;
 
@@ -116,6 +124,64 @@ export default function Catalogo({
   }, [categoriaInicial]);
 
   // ==========================================
+  // BÚSQUEDA LIBRE
+  // ==========================================
+  useEffect(() => {
+  if (!consulta) return;
+
+  let activo = true;
+
+  buscarTexto(consulta)
+    .then(({ parts, entities }) => {
+      if (!activo) return;
+
+      const tieneEntidades =
+        entities &&
+        (entities.part ||
+          entities.brand ||
+          entities.model ||
+          entities.year);
+
+      if (!tieneEntidades) {
+        setRespuesta({
+          clave: `libre|${consulta}`,
+          productos: [],
+          error:
+            "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual",
+        });
+        return;
+      }
+
+      if (entities.brand) {
+        activarVehiculo({
+          brand: entities.brand,
+          model: entities.model || "",
+          year: entities.year || "",
+        });
+      }
+
+      setRespuesta({
+        clave: `libre|${consulta}`,
+        productos: parts,
+        error: "",
+      });
+    })
+    .catch((e) => {
+      if (!activo) return;
+
+      setRespuesta({
+        clave: `libre|${consulta}`,
+        productos: [],
+        error: e.message || "No pudimos realizar la búsqueda.",
+      });
+    });
+
+  return () => {
+    activo = false;
+  };
+}, [consulta, activarVehiculo]);
+
+  // ==========================================
   // CARGAR REPUESTOS
   // ==========================================
   // Categoría y vehículo (marca, modelo, año) son filtros del servidor y
@@ -127,6 +193,7 @@ export default function Catalogo({
 
   useEffect(() => {
     let activo = true;
+    if (consulta) return;
 
     obtenerRepuestos({
       categoria: categoria || undefined,
@@ -154,7 +221,7 @@ export default function Catalogo({
     return () => {
       activo = false;
     };
-  }, [categoria, vehiculoActivo, clavePedido]);
+  }, [categoria, vehiculoActivo, clavePedido, consulta]);
 
   // ==========================================
   // CARGAR CATEGORÍAS
@@ -219,11 +286,19 @@ export default function Catalogo({
   // catálogo). Se cambian siempre juntas: si solo se limpiara la de
   // acá, volver con el botón Atrás reaplicaría el filtro viejo.
   const cambiarCategoria = (nueva) => {
+    if (consulta) {
+      setSearchParams({});
+    }
+
     setCategoria(nueva);
     onCategoriaSeleccionada?.(nueva);
   };
 
   const limpiarFiltros = () => {
+    if (consulta) {
+      setSearchParams({});
+    }
+
     cambiarCategoria(null);
     setBusqueda("");
   };
@@ -255,15 +330,20 @@ export default function Catalogo({
   // AGREGAR AL CARRITO
   // ==========================================
 
-  const agregar = (producto) => {
+  const agregar = async (producto) => {
     if (producto.stock === 0) return;
 
-    addToCart(producto, cantidades[producto.id] || 1);
+    const cantidadPedida = cantidades[producto.id] || 1;
+    const agregado = await addToCart(producto, cantidadPedida);
 
     setCantidades((actual) => ({
       ...actual,
       [producto.id]: 1,
     }));
+
+    if (agregado) {
+      setProductoAgregado({ ...producto, cantidadAgregada: cantidadPedida });
+    }
   };
 
   // ==========================================
@@ -272,6 +352,15 @@ export default function Catalogo({
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
+      <ConfirmacionAgregarCarrito
+        producto={productoAgregado}
+        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
+        onCerrar={() => setProductoAgregado(null)}
+        onVerCarrito={() => {
+          setProductoAgregado(null);
+          onCarrito();
+        }}
+      />
 
       {/* =================================================
           NAVBAR
@@ -605,7 +694,7 @@ export default function Catalogo({
 
                       <div className="relative h-[190px] bg-gray-50">
 
-                        {/* Sin filtro, el catálogo completo son ~377
+                        {/* Sin filtro, el catálogo completo son ~500
                             tarjetas: lazy evita decodificar todas las
                             imágenes que están fuera de pantalla. */}
 

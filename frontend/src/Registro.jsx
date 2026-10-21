@@ -2,15 +2,16 @@ import { useState } from "react";
 import Navbar from "./Navbar";
 import { registrar as registrarEnApi } from "./api";
 import { decodeToken } from "./auth";
-import {
-  MENSAJE_TELEFONO,
-  formatearTelefonoUY,
-  normalizarTelefonoUY,
-} from "./telefono";
+import ErrorCampo from "./ErrorCampo";
+import { conError, propsError } from "./erroresCampo";
+import { formatearTelefonoUY, normalizarTelefonoUY } from "./telefono";
+import { NOMBRE_MAX, limpiar, validarRegistro } from "./validaciones";
 
-const PASSWORD_MIN = 8;
-// Mismo criterio mínimo que EmailStr del backend: algo@dominio.tld
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Campos del backend → campos del formulario, para mostrar sus errores 422.
+const CAMPOS_API = { name: "nombre", email: "email", phone: "telefono", password: "password" };
+
+const claseInput =
+  "w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition";
 
 export default function Registro({
   onHome,
@@ -32,57 +33,37 @@ export default function Registro({
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
   const [error, setError] = useState("");
+  const [errores, setErrores] = useState({});
   const [cargando, setCargando] = useState(false);
+
+  // Al editar un campo se borra su error.
+  const cambiar = (campo, setter) => (e) => {
+    setter(campo === "terminos" ? e.target.checked : e.target.value);
+    setErrores((actuales) => ({ ...actuales, [campo]: undefined }));
+  };
 
   const registrar = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (
-      !nombre.trim() ||
-      !apellido.trim() ||
-      !email.trim() ||
-      !telefono.trim() ||
-      !password ||
-      !confirmarPassword
-    ) {
-      setError("Completá todos los campos.");
-      return;
-    }
-
-    if (!EMAIL_REGEX.test(email.trim())) {
-      setError("Ingresá un correo electrónico válido.");
-      return;
-    }
-
-    if (!normalizarTelefonoUY(telefono)) {
-      setError(MENSAJE_TELEFONO);
-      return;
-    }
-
-    if (password.length < PASSWORD_MIN) {
-      setError(
-        `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`
-      );
-      return;
-    }
-
-    if (password !== confirmarPassword) {
-      setError("Las contraseñas no coinciden.");
-      return;
-    }
-
-    if (!aceptaTerminos) {
-      setError("Tenés que aceptar los términos y condiciones.");
-      return;
-    }
+    const erroresFormulario = validarRegistro({
+      nombre,
+      apellido,
+      email,
+      telefono,
+      password,
+      confirmarPassword,
+      aceptaTerminos,
+    });
+    setErrores(erroresFormulario);
+    if (Object.keys(erroresFormulario).length > 0) return;
 
     setCargando(true);
 
     try {
       const data = await registrarEnApi({
-        nombre: nombre.trim(),
-        apellido: apellido.trim(),
+        nombre: limpiar(nombre),
+        apellido: limpiar(apellido),
         email: email.trim(),
         telefono: telefono.trim(),
         password,
@@ -96,13 +77,19 @@ export default function Registro({
         userType: payload?.user_type ?? null,
         // Misma forma que devuelve obtenerPerfil() al iniciar sesión:
         // el backend guarda nombre + apellido en un solo campo.
-        nombre: `${nombre.trim()} ${apellido.trim()}`,
+        nombre: `${limpiar(nombre)} ${limpiar(apellido)}`,
         apellido: "",
         email: email.trim().toLowerCase(),
         telefono: formatearTelefonoUY(normalizarTelefonoUY(telefono)),
       });
     } catch (err) {
-      setError(err.message || "No pudimos crear tu cuenta.");
+      const campos = Object.fromEntries(
+        Object.entries(err.campos || {})
+          .filter(([campo]) => CAMPOS_API[campo])
+          .map(([campo, mensaje]) => [CAMPOS_API[campo], mensaje])
+      );
+      if (Object.keys(campos).length > 0) setErrores(campos);
+      else setError(err.message || "No pudimos crear tu cuenta.");
     } finally {
       setCargando(false);
     }
@@ -166,10 +153,14 @@ export default function Registro({
                 <input
                   type="text"
                   value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
+                  onChange={cambiar("nombre", setNombre)}
                   placeholder="Tu nombre"
-                  className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
+                  maxLength={NOMBRE_MAX}
+                  autoComplete="given-name"
+                  className={conError(claseInput, errores.nombre)}
+                  {...propsError("nombre", errores.nombre)}
                 />
+                <ErrorCampo campo="nombre" mensaje={errores.nombre} />
               </div>
 
               <div>
@@ -180,10 +171,14 @@ export default function Registro({
                 <input
                   type="text"
                   value={apellido}
-                  onChange={(e) => setApellido(e.target.value)}
+                  onChange={cambiar("apellido", setApellido)}
                   placeholder="Tu apellido"
-                  className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
+                  maxLength={NOMBRE_MAX}
+                  autoComplete="family-name"
+                  className={conError(claseInput, errores.apellido)}
+                  {...propsError("apellido", errores.apellido)}
                 />
+                <ErrorCampo campo="apellido" mensaje={errores.apellido} />
               </div>
 
               <div>
@@ -194,10 +189,14 @@ export default function Registro({
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={cambiar("email", setEmail)}
                   placeholder="tu@email.com"
-                  className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
+                  maxLength={254}
+                  autoComplete="email"
+                  className={conError(claseInput, errores.email)}
+                  {...propsError("email", errores.email)}
                 />
+                <ErrorCampo campo="email" mensaje={errores.email} />
               </div>
 
               <div>
@@ -208,10 +207,14 @@ export default function Registro({
                 <input
                   type="tel"
                   value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
+                  onChange={cambiar("telefono", setTelefono)}
                   placeholder="099 123 456"
-                  className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
+                  maxLength={30}
+                  autoComplete="tel"
+                  className={conError(claseInput, errores.telefono)}
+                  {...propsError("telefono", errores.telefono)}
                 />
+                <ErrorCampo campo="telefono" mensaje={errores.telefono} />
               </div>
 
               <div>
@@ -222,10 +225,19 @@ export default function Registro({
                 <input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={cambiar("password", setPassword)}
                   placeholder="Mínimo 8 caracteres"
-                  className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
+                  autoComplete="new-password"
+                  className={conError(claseInput, errores.password)}
+                  {...propsError("password", errores.password)}
                 />
+                {errores.password ? (
+                  <ErrorCampo campo="password" mensaje={errores.password} />
+                ) : (
+                  <p className="text-gray-400 text-[8px] mt-1">
+                    Al menos una letra y un número.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -236,12 +248,13 @@ export default function Registro({
                 <input
                   type="password"
                   value={confirmarPassword}
-                  onChange={(e) =>
-                    setConfirmarPassword(e.target.value)
-                  }
+                  onChange={cambiar("confirmarPassword", setConfirmarPassword)}
                   placeholder="Repetí tu contraseña"
-                  className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
+                  autoComplete="new-password"
+                  className={conError(claseInput, errores.confirmarPassword)}
+                  {...propsError("confirmarPassword", errores.confirmarPassword)}
                 />
+                <ErrorCampo campo="confirmarPassword" mensaje={errores.confirmarPassword} />
               </div>
 
             </div>
@@ -251,10 +264,9 @@ export default function Registro({
               <input
                 type="checkbox"
                 checked={aceptaTerminos}
-                onChange={(e) =>
-                  setAceptaTerminos(e.target.checked)
-                }
+                onChange={cambiar("terminos", setAceptaTerminos)}
                 className="accent-orange-500"
+                {...propsError("terminos", errores.terminos)}
               />
 
               <span className="text-[9px] text-gray-500">
@@ -262,6 +274,8 @@ export default function Registro({
               </span>
 
             </label>
+
+            <ErrorCampo campo="terminos" mensaje={errores.terminos} />
 
             <button
               type="submit"

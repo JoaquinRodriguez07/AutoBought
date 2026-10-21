@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useCart } from "./context/CartContext";
+import BusquedaCabecera from "./BusquedaCabecera";
 
 export default function Navbar({
   paginaActual,
@@ -146,6 +147,14 @@ export default function Navbar({
           Repuestos
         </button>
 
+      </div>
+
+{/* =================================================
+          BÚSQUEDA LIBRE
+      ================================================== */}
+
+      <div className="hidden md:block flex-1 max-w-[330px] mx-6">
+        <BusquedaCabecera />
       </div>
 
       {/* =================================================

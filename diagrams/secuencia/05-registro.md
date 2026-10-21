@@ -3,6 +3,13 @@
 > El formulario pide nombre y apellido por separado, pero el backend guarda un
 > único `name`: el frontend los envía unidos. El registro devuelve el mismo token
 > que el login, así que la sesión queda iniciada.
+>
+> Las reglas de validación son las mismas en el frontend (`validaciones.js`, avisa
+> antes de enviar) y en el backend (`core/validators.py`, la que vale):
+> - **Nombre y apellido:** solo letras, espacios, apóstrofos y guiones; al menos 2 letras.
+> - **Teléfono:** obligatorio y uruguayo.
+> - **Contraseña:** al menos 8 caracteres (máximo 72 bytes), con al menos una letra
+>   y un número; no puede ser una contraseña común ni contener el usuario del correo.
 
 ```mermaid
 ---
@@ -29,25 +36,17 @@ sequenceDiagram
 
     C->>P: Completa nombre, apellido, email, teléfono,<br/>contraseña, confirmación y acepta términos
 
-    alt Campos vacíos
-        P-->>C: "Completá todos los campos."
-    else Email con formato inválido
-        P-->>C: "Ingresá un correo electrónico válido."
-    else Teléfono que no es uruguayo
-        P-->>C: "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."
-    else Contraseña de menos de 8 caracteres
-        P-->>C: "La contraseña debe tener al menos 8 caracteres."
-    else Las contraseñas no coinciden
-        P-->>C: "Las contraseñas no coinciden."
-    else No aceptó los términos
-        P-->>C: "Tenés que aceptar los términos y condiciones."
+    P->>P: validarRegistro (todos los campos a la vez)
+
+    alt Hay errores en el formulario
+        P-->>C: Muestra el error debajo de cada campo<br/>(ej: "La contraseña tiene que tener al menos una letra y un número.")
     else Formulario válido
         P->>A: registrar({ nombre, apellido, email, telefono, password })
         A->>R: POST /api/v1/auth/register<br/>{ name: nombre + apellido, email, phone, password }
-        R->>R: Validar esquema (EmailStr, contraseña de 8 a 72 bytes,<br/>nombre no vacío, normalizar teléfono uruguayo)
+        R->>R: Validar esquema (EmailStr, nombre, teléfono uruguayo,<br/>password_segura: largo, letras y números, común, correo)
 
         alt Datos inválidos
-            R-->>A: 422
+            R-->>A: 422 { detail: [errores por campo] }
         else Datos válidos
             R->>L: get_user_by_email(email)
             L->>DB: SELECT user WHERE email
@@ -89,8 +88,11 @@ sequenceDiagram
             and Navegación
                 P-->>C: Redirige al inicio con la sesión iniciada
             end
-        else 409 / 422 / error de red
-            A-->>P: error ("Revisá los datos ingresados." en el 422)
+        else 422
+            A-->>P: error con los mensajes por campo
+            P-->>C: Muestra cada error debajo de su campo
+        else 409 / error de red
+            A-->>P: error
             P-->>C: Muestra el mensaje de error
         end
     end

@@ -86,4 +86,29 @@ sequenceDiagram
             end
         end
     end
+
+    opt Sesión iniciada · renovación automática (useRenovacionSesion)
+        loop Mientras la sesión siga abierta
+            S->>S: Esperar hasta 5 min antes de que venza el token<br/>(se recalcula al volver a la pestaña)
+            S->>A: renovarToken()
+            A->>R: POST /api/v1/auth/refresh (Bearer JWT)
+            R->>Seg: get_current_client(token)
+            alt Token válido
+                Seg-->>R: cliente
+                R->>Seg: create_access_token(sub, user_type)
+                Seg-->>R: token nuevo
+                R-->>A: 200 { access_token, token_type }
+                A-->>S: token nuevo
+                S->>S: guardarSesion (mismo storage que eligió al iniciar)
+            else Token vencido o inválido
+                Seg-->>R: 401
+                R-->>A: 401 "Token inválido o expirado."
+                A-->>S: error 401
+                S-->>C: "Tu sesión venció. Iniciá sesión de nuevo." → Login
+            else Error de red o del servidor
+                A-->>S: error
+                S->>S: Reintentar en 30 s
+            end
+        end
+    end
 ```

@@ -4,6 +4,12 @@ from sqlalchemy.orm import Session
 from app.models.payment_method import PaymentMethod
 from app.schemas.payment_method import PaymentMethodCreate
 
+MAX_METODOS_POR_CLIENTE = 10
+
+
+class PaymentMethodConflict(ValueError):
+    """La operación choca con lo que el cliente ya tiene guardado."""
+
 
 def list_payment_methods(db: Session, client_id: int) -> list[PaymentMethod]:
     query = (
@@ -31,13 +37,21 @@ def _unset_primary(db: Session, client_id: int) -> None:
 
 
 def create_payment_method(db: Session, client_id: int, data: PaymentMethodCreate) -> PaymentMethod:
-    has_methods = db.scalars(
-        select(PaymentMethod.payment_method_id)
-        .where(PaymentMethod.client_id == client_id)
-        .limit(1)
-    ).first() is not None
+    existing = list_payment_methods(db, client_id)
+    has_methods = bool(existing)
+
+    if len(existing) >= MAX_METODOS_POR_CLIENTE:
+        raise PaymentMethodConflict(
+            f"Podés guardar hasta {MAX_METODOS_POR_CLIENTE} tarjetas. Eliminá alguna para agregar otra."
+        )
 
     fields = data.model_dump(mode="json")
+    if any(
+        (m.card_type, m.last_four, m.expiry) == (fields["card_type"], fields["last_four"], fields["expiry"])
+        for m in existing
+    ):
+        raise PaymentMethodConflict("Ya tenés guardada esta tarjeta.")
+
     # El primer método del cliente queda como principal automáticamente.
     fields["is_primary"] = fields["is_primary"] or not has_methods
 
@@ -60,6 +74,9 @@ def set_primary(db: Session, client_id: int, payment_method_id: int) -> PaymentM
     if method is None:
         return None
 
+    if method.is_expired:
+        raise PaymentMethodConflict("No podés marcar como principal una tarjeta vencida.")
+
     _unset_primary(db, client_id)
     method.is_primary = True
     db.commit()
@@ -76,16 +93,14 @@ def delete_payment_method(db: Session, client_id: int, payment_method_id: int) -
     db.delete(method)
     db.flush()
 
-    # Si se borra la principal, el método más antiguo pasa a serlo.
+    # Si se borra la principal, pasa a serlo la más antigua que no esté
+    # vencida (o la más antigua, si están todas vencidas).
     if was_primary:
-        remaining = db.scalars(
-            select(PaymentMethod)
-            .where(PaymentMethod.client_id == client_id)
-            .order_by(PaymentMethod.payment_method_id)
-            .limit(1)
-        ).first()
-        if remaining is not None:
-            remaining.is_primary = True
+        remaining = list_payment_methods(db, client_id)
+        vigentes = [m for m in remaining if not m.is_expired]
+        nueva_principal = (vigentes or remaining or [None])[0]
+        if nueva_principal is not None:
+            nueva_principal.is_primary = True
 
     db.commit()
     return True

@@ -14,14 +14,14 @@ flowchart TB
 
     subgraph Vercel["Vercel"]
         subgraph FE["Frontend — React"]
-            Pantallas["«component»<br/><b>Pantallas Cliente</b><br/>catálogo · carrito · compras · cuenta"]:::component
+            Pantallas["«component»<br/><b>Pantallas Cliente</b><br/>catálogo · búsqueda · carrito<br/>compra · historial · cuenta"]:::component
             PanelEmp["«component»<br/><b>Panel Empleado</b><br/>dashboard · gestión"]:::planned
-            Estado["«component»<br/><b>Estado y Sesión</b><br/>CartContext · VehicleContext · auth.js"]:::component
+            Estado["«component»<br/><b>Estado y Sesión</b><br/>CartContext · VehicleContext<br/>auth.js · useRenovacionSesion"]:::component
             ApiCli["«component»<br/><b>Cliente API</b><br/>api.js"]:::component
         end
 
         subgraph BE["Backend — FastAPI"]
-            API["«component»<br/><b>API REST /api/v1</b><br/>auth · perfil · catálogo · carrito · pedidos<br/>favoritos · direcciones · métodos de pago<br/>recomendaciones"]:::component
+            API["«component»<br/><b>API REST /api/v1</b><br/>auth: login · registro · refresh · perfil<br/>catálogo y búsqueda libre · carrito<br/>pedidos: crear · historial · detalle<br/>favoritos · direcciones · métodos de pago<br/>recomendaciones"]:::component
             Nuevos["«component»<br/><b>Cobro · Gestión</b>"]:::planned
             Seg["«component»<br/><b>Seguridad</b><br/>JWT · bcrypt"]:::component
             Logica["«component»<br/><b>Lógica de negocio</b><br/>CRUD"]:::component

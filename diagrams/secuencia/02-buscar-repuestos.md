@@ -107,7 +107,28 @@ sequenceDiagram
         P-->>C: Catálogo filtrado por categoría y vehículo
     end
 
-    opt Búsqueda por texto u orden
+    opt Búsqueda libre desde la cabecera
+        C->>P: Escribe en "¿Qué repuesto estás buscando?" y busca
+        P->>P: Navega a /catalogo?q=texto
+        P->>A: buscarTexto(texto)
+        A->>R: GET /api/v1/parts?q=texto
+        R->>L: search_parts: extraer pieza, marca, modelo y año del texto
+        L->>DB: SELECT part con esos filtros
+        DB-->>L: repuestos
+        L-->>R: entities + repuestos
+        R-->>A: { parts, entities }
+        A-->>P: repuestos + entidades
+        alt No se reconoció ninguna entidad
+            P-->>C: "No pudimos entender tu búsqueda, por favor<br/>usa el filtro de compatibilidad manual"
+        else Se reconoció algo
+            opt El texto tenía una marca
+                P->>V: activarVehiculo({ brand, model, year })
+            end
+            P-->>C: Muestra los repuestos encontrados
+        end
+    end
+
+    opt Búsqueda por texto u orden dentro del catálogo
         C->>P: Escribe texto / cambia el orden
         P->>P: filtrarRepuestos(productos, { busqueda, orden })
         P-->>C: Lista filtrada y ordenada (sin nueva request)

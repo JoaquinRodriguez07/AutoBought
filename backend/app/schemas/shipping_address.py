@@ -1,5 +1,9 @@
-from pydantic import BaseModel, ConfigDict, Field
 from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+
+from app.core import validators
+
 
 class Department(str, Enum):
     ARTIGAS = "Artigas"
@@ -31,6 +35,45 @@ class ShippingAddressCreate(BaseModel):
     department: Department
     postal_code: str | None = Field(default=None, max_length=10)
     is_primary: bool = False
+
+    @field_validator("personal_name")
+    @classmethod
+    def alias_valido(cls, value: str) -> str:
+        return validators.alias_direccion(value)
+
+    @field_validator("street")
+    @classmethod
+    def calle_valida(cls, value: str) -> str:
+        return validators.calle(value)
+
+    @field_validator("number")
+    @classmethod
+    def numero_valido(cls, value: str) -> str:
+        return validators.numero_puerta(value)
+
+    @field_validator("apartment")
+    @classmethod
+    def apartamento_valido(cls, value: str | None) -> str | None:
+        return validators.apartamento(value)
+
+    @field_validator("city")
+    @classmethod
+    def ciudad_valida(cls, value: str) -> str:
+        return validators.ciudad(value)
+
+    @field_validator("postal_code")
+    @classmethod
+    def codigo_postal_valido(cls, value: str | None) -> str | None:
+        return validators.codigo_postal(value)
+
+    @field_validator("department")
+    @classmethod
+    def ciudad_del_departamento(cls, value: Department, info: ValidationInfo) -> Department:
+        # `city` se declara antes, así que ya está validada (si no falló).
+        city = info.data.get("city")
+        if city:
+            validators.ciudad_en_departamento(city, value.value, [d.value for d in Department])
+        return value
 
 
 class ShippingAddressOut(BaseModel):

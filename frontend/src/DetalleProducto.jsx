@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
+import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 
@@ -15,11 +16,12 @@ export default function DetalleProducto({
   onAlternarFavorito,
   esFavorito,
 }) {
-  const { addToCart } = useCart();
+  const { addToCart, deshacerAgregado } = useCart();
   const { vehiculoActivo: filtrosVehiculo } = useVehicle();
   const [cantidad, setCantidad] = useState(1);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [pestana, setPestana] = useState("descripcion");
+  const [productoAgregado, setProductoAgregado] = useState(null);
 
   // DEUDA CONOCIDA (diferida): si no llega `producto` (refresh o link
   // compartido a /producto, donde el estado de App ya está vacío) se
@@ -64,10 +66,15 @@ export default function DetalleProducto({
 
   const sinStock = productoActual.stock === 0;
 
-  const agregar = () => {
+  const agregar = async () => {
     if (sinStock) return;
-    addToCart(productoActual, cantidad);
+
+    const cantidadPedida = cantidad;
+    const agregado = await addToCart(productoActual, cantidadPedida);
     setCantidad(1);
+    if (agregado) {
+      setProductoAgregado({ ...productoActual, cantidadAgregada: cantidadPedida });
+    }
   };
 
   const tabs = [
@@ -80,6 +87,15 @@ export default function DetalleProducto({
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
+      <ConfirmacionAgregarCarrito
+        producto={productoAgregado}
+        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
+        onCerrar={() => setProductoAgregado(null)}
+        onVerCarrito={() => {
+          setProductoAgregado(null);
+          onCarrito();
+        }}
+      />
       <Navbar paginaActual="detalle" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
         cantidadFavoritos={cantidadFavoritos} />

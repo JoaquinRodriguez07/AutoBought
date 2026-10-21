@@ -1,12 +1,15 @@
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.core import validators
 
 
 class CardType(str, Enum):
     VISA = "Visa"
     MASTERCARD = "Mastercard"
     AMERICAN_EXPRESS = "American Express"
+    OCA = "OCA"
 
 
 class PaymentMethodCreate(BaseModel):
@@ -20,6 +23,16 @@ class PaymentMethodCreate(BaseModel):
     expiry: str = Field(pattern=r"^(0[1-9]|1[0-2])/\d{2}$")
     is_primary: bool = False
 
+    @field_validator("holder")
+    @classmethod
+    def titular_valido(cls, value: str) -> str:
+        return validators.nombre_persona(value, "El nombre del titular")
+
+    @field_validator("expiry")
+    @classmethod
+    def vencimiento_valido(cls, value: str) -> str:
+        return validators.vencimiento(value)
+
 
 class PaymentMethodOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -31,3 +44,4 @@ class PaymentMethodOut(BaseModel):
     last_four: str
     expiry: str
     is_primary: bool
+    is_expired: bool

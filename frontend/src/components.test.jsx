@@ -3,9 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 jest.mock("./api", () => ({
+  buscarTexto: jest.fn(),
   login: jest.fn(),
   registrar: jest.fn(),
   obtenerPerfil: jest.fn(),
+  renovarToken: jest.fn(),
   actualizarPerfil: jest.fn(),
   cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
@@ -40,6 +42,7 @@ jest.mock(
 
 import App from "./App";
 import BrandDropdown from "./BrandDropdown";
+import BusquedaCabecera from "./BusquedaCabecera";
 import CambiarPassword from "./CambiarPassword";
 import Carrito from "./Carrito";
 import Catalogo from "./Catalogo";
@@ -56,6 +59,7 @@ import Registro from "./Registro";
 import Direcciones from "./Direcciones";
 import HistorialCompras from "./HistorialCompras";
 import ProtectedRoute from "./ProtectedRoute";
+import { crearToken } from "./testTokens";
 import SearchBar from "./SearchBar";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { CartProvider } from "./context/CartContext";
@@ -64,6 +68,7 @@ import { VehicleProvider } from "./context/VehicleContext";
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import toast from "react-hot-toast";
 import {
+  buscarTexto,
   agregarFavoritoAPI,
   actualizarPerfil,
   cambiarPassword,
@@ -92,6 +97,7 @@ import {
   quitarFavoritoAPI,
   registrar,
   vaciarCarritoAPI,
+  renovarToken,
 } from "./api";
 import {
   decodeToken,
@@ -171,14 +177,29 @@ const startClientSession = () => {
  * forwarded to React Testing Library's render function.
  * @returns {import("@testing-library/react").RenderResult} Queries and render utilities.
  */
-function render(ui, options) {
+
+function render(ui, options = {}) {
+  const { initialEntries = ["/"], ...renderOptions } = options;
+
   return renderBase(
-    <MemoryRouter>
-       <CartProvider>
+    <MemoryRouter initialEntries={initialEntries}>
+      <CartProvider>
         <VehicleProvider>{ui}</VehicleProvider>
-       </CartProvider>
+      </CartProvider>
     </MemoryRouter>,
-    options
+    renderOptions
+  );
+}
+
+function RutaActual() {
+  const { useLocation } = require("react-router-dom");
+  const location = useLocation();
+
+  return (
+    <p data-testid="ruta-actual">
+      {location.pathname}
+      {location.search}
+    </p>
   );
 }
 
@@ -474,6 +495,78 @@ describe("Catalogo", () => {
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("DB5678", 2));
   });
 
+  it("shows the add confirmation and supports undo, dismissal, and cart navigation", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+    startClientSession();
+    agregarItemCarrito.mockResolvedValue({
+      items: [{
+        part_id: "BP1234",
+        name: "Pastillas de Freno Delanteras Bosch",
+        price: 1500,
+        amount: 1,
+        subtotal: 1500,
+        stock: 5,
+        category: "Frenos",
+      }],
+      total: 1500,
+    });
+
+    render(<Catalogo {...props} categoriaInicial="Frenos" />);
+    await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
+
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Repuesto agregado al carrito.")).toBeInTheDocument();
+    expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
+      .toEqual(["Deshacer", "Ok", "Ver carrito"]);
+
+    fireEvent.click(dialog.parentElement);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
+    dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Ok" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
+    dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("BP1234"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
+    dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
+    expect(props.onCarrito).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("undo only removes the quantity that was just added", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+    startClientSession();
+    // El carrito ya tenía 2 unidades: después de agregar 1 quedan 3.
+    agregarItemCarrito.mockResolvedValue({
+      items: [{ id: "BP1234", partId: "BP1234", nombre: "Pastillas de Freno Delanteras Bosch", precio: 1500, cantidad: 3 }],
+      total: 4500,
+    });
+
+    render(<Catalogo {...props} categoriaInicial="Frenos" />);
+    await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
+
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
+
+    await waitFor(() => expect(actualizarItemCarrito).toHaveBeenCalledWith("BP1234", 2));
+    expect(eliminarItemCarrito).not.toHaveBeenCalled();
+  });
+
   it("changes category and toggles a product favorite", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -498,6 +591,87 @@ describe("Catalogo", () => {
     );
   });
 
+it("exits free search mode when changing category", async () => {
+  const user = userEvent.setup();
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [],
+    entities: { part: true },
+  });
+
+  render(
+    <>
+      <Catalogo
+        {...props}
+        categoriaInicial="Frenos"
+        esFavorito={() => false}
+      />
+      <RutaActual />
+    </>,
+    { initialEntries: ["/catalogo?q=pastillas"] }
+  );
+
+  await user.click(
+    await screen.findByRole("button", { name: /Motor/ })
+  );
+
+  await waitFor(() => {
+    expect(obtenerRepuestos).toHaveBeenCalledWith(
+      expect.objectContaining({ categoria: "Motor" })
+    );
+  });
+
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+    "/catalogo"
+  );
+  expect(screen.getByTestId("ruta-actual")).not.toHaveTextContent(
+    "?q=pastillas"
+  );
+});
+
+it("shows free search results and activates the detected vehicle", async () => {
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno", brand: "Chevrolet", model: "Onix", year: 2020 },
+  });
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?q=pastillas%20de%20freno%20onix%202020"] }
+  );
+
+  expect(
+    await screen.findByText("Pastillas de Freno Delanteras Bosch")
+  ).toBeInTheDocument();
+  expect(buscarTexto).toHaveBeenCalledWith("pastillas de freno onix 2020");
+  expect(await screen.findByText("Chevrolet Onix 2020")).toBeInTheDocument();
+  expect(obtenerRepuestos).not.toHaveBeenCalled();
+});
+
+it("shows the manual filter message when the search cannot be interpreted", async () => {
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [],
+    entities: { part: null, brand: null, model: null, year: null },
+  });
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?q=xyz%20qwerty"] }
+  );
+
+  expect(
+    await screen.findByText(
+      "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual"
+    )
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+});
+
   it("shows an API error and retries the catalog request", async () => {
     const user = userEvent.setup();
     obtenerRepuestos
@@ -521,9 +695,13 @@ describe("Catalogo", () => {
 });
 
 describe("DetalleProducto", () => {
-  it("changes quantity, adds the product, and switches detail tabs", async () => {
+  it("shows the add confirmation and supports undo and cart navigation", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
+    buscarTexto.mockResolvedValue({
+      parts: [],
+      entities: { part: true },
+    });
     props.onAlternarFavorito = jest.fn();
     props.esFavorito = jest.fn(() => false);
 
@@ -532,9 +710,24 @@ describe("DetalleProducto", () => {
 
     await user.click(screen.getByRole("button", { name: "+" }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
-    await user.click(screen.getByRole("button", { name: "Especificaciones" }));
 
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 2));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Repuesto agregado al carrito.")).toBeInTheDocument();
+    expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
+      .toEqual(["Deshacer", "Ok", "Ver carrito"]);
+
+    await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
+    dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
+    expect(props.onCarrito).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Especificaciones" }));
     expect(screen.getByText("Especificaciones técnicas")).toBeInTheDocument();
     expect(screen.getByText("Semi-metalico")).toBeInTheDocument();
   });
@@ -919,42 +1112,220 @@ describe("App sesión", () => {
   });
 });
 
+describe("App renovación de sesión", () => {
+  const MIN = 60 * 1000;
+  const sesionQueVenceEn = (minutos) => ({
+    id: 1,
+    userId: "1",
+    nombre: "Ana",
+    email: "ana@example.com",
+    token: crearToken(Date.now() + minutos * MIN),
+    tokenType: "bearer",
+  });
+
+  const renderApp = () =>
+    renderBase(
+      <MemoryRouter initialEntries={["/"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  it("replaces the token of a remembered session before it expires, keeping the rest of the session", async () => {
+    const sesion = sesionQueVenceEn(4);
+    const nuevo = crearToken(Date.now() + 60 * MIN);
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    renovarToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+
+    renderApp();
+
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe(nuevo)
+    );
+    expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({ ...sesion, token: nuevo });
+    expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+    expect(renovarToken).toHaveBeenCalledTimes(1);
+    expect(toast.error).not.toHaveBeenCalled();
+    // Los favoritos no se vuelven a pedir por cambiar el token.
+    expect(obtenerFavoritos).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a non-remembered session in sessionStorage after renewing", async () => {
+    const nuevo = crearToken(Date.now() + 60 * MIN);
+    sessionStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
+    renovarToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+
+    renderApp();
+
+    await waitFor(() =>
+      expect(JSON.parse(sessionStorage.getItem("autobought-sesion")).token).toBe(nuevo)
+    );
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+  });
+
+  it("does not ask for a new token while the current one is far from expiring", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(60)));
+
+    renderApp();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(renovarToken).not.toHaveBeenCalled();
+  });
+
+  it("closes the session and warns the client when the API answers 401", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
+    renovarToken.mockRejectedValueOnce(Object.assign(new Error("vencida"), { status: 401 }));
+
+    renderApp();
+
+    await waitFor(() => expect(localStorage.getItem("autobought-sesion")).toBeNull());
+    expect(toast.error).toHaveBeenCalledWith("Tu sesión venció. Iniciá sesión de nuevo.");
+  });
+});
+
 describe("MetodosPago", () => {
-  it("validates and creates a card through the API", async () => {
+  // Vencimientos relativos a hoy, para que los tests no venzan con el tiempo.
+  const anio = (suma) => String((new Date().getFullYear() + suma) % 100).padStart(2, "0");
+  const VIGENTE = `12/${anio(3)}`;
+
+  const abrirFormulario = async (user) => {
+    render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
+    await user.click(await screen.findByRole("button", { name: /agregar tarjeta/i }));
+  };
+
+  const completarTarjeta = async (user, d = {}) => {
+    const datos = { numero: "4111111111111111", titular: "Ana Perez", vencimiento: VIGENTE.replace("/", ""), cvv: "123", ...d };
+    if (datos.numero) await user.type(screen.getByLabelText("NÚMERO DE TARJETA *"), datos.numero);
+    if (datos.titular) await user.type(screen.getByLabelText("TITULAR *"), datos.titular);
+    if (datos.vencimiento) await user.type(screen.getByLabelText("VENCIMIENTO *"), datos.vencimiento);
+    if (datos.cvv) await user.type(screen.getByLabelText("CÓDIGO DE SEGURIDAD *"), datos.cvv);
+  };
+
+  const guardar = (user) => user.click(screen.getByRole("button", { name: /guardar tarjeta/i }));
+
+  it("detects the brand and only sends brand, last four digits and expiry to the API", async () => {
     const user = userEvent.setup();
     let savedCards = [];
     obtenerMetodosPago.mockImplementation(() => Promise.resolve(savedCards));
-    crearMetodoPago.mockImplementation(async (card) => {
+    crearMetodoPago.mockImplementation(async ({ tarjeta, titular }) => {
       savedCards = [{
-        id: 1,
-        ...card,
-        numero: card.numero.slice(-4),
-        principal: true,
+        id: 1, tipo: tarjeta.marca, titular, numero: tarjeta.ultimosCuatro,
+        vencimiento: tarjeta.vencimiento, principal: true, vencida: false,
       }];
     });
-    render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
+    await abrirFormulario(user);
 
-    await user.click(screen.getByRole("button", { name: /agregar tarjeta/i }));
-    await user.type(screen.getByPlaceholderText("Nombre del titular"), "Ana Perez");
-    await user.type(screen.getByPlaceholderText("1234 5678 9012 3456"), "4111111111111111");
-    await user.type(screen.getByPlaceholderText("MM/AA"), "12/30");
-    await user.click(screen.getByRole("button", { name: /guardar tarjeta/i }));
+    await completarTarjeta(user);
+    expect(screen.getByLabelText("TIPO DE TARJETA")).toHaveValue("Visa");
+    expect(screen.getByLabelText("TIPO DE TARJETA")).toBeDisabled();
+    expect(screen.getByLabelText("NÚMERO DE TARJETA *")).toHaveValue("4111 1111 1111 1111");
+    expect(screen.getByLabelText("VENCIMIENTO *")).toHaveValue(VIGENTE);
+    await guardar(user);
 
     expect(await screen.findByText("•••• •••• •••• 1111")).toBeInTheDocument();
-    expect(screen.getByText("PRINCIPAL")).toBeInTheDocument();
-    expect(crearMetodoPago).toHaveBeenCalledWith(expect.objectContaining({
+    expect(crearMetodoPago).toHaveBeenCalledWith({
+      tarjeta: { marca: "Visa", ultimosCuatro: "1111", vencimiento: VIGENTE },
       titular: "Ana Perez",
-      numero: "4111111111111111",
-      vencimiento: "12/30",
-    }));
+      principal: false,
+    });
+    // Ni el número completo ni el CVV llegan a la API.
+    expect(JSON.stringify(crearMetodoPago.mock.calls)).not.toMatch(/4111111111111111|"123"/);
   });
 
-  it("rejects incomplete and short card data, then marks and deletes saved cards", async () => {
+  it("shows an error under each empty field", async () => {
     const user = userEvent.setup();
-    const alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
+    await abrirFormulario(user);
+
+    await guardar(user);
+
+    expect(screen.getByText("Ingresá el número de la tarjeta.")).toBeInTheDocument();
+    expect(screen.getByText("El nombre del titular no puede estar vacío.")).toBeInTheDocument();
+    expect(screen.getByText("El vencimiento tiene que tener el formato MM/AA.")).toBeInTheDocument();
+    expect(screen.getByText("Ingresá el código de seguridad.")).toBeInTheDocument();
+    expect(screen.getByLabelText("TITULAR *")).toHaveAttribute("aria-invalid", "true");
+    expect(crearMetodoPago).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an invalid number (Luhn)", { numero: "4111111111111112" }, "El número de tarjeta no es válido. Revisalo."],
+    ["an expired card", { vencimiento: "0120" }, "La tarjeta está vencida."],
+    ["a far away expiry", { vencimiento: `12${anio(30)}` }, "Revisá el vencimiento: es demasiado lejano."],
+    ["a holder with numbers", { titular: "Ana 123" }, "El nombre del titular solo puede tener letras, espacios, apóstrofos y guiones."],
+    ["a short CVV", { cvv: "12" }, "El código de seguridad tiene 3 dígitos."],
+  ])("rejects %s", async (_caso, datos, mensaje) => {
+    const user = userEvent.setup();
+    await abrirFormulario(user);
+
+    await completarTarjeta(user, datos);
+    await guardar(user);
+
+    expect(screen.getByText(mensaje)).toBeInTheDocument();
+    expect(crearMetodoPago).not.toHaveBeenCalled();
+  });
+
+  it("formats American Express 4-6-5 and asks for a 4 digit CVV", async () => {
+    const user = userEvent.setup();
+    await abrirFormulario(user);
+
+    await completarTarjeta(user, { numero: "378282246310005", cvv: "123" });
+    await guardar(user);
+
+    expect(screen.getByLabelText("TIPO DE TARJETA")).toHaveValue("American Express");
+    expect(screen.getByLabelText("NÚMERO DE TARJETA *")).toHaveValue("3782 822463 10005");
+    expect(screen.getByText("El código de seguridad tiene 4 dígitos.")).toBeInTheDocument();
+  });
+
+  it("accepts OCA only when chosen by hand for a number of no other brand", async () => {
+    const user = userEvent.setup();
+    crearMetodoPago.mockResolvedValue({});
+    await abrirFormulario(user);
+
+    await completarTarjeta(user, { numero: "5899123412341234" });
+    await guardar(user);
+    expect(screen.getByText("Ese número no es de una tarjeta Visa.")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("TIPO DE TARJETA"), "OCA");
+    await guardar(user);
+
+    await waitFor(() => expect(crearMetodoPago).toHaveBeenCalledWith(
+      expect.objectContaining({ tarjeta: expect.objectContaining({ marca: "OCA", ultimosCuatro: "1234" }) })
+    ));
+  });
+
+  it("shows backend field errors and conflicts in the form", async () => {
+    const user = userEvent.setup();
+    const errorCampo = Object.assign(new Error("Revisá los datos de la tarjeta."), {
+      campos: { holder: "El nombre del titular tiene que tener al menos 2 letras." },
+    });
+    crearMetodoPago
+      .mockRejectedValueOnce(errorCampo)
+      .mockRejectedValueOnce(Object.assign(new Error("Ya tenés guardada esta tarjeta."), { campos: {} }));
+    await abrirFormulario(user);
+    await completarTarjeta(user);
+
+    await guardar(user);
+    expect(await screen.findByText("El nombre del titular tiene que tener al menos 2 letras.")).toBeInTheDocument();
+
+    await guardar(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ya tenés guardada esta tarjeta.");
+  });
+
+  it("marks expired cards and does not offer them as primary", async () => {
+    obtenerMetodosPago.mockResolvedValue([
+      { id: 1, tipo: "Visa", titular: "Ana", numero: "1111", vencimiento: VIGENTE, principal: true, vencida: false },
+      { id: 2, tipo: "OCA", titular: "Ana", numero: "2222", vencimiento: "01/20", principal: false, vencida: true },
+    ]);
+    render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
+
+    expect(await screen.findByText("VENCIDA")).toBeInTheDocument();
+    expect(screen.getByText("Venció: 01/20")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "MARCAR PRINCIPAL" })).not.toBeInTheDocument();
+  });
+
+  it("marks and deletes saved cards", async () => {
+    const user = userEvent.setup();
     let savedCards = [
-      { id: 1, tipo: "Visa", titular: "Ana", numero: "1111", vencimiento: "12/30", principal: true },
-      { id: 2, tipo: "Mastercard", titular: "Luis", numero: "2222", vencimiento: "11/29", principal: false },
+      { id: 1, tipo: "Visa", titular: "Ana", numero: "1111", vencimiento: VIGENTE, principal: true, vencida: false },
+      { id: 2, tipo: "Mastercard", titular: "Luis", numero: "2222", vencimiento: VIGENTE, principal: false, vencida: false },
     ];
     obtenerMetodosPago.mockImplementation(() => Promise.resolve(savedCards));
     marcarMetodoPagoPrincipal.mockImplementation(async (id) => {
@@ -965,23 +1336,12 @@ describe("MetodosPago", () => {
     });
     render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
 
-    await user.click(screen.getByRole("button", { name: /agregar tarjeta/i }));
-    await user.click(screen.getByRole("button", { name: /guardar tarjeta/i }));
-    expect(alertSpy).toHaveBeenCalledWith("Completá todos los campos.");
-
-    await user.type(screen.getByPlaceholderText("Nombre del titular"), "Test");
-    await user.type(screen.getByPlaceholderText("1234 5678 9012 3456"), "123456789012");
-    await user.type(screen.getByPlaceholderText("MM/AA"), "01/30");
-    await user.click(screen.getByRole("button", { name: /guardar tarjeta/i }));
-    expect(alertSpy).toHaveBeenCalledWith("Ingresá un número de tarjeta válido.");
-
     await user.click(await screen.findByRole("button", { name: "MARCAR PRINCIPAL" }));
     expect(await screen.findAllByText("PRINCIPAL")).toHaveLength(1);
     await user.click(screen.getAllByRole("button", { name: "ELIMINAR" })[1]);
     await waitFor(() => expect(screen.queryByText("Luis")).not.toBeInTheDocument());
     expect(marcarMetodoPagoPrincipal).toHaveBeenCalledWith(2);
     expect(eliminarMetodoPagoAPI).toHaveBeenCalledWith(2);
-    alertSpy.mockRestore();
   });
 });
 
@@ -1041,7 +1401,7 @@ describe("Perfil", () => {
       new Error("Revisá el nombre y el teléfono (ej: 099 123 456).")
     );
 
-    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
@@ -1050,6 +1410,18 @@ describe("Perfil", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /guardar cambios/i })).toBeInTheDocument();
     expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+  });
+
+  it("does not let the user remove the phone, only change it", async () => {
+    const user = userEvent.setup();
+    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
+
+    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.clear(screen.getByDisplayValue("099 123 456"));
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+
+    expect(screen.getByText("Ingresá tu teléfono.")).toBeInTheDocument();
+    expect(actualizarPerfil).not.toHaveBeenCalled();
   });
 
   it("ignores a late profile response once the user started editing", async () => {
@@ -1082,7 +1454,7 @@ describe("Perfil", () => {
   it("clears the save error when the user edits the data again", async () => {
     const user = userEvent.setup();
     actualizarPerfil.mockRejectedValue(new Error("Revisá el nombre y el teléfono (ej: 099 123 456)."));
-    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
 
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
@@ -1149,23 +1521,31 @@ describe("CambiarPassword", () => {
     expect(screen.queryByLabelText("CONTRASEÑA ACTUAL")).not.toBeInTheDocument();
   });
 
-  it("validates empty fields, length and matching passwords before calling the API", async () => {
+  it("shows an error under each empty field before calling the API", async () => {
     const user = userEvent.setup();
     render(<CambiarPassword />);
 
-    await completar(user, { actual: "secreto123" });
-    expect(screen.getByText("Completá todos los campos.")).toBeInTheDocument();
+    await completar(user, {});
 
-    await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "corta");
-    await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "corta");
-    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
-    expect(screen.getByText("La nueva contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
+    expect(screen.getByText("Ingresá tu contraseña actual.")).toBeInTheDocument();
+    expect(screen.getByText("La contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
+    expect(cambiarPassword).not.toHaveBeenCalled();
+  });
 
-    await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "-larga-1");
-    await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "-distinta");
-    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
-    expect(screen.getByText("Las contraseñas nuevas no coinciden.")).toBeInTheDocument();
+  it.each([
+    ["too short", "corta1", "corta1", "La contraseña tiene que tener al menos 8 caracteres."],
+    ["without numbers", "solotexto", "solotexto", "La contraseña tiene que tener al menos una letra y un número."],
+    ["too common", "qwerty123", "qwerty123", "Esa contraseña es muy común. Elegí otra."],
+    ["equal to the current one", "secreto123", "secreto123", "La nueva contraseña tiene que ser distinta de la actual."],
+    ["containing the email", "lucia2026", "lucia2026", "La contraseña no puede contener tu correo."],
+    ["not repeated", "nueva-clave-1", "otra-clave-1", "Las contraseñas no coinciden."],
+  ])("rejects a new password %s", async (_caso, nueva, repetir, mensaje) => {
+    const user = userEvent.setup();
+    render(<CambiarPassword email="lucia@example.com" />);
 
+    await completar(user, { actual: "secreto123", nueva, repetir });
+
+    expect(screen.getByText(mensaje)).toBeInTheDocument();
     expect(cambiarPassword).not.toHaveBeenCalled();
   });
 
@@ -1281,15 +1661,42 @@ describe("Registro", () => {
     expect(props.onRegistroExitoso).not.toHaveBeenCalled();
   });
 
+  it("shows an error under each field of an empty form", async () => {
+    const { user, props } = renderRegistro();
+
+    await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
+
+    expect(screen.getByText("El nombre no puede estar vacío.")).toBeInTheDocument();
+    expect(screen.getByText("El apellido no puede estar vacío.")).toBeInTheDocument();
+    expect(screen.getByText("Ingresá tu correo electrónico.")).toBeInTheDocument();
+    expect(screen.getByText("Ingresá tu teléfono.")).toBeInTheDocument();
+    expect(screen.getByText("La contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
+    expect(screen.getByText("Repetí la contraseña.")).toBeInTheDocument();
+    expect(screen.getByText("Tenés que aceptar los términos y condiciones.")).toBeInTheDocument();
+    expect(registrar).not.toHaveBeenCalled();
+    expect(props.onRegistroExitoso).not.toHaveBeenCalled();
+  });
+
   it.each([
-    ["an empty form", {}, "Completá todos los campos."],
+    ["a name with numbers", { nombre: "Lucia2" }, "El nombre solo puede tener letras, espacios, apóstrofos y guiones."],
+    ["a one letter surname", { apellido: "G" }, "El apellido tiene que tener al menos 2 letras."],
     ["a malformed email", { email: "no-es-un-correo" }, "Ingresá un correo electrónico válido."],
     ["a non-Uruguayan phone", { telefono: "+54 9 11 1234 5678" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
     ["a too short phone", { telefono: "099 12" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
     [
       "a password shorter than 8 characters",
-      { password: "1234567", confirmar: "1234567" },
-      "La contraseña debe tener al menos 8 caracteres.",
+      { password: "clave12", confirmar: "clave12" },
+      "La contraseña tiene que tener al menos 8 caracteres.",
+    ],
+    [
+      "a password without numbers",
+      { password: "solotexto", confirmar: "solotexto" },
+      "La contraseña tiene que tener al menos una letra y un número.",
+    ],
+    [
+      "a password that contains the email",
+      { password: "lucia2026", confirmar: "lucia2026" },
+      "La contraseña no puede contener tu correo.",
     ],
     [
       "passwords that do not match",
@@ -1300,15 +1707,25 @@ describe("Registro", () => {
   ])("does not call the API with %s", async (_caso, datos, mensaje) => {
     const { user, props } = renderRegistro();
 
-    if (mensaje === "Completá todos los campos.") {
-      await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
-    } else {
-      await completar(user, datos);
-    }
+    await completar(user, datos);
 
     expect(screen.getByText(mensaje)).toBeInTheDocument();
     expect(registrar).not.toHaveBeenCalled();
     expect(props.onRegistroExitoso).not.toHaveBeenCalled();
+  });
+
+  it("shows backend validation errors under their field", async () => {
+    registrar.mockRejectedValue(
+      Object.assign(new Error("Revisá los datos ingresados."), {
+        campos: { password: "Esa contraseña es muy común. Elegí otra." },
+      })
+    );
+    const { user } = renderRegistro();
+
+    await completar(user);
+
+    expect(await screen.findByText("Esa contraseña es muy común. Elegí otra.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Mínimo 8 caracteres")).toHaveAttribute("aria-invalid", "true");
   });
 
   it("disables the button while the request is in flight", async () => {
@@ -1340,7 +1757,7 @@ describe("Direcciones", () => {
     await user.type(screen.getByPlaceholderText("Ej: Casa"), "Casa");
     await user.type(screen.getByPlaceholderText("Ej: Montevideo"), "Montevideo");
     await user.type(screen.getByPlaceholderText("Ej: Av. Italia"), "Av. Italia");
-    await user.type(screen.getByPlaceholderText("Ej: 1234"), "1234");
+    await user.type(screen.getByPlaceholderText("Ej: 1234 o S/N"), "1234");
     await user.selectOptions(screen.getByRole("combobox"), "Montevideo");
     await user.click(screen.getByRole("button", { name: /guardar dirección/i }));
 
@@ -1353,6 +1770,57 @@ describe("Direcciones", () => {
       departamento: "Montevideo",
     }));
     expect(eliminarDireccionAPI).toHaveBeenCalledWith(1);
+  });
+
+  const completarDireccion = async (user, d = {}) => {
+    const datos = { nombre: "Casa", ciudad: "Montevideo", calle: "Av. Italia", numero: "1234", departamento: "Montevideo", ...d };
+    await user.click(await screen.findByRole("button", { name: /agregar dirección/i }));
+    if (datos.nombre) await user.type(screen.getByPlaceholderText("Ej: Casa"), datos.nombre);
+    if (datos.ciudad) await user.type(screen.getByPlaceholderText("Ej: Montevideo"), datos.ciudad);
+    if (datos.calle) await user.type(screen.getByPlaceholderText("Ej: Av. Italia"), datos.calle);
+    if (datos.numero) await user.type(screen.getByPlaceholderText("Ej: 1234 o S/N"), datos.numero);
+    if (datos.codigoPostal) await user.type(screen.getByPlaceholderText("Opcional (ej: 11300)"), datos.codigoPostal);
+    if (datos.departamento) await user.selectOptions(screen.getByRole("combobox"), datos.departamento);
+    await user.click(screen.getByRole("button", { name: /guardar dirección/i }));
+  };
+
+  it("shows an error under each required field", async () => {
+    const user = userEvent.setup();
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+
+    await completarDireccion(user, { nombre: "", ciudad: "", calle: "", numero: "", departamento: "" });
+
+    expect(screen.getByText("Poné un nombre para la dirección (ej: Casa).")).toBeInTheDocument();
+    expect(screen.getByText("La calle no puede estar vacía.")).toBeInTheDocument();
+    expect(screen.getByText("El número de puerta no puede estar vacío.")).toBeInTheDocument();
+    expect(screen.getByText("La ciudad no puede estar vacía.")).toBeInTheDocument();
+    expect(screen.getByText("Seleccioná un departamento.")).toBeInTheDocument();
+    expect(crearDireccion).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a city of another department", { ciudad: "Montevideo", departamento: "Artigas" }, "Montevideo no está en el departamento de Artigas."],
+    ["a door number with letters only", { numero: "abc" }, "Ingresá un número de puerta válido (ej: 1234, 1234B, 1234 bis o S/N)."],
+    ["a street without letters", { calle: "1234" }, "Ingresá un nombre de calle válido (ej: Av. Italia, 18 de Julio)."],
+    ["a postal code that is not 5 digits", { codigoPostal: "113" }, "El código postal tiene que tener 5 dígitos."],
+  ])("rejects %s", async (_caso, datos, mensaje) => {
+    const user = userEvent.setup();
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+
+    await completarDireccion(user, datos);
+
+    expect(screen.getByText(mensaje)).toBeInTheDocument();
+    expect(crearDireccion).not.toHaveBeenCalled();
+  });
+
+  it("shows a duplicated address error from the API", async () => {
+    const user = userEvent.setup();
+    crearDireccion.mockRejectedValue(Object.assign(new Error("Ya tenés guardada esta dirección."), { campos: {} }));
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+
+    await completarDireccion(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ya tenés guardada esta dirección.");
   });
 
   it("changes the primary address and returns to the profile", async () => {
@@ -1458,4 +1926,48 @@ describe("SearchBar and search helpers", () => {
     render(<SinResultadosBusqueda termino="bujía" />);
     expect(screen.getByRole("status")).toHaveTextContent("bujía");
   });
+});
+
+describe("BusquedaCabecera", () => {
+  it("no navega ni consulta la API cuando la búsqueda está vacía", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <BusquedaCabecera />
+        <RutaActual />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(screen.getByTestId("ruta-actual")).not.toHaveTextContent(
+      "/catalogo"
+    );
+    expect(buscarTexto).not.toHaveBeenCalled();
+  });
+
+  it("navega al catálogo al presionar Enter", async () => {
+  const user = userEvent.setup();
+
+  render(
+    <>
+      <BusquedaCabecera />
+      <RutaActual />
+    </>
+  );
+
+  const input = screen.getByPlaceholderText(
+    "¿Qué repuesto estás buscando?"
+  );
+
+  await user.type(input, "pastillas de freno onix 2020");
+  await user.keyboard("{Enter}");
+
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+    "/catalogo?q=pastillas%20de%20freno%20onix%202020"
+  );
+  expect(buscarTexto).not.toHaveBeenCalled();
+});
+
 });

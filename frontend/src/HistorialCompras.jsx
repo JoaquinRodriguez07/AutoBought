@@ -3,6 +3,30 @@ import { useEffect, useState } from "react";
 import { obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
 import Navbar from "./Navbar";
 
+const ESTADOS_PEDIDO = {
+  confirmed: { texto: "Confirmado", clase: "bg-blue-50 text-blue-700" },
+  shipped: { texto: "Enviado", clase: "bg-orange-50 text-orange-700" },
+  delivered: { texto: "Entregado", clase: "bg-green-50 text-green-700" },
+  cancelled: { texto: "Cancelado", clase: "bg-gray-100 text-gray-500" },
+};
+
+function textoDireccion(d) {
+  const apartamento = d.apartamento ? ` apto ${d.apartamento}` : "";
+  return `${d.calle} ${d.numero}${apartamento}, ${d.ciudad}, ${d.departamento}`;
+}
+
+function EstadoPedido({ estado }) {
+  const { texto, clase } = ESTADOS_PEDIDO[estado] ?? {
+    texto: "Sin estado",
+    clase: "bg-gray-100 text-gray-500",
+  };
+  return (
+    <span className={`inline-block rounded-full px-3 py-1 text-[9px] font-black uppercase ${clase}`}>
+      {texto}
+    </span>
+  );
+}
+
 export default function HistorialCompras({
   onHome,
   onCatalogo,
@@ -144,9 +168,22 @@ export default function HistorialCompras({
                 >
                   ← Volver al historial
                 </button>
+                <div className="mb-2">
+                  <EstadoPedido estado={compraSeleccionada.estado} />
+                </div>
                 <p className="text-gray-600 mb-2">
                   Fecha: {formatearFecha(compraSeleccionada.fecha)}
                 </p>
+                {compraSeleccionada.direccion && (
+                  <p className="text-gray-600 mb-2">
+                    Envío: {textoDireccion(compraSeleccionada.direccion)}
+                  </p>
+                )}
+                {compraSeleccionada.metodoPago && (
+                  <p className="text-gray-600 mb-2">
+                    Pago: {compraSeleccionada.metodoPago}
+                  </p>
+                )}
                 <p className="text-gray-900 font-black mb-6">
                   Total: {formatearPrecio(compraSeleccionada.total)}
                 </p>
@@ -207,6 +244,12 @@ export default function HistorialCompras({
                       <p className="text-sm font-bold">
                         {formatearFecha(compra.fecha)}
                       </p>
+                    </div>
+                    <div>
+                      <p className="text-[8px] text-gray-400 font-bold uppercase">
+                        ESTADO
+                      </p>
+                      <EstadoPedido estado={compra.estado} />
                     </div>
                     <div>
                       <p className="text-[8px] text-gray-400 font-bold uppercase">

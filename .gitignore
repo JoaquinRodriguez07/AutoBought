@@ -6,7 +6,7 @@ CLAUDE.md
 __pycache__/
 *.pyc
 .pytest_cache/
-.coverage
+.coverage*
 coverage.xml
 coverage_html/
 
