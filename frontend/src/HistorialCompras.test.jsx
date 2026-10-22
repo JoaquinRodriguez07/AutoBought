@@ -97,7 +97,7 @@ describe("HistorialCompras", () => {
 
     expect(obtenerDetalleCompra).toHaveBeenCalledWith(42);
     expect(
-      await screen.findByRole("heading", { name: "DETALLE DE COMPRA" })
+      await screen.findByRole("heading", { name: /Pedido #/ })
     ).toBeInTheDocument();
     expect(screen.getByText("Pastillas de freno")).toBeInTheDocument();
     expect(screen.getByText("Cantidad: 2")).toBeInTheDocument();

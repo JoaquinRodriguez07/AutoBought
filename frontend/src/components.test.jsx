@@ -954,7 +954,7 @@ describe("Carrito", () => {
     await user.click(screen.getByRole("button", { name: "−" }));
     expect(await screen.findAllByText("2", { exact: true })).toHaveLength(2);
     expect(screen.getAllByText("$3.000")).toHaveLength(3);
-    await user.click(screen.getByRole("button", { name: "🗑" }));
+    await user.click(screen.getByRole("button", { name: /Quitar .* del carrito/ }));
 
     expect(actualizarItemCarrito).toHaveBeenNthCalledWith(1, "TEST-001", 3);
     expect(actualizarItemCarrito).toHaveBeenNthCalledWith(2, "TEST-001", 2);
@@ -998,7 +998,7 @@ describe("Favoritos", () => {
 
     startClientSession();
     render(<Favoritos {...props} favoritos={[product]} />);
-    const favoriteButtons = screen.getAllByRole("button", { name: "♥" });
+    const favoriteButtons = screen.getAllByRole("button", { name: "Quitar de favoritos" });
     await user.click(favoriteButtons[favoriteButtons.length - 1]);
     await user.click(screen.getByRole("button", { name: product.nombre }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
@@ -1377,7 +1377,7 @@ describe("App sesión", () => {
     );
     await user.click(await screen.findByRole("button", { name: "EDITAR" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
-    await user.click(screen.getByRole("button", { name: "CERRAR SESIÓN" }));
+    await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
     responder({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -1673,7 +1673,7 @@ describe("Perfil", () => {
     props.onActualizarUsuario = jest.fn();
     props.onDirecciones = jest.fn();
     props.onMetodosPago = jest.fn();
-    props.onHistorialCompras = jest.fn();
+    props.onHistorial = jest.fn();
     props.onCerrarSesion = jest.fn();
     const usuario = {
       id: 1,
@@ -1690,7 +1690,7 @@ describe("Perfil", () => {
     });
 
     render(<Perfil {...props} usuario={usuario} />);
-    expect(screen.getByRole("heading", { name: "MI PERFIL" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Información personal" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
     expect(screen.queryByText("APELLIDO")).not.toBeInTheDocument();
     const nameInput = screen.getByDisplayValue("Ana Perez");
@@ -1710,7 +1710,7 @@ describe("Perfil", () => {
     );
     expect(props.onDirecciones).toHaveBeenCalled();
     expect(props.onMetodosPago).toHaveBeenCalled();
-    expect(props.onHistorialCompras).toHaveBeenCalled();
+    expect(props.onHistorial).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
   });
 
@@ -2144,6 +2144,24 @@ describe("Direcciones", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Ya tenés guardada esta dirección.");
   });
 
+  it("shows the account menu with the current section marked and a log out", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onMetodosPago: jest.fn(), onCerrarSesion: jest.fn() };
+    obtenerDirecciones.mockResolvedValue([]);
+
+    render(<Direcciones {...props} usuario={{ nombre: "Ana Pérez" }} />);
+
+    const menu = screen.getByRole("navigation", { name: "Mi cuenta" });
+    expect(within(menu).getByRole("button", { name: "Direcciones" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("Hola, Ana")).toBeInTheDocument();
+
+    await user.click(within(menu).getByRole("button", { name: "Métodos de pago" }));
+    await user.click(within(menu).getByRole("button", { name: "Cerrar sesión" }));
+
+    expect(props.onMetodosPago).toHaveBeenCalled();
+    expect(props.onCerrarSesion).toHaveBeenCalled();
+  });
+
   it("changes the primary address and returns to the profile", async () => {
     const user = userEvent.setup();
     const onPerfil = jest.fn();
@@ -2162,7 +2180,8 @@ describe("Direcciones", () => {
 
     await user.click(await screen.findByRole("button", { name: "MARCAR COMO PRINCIPAL" }));
     expect(await screen.findAllByText("PRINCIPAL")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: /volver a mi perfil/i }));
+    // El menú de la cuenta reemplaza al viejo "Volver a mi perfil".
+    await user.click(screen.getByRole("button", { name: "Información personal" }));
     expect(onPerfil).toHaveBeenCalled();
     expect(marcarDireccionPrincipal).toHaveBeenCalledWith(2);
   });

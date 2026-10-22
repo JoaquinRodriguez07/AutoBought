@@ -544,13 +544,10 @@ export default function Home({
               key={categoria.nombre}
               type="button"
               onClick={() => onCatalogo(categoria.nombre)}
-              className="group h-24 bg-white border border-gray-200 rounded-xl px-4 hover:border-orange-400 hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-start justify-center text-left"
+              className="group h-24 bg-white border border-gray-200 rounded-xl px-4 hover:border-orange-400 hover:shadow-md hover:-translate-y-1 transition duration-300 flex items-center justify-center text-center"
             >
               <p className="text-sm font-bold group-hover:text-orange-500 transition">
                 {categoria.nombre}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {categoria.cantidad} repuestos
               </p>
             </button>
 

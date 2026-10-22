@@ -7,7 +7,7 @@ import { validarCambioPassword } from "./validaciones";
 const FORMULARIO_VACIO = { actual: "", nueva: "", repetir: "" };
 
 const claseInput =
-  "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] text-gray-700 outline-hidden focus:border-orange-500 transition";
+  "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-sm text-gray-700 outline-hidden focus:border-orange-500 transition";
 
 export default function CambiarPassword({ email = "" }) {
   const [abierto, setAbierto] = useState(false);
@@ -64,10 +64,10 @@ export default function CambiarPassword({ email = "" }) {
       <div className="flex items-center justify-between gap-5">
 
         <div>
-          <h3 className="text-[10px] font-black text-gray-900 uppercase">
+          <h3 className="text-sm font-black text-gray-900 uppercase">
             Seguridad
           </h3>
-          <p className="text-[9px] text-gray-400 mt-1">
+          <p className="text-xs text-gray-400 mt-1">
             Cambiá la contraseña con la que iniciás sesión.
           </p>
         </div>
@@ -76,7 +76,7 @@ export default function CambiarPassword({ email = "" }) {
           <button
             type="button"
             onClick={abrir}
-            className="h-9 px-5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md text-[9px] font-black transition"
+            className="h-9 px-5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md text-xs font-black transition"
           >
             CAMBIAR CONTRASEÑA
           </button>
@@ -85,7 +85,7 @@ export default function CambiarPassword({ email = "" }) {
       </div>
 
       {exito && (
-        <p className="text-green-600 text-[10px] mt-4">
+        <p className="text-green-600 text-sm mt-4">
           Tu contraseña se actualizó correctamente.
         </p>
       )}
@@ -93,14 +93,14 @@ export default function CambiarPassword({ email = "" }) {
       {abierto && (
         <form onSubmit={guardar} className="mt-5">
 
-          <p className="text-[8px] text-gray-400 mb-4">
+          <p className="text-[11px] text-gray-400 mb-4">
             Mínimo 8 caracteres, con al menos una letra y un número.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             <div>
-              <label htmlFor="password-actual" className="text-[9px] font-bold text-gray-500">
+              <label htmlFor="password-actual" className="text-xs font-bold text-gray-500">
                 CONTRASEÑA ACTUAL
               </label>
               <input
@@ -117,7 +117,7 @@ export default function CambiarPassword({ email = "" }) {
             </div>
 
             <div>
-              <label htmlFor="password-nueva" className="text-[9px] font-bold text-gray-500">
+              <label htmlFor="password-nueva" className="text-xs font-bold text-gray-500">
                 NUEVA CONTRASEÑA
               </label>
               <input
@@ -134,7 +134,7 @@ export default function CambiarPassword({ email = "" }) {
             </div>
 
             <div>
-              <label htmlFor="password-repetir" className="text-[9px] font-bold text-gray-500">
+              <label htmlFor="password-repetir" className="text-xs font-bold text-gray-500">
                 REPETIR NUEVA CONTRASEÑA
               </label>
               <input
@@ -153,7 +153,7 @@ export default function CambiarPassword({ email = "" }) {
           </div>
 
           {error && (
-            <p className="text-red-500 text-[10px] mt-4">{error}</p>
+            <p className="text-red-500 text-sm mt-4">{error}</p>
           )}
 
           <div className="flex justify-end gap-3 mt-6">
@@ -161,7 +161,7 @@ export default function CambiarPassword({ email = "" }) {
             <button
               type="button"
               onClick={cancelar}
-              className="h-10 px-6 border border-gray-200 hover:border-gray-400 text-gray-500 rounded-md text-[9px] font-black transition"
+              className="h-10 px-6 border border-gray-200 hover:border-gray-400 text-gray-500 rounded-md text-xs font-black transition"
             >
               CANCELAR
             </button>
@@ -169,7 +169,7 @@ export default function CambiarPassword({ email = "" }) {
             <button
               type="submit"
               disabled={guardando}
-              className="h-10 px-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-[9px] font-black transition"
+              className="h-10 px-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-xs font-black transition"
             >
               {guardando ? "GUARDANDO..." : "GUARDAR CONTRASEÑA"}
             </button>

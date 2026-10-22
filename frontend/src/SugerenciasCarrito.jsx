@@ -87,7 +87,7 @@ export default function SugerenciasCarrito() {
             </div>
 
             <p className="text-orange-500 text-[8px] font-black mt-3">
-              {producto.marcaPrincipal}
+              {producto.fabricante || producto.marcaPrincipal}
             </p>
             <p className="text-[11px] font-black mt-1 flex-1">
               {producto.nombre}

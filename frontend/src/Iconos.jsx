@@ -105,3 +105,73 @@ export function IconoCamion(props) {
     </Icono>
   );
 }
+
+export function IconoUsuario(props) {
+  return (
+    <Icono {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" />
+    </Icono>
+  );
+}
+
+export function IconoUbicacion(props) {
+  return (
+    <Icono {...props}>
+      <path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </Icono>
+  );
+}
+
+export function IconoTarjeta(props) {
+  return (
+    <Icono {...props}>
+      <rect x="2.5" y="5" width="19" height="14" rx="2" />
+      <path d="M2.5 10h19M6.5 15h4" />
+    </Icono>
+  );
+}
+
+export function IconoCaja(props) {
+  return (
+    <Icono {...props}>
+      <path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Z" />
+      <path d="m3 7.5 9 4.5 9-4.5M12 12v9" />
+    </Icono>
+  );
+}
+
+export function IconoSalir(props) {
+  return (
+    <Icono {...props}>
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+      <path d="M10 17l-5-5 5-5M5 12h11" />
+    </Icono>
+  );
+}
+
+export function IconoCheck(props) {
+  return (
+    <Icono {...props}>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </Icono>
+  );
+}
+
+export function IconoBasura(props) {
+  return (
+    <Icono {...props}>
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+    </Icono>
+  );
+}
+
+export function IconoCandado(props) {
+  return (
+    <Icono {...props}>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </Icono>
+  );
+}

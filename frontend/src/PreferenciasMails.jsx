@@ -33,10 +33,10 @@ export default function PreferenciasMails({ usuario, onActualizarUsuario }) {
       <div className="flex items-center justify-between gap-5">
 
         <div>
-          <h3 id="titulo-preferencias-mails" className="text-[10px] font-black text-gray-900 uppercase">
+          <h3 id="titulo-preferencias-mails" className="text-sm font-black text-gray-900 uppercase">
             Ofertas y recordatorios por mail
           </h3>
-          <p className="text-[9px] text-gray-400 mt-1">
+          <p className="text-xs text-gray-400 mt-1">
             Carrito abandonado, recordatorios de mantenimiento y bajas de precio de tus favoritos.
             Los mails de tu cuenta y de tus pedidos llegan siempre.
           </p>
@@ -63,7 +63,7 @@ export default function PreferenciasMails({ usuario, onActualizarUsuario }) {
       </div>
 
       {error && (
-        <p role="alert" className="text-red-500 text-[10px] mt-4">{error}</p>
+        <p role="alert" className="text-red-500 text-sm mt-4">{error}</p>
       )}
 
     </div>

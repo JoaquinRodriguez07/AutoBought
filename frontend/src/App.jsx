@@ -697,11 +697,7 @@ function App() {
             <Perfil
               {...propsNavbar}
               usuario={usuario}
-              onCerrarSesion={cerrarSesion}
               onActualizarUsuario={actualizarUsuario}
-              onDirecciones={() => navigate("/direcciones")}
-              onMetodosPago={() => navigate("/metodos-pago")}
-              onHistorialCompras={() => navigate("/historial")}
             />
           ) : null
         }
@@ -719,7 +715,6 @@ function App() {
               {...propsNavbar}
               direcciones={direcciones}
               setDirecciones={setDirecciones}
-              onPerfil={() => navigate("/perfil")}
             />
           ) : null
         }
@@ -737,7 +732,6 @@ function App() {
               {...propsNavbar}
               metodosPago={metodosPago}
               setMetodosPago={setMetodosPago}
-              onPerfil={() => navigate("/perfil")}
             />
           ) : null
         }
@@ -754,7 +748,6 @@ function App() {
             <HistorialCompras
               {...propsNavbar}
               historialCompras={historialCompras}
-              onPerfil={() => navigate("/perfil")}
             />
           ) : null
         }
