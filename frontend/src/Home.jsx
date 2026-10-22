@@ -6,6 +6,7 @@ import ModelDropdown from "./ModelDropdown";
 import { obtenerAnios, obtenerCategorias, obtenerMasVendidos } from "./api";
 import { useVehicle } from "./context/VehicleContext";
 import repuestos from "./assets/repuestos.jpg";
+import { IconoAuto, IconoCamion, IconoEscudo } from "./Iconos";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
 import BMWLogo from "./assets/Logos Vehiculos/BMW.png";
@@ -21,6 +22,10 @@ import PeugeotLogo from "./assets/Logos Vehiculos/Peugeot.webp";
 import RenaultLogo from "./assets/Logos Vehiculos/Renault.png";
 import SuzukiLogo from "./assets/Logos Vehiculos/Suzuki.png";
 import VolkswagenLogo from "./assets/Logos Vehiculos/Volkswagen.webp";
+
+// Los fabricantes principales del catálogo (ver MANUFACTURERS en
+// backend/scripts/generate_dataset.py).
+const FABRICANTES = ["Bosch", "Brembo", "NGK", "Mann-Filter", "Monroe", "Valeo", "Castrol", "Moura"];
 
 export default function Home({
   usuario,
@@ -377,7 +382,7 @@ export default function Home({
             <button
               type="button"
               onClick={buscarDesdeHero}
-              className="mt-8 bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-lg text-[11px] font-black transition"
+              className="mt-8 bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-lg text-sm font-black transition"
             >
               BUSCAR REPUESTOS →
             </button>
@@ -385,19 +390,13 @@ export default function Home({
             {avisoHero && (
               <p
                 role="alert"
-                className="mt-3 text-[11px] text-orange-300 max-w-[540px]"
+                className="mt-3 text-sm text-orange-300 max-w-[540px]"
               >
                 Completá marca, modelo y año para cambiar de vehículo, o
                 usá "Borrar filtros" para ver todo el catálogo.
               </p>
             )}
 
-          </div>
-
-          <div className="absolute hidden lg:block right-10 bottom-16 text-white/30 text-[9px] tracking-[5px] leading-[1.8]">
-            <p>TU AUTO</p>
-            <p>NUESTRA</p>
-            <p>PASIÓN</p>
           </div>
 
         </div>
@@ -417,14 +416,14 @@ export default function Home({
 
             <div className="flex-1">
 
-              <p className="text-[9px] text-gray-400 font-bold mb-2">
+              <p className="text-xs text-gray-400 font-bold mb-2">
                 MARCA
               </p>
 
               <BrandDropdown
                 value={selectedBrand}
                 onChange={handleBrandChange}
-                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-hidden"
+                className="w-full bg-white rounded-md px-3 py-3 text-sm outline-hidden"
               />
 
             </div>
@@ -433,7 +432,7 @@ export default function Home({
 
             <div className="flex-1">
 
-              <p className="text-[9px] text-gray-400 font-bold mb-2">
+              <p className="text-xs text-gray-400 font-bold mb-2">
                 MODELO
               </p>
 
@@ -441,7 +440,7 @@ export default function Home({
                 brand={selectedBrand}
                 value={selectedModel}
                 onChange={handleModelChange}
-                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-hidden"
+                className="w-full bg-white rounded-md px-3 py-3 text-sm outline-hidden"
               />
 
             </div>
@@ -450,7 +449,7 @@ export default function Home({
 
             <div className="flex-1">
 
-              <p className="text-[9px] text-gray-400 font-bold mb-2">
+              <p className="text-xs text-gray-400 font-bold mb-2">
                 AÑO
               </p>
 
@@ -458,7 +457,7 @@ export default function Home({
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
                 disabled={!selectedModel || loadingYears}
-                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-hidden disabled:bg-gray-200 disabled:text-gray-400"
+                className="w-full bg-white rounded-md px-3 py-3 text-sm outline-hidden disabled:bg-gray-200 disabled:text-gray-400"
               >
                 <option value="">
                   {!selectedModel
@@ -481,7 +480,7 @@ export default function Home({
               type="button"
               onClick={buscarRepuestos}
               disabled={!puedeBuscar}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-md px-7 py-3 text-[10px] font-black transition disabled:bg-gray-500 disabled:text-gray-300 disabled:hover:bg-gray-500 disabled:cursor-not-allowed"
+              className="bg-orange-500 hover:bg-orange-600 text-white rounded-md px-7 py-3 text-xs font-black transition disabled:bg-gray-500 disabled:text-gray-300 disabled:hover:bg-gray-500 disabled:cursor-not-allowed"
             >
               BUSCAR REPUESTOS
             </button>
@@ -490,7 +489,7 @@ export default function Home({
               type="button"
               onClick={borrarFiltros}
               disabled={!hayAlgoParaBorrar}
-              className="border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md px-5 py-3 text-[10px] font-black transition disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-orange-500 disabled:cursor-not-allowed"
+              className="border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md px-5 py-3 text-xs font-black transition disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-orange-500 disabled:cursor-not-allowed"
             >
               BORRAR FILTROS
             </button>
@@ -510,7 +509,7 @@ export default function Home({
 
           <div>
 
-            <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
+            <p className="text-orange-500 text-xs font-black tracking-[4px]">
               TODO PARA TU AUTO
             </p>
 
@@ -523,7 +522,7 @@ export default function Home({
           <button
             type="button"
             onClick={() => onCatalogo()}
-            className="text-orange-500 text-[10px] font-bold hover:underline"
+            className="text-orange-500 text-sm font-bold hover:underline"
           >
             Ver todas →
           </button>
@@ -531,12 +530,13 @@ export default function Home({
         </div>
 
         {categorias === null && (
-          <p className="text-[10px] text-gray-400">
+          <p className="text-sm text-gray-400">
             Cargando categorías…
           </p>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+        {/* 10 categorías: 2 filas de 5, sin huecos al final. */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
 
           {(categorias || []).map((categoria) => (
 
@@ -544,10 +544,13 @@ export default function Home({
               key={categoria.nombre}
               type="button"
               onClick={() => onCatalogo(categoria.nombre)}
-              className="h-24 bg-white border border-gray-200 rounded-xl hover:border-orange-400 hover:shadow-md hover:-translate-y-1 transition duration-300 flex items-center justify-center"
+              className="group h-24 bg-white border border-gray-200 rounded-xl px-4 hover:border-orange-400 hover:shadow-md hover:-translate-y-1 transition duration-300 flex flex-col items-start justify-center text-left"
             >
-              <p className="text-[10px] font-bold">
+              <p className="text-sm font-bold group-hover:text-orange-500 transition">
                 {categoria.nombre}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {categoria.cantidad} repuestos
               </p>
             </button>
 
@@ -567,7 +570,7 @@ export default function Home({
 
           <div>
 
-            <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
+            <p className="text-orange-500 text-xs font-black tracking-[4px]">
               TRABAJAMOS CON
             </p>
 
@@ -580,7 +583,7 @@ export default function Home({
           <button
             type="button"
             onClick={onMarcas}
-            className="text-orange-500 text-[10px] font-bold hover:underline"
+            className="text-orange-500 text-sm font-bold hover:underline"
           >
             Ver todas →
           </button>
@@ -628,10 +631,33 @@ export default function Home({
 
               )}
 
-              <span className="text-[8px] text-gray-500 font-semibold mt-1">
+              <span className="text-xs text-gray-500 font-semibold mt-1">
                 {marca.nombre}
               </span>
 
+            </button>
+
+          ))}
+
+        </div>
+
+        {/* FABRICANTES: llevan al catálogo filtrado por fabricante. */}
+
+        <p className="text-xs text-gray-400 font-bold uppercase tracking-wide mt-10 mb-3">
+          Y los fabricantes de repuestos
+        </p>
+
+        <div className="flex flex-wrap gap-3">
+
+          {FABRICANTES.map((fabricante) => (
+
+            <button
+              key={fabricante}
+              type="button"
+              onClick={() => onCatalogo(null, null, fabricante)}
+              className="px-5 h-11 bg-gray-50 border border-gray-100 rounded-lg text-sm font-black text-gray-600 hover:bg-white hover:border-orange-300 hover:text-orange-500 hover:shadow-md transition"
+            >
+              {fabricante}
             </button>
 
           ))}
@@ -653,7 +679,7 @@ export default function Home({
 
             <div>
 
-              <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
+              <p className="text-orange-500 text-xs font-black tracking-[4px]">
                 LO MÁS ELEGIDO
               </p>
 
@@ -666,7 +692,7 @@ export default function Home({
             <button
               type="button"
               onClick={() => onCatalogo()}
-              className="text-orange-500 text-[10px] font-bold hover:underline"
+              className="text-orange-500 text-sm font-bold hover:underline"
             >
               Ver más →
             </button>
@@ -674,7 +700,7 @@ export default function Home({
           </div>
 
           {masVendidos === null && (
-            <p className="text-[10px] text-gray-400">
+            <p className="text-sm text-gray-400">
               Cargando más vendidos…
             </p>
           )}
@@ -685,7 +711,7 @@ export default function Home({
 
               <div
                 key={producto.id}
-                className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg transition"
+                className="flex flex-col bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg transition"
               >
 
                 <div className="h-48 bg-gray-100 overflow-hidden">
@@ -698,28 +724,30 @@ export default function Home({
 
                 </div>
 
-                <div className="p-4">
+                {/* flex + mt-auto: el botón queda abajo aunque el
+                    nombre ocupe una o dos líneas. */}
+                <div className="flex flex-col flex-1 p-4">
 
-                  <p className="text-[9px] text-orange-500 font-black">
-                    {producto.marcaPrincipal}
+                  <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">
+                    {producto.fabricante || producto.marcaPrincipal}
                   </p>
 
-                  <h3 className="text-[12px] font-bold mt-1">
+                  <h3 className="text-sm font-bold mt-1 leading-snug">
                     {producto.nombre}
                   </h3>
 
-                  <p className="text-[9px] text-gray-400 mt-1">
+                  <p className="text-[11px] text-gray-400 mt-1">
                     Código: {producto.codigo}
                   </p>
 
-                  <p className="text-lg font-black mt-4">
+                  <p className="text-xl font-black mt-auto pt-4">
                     {precio(producto.precio)}
                   </p>
 
                   <button
                     type="button"
                     onClick={() => onDetalle(producto)}
-                    className="w-full mt-3 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md py-2 text-[9px] font-bold transition"
+                    className="w-full mt-3 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md py-2 text-xs font-bold transition"
                   >
                     VER REPUESTO
                   </button>
@@ -745,53 +773,30 @@ export default function Home({
 
         <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
 
-          <div>
+          {[
+            [IconoEscudo, "REPUESTOS DE CALIDAD", "Trabajamos con fabricantes reconocidos."],
+            [IconoAuto, "COMPATIBILIDAD", "Encontrá piezas compatibles con tu vehículo."],
+            [IconoCamion, "ENVÍOS A TODO EL PAÍS", "Recibí tus repuestos donde estés."],
+          ].map(([Icono, titulo, texto]) => (
 
-            <p className="text-orange-500 text-xl">
-              ✓
-            </p>
+            <div key={titulo} className="flex items-start gap-4">
 
-            <h3 className="text-white text-[11px] font-black mt-2">
-              REPUESTOS DE CALIDAD
-            </h3>
+              <span className="shrink-0 w-11 h-11 rounded-full bg-orange-500/15 text-orange-500 flex items-center justify-center">
+                <Icono className="w-5 h-5" />
+              </span>
 
-            <p className="text-gray-500 text-[9px] mt-2">
-              Trabajamos con marcas reconocidas.
-            </p>
+              <div>
+                <h3 className="text-white text-sm font-black">
+                  {titulo}
+                </h3>
+                <p className="text-gray-400 text-sm mt-1">
+                  {texto}
+                </p>
+              </div>
 
-          </div>
+            </div>
 
-          <div>
-
-            <p className="text-orange-500 text-xl">
-              ✓
-            </p>
-
-            <h3 className="text-white text-[11px] font-black mt-2">
-              COMPATIBILIDAD
-            </h3>
-
-            <p className="text-gray-500 text-[9px] mt-2">
-              Encontrá piezas compatibles con tu vehículo.
-            </p>
-
-          </div>
-
-          <div>
-
-            <p className="text-orange-500 text-xl">
-              ✓
-            </p>
-
-            <h3 className="text-white text-[11px] font-black mt-2">
-              ENVÍOS A TODO EL PAÍS
-            </h3>
-
-            <p className="text-gray-500 text-[9px] mt-2">
-              Recibí tus repuestos donde estés.
-            </p>
-
-          </div>
+          ))}
 
         </div>
 

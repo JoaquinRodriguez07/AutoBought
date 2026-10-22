@@ -72,7 +72,7 @@ export default function SearchBar({
         autoFocus={autoFocus}
         aria-label="Buscar repuesto por nombre o código"
         placeholder={placeholder}
-        className="flex-1 min-w-0 px-4 py-3 text-sm outline-hidden"
+        className="flex-1 min-w-0 px-4 py-3 text-sm outline-hidden [&::-webkit-search-cancel-button]:appearance-none"
       />
 
       {interno && (

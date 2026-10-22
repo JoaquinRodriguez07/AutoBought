@@ -18,6 +18,9 @@ export default function Navbar({
   onCerrarSesion,
   cantidadFavoritos = 0,
   usuario,
+  // El catálogo tiene su propia barra (que también hace esta búsqueda):
+  // ahí se oculta la del menú para no mostrar dos.
+  mostrarBusqueda = true,
 }) {
   const { cantidadCarrito } = useCart();
   const [menuUsuario, setMenuUsuario] = useState(false);
@@ -155,7 +158,7 @@ export default function Navbar({
       ================================================== */}
 
       <div className="hidden md:block flex-1 max-w-[330px] mx-6">
-        <BusquedaCabecera />
+        {mostrarBusqueda && <BusquedaCabecera />}
       </div>
 
       {/* =================================================

@@ -385,7 +385,7 @@ describe("Home", () => {
 
     render(<Home {...props} />);
 
-    await user.click(await screen.findByRole("button", { name: "Motor" }));
+    await user.click(await screen.findByRole("button", { name: /^Motor/ }));
 
     expect(props.onCatalogo).toHaveBeenCalledWith("Motor");
   });
@@ -399,7 +399,7 @@ describe("Home", () => {
     expect(await screen.findByRole("heading", { name: /encontrá lo que necesitás/i }))
       .toBeInTheDocument();
     expect(screen.queryByText("Cargando categorías…")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Frenos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Frenos/ })).not.toBeInTheDocument();
   });
 
   it("shows the real best sellers and opens the detail of the one clicked", async () => {
@@ -412,9 +412,21 @@ describe("Home", () => {
     expect(await screen.findByText(catalogProducts[0].nombre)).toBeInTheDocument();
     expect(screen.getByText(`$${catalogProducts[0].precio.toLocaleString("es-UY")}`))
       .toBeInTheDocument();
+    // Arriba va el fabricante, no la marca del auto.
+    expect(screen.getAllByText("Bosch").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "VER REPUESTO" }));
 
     expect(props.onDetalle).toHaveBeenCalledWith(catalogProducts[0]);
+  });
+
+  it("opens the catalog filtered by the manufacturer clicked", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Home {...props} />);
+    await user.click(screen.getByRole("button", { name: "Brembo" }));
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, "Brembo");
   });
 
   it.each([
@@ -759,6 +771,43 @@ it("shows free search results and activates the detected vehicle", async () => {
   expect(buscarTexto).toHaveBeenCalledWith("pastillas de freno onix 2020");
   expect(await screen.findByText("Chevrolet Onix 2020")).toBeInTheDocument();
   expect(obtenerRepuestos).not.toHaveBeenCalled();
+});
+
+it("runs the server search from the catalog bar on Enter and hides the header search", async () => {
+  const user = userEvent.setup();
+  const props = navigationProps();
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno" },
+  });
+
+  render(
+    <>
+      <Catalogo {...props} esFavorito={() => false} />
+      <RutaActual />
+    </>
+  );
+
+  expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+
+  await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastillas de frenos{Enter}");
+
+  await waitFor(() => expect(buscarTexto).toHaveBeenCalledWith("pastillas de frenos"));
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastillas");
+  expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+});
+
+it("opens with the manufacturer from the URL already checked", async () => {
+  const props = navigationProps();
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?fabricante=Brembo"] }
+  );
+
+  expect(await screen.findByRole("checkbox", { name: /Brembo/ })).toBeChecked();
+  expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
 });
 
 it("shows the manual filter message when the search cannot be interpreted", async () => {
@@ -2170,6 +2219,8 @@ describe("SearchBar and search helpers", () => {
     expect(filtrarRepuestos(repuestos, { fabricantes: ["NGK", "Mann-Filter"] }))
       .toEqual([repuestos[0], repuestos[2]]);
     expect(filtrarRepuestos(repuestos, { busqueda: "bosch" })).toEqual([repuestos[1]]);
+    // Por palabras, en cualquier orden y sin importar las tildes.
+    expect(filtrarRepuestos(repuestos, { busqueda: "ngk bujia" })).toEqual([repuestos[0]]);
 
     const conPrecio = [
       { nombre: "Faro", precio: 6900, stock: 0, marcas: ["Ford"] },

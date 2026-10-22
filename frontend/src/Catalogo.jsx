@@ -104,8 +104,15 @@ export default function Catalogo({
   );
 
   const [orden, setOrden] = useState("Más relevantes");
-  const [busqueda, setBusqueda] = useState("");
-  const [fabricantes, setFabricantes] = useState([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const consulta = (searchParams.get("q") || "").trim();
+  // Si se entra con ?q= (desde la barra del menú), la búsqueda se ve en
+  // la barra del catálogo.
+  const [busqueda, setBusqueda] = useState(consulta);
+  const [fabricantes, setFabricantes] = useState(() => {
+    const desdeInicio = searchParams.get("fabricante");
+    return desdeInicio ? [desdeInicio] : [];
+  });
   const [marcasAuto, setMarcasAuto] = useState([]);
   const [precioMin, setPrecioMin] = useState("");
   const [precioMax, setPrecioMax] = useState("");
@@ -115,8 +122,6 @@ export default function Catalogo({
   const [cantidades, setCantidades] = useState({});
   const [productoAgregado, setProductoAgregado] = useState(null);
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const consulta = (searchParams.get("q") || "").trim();
 
   // ==========================================
   // DATOS DE LA API
@@ -321,7 +326,9 @@ export default function Catalogo({
   const productosMostrados = useMemo(
     () =>
       filtrarRepuestos(productos, {
-        busqueda,
+        // Lo que se buscó con Enter ya lo resolvió el servidor: no se
+        // vuelve a filtrar por ese mismo texto.
+        busqueda: busqueda.trim() === consulta ? "" : busqueda,
         fabricantes,
         marcasAuto,
         precioMin,
@@ -329,7 +336,7 @@ export default function Catalogo({
         soloConStock,
         orden,
       }),
-    [productos, busqueda, fabricantes, marcasAuto, precioMin, precioMax, soloConStock, orden]
+    [productos, busqueda, consulta, fabricantes, marcasAuto, precioMin, precioMax, soloConStock, orden]
   );
 
   // Las opciones de fabricante y marca del auto salen de los repuestos
@@ -360,6 +367,7 @@ export default function Catalogo({
   const cambiarCategoria = (nueva) => {
     if (consulta) {
       setSearchParams({});
+      setBusqueda("");
     }
 
     setCategoria(nueva);
@@ -384,7 +392,7 @@ export default function Catalogo({
   // con lo que hay que hacer para quitarlo.
   const filtrosActivos = [
     categoria && { clave: "categoria", texto: categoria, quitar: () => cambiarCategoria(null) },
-    busqueda.trim() && { clave: "busqueda", texto: `"${busqueda.trim()}"`, quitar: () => setBusqueda("") },
+    busqueda.trim() && { clave: "busqueda", texto: `"${busqueda.trim()}"`, quitar: () => buscar("") },
     ...fabricantes.map((f) => ({ clave: `fabricante-${f}`, texto: f, quitar: () => setFabricantes(sin(f)) })),
     ...marcasAuto.map((m) => ({ clave: `marca-${m}`, texto: `Para ${m}`, quitar: () => setMarcasAuto(sin(m)) })),
     (precioMin !== "" || precioMax !== "") && {
@@ -399,6 +407,18 @@ export default function Catalogo({
   ].filter(Boolean);
 
   const hayFiltros = filtrosActivos.length > 0;
+
+  // ==========================================
+  // BUSCAR
+  // ==========================================
+  // Una sola barra: mientras se escribe filtra en vivo lo cargado
+  // (filtrarRepuestos); con Enter o la lupa hace la búsqueda del servidor
+  // (?q=), que entiende "pastillas onix 2020", errores y sinónimos.
+  const buscar = (texto) => {
+    const limpio = texto.trim();
+    setBusqueda(limpio);
+    setSearchParams(limpio ? { q: limpio } : {});
+  };
 
   // "Borrar filtros" del banner: quita el vehículo activo Y el resto de
   // los filtros, para que el catálogo vuelva a la lista completa.
@@ -483,6 +503,7 @@ export default function Catalogo({
         onCerrarSesion={onCerrarSesion}
 
         cantidadFavoritos={cantidadFavoritos}
+        mostrarBusqueda={false}
       />
 
       {/* =================================================
@@ -526,6 +547,7 @@ export default function Catalogo({
               <SearchBar
                 value={busqueda}
                 onChange={setBusqueda}
+                onSubmit={buscar}
                 placeholder="Buscar repuesto por nombre, código o fabricante..."
                 className="lg:max-w-[520px]"
               />

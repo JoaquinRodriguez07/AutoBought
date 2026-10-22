@@ -51,6 +51,10 @@ const getMarca = (p) =>
 const getMarcas = (p) => p.marcas ?? p.compatible_brands ?? [];
 const getStock = (p) => p.stock ?? 0;
 
+// Minúsculas y sin tildes: "bujia" encuentra "Bujía".
+const normalizar = (texto) =>
+  texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
 // Un precio vacío ("" o null) es "sin límite".
 const limite = (valor) =>
   valor === "" || valor === null || valor === undefined ? null : Number(valor);
@@ -83,17 +87,19 @@ export function filtrarRepuestos(
 ) {
   let lista = Array.isArray(productos) ? productos : [];
 
-  const termino = busqueda.trim().toLowerCase();
+  const palabras = normalizar(busqueda).split(/\s+/).filter(Boolean);
 
-  if (termino) {
-    // Búsqueda por texto: coincide con nombre o código (igual que el
-    // ILIKE del backend), y de yapa fabricante/marca/categoría para mejor
-    // UX. Coincidencia parcial: no hace falta el código completo.
-    lista = lista.filter((p) =>
-      `${getNombre(p)} ${getCodigo(p)} ${getFabricante(p)} ${getMarca(p)} ${getCategoria(p)}`
-        .toLowerCase()
-        .includes(termino)
-    );
+  if (palabras.length > 0) {
+    // Búsqueda por texto: cada palabra tiene que aparecer en el nombre,
+    // código, fabricante, marcas o categoría, en cualquier orden
+    // ("pastillas onix" encuentra "Pastillas de freno ... Chevrolet Onix").
+    // Coincidencia parcial: no hace falta el código completo.
+    lista = lista.filter((p) => {
+      const texto = normalizar(
+        `${getNombre(p)} ${getCodigo(p)} ${getFabricante(p)} ${getMarca(p)} ${getCategoria(p)}`
+      );
+      return palabras.every((palabra) => texto.includes(palabra));
+    });
   } else if (categoria) {
     lista = lista.filter((p) => getCategoria(p) === categoria);
   }
