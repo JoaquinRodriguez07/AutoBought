@@ -9,11 +9,11 @@ def make_catalog(db_session):
 
     parts = [
         Part(part_code="BRK-0001", name="Pastillas de freno delanteras Chevrolet Onix",
-             category="Frenos", price=3000, stock=5),
+             manufacturer="Bosch", category="Frenos", price=3000, stock=5),
         Part(part_code="BRK-0002", name="Pastillas de freno delanteras Fiat Cronos",
-             category="Frenos", price=3000, stock=5),
+             manufacturer="Bosch", category="Frenos", price=3000, stock=5),
         Part(part_code="FIL-0001", name="Filtro de aceite 1.0 Turbo",
-             category="Filtros", price=800, stock=10),
+             manufacturer="Bosch", category="Filtros", price=800, stock=10),
     ]
     parts[0].compatibilities = [Compatibility(car_model=onix, year_from=2020, year_to=2024)]
     parts[1].compatibilities = [Compatibility(car_model=cronos, year_from=2018, year_to=2024)]
@@ -182,11 +182,11 @@ def make_catalog_combustible(db_session):
     onix = CarModel(brand="Chevrolet", model="Onix", engine_code="1.0 Turbo")
 
     filtro_diesel = Part(part_code="FIL-D", name="Filtro de combustible Hilux",
-                         category="Filtros", price=900, stock=5)
+                         manufacturer="Bosch", category="Filtros", price=900, stock=5)
     filtro_nafta = Part(part_code="FIL-N", name="Filtro de combustible Onix",
-                        category="Filtros", price=900, stock=5)
+                        manufacturer="Bosch", category="Filtros", price=900, stock=5)
     bateria = Part(part_code="BAT-1", name="Batería 60Ah",
-                   category="Eléctrico", price=5000, stock=5)
+                   manufacturer="Bosch", category="Eléctrico", price=5000, stock=5)
     filtro_diesel.compatibilities = [Compatibility(car_model=hilux, year_from=2016, year_to=2024)]
     filtro_nafta.compatibilities = [Compatibility(car_model=onix, year_from=2020, year_to=2024)]
     bateria.compatibilities = [

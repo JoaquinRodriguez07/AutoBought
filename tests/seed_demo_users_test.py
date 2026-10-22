@@ -7,7 +7,7 @@ from scripts.seed_demo_users import USUARIOS, crear_usuario
 
 def _repuestos(db_session):
     for i, categoria in enumerate(["Filtros", "Frenos"]):
-        db_session.add(Part(part_code=f"DEMO-{i}", name=categoria, category=categoria, price=1000, stock=10))
+        db_session.add(Part(part_code=f"DEMO-{i}", name=categoria, manufacturer="Bosch", category=categoria, price=1000, stock=10))
     db_session.commit()
 
 

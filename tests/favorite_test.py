@@ -19,7 +19,7 @@ def make_client(db_session, username="ana", email="ana@example.com"):
 
 
 def make_part(db_session, **overrides):
-    defaults = dict(part_code="BRK-001", name="Pastillas de freno", category="Frenos", price=1000, stock=5)
+    defaults = dict(part_code="BRK-001", name="Pastillas de freno", manufacturer="Bosch", category="Frenos", price=1000, stock=5)
     defaults.update(overrides)
     part = Part(**defaults)
     db_session.add(part)

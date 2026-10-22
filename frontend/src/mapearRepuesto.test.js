@@ -11,6 +11,7 @@ describe("mapearRepuesto", () => {
       mapearRepuesto({
         id: 42,
         name: "Pastillas de freno",
+        manufacturer: "Brembo",
         part_code: "PF-42",
         category: "Frenos",
         price: 1299.5,
@@ -21,6 +22,7 @@ describe("mapearRepuesto", () => {
       id: "42",
       partId: 42,
       nombre: "Pastillas de freno",
+      fabricante: "Brembo",
       codigo: "PF-42",
       categoria: "Frenos",
       precio: 1299.5,
@@ -36,6 +38,7 @@ describe("mapearRepuesto", () => {
       id: "0",
       partId: 0,
       nombre: "",
+      fabricante: "",
       codigo: "",
       categoria: "",
       precio: 0,

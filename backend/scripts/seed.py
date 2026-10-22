@@ -51,6 +51,7 @@ def main():
         part = Part(
             part_code=data["part_code"],
             name=data["name"],
+            manufacturer=data["manufacturer"],
             category=data["category"],
             color=data["color"],
             price=data["price"],

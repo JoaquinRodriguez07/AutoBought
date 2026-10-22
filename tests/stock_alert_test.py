@@ -15,7 +15,7 @@ def make_client(db_session, username="ana", email="ana@example.com"):
 
 
 def make_part(db_session, stock=0, part_code="FAR-001"):
-    part = Part(part_code=part_code, name="Faro delantero", category="Carrocería", price=8900, stock=stock)
+    part = Part(part_code=part_code, name="Faro delantero", manufacturer="Bosch", category="Carrocería", price=8900, stock=stock)
     db_session.add(part)
     db_session.commit()
     db_session.refresh(part)

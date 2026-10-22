@@ -11,9 +11,15 @@ Compatibility rules:
 - Model-specific parts (brakes, suspension, body) are per model, because
   sharing an engine doesn't mean sharing brake pads.
 - Universal parts (oil, coolant, wipers) fit the whole catalog.
+
+Manufacturers: each part comes from several manufacturers, like in a real
+store, and each one is a different product (own code, price and stock).
+The main manufacturer makes it for every car; the others only for some
+(see covers), so for a given car there may be one option or several.
 """
 
 import json
+import zlib
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
@@ -137,6 +143,30 @@ BATTERIES = [
      lambda m: m["engine_code"] in DIESEL_ENGINES),
 ]
 
+# Fabricantes de cada repuesto (por cómo empieza el nombre), con un factor
+# de precio según la gama. El primero es el principal: hace el repuesto para
+# todos los autos y se queda con el código que el repuesto tenía antes de
+# que hubiera fabricantes. Los demás se generan al final (ver build_parts).
+MANUFACTURERS = {
+    "Filtro de aceite": [("Mann-Filter", 1.0), ("Bosch", 1.05), ("Fram", 0.85)],
+    "Filtro de aire": [("Mann-Filter", 1.0), ("Bosch", 1.05), ("Fram", 0.85)],
+    "Filtro de combustible": [("Mann-Filter", 1.0), ("Bosch", 1.05)],
+    "Filtro de habitáculo": [("Mann-Filter", 1.0), ("Bosch", 1.05)],
+    "Bujía": [("NGK", 1.0), ("Bosch", 1.1), ("Denso", 1.05)],
+    "Bobina de encendido": [("Bosch", 1.0), ("Delphi", 0.9), ("NGK", 1.05)],
+    "Kit de distribución": [("Gates", 1.0), ("Contitech", 0.95), ("SKF", 1.1)],
+    "Bomba de agua": [("SKF", 1.0), ("Gates", 0.95)],
+    "Pastillas de freno": [("Bosch", 1.0), ("Brembo", 1.3), ("TRW", 1.1), ("Ferodo", 0.9)],
+    "Discos de freno": [("Brembo", 1.0), ("TRW", 0.9), ("Fremax", 0.8)],
+    "Amortiguador": [("Monroe", 1.0), ("Sachs", 1.1), ("KYB", 0.95)],
+    "Faro": [("Valeo", 1.0), ("Hella", 1.15), ("Depo", 0.75)],
+    "Radiador": [("Valeo", 1.0), ("Nissens", 0.95)],
+    "Refrigerante": [("Paraflu", 1.0), ("Prestone", 1.2)],
+    "Aceite de motor": [("Castrol", 1.0), ("Mobil", 1.05), ("Shell", 0.95)],
+    "Escobilla": [("Bosch", 1.0), ("Valeo", 0.95)],
+    "Batería": [("Moura", 1.0), ("Bosch", 1.15), ("Willard", 0.9)],
+}
+
 PREFIXES = {
     "Filtros": "FIL",
     "Encendido": "IGN",
@@ -184,6 +214,17 @@ def calc_price(base_price, compatible_models):
     return int(round(base_price * factor / 10) * 10)
 
 
+def manufacturers_of(name):
+    return next(makers for prefix, makers in MANUFACTURERS.items() if name.startswith(prefix))
+
+
+def covers(manufacturer, group):
+    """Si un fabricante que no es el principal hace el repuesto para un
+    grupo de autos (un motor o un modelo): 2 de cada 3 grupos, elegidos
+    siempre igual. Sin grupo (universales, baterías) lo hace para todos."""
+    return group is None or zlib.crc32(f"{manufacturer}|{group}".encode()) % 3 != 0
+
+
 def calc_stock(part_code, category):
     seed = sum(ord(ch) for ch in part_code)
     if seed % 17 == 0:
@@ -211,58 +252,72 @@ def build_parts(car_models):
         counters[prefix] += 1
         return f"{prefix}-{counters[prefix]:04d}"
 
-    def add(name, category, base_price, color, compatible, by_segment=True):
+    # Cada repuesto antes de elegir el fabricante. El fabricante va en el
+    # nombre justo después del tipo ("Bujía NGK 1.4 8V"): los recordatorios
+    # de mantenimiento y la estacionalidad reconocen el repuesto por cómo
+    # empieza el nombre.
+    # (name, suffix, category, base_price, color, compatible, group, by_segment)
+    base_parts = []
+
+    def base(name, suffix, category, base_price, color, compatible, group, by_segment=True):
+        base_parts.append((name, suffix, category, base_price, color, compatible, group, by_segment))
+
+    for engine_code, models in group_by_engine(car_models).items():
+        for name, category, base_price, color in ENGINE_PARTS:
+            base(name, f" {engine_code}", category, base_price, color, models, engine_code)
+
+    for car_model in car_models:
+        for name, category, base_price, color in MODEL_PARTS:
+            group = f"{car_model['brand']} {car_model['model']}"
+            base(name, f" {group}", category, base_price, color, [car_model], group)
+
+    for name, category, base_price, color in UNIVERSAL_PARTS:
+        base(name, "", category, base_price, color, car_models, None)
+
+    # --- Agregados después: siempre al final (ver EXTRA_ENGINE_PARTS).
+    for engine_code, models in group_by_engine(car_models).items():
+        for name, category, base_price, color in EXTRA_ENGINE_PARTS:
+            base(name, f" {engine_code}", category, base_price, color, models, engine_code)
+
+    for car_model in car_models:
+        for name, category, base_price, color in EXTRA_MODEL_PARTS:
+            group = f"{car_model['brand']} {car_model['model']}"
+            base(name, f" {group}", category, base_price, color, [car_model], group)
+
+    for (brand, model), models in group_by_model(car_models).items():
+        for name, category, base_price, color in BODY_PARTS:
+            base(name, f" {brand} {model}", category, base_price, color, models, f"{brand} {model}")
+
+    for name, price, fits in BATTERIES:
+        base(name, "", "Eléctrico", price, None, [m for m in car_models if fits(m)], None, by_segment=False)
+
+    def add(part, manufacturer, factor):
+        name, suffix, category, base_price, color, compatible, _, by_segment = part
         code = next_code(category)
+        price = base_price * factor
         parts.append(
             {
                 "part_code": code,
-                "name": name,
+                "name": f"{name} {manufacturer}{suffix}",
+                "manufacturer": manufacturer,
                 "category": category,
                 "color": color,
-                "price": calc_price(base_price, compatible) if by_segment else base_price,
+                "price": calc_price(price, compatible) if by_segment else int(round(price / 10) * 10),
                 "stock": calc_stock(code, category),
                 "compatibilities": [compatibility_entry(m) for m in compatible],
             }
         )
 
-    for engine_code, models in group_by_engine(car_models).items():
-        for name, category, base_price, color in ENGINE_PARTS:
-            add(f"{name} {engine_code}", category, base_price, color, models)
+    # Primero el fabricante principal de cada repuesto, en el orden de
+    # siempre, y al final los demás fabricantes.
+    for part in base_parts:
+        manufacturer, factor = manufacturers_of(part[0])[0]
+        add(part, manufacturer, factor)
 
-    for car_model in car_models:
-        for name, category, base_price, color in MODEL_PARTS:
-            add(
-                f"{name} {car_model['brand']} {car_model['model']}",
-                category,
-                base_price,
-                color,
-                [car_model],
-            )
-
-    for name, category, base_price, color in UNIVERSAL_PARTS:
-        add(name, category, base_price, color, car_models)
-
-    # --- Agregados después: siempre al final (ver EXTRA_ENGINE_PARTS).
-    for engine_code, models in group_by_engine(car_models).items():
-        for name, category, base_price, color in EXTRA_ENGINE_PARTS:
-            add(f"{name} {engine_code}", category, base_price, color, models)
-
-    for car_model in car_models:
-        for name, category, base_price, color in EXTRA_MODEL_PARTS:
-            add(
-                f"{name} {car_model['brand']} {car_model['model']}",
-                category,
-                base_price,
-                color,
-                [car_model],
-            )
-
-    for (brand, model), models in group_by_model(car_models).items():
-        for name, category, base_price, color in BODY_PARTS:
-            add(f"{name} {brand} {model}", category, base_price, color, models)
-
-    for name, price, fits in BATTERIES:
-        add(name, "Eléctrico", price, None, [m for m in car_models if fits(m)], by_segment=False)
+    for part in base_parts:
+        for manufacturer, factor in manufacturers_of(part[0])[1:]:
+            if covers(manufacturer, part[6]):
+                add(part, manufacturer, factor)
 
     return parts
 

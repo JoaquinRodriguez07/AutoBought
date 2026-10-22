@@ -49,6 +49,7 @@ const BASE_URL = "http://127.0.0.1:8000";
 const backendPart = {
   id: 21,
   name: "Disco de freno",
+  manufacturer: "Brembo",
   part_code: "DF-21",
   category: "Frenos",
   price: 2450,
@@ -59,6 +60,7 @@ const uiPart = {
   id: "21",
   partId: 21,
   nombre: "Disco de freno",
+  fabricante: "Brembo",
   codigo: "DF-21",
   categoria: "Frenos",
   precio: 2450,

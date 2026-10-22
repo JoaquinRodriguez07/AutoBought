@@ -8,6 +8,7 @@ from app.models.part import Part
 class PartOut(BaseModel):
     id: int
     name: str
+    manufacturer: str
     compatible_brands: list[str]
     compatible_models: list[str]
     year_from: Optional[int]
@@ -72,6 +73,7 @@ def build_part_out(part: Part) -> PartOut:
     return PartOut(
         id=part.id,
         name=part.name,
+        manufacturer=part.manufacturer,
         compatible_brands=brands,
         compatible_models=models,
         year_from=min(years_from) if years_from else None,

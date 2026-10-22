@@ -6,7 +6,7 @@ from app.models.part import Part
 
 
 def make_part(db_session, code, name, category, stock, *compatibilities):
-    part = Part(part_code=code, name=name, category=category, price=1000, stock=stock)
+    part = Part(part_code=code, name=name, manufacturer="Bosch", category=category, price=1000, stock=stock)
     part.compatibilities = [
         Compatibility(car_model=car_model, year_from=year_from, year_to=year_to)
         for car_model, year_from, year_to in compatibilities
@@ -171,6 +171,7 @@ def test_mantiene_la_estructura_de_parts(client, db_session):
     assert response.json()["parts"][0] == {
         "id": parts["filtro_onix"].id,
         "name": "Filtro de aceite 1.4 SPE/4",
+        "manufacturer": "Bosch",
         "compatible_brands": ["Chevrolet"],
         "compatible_models": ["Onix"],
         "year_from": 2013,

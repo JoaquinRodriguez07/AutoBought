@@ -24,6 +24,7 @@
  *   Shape de la UI (mapearRepuesto)  →  PartOut (backend)
  *   ----------------------------------------------------
  *   nombre                           →  name
+ *   fabricante                       →  manufacturer
  *   codigo                           →  part_code
  *   categoria                        →  category
  *   precio                           →  price
@@ -41,6 +42,7 @@
 
 const getNombre = (p) => p.nombre ?? p.name ?? "";
 const getCodigo = (p) => p.codigo ?? p.part_code ?? "";
+const getFabricante = (p) => p.fabricante ?? p.manufacturer ?? "";
 const getCategoria = (p) => p.categoria ?? p.category ?? "";
 const getPrecio = (p) => p.precio ?? p.price ?? 0;
 const getMarca = (p) =>
@@ -52,12 +54,13 @@ const getMarca = (p) =>
  * @param {object} opciones
  * @param {string} [opciones.categoria] - categoría seleccionada en el sidebar.
  * @param {string} [opciones.busqueda]  - texto ingresado en el SearchBar.
+ * @param {string[]} [opciones.fabricantes] - fabricantes tildados; vacío = todos.
  * @param {string} [opciones.orden]     - "Menor precio" | "Mayor precio" | otro.
  * @returns {Array<object>} nuevo array filtrado y ordenado (no muta el original).
  */
 export function filtrarRepuestos(
   productos,
-  { categoria, busqueda = "", orden } = {}
+  { categoria, busqueda = "", fabricantes = [], orden } = {}
 ) {
   let lista = Array.isArray(productos) ? productos : [];
 
@@ -65,15 +68,19 @@ export function filtrarRepuestos(
 
   if (termino) {
     // Búsqueda por texto: coincide con nombre o código (igual que el
-    // ILIKE del backend), y de yapa marca/categoría para mejor UX.
-    // Coincidencia parcial: no hace falta el código completo.
+    // ILIKE del backend), y de yapa fabricante/marca/categoría para mejor
+    // UX. Coincidencia parcial: no hace falta el código completo.
     lista = lista.filter((p) =>
-      `${getNombre(p)} ${getCodigo(p)} ${getMarca(p)} ${getCategoria(p)}`
+      `${getNombre(p)} ${getCodigo(p)} ${getFabricante(p)} ${getMarca(p)} ${getCategoria(p)}`
         .toLowerCase()
         .includes(termino)
     );
   } else if (categoria) {
     lista = lista.filter((p) => getCategoria(p) === categoria);
+  }
+
+  if (fabricantes.length > 0) {
+    lista = lista.filter((p) => fabricantes.includes(getFabricante(p)));
   }
 
   const listaOrdenada = [...lista];

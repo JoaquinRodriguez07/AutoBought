@@ -32,6 +32,7 @@ def make_part(db_session, part_code, name, price):
     part = Part(
         part_code=part_code,
         name=name,
+        manufacturer="Bosch",
         category="Test",
         price=price,
         stock=10,
