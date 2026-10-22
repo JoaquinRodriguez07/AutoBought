@@ -2,6 +2,7 @@ import { useState } from "react";
 import Navbar from "./Navbar";
 import { login, obtenerPerfil } from "./api";
 import { decodeToken, esVendedor } from "./auth";
+import repuestos from "./assets/repuestos.jpg";
 
 export default function Login({
   onHome,
@@ -272,7 +273,7 @@ export default function Login({
           <div className="hidden md:block relative overflow-hidden">
 
             <img
-              src="/src/assets/repuestos.jpg"
+              src={repuestos}
               alt="AutoBought"
               className="absolute inset-0 w-full h-full object-cover"
             />

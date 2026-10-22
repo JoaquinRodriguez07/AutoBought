@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import BrandDropdown from "./BrandDropdown";
 import ModelDropdown from "./ModelDropdown";
-import { obtenerCategorias } from "./api";
+import { obtenerAnios, obtenerCategorias, obtenerMasVendidos } from "./api";
 import { useVehicle } from "./context/VehicleContext";
+import repuestos from "./assets/repuestos.jpg";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
 import BMWLogo from "./assets/Logos Vehiculos/BMW.png";
@@ -26,6 +27,7 @@ export default function Home({
   onHome,
   onLogin,
   onCatalogo,
+  onDetalle,
   onMarcas,
   onCarrito,
   onFavoritos,
@@ -181,32 +183,30 @@ export default function Home({
       return;
     }
 
+    // Si cambia la marca o el modelo antes de que llegue la respuesta,
+    // se descarta para no mostrar años del modelo anterior.
+    let activo = true;
+
     const cargarAnios = async () => {
       try {
         setLoadingYears(true);
 
-        const response = await fetch(
-          `/api/v1/years?brand=${encodeURIComponent(
-            selectedBrand
-          )}&model=${encodeURIComponent(selectedModel)}`
-        );
+        const anios = await obtenerAnios(selectedBrand, selectedModel);
 
-        if (!response.ok) {
-          throw new Error("No se pudieron obtener los años");
-        }
-
-        const data = await response.json();
-
-        setYears(data.years || []);
+        if (activo) setYears(anios);
       } catch (error) {
         console.error("Error cargando años:", error);
-        setYears([]);
+        if (activo) setYears([]);
       } finally {
-        setLoadingYears(false);
+        if (activo) setLoadingYears(false);
       }
     };
 
     cargarAnios();
+
+    return () => {
+      activo = false;
+    };
   }, [selectedBrand, selectedModel]);
 
   // ==========================================
@@ -284,47 +284,32 @@ export default function Home({
   // ==========================================
   // PRODUCTOS MÁS VENDIDOS
   // ==========================================
-  /* =========================================================
-     PRODUCTOS MÁS VENDIDOS
-     Mock local: no son filas reales del backend, así que no
-     tienen categoría (ninguna coincidiría con las del catálogo).
-     Por eso "VER REPUESTOS" abre el catálogo completo.
-  ========================================================== */
+  // Los más vendidos de los últimos 90 días que hoy tienen stock
+  // (GET /api/v1/parts/best-sellers). `null` = todavía cargando.
+  // Igual que las categorías: si no hay ventas o el pedido falla, la
+  // sección se oculta y el resto de la página sigue funcionando.
 
-  const productos = [
-    {
-      marca: "BOSCH",
-      nombre: "Pastillas de Freno Delanteras",
-      codigo: "BP1234",
-      precio: "$2.450",
-      imagen:
-        "https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?q=80&w=600&auto=format&fit=crop",
-    },
-    {
-      marca: "BREMBO",
-      nombre: "Discos de Freno Delanteros",
-      codigo: "BRD1234",
-      precio: "$4.200",
-      imagen:
-        "https://images.unsplash.com/photo-1504215680853-026ed2a45def?q=80&w=600&auto=format&fit=crop",
-    },
-    {
-      marca: "MANN FILTER",
-      nombre: "Filtro de Aire",
-      codigo: "MF4587",
-      precio: "$1.290",
-      imagen:
-        "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?q=80&w=600&auto=format&fit=crop",
-    },
-    {
-      marca: "MONROE",
-      nombre: "Amortiguador Delantero",
-      codigo: "MN7821",
-      precio: "$5.890",
-      imagen:
-        "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?q=80&w=600&auto=format&fit=crop",
-    },
-  ];
+  const [masVendidos, setMasVendidos] = useState(null);
+
+  useEffect(() => {
+    let activo = true;
+
+    obtenerMasVendidos()
+      .then((lista) => {
+        if (!activo) return;
+        setMasVendidos(lista);
+      })
+      .catch(() => {
+        if (!activo) return;
+        setMasVendidos([]);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
@@ -358,7 +343,7 @@ export default function Home({
       <section className="relative min-h-[620px] flex items-center overflow-hidden">
 
         <img
-          src="/src/assets/repuestos.jpg"
+          src={repuestos}
           alt="Repuestos para vehículos"
           className="absolute inset-0 w-full h-full object-cover"
         />
@@ -659,6 +644,7 @@ export default function Home({
           MÁS VENDIDOS
       ====================================================== */}
 
+      {masVendidos?.length !== 0 && (
       <section className="max-w-[1150px] mx-auto px-5 md:px-8 pb-16">
 
         <div className="bg-[#f3f3f3] rounded-2xl p-6 md:p-9">
@@ -687,12 +673,18 @@ export default function Home({
 
           </div>
 
+          {masVendidos === null && (
+            <p className="text-[10px] text-gray-400">
+              Cargando más vendidos…
+            </p>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-            {productos.map((producto) => (
+            {(masVendidos ?? []).map((producto) => (
 
               <div
-                key={producto.codigo}
+                key={producto.id}
                 className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg transition"
               >
 
@@ -709,7 +701,7 @@ export default function Home({
                 <div className="p-4">
 
                   <p className="text-[9px] text-orange-500 font-black">
-                    {producto.marca}
+                    {producto.marcaPrincipal}
                   </p>
 
                   <h3 className="text-[12px] font-bold mt-1">
@@ -721,15 +713,15 @@ export default function Home({
                   </p>
 
                   <p className="text-lg font-black mt-4">
-                    {producto.precio}
+                    {precio(producto.precio)}
                   </p>
 
                   <button
                     type="button"
-                    onClick={() => onCatalogo()}
+                    onClick={() => onDetalle(producto)}
                     className="w-full mt-3 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md py-2 text-[9px] font-bold transition"
                   >
-                    VER REPUESTOS
+                    VER REPUESTO
                   </button>
 
                 </div>
@@ -743,6 +735,7 @@ export default function Home({
         </div>
 
       </section>
+      )}
 
       {/* =====================================================
           BENEFICIOS

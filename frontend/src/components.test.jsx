@@ -12,6 +12,7 @@ jest.mock("./api", () => ({
   cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
   obtenerCategorias: jest.fn(),
+  obtenerMasVendidos: jest.fn(),
   obtenerCarrito: jest.fn(),
   agregarItemCarrito: jest.fn(),
   actualizarItemCarrito: jest.fn(),
@@ -19,6 +20,7 @@ jest.mock("./api", () => ({
   vaciarCarritoAPI: jest.fn(),
   obtenerMarcas: jest.fn(),
   obtenerModelos: jest.fn(),
+  obtenerAnios: jest.fn(),
   obtenerDirecciones: jest.fn(),
   crearDireccion: jest.fn(),
   marcarDireccionPrincipal: jest.fn(),
@@ -84,6 +86,7 @@ import {
   marcarMetodoPagoPrincipal,
   obtenerCarrito,
   obtenerCategorias,
+  obtenerMasVendidos,
   obtenerDirecciones,
   obtenerFavoritos,
   obtenerHistorialCompras,
@@ -91,6 +94,7 @@ import {
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
+  obtenerAnios,
   obtenerRepuestos,
   obtenerPerfil,
   obtenerRecomendaciones,
@@ -215,6 +219,7 @@ beforeEach(() => {
     { nombre: "Frenos", cantidad: 2 },
     { nombre: "Motor", cantidad: 1 },
   ]);
+  obtenerMasVendidos.mockResolvedValue([]);
   obtenerCarrito.mockResolvedValue(emptyCart);
   agregarItemCarrito.mockResolvedValue(emptyCart);
   actualizarItemCarrito.mockResolvedValue(emptyCart);
@@ -222,6 +227,7 @@ beforeEach(() => {
   vaciarCarritoAPI.mockResolvedValue(emptyCart);
   obtenerMarcas.mockResolvedValue([{ brand: "Volkswagen" }]);
   obtenerModelos.mockResolvedValue([]);
+  obtenerAnios.mockResolvedValue([]);
   obtenerDirecciones.mockResolvedValue([]);
   crearDireccion.mockResolvedValue({});
   marcarDireccionPrincipal.mockResolvedValue({});
@@ -332,10 +338,7 @@ describe("Home", () => {
     const user = userEvent.setup();
     const props = navigationProps();
     obtenerModelos.mockResolvedValue(["Golf", "Polo"]);
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue({ years: [2020, 2021] }),
-    });
+    obtenerAnios.mockResolvedValue([2020, 2021]);
 
     render(<Home {...props} />);
 
@@ -347,7 +350,7 @@ describe("Home", () => {
 
     await user.selectOptions(modelSelect, "Golf");
     expect(await screen.findByRole("option", { name: "2020" })).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith("/api/v1/years?brand=Volkswagen&model=Golf");
+    expect(obtenerAnios).toHaveBeenCalledWith("Volkswagen", "Golf");
 
     await user.selectOptions(yearSelect, "2021");
     await user.click(screen.getByRole("button", { name: /^BUSCAR REPUESTOS$/i }));
@@ -380,6 +383,35 @@ describe("Home", () => {
       .toBeInTheDocument();
     expect(screen.queryByText("Cargando categorías…")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Frenos" })).not.toBeInTheDocument();
+  });
+
+  it("shows the real best sellers and opens the detail of the one clicked", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onDetalle: jest.fn() };
+    obtenerMasVendidos.mockResolvedValue([catalogProducts[0]]);
+
+    render(<Home {...props} />);
+
+    expect(await screen.findByText(catalogProducts[0].nombre)).toBeInTheDocument();
+    expect(screen.getByText(`$${catalogProducts[0].precio.toLocaleString("es-UY")}`))
+      .toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "VER REPUESTO" }));
+
+    expect(props.onDetalle).toHaveBeenCalledWith(catalogProducts[0]);
+  });
+
+  it.each([
+    ["there are no sales", () => obtenerMasVendidos.mockResolvedValue([])],
+    ["the request fails", () => obtenerMasVendidos.mockRejectedValue(new Error("API unavailable"))],
+  ])("hides the best sellers section when %s", async (_caso, preparar) => {
+    preparar();
+
+    render(<Home {...navigationProps()} />);
+
+    await waitFor(() =>
+      expect(screen.queryByText("Cargando más vendidos…")).not.toBeInTheDocument()
+    );
+    expect(screen.queryByRole("heading", { name: "MÁS VENDIDOS" })).not.toBeInTheDocument();
   });
 });
 

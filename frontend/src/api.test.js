@@ -18,11 +18,13 @@ import {
   marcarMetodoPagoPrincipal,
   obtenerCarrito,
   obtenerCategorias,
+  obtenerMasVendidos,
   obtenerDirecciones,
   obtenerFavoritos,
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
+  obtenerAnios,
   obtenerPerfil,
   obtenerRecomendaciones,
   obtenerRepuestos,
@@ -382,6 +384,15 @@ describe("catalog API", () => {
     ]);
   });
 
+  it("asks for the best sellers of the last 90 days with stock", async () => {
+    fetch.mockResolvedValueOnce(response({ parts: [{ ...backendPart, units_sold: 7 }] }));
+
+    await expect(obtenerMasVendidos()).resolves.toEqual([uiPart]);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/parts/best-sellers?limit=4&days=90&in_stock=true`
+    );
+  });
+
   it("reports network, HTTP, invalid JSON, and malformed list failures", async () => {
     fetch
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
@@ -406,6 +417,18 @@ describe("catalog API", () => {
       2,
       `${BASE_URL}/api/v1/models?brand=VW%20%26%20Audi`
     );
+  });
+
+  it("requests years from the API base URL with the brand and model encoded", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ years: [2020, 2021] }))
+      .mockResolvedValueOnce(response({}));
+
+    await expect(obtenerAnios("VW & Audi", "Golf GTI")).resolves.toEqual([2020, 2021]);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/years?brand=VW%20%26%20Audi&model=Golf%20GTI`
+    );
+    await expect(obtenerAnios("Toyota", "Corolla")).resolves.toEqual([]);
   });
 });
 

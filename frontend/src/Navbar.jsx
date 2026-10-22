@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCart } from "./context/CartContext";
 import { esVendedor } from "./auth";
 import BusquedaCabecera from "./BusquedaCabecera";
+import logo from "./assets/logo.png";
 
 export default function Navbar({
   paginaActual,
@@ -102,7 +103,7 @@ export default function Navbar({
         className="flex items-center cursor-pointer"
       >
         <img
-          src="/src/assets/logo.png"
+          src={logo}
           alt="AutoBought"
           className="h-10 w-auto object-contain"
         />
