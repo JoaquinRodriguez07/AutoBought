@@ -2,6 +2,7 @@ import { useState } from "react";
 import Navbar from "./Navbar";
 import { login, obtenerPerfil } from "./api";
 import { decodeToken } from "./auth";
+import repuestos from "./assets/repuestos.jpg";
 
 export default function Login({
   onHome,
@@ -14,6 +15,7 @@ export default function Login({
   cantidadFavoritos,
   onIniciarSesion,
   onRegistro,
+  onOlvidePassword,
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -161,6 +163,7 @@ export default function Login({
 
                 <button
                   type="button"
+                  onClick={onOlvidePassword}
                   className="text-[8px] text-orange-500 font-bold hover:underline"
                 >
                   ¿Olvidaste tu contraseña?
@@ -268,7 +271,7 @@ export default function Login({
           <div className="hidden md:block relative overflow-hidden">
 
             <img
-              src="/src/assets/repuestos.jpg"
+              src={repuestos}
               alt="AutoBought"
               className="absolute inset-0 w-full h-full object-cover"
             />

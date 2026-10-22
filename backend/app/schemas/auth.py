@@ -35,6 +35,30 @@ class RegisterRequest(BaseModel):
         return validators.password_segura(value, info.data.get("email"))
 
 
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=1)
+
+
+class UnsubscribeRequest(BaseModel):
+    token: str = Field(min_length=1)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=1)
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_nueva_segura(cls, value: str) -> str:
+        # La regla de que no contenga el correo se chequea en el endpoint,
+        # que es el que sabe de quién es el token.
+        return validators.password_segura(value)
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

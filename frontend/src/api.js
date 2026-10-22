@@ -164,6 +164,8 @@ function mapearPerfil(data) {
     apellido: "",
     email: data.email,
     telefono: formatearTelefonoUY(data.phone),
+    emailVerificado: data.email_verified,
+    recibeOfertas: data.marketing_emails,
   };
 }
 
@@ -244,6 +246,107 @@ export async function cambiarPassword(actual, nueva) {
             "Revisá la nueva contraseña."
           : "No pudimos cambiar tu contraseña.";
   throw new Error(mensaje);
+}
+
+/* =====================================================
+   MAILS DE CUENTA
+   Verificar el correo y recuperar la contraseña. Los enlaces
+   de los mails traen un `token` que estas funciones mandan
+   al backend.
+====================================================== */
+
+// POST sin sesión que solo importa si salió bien: devuelve el JSON (o
+// null) y, si falla, tira un Error con el `detail` del backend.
+async function postCuenta(ruta, cuerpo, mensajePorDefecto, headers = {}) {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/${ruta}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const mensaje =
+      typeof data?.detail === "string"
+        ? data.detail
+        : response.status === 422
+          ? Object.values(camposConError(data?.detail))[0] || mensajePorDefecto
+          : mensajePorDefecto;
+    const error = new Error(mensaje);
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+}
+
+/** POST /api/v1/auth/verify-email — 204, o 400 si el enlace no sirve. */
+export async function verificarCorreo(token) {
+  await postCuenta("verify-email", { token }, "No pudimos verificar tu correo.");
+}
+
+/** POST /api/v1/auth/verify-email/resend — vuelve a mandar el mail. */
+export async function reenviarVerificacion() {
+  const sesion = obtenerSesion();
+  await postCuenta(
+    "verify-email/resend",
+    undefined,
+    "No pudimos reenviar el mail.",
+    { Authorization: `Bearer ${sesion?.token}` }
+  );
+}
+
+/**
+ * POST /api/v1/auth/password/forgot — 202 siempre, exista o no el
+ * correo. Devuelve el mensaje del backend para mostrarlo tal cual.
+ */
+export async function pedirRecuperacion(email) {
+  const data = await postCuenta(
+    "password/forgot",
+    { email },
+    "No pudimos procesar el pedido."
+  );
+  return data?.detail;
+}
+
+/** POST /api/v1/auth/password/reset — 204; 400 enlace inválido; 422 contraseña débil. */
+export async function restablecerPassword(token, nueva) {
+  await postCuenta(
+    "password/reset",
+    { token, new_password: nueva },
+    "No pudimos cambiar tu contraseña."
+  );
+}
+
+/** POST /api/v1/auth/unsubscribe — enlace de baja de los mails comerciales. */
+export async function darseDeBaja(token) {
+  await postCuenta("unsubscribe", { token }, "No pudimos procesar la baja.");
+}
+
+/**
+ * PUT /api/v1/auth/me/preferences — interruptor «Ofertas y recordatorios
+ * por mail» del perfil. Devuelve el perfil actualizado.
+ */
+export async function guardarPreferenciasMails(recibeOfertas) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/auth/me/preferences`,
+    { method: "PUT", body: JSON.stringify({ marketing_emails: recibeOfertas }) },
+    { 401: "Tu sesión venció. Iniciá sesión de nuevo." },
+    "No pudimos guardar tu preferencia."
+  );
+  return mapearPerfil(data);
 }
 
 /* =====================================================
@@ -389,6 +492,7 @@ export async function buscarTexto(texto) {
       brand: null,
       model: null,
       year: null,
+      fuel: null,
     },
   };
 }
@@ -410,6 +514,31 @@ export async function obtenerCategorias() {
   );
 
   return listaDe(data, "categories", mensajeError).map(mapearCategoria);
+}
+
+/**
+ * GET /api/v1/parts/best-sellers
+ *
+ * Los repuestos más vendidos de los últimos `dias` días, solo los que
+ * tienen stock: la tienda no ofrece lo que no se puede comprar. El
+ * dashboard del vendedor puede pedir la misma ruta sin `in_stock`.
+ *
+ * @returns {Promise<Array<object>>} repuestos con el shape de la UI.
+ */
+export async function obtenerMasVendidos({ limite = 4, dias = 90 } = {}) {
+  const params = new URLSearchParams({
+    limit: limite,
+    days: dias,
+    in_stock: "true",
+  });
+
+  const mensajeError = "No pudimos cargar los más vendidos.";
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/parts/best-sellers?${params.toString()}`,
+    mensajeError
+  );
+
+  return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
 }
 
 /* =====================================================
@@ -545,6 +674,17 @@ export async function obtenerModelos(brand) {
   return data.models || [];
 }
 
+export async function obtenerAnios(brand, model) {
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/years?brand=${encodeURIComponent(
+      brand
+    )}&model=${encodeURIComponent(model)}`,
+    "No pudimos cargar los años."
+  );
+
+  return data.years || [];
+}
+
 
 /* =====================================================
    DIRECCIONES
@@ -668,6 +808,43 @@ export async function agregarFavoritoAPI(partId) {
 
 export async function quitarFavoritoAPI(partId) {
   await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+    method: "DELETE",
+  });
+}
+
+/* =====================================================
+   AVISOS DE STOCK
+   «Avisame cuando haya» en los repuestos agotados.
+====================================================== */
+
+const MENSAJES_POR_STATUS_AVISOS = {
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  404: "No encontramos ese repuesto.",
+};
+
+function pedirAvisosStock(url, options = {}) {
+  return pedirCuentaCliente(
+    url,
+    options,
+    MENSAJES_POR_STATUS_AVISOS,
+    "No pudimos actualizar el aviso."
+  );
+}
+
+/** GET /api/v1/stock-alerts — ids de los repuestos con aviso pedido. */
+export async function obtenerAvisosStock() {
+  const data = await pedirAvisosStock(`${API_BASE_URL}/api/v1/stock-alerts`);
+  return Array.isArray(data?.part_ids) ? data.part_ids : [];
+}
+
+export async function agregarAvisoStock(partId) {
+  await pedirAvisosStock(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
+    method: "PUT",
+  });
+}
+
+export async function quitarAvisoStock(partId) {
+  await pedirAvisosStock(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
     method: "DELETE",
   });
 }

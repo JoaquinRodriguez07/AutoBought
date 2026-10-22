@@ -18,18 +18,29 @@ import {
   marcarMetodoPagoPrincipal,
   obtenerCarrito,
   obtenerCategorias,
+  obtenerMasVendidos,
   obtenerDirecciones,
   obtenerFavoritos,
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
+  obtenerAnios,
   obtenerPerfil,
   obtenerRecomendaciones,
   obtenerRepuestos,
+  obtenerAvisosStock,
+  agregarAvisoStock,
+  quitarAvisoStock,
+  darseDeBaja,
+  guardarPreferenciasMails,
+  pedirRecuperacion,
   quitarFavoritoAPI,
+  reenviarVerificacion,
   registrar,
   renovarToken,
+  restablecerPassword,
   vaciarCarritoAPI,
+  verificarCorreo,
 } from "./api";
 import { obtenerSesion } from "./auth";
 import { IMAGEN_PLACEHOLDER } from "./mapearRepuesto";
@@ -149,7 +160,14 @@ describe("registrar", () => {
 describe("obtenerPerfil", () => {
   it("sends the given token and maps the profile to the session shape", async () => {
     fetch.mockResolvedValue(
-      response({ user_id: 7, name: "Lucia Gomez", email: "lucia@example.com", phone: "+59899123456" })
+      response({
+        user_id: 7,
+        name: "Lucia Gomez",
+        email: "lucia@example.com",
+        phone: "+59899123456",
+        email_verified: false,
+        marketing_emails: true,
+      })
     );
 
     await expect(obtenerPerfil("tok")).resolves.toEqual({
@@ -157,6 +175,8 @@ describe("obtenerPerfil", () => {
       apellido: "",
       email: "lucia@example.com",
       telefono: "099 123 456",
+      emailVerificado: false,
+      recibeOfertas: true,
     });
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me`, {
       headers: { Authorization: "Bearer tok" },
@@ -178,6 +198,143 @@ describe("obtenerPerfil", () => {
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
     await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("mails de cuenta", () => {
+  const jsonPost = (body, headers = {}) => ({
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  it("verifica el correo con el token del enlace", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await expect(verificarCorreo("tok-mail")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/verify-email`,
+      jsonPost({ token: "tok-mail" })
+    );
+  });
+
+  it("reenvía la verificación con la sesión actual", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await reenviarVerificacion();
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/verify-email/resend`,
+      jsonPost(undefined, { Authorization: "Bearer jwt-token" })
+    );
+  });
+
+  it("pide la recuperación y devuelve el mensaje del backend", async () => {
+    fetch.mockResolvedValue(response({ detail: "Si el correo está registrado..." }, { status: 202 }));
+
+    await expect(pedirRecuperacion("ana@example.com")).resolves.toBe("Si el correo está registrado...");
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/password/forgot`,
+      jsonPost({ email: "ana@example.com" })
+    );
+  });
+
+  it("restablece la contraseña con el token y la contraseña nueva", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await restablecerPassword("tok-reset", "Nueva2026x");
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/password/reset`,
+      jsonPost({ token: "tok-reset", new_password: "Nueva2026x" })
+    );
+  });
+
+  it("propaga el detalle del backend y el código de estado", async () => {
+    fetch.mockResolvedValue(
+      response({ detail: "El enlace no es válido o ya venció. Pedí uno nuevo." }, { ok: false, status: 400 })
+    );
+
+    await expect(restablecerPassword("viejo", "Nueva2026x")).rejects.toMatchObject({
+      message: "El enlace no es válido o ya venció. Pedí uno nuevo.",
+      status: 400,
+    });
+  });
+
+  it("usa el error de validación de pydantic o un mensaje por defecto", async () => {
+    fetch
+      .mockResolvedValueOnce(response(
+        { detail: [{ loc: ["body", "new_password"], msg: "Value error, La contraseña es muy corta." }] },
+        { ok: false, status: 422 }
+      ))
+      .mockResolvedValueOnce(response(null, { ok: false, status: 500, jsonError: new Error("html") }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    await expect(restablecerPassword("tok", "corta")).rejects.toThrow("La contraseña es muy corta.");
+    await expect(verificarCorreo("tok")).rejects.toThrow("No pudimos verificar tu correo.");
+    await expect(pedirRecuperacion("a@b.com")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("avisos de stock y preferencias de mails", () => {
+  const authHeaders = { "Content-Type": "application/json", Authorization: "Bearer jwt-token" };
+
+  it("lista, pide y cancela avisos de stock", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ part_ids: [3, 7] }))
+      .mockResolvedValueOnce(response(null, { status: 204 }))
+      .mockResolvedValueOnce(response(null, { status: 204 }));
+
+    await expect(obtenerAvisosStock()).resolves.toEqual([3, 7]);
+    await agregarAvisoStock(7);
+    await quitarAvisoStock(7);
+
+    expect(fetch).toHaveBeenNthCalledWith(1, `${BASE_URL}/api/v1/stock-alerts`, { headers: authHeaders });
+    expect(fetch).toHaveBeenNthCalledWith(2, `${BASE_URL}/api/v1/stock-alerts/7`, { method: "PUT", headers: authHeaders });
+    expect(fetch).toHaveBeenNthCalledWith(3, `${BASE_URL}/api/v1/stock-alerts/7`, { method: "DELETE", headers: authHeaders });
+  });
+
+  it("una respuesta sin lista se toma como vacía", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(obtenerAvisosStock()).resolves.toEqual([]);
+  });
+
+  it("propaga el detalle y el estado de un aviso rechazado", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Este repuesto tiene stock: ya lo podés comprar." }, { ok: false, status: 409 }))
+      .mockResolvedValueOnce(response({}, { ok: false, status: 401 }));
+
+    await expect(agregarAvisoStock(7)).rejects.toMatchObject({
+      message: "Este repuesto tiene stock: ya lo podés comprar.",
+      status: 409,
+    });
+    await expect(agregarAvisoStock(7)).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
+  });
+
+  it("guarda la preferencia y devuelve el perfil", async () => {
+    fetch.mockResolvedValue(response({
+      user_id: 7, name: "Ana", email: "ana@example.com", phone: null, email_verified: true, marketing_emails: false,
+    }));
+
+    await expect(guardarPreferenciasMails(false)).resolves.toEqual(expect.objectContaining({ recibeOfertas: false }));
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me/preferences`, {
+      method: "PUT",
+      body: JSON.stringify({ marketing_emails: false }),
+      headers: authHeaders,
+    });
+  });
+
+  it("se da de baja con el token del enlace, sin sesión", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await darseDeBaja("tok-baja");
+
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/unsubscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: "tok-baja" }),
+    });
   });
 });
 
@@ -382,6 +539,15 @@ describe("catalog API", () => {
     ]);
   });
 
+  it("asks for the best sellers of the last 90 days with stock", async () => {
+    fetch.mockResolvedValueOnce(response({ parts: [{ ...backendPart, units_sold: 7 }] }));
+
+    await expect(obtenerMasVendidos()).resolves.toEqual([uiPart]);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/parts/best-sellers?limit=4&days=90&in_stock=true`
+    );
+  });
+
   it("reports network, HTTP, invalid JSON, and malformed list failures", async () => {
     fetch
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
@@ -406,6 +572,18 @@ describe("catalog API", () => {
       2,
       `${BASE_URL}/api/v1/models?brand=VW%20%26%20Audi`
     );
+  });
+
+  it("requests years from the API base URL with the brand and model encoded", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ years: [2020, 2021] }))
+      .mockResolvedValueOnce(response({}));
+
+    await expect(obtenerAnios("VW & Audi", "Golf GTI")).resolves.toEqual([2020, 2021]);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/years?brand=VW%20%26%20Audi&model=Golf%20GTI`
+    );
+    await expect(obtenerAnios("Toyota", "Corolla")).resolves.toEqual([]);
   });
 });
 

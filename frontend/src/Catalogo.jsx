@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import BotonAvisoStock from "./BotonAvisoStock";
 import Navbar from "./Navbar";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import SearchBar from "./SearchBar";
@@ -40,6 +41,8 @@ export default function Catalogo({
   onCategoriaSeleccionada,
   onAlternarFavorito,
   esFavorito,
+  onAlternarAvisoStock,
+  tieneAvisoStock = () => false,
 }) {
   const { addToCart, deshacerAgregado } = useCart();
 
@@ -140,7 +143,8 @@ export default function Catalogo({
         (entities.part ||
           entities.brand ||
           entities.model ||
-          entities.year);
+          entities.year ||
+          entities.fuel);
 
       if (!tieneEntidades) {
         setRespuesta({
@@ -747,6 +751,12 @@ export default function Catalogo({
                         {producto.stock === 0 ? (
                           <p className="text-[9px] text-red-500 font-bold mt-2">
                             Sin stock
+                            <BotonAvisoStock
+                              producto={producto}
+                              tieneAviso={tieneAvisoStock(producto.partId)}
+                              onAlternarAviso={onAlternarAvisoStock}
+                              className="ml-2"
+                            />
                           </p>
                         ) : (
                           <p className="text-[9px] text-green-600 font-bold mt-2">

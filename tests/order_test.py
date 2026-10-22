@@ -9,7 +9,7 @@ from app.models.shipping_address import ShippingAddress
 
 
 def make_client(db_session, username="ana", email="ana@example.com"):
-	cliente = Client(username=username, password="secret", name="Ana", email=email)
+	cliente = Client(username=username, password="secret", name="Ana", email=email, email_verified=True)
 	db_session.add(cliente)
 	db_session.commit()
 	db_session.refresh(cliente)
@@ -113,6 +113,34 @@ def test_confirm_order_creates_order_decreases_stock_and_clears_cart(client, db_
 	assert db_session.get(Order, body["order_id"]) is not None
 
 
+def test_confirm_order_sends_confirmation_email_with_detail_and_total(client, db_session, mails):
+	cliente = make_client(db_session)
+	make_address(db_session, cliente)
+	make_payment_method(db_session, cliente)
+	pastillas = make_part(db_session, stock=5, price=1500)
+	make_cart(db_session, cliente, [(pastillas, 2)])
+
+	response = client.post("/api/v1/orders", headers=auth_headers(cliente))
+
+	assert len(mails) == 1
+	assert mails[0]["To"] == "ana@example.com"
+	assert mails[0]["Subject"] == f"Confirmamos tu pedido #{response.json()['order_id']}"
+	texto = mails[0].get_body(preferencelist=("plain",)).get_content()
+	assert "2 x Pastillas de freno: $ 3.000" in texto
+	assert "Total: $ 3.000" in texto
+	assert "Av. Italia 1234, Montevideo, Montevideo" in texto
+	assert "Visa •••• 1234" in texto
+
+
+def test_failed_order_sends_no_email(client, db_session, mails):
+	cliente = make_client(db_session)
+	make_cart(db_session, cliente)
+
+	client.post("/api/v1/orders", headers=auth_headers(cliente))
+
+	assert mails == []
+
+
 def test_confirm_order_with_insufficient_stock_returns_409_and_changes_nothing(client, db_session):
 	cliente = make_client(db_session)
 	make_address(db_session, cliente)
@@ -147,6 +175,25 @@ def test_confirm_order_requires_token(client):
 	response = client.post("/api/v1/orders")
 
 	assert response.status_code == 401
+
+
+def test_confirm_order_with_unverified_email_returns_403_and_changes_nothing(client, db_session):
+	cliente = make_client(db_session)
+	cliente.email_verified = False
+	db_session.commit()
+	make_address(db_session, cliente)
+	make_payment_method(db_session, cliente)
+	pastillas = make_part(db_session, stock=5)
+	make_cart(db_session, cliente, [(pastillas, 2)])
+	pastillas_id = pastillas.id
+
+	response = client.post("/api/v1/orders", headers=auth_headers(cliente))
+
+	assert response.status_code == 403
+	assert "Verificá tu correo" in response.json()["detail"]
+	db_session.expire_all()
+	assert db_session.get(Part, pastillas_id).stock == 5
+	assert db_session.query(Order).count() == 0
 
 
 # =====================================================

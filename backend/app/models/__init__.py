@@ -11,3 +11,4 @@ from app.models.order_item import OrderItem
 from app.models.payment_method import PaymentMethod
 from app.models.shipping_address import ShippingAddress
 from app.models.favorite import Favorite
+from app.models.stock_alert import StockAlert

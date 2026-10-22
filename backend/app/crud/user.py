@@ -59,6 +59,18 @@ def update_client(db: Session, client: Client, *, name: str, phone: str | None) 
     return client
 
 
-def update_password(db: Session, client: Client, password_hash: str) -> None:
-    client.password = password_hash
+def update_password(db: Session, user: User, password_hash: str) -> None:
+    user.password = password_hash
     db.commit()
+
+
+def mark_email_verified(db: Session, user: User) -> None:
+    user.email_verified = True
+    db.commit()
+
+
+def set_marketing_emails(db: Session, client: Client, value: bool) -> Client:
+    client.marketing_emails = value
+    db.commit()
+    db.refresh(client)
+    return client

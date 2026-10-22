@@ -193,6 +193,8 @@ def test_me_devuelve_el_perfil_con_el_telefono_guardado(client):
         "name": "Lucía Gómez",
         "email": "lucia@example.com",
         "phone": "+59899123456",
+        "email_verified": False,
+        "marketing_emails": True,
     }
     assert "password" not in response.json()
 

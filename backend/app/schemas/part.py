@@ -25,11 +25,20 @@ class SearchEntities(BaseModel):
     brand: Optional[str] = None
     model: Optional[str] = None
     year: Optional[int] = None
+    fuel: Optional[str] = None
 
 
 class PartsResponse(BaseModel):
     parts: list[PartOut]
     entities: Optional[SearchEntities] = None
+
+
+class BestSellerOut(PartOut):
+    units_sold: int
+
+
+class BestSellersResponse(BaseModel):
+    parts: list[BestSellerOut]
 
 
 class CategoryOut(BaseModel):

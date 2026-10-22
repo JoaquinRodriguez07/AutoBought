@@ -140,6 +140,8 @@ def crear_usuario(db, datos: dict) -> str:
         password_hash=hash_password(cuenta.password),
         phone=cuenta.phone,
     )
+    # Los usuarios de prueba ya vienen verificados, para poder comprar.
+    crud_user.mark_email_verified(db, client)
     client_id = client.user_id
 
     for direccion in datos["direcciones"]:

@@ -12,6 +12,7 @@ jest.mock("./api", () => ({
   cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
   obtenerCategorias: jest.fn(),
+  obtenerMasVendidos: jest.fn(),
   obtenerCarrito: jest.fn(),
   agregarItemCarrito: jest.fn(),
   actualizarItemCarrito: jest.fn(),
@@ -19,6 +20,7 @@ jest.mock("./api", () => ({
   vaciarCarritoAPI: jest.fn(),
   obtenerMarcas: jest.fn(),
   obtenerModelos: jest.fn(),
+  obtenerAnios: jest.fn(),
   obtenerDirecciones: jest.fn(),
   crearDireccion: jest.fn(),
   marcarDireccionPrincipal: jest.fn(),
@@ -33,10 +35,19 @@ jest.mock("./api", () => ({
   obtenerDetalleCompra: jest.fn(),
   agregarFavoritoAPI: jest.fn(),
   quitarFavoritoAPI: jest.fn(),
+  pedirRecuperacion: jest.fn(),
+  restablecerPassword: jest.fn(),
+  verificarCorreo: jest.fn(),
+  reenviarVerificacion: jest.fn(),
+  obtenerAvisosStock: jest.fn(),
+  agregarAvisoStock: jest.fn(),
+  quitarAvisoStock: jest.fn(),
+  guardarPreferenciasMails: jest.fn(),
+  darseDeBaja: jest.fn(),
 }));
 jest.mock(
   "react-hot-toast",
-  () => ({ __esModule: true, default: { error: jest.fn() } }),
+  () => ({ __esModule: true, default: { error: jest.fn(), success: jest.fn() } }),
   { virtual: true }
 );
 
@@ -84,6 +95,7 @@ import {
   marcarMetodoPagoPrincipal,
   obtenerCarrito,
   obtenerCategorias,
+  obtenerMasVendidos,
   obtenerDirecciones,
   obtenerFavoritos,
   obtenerHistorialCompras,
@@ -91,6 +103,7 @@ import {
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
+  obtenerAnios,
   obtenerRepuestos,
   obtenerPerfil,
   obtenerRecomendaciones,
@@ -98,6 +111,10 @@ import {
   registrar,
   vaciarCarritoAPI,
   renovarToken,
+  verificarCorreo,
+  obtenerAvisosStock,
+  agregarAvisoStock,
+  quitarAvisoStock,
 } from "./api";
 import {
   decodeToken,
@@ -215,6 +232,7 @@ beforeEach(() => {
     { nombre: "Frenos", cantidad: 2 },
     { nombre: "Motor", cantidad: 1 },
   ]);
+  obtenerMasVendidos.mockResolvedValue([]);
   obtenerCarrito.mockResolvedValue(emptyCart);
   agregarItemCarrito.mockResolvedValue(emptyCart);
   actualizarItemCarrito.mockResolvedValue(emptyCart);
@@ -222,6 +240,7 @@ beforeEach(() => {
   vaciarCarritoAPI.mockResolvedValue(emptyCart);
   obtenerMarcas.mockResolvedValue([{ brand: "Volkswagen" }]);
   obtenerModelos.mockResolvedValue([]);
+  obtenerAnios.mockResolvedValue([]);
   obtenerDirecciones.mockResolvedValue([]);
   crearDireccion.mockResolvedValue({});
   marcarDireccionPrincipal.mockResolvedValue({});
@@ -232,6 +251,7 @@ beforeEach(() => {
   eliminarMetodoPagoAPI.mockResolvedValue({});
   obtenerRecomendaciones.mockResolvedValue([]);
   obtenerFavoritos.mockResolvedValue([]);
+  obtenerAvisosStock.mockResolvedValue([]);
   obtenerHistorialCompras.mockResolvedValue([]);
   obtenerDetalleCompra.mockResolvedValue({});
   agregarFavoritoAPI.mockResolvedValue();
@@ -332,10 +352,7 @@ describe("Home", () => {
     const user = userEvent.setup();
     const props = navigationProps();
     obtenerModelos.mockResolvedValue(["Golf", "Polo"]);
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue({ years: [2020, 2021] }),
-    });
+    obtenerAnios.mockResolvedValue([2020, 2021]);
 
     render(<Home {...props} />);
 
@@ -347,7 +364,7 @@ describe("Home", () => {
 
     await user.selectOptions(modelSelect, "Golf");
     expect(await screen.findByRole("option", { name: "2020" })).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith("/api/v1/years?brand=Volkswagen&model=Golf");
+    expect(obtenerAnios).toHaveBeenCalledWith("Volkswagen", "Golf");
 
     await user.selectOptions(yearSelect, "2021");
     await user.click(screen.getByRole("button", { name: /^BUSCAR REPUESTOS$/i }));
@@ -380,6 +397,35 @@ describe("Home", () => {
       .toBeInTheDocument();
     expect(screen.queryByText("Cargando categorías…")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Frenos" })).not.toBeInTheDocument();
+  });
+
+  it("shows the real best sellers and opens the detail of the one clicked", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onDetalle: jest.fn() };
+    obtenerMasVendidos.mockResolvedValue([catalogProducts[0]]);
+
+    render(<Home {...props} />);
+
+    expect(await screen.findByText(catalogProducts[0].nombre)).toBeInTheDocument();
+    expect(screen.getByText(`$${catalogProducts[0].precio.toLocaleString("es-UY")}`))
+      .toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "VER REPUESTO" }));
+
+    expect(props.onDetalle).toHaveBeenCalledWith(catalogProducts[0]);
+  });
+
+  it.each([
+    ["there are no sales", () => obtenerMasVendidos.mockResolvedValue([])],
+    ["the request fails", () => obtenerMasVendidos.mockRejectedValue(new Error("API unavailable"))],
+  ])("hides the best sellers section when %s", async (_caso, preparar) => {
+    preparar();
+
+    render(<Home {...navigationProps()} />);
+
+    await waitFor(() =>
+      expect(screen.queryByText("Cargando más vendidos…")).not.toBeInTheDocument()
+    );
+    expect(screen.queryByRole("heading", { name: "MÁS VENDIDOS" })).not.toBeInTheDocument();
   });
 });
 
@@ -820,6 +866,16 @@ describe("Favoritos", () => {
 });
 
 describe("Login", () => {
+  it("lleva a recuperar la contraseña", async () => {
+    const user = userEvent.setup();
+    const onOlvidePassword = jest.fn();
+    render(<Login {...navigationProps()} onOlvidePassword={onOlvidePassword} />);
+
+    await user.click(screen.getByRole("button", { name: "¿Olvidaste tu contraseña?" }));
+
+    expect(onOlvidePassword).toHaveBeenCalled();
+  });
+
   it("toggles password visibility and remembers the user selection", async () => {
     const user = userEvent.setup();
     render(<Login {...navigationProps()} />);
@@ -1009,6 +1065,80 @@ describe("App", () => {
   });
 });
 
+describe("App avisos de stock", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const agotado = { ...catalogProducts[2], id: "FAR-77", partId: 77, nombre: "Faro Agotado", stock: 0 };
+
+  const renderCatalogo = async () => {
+    const user = userEvent.setup();
+    obtenerRepuestos.mockResolvedValue([catalogProducts[0], agotado]);
+    renderBase(
+      <MemoryRouter initialEntries={["/catalogo"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+    await screen.findByText("Faro Agotado");
+    return user;
+  };
+
+  const conSesion = () =>
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` })
+    );
+
+  it("solo los repuestos sin stock ofrecen el aviso", async () => {
+    await renderCatalogo();
+
+    expect(screen.getAllByRole("button", { name: /Avisame cuando haya/ })).toHaveLength(1);
+  });
+
+  it("pide y cancela el aviso de un repuesto agotado", async () => {
+    conSesion();
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    expect(agregarAvisoStock).toHaveBeenCalledWith(77);
+    expect(toast.success).toHaveBeenCalled();
+    const pedido = await screen.findByRole("button", { name: /Te vamos a avisar/ });
+    expect(pedido).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(pedido);
+
+    expect(quitarAvisoStock).toHaveBeenCalledWith(77);
+    expect(await screen.findByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
+  });
+
+  it("muestra los avisos que ya había pedido", async () => {
+    conSesion();
+    obtenerAvisosStock.mockResolvedValue([77]);
+    await renderCatalogo();
+
+    expect(await screen.findByRole("button", { name: /Te vamos a avisar/ })).toBeInTheDocument();
+  });
+
+  it("si falla, vuelve atrás y muestra el error", async () => {
+    conSesion();
+    agregarAvisoStock.mockRejectedValue(new Error("No pudimos actualizar el aviso."));
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar el aviso."));
+    expect(screen.getByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
+  });
+
+  it("sin sesión lleva al login", async () => {
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    expect(agregarAvisoStock).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
+  });
+});
+
 describe("App favoritos", () => {
   const tokenValido = () => {
     const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
@@ -1109,6 +1239,53 @@ describe("App sesión", () => {
 
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
     expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+  });
+});
+
+describe("App verificación del correo", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const sesionSinVerificar = {
+    userId: "1", nombre: "Ana", email: "ana@example.com", token: `x.${payload}.y`, emailVerificado: false,
+  };
+
+  it("muestra el aviso a un cliente sin verificar", () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
+
+    renderBase(
+      <MemoryRouter>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("region", { name: "Verificación del correo" })).toBeInTheDocument();
+  });
+
+  it("al abrir el enlace del mail con la sesión iniciada, saca el aviso", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
+    verificarCorreo.mockResolvedValue();
+
+    renderBase(
+      <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Tu correo quedó verificado/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Verificación del correo" })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("autobought-sesion")).emailVerificado).toBe(true);
+  });
+
+  it("el enlace del mail también funciona sin sesión", async () => {
+    verificarCorreo.mockResolvedValue();
+
+    renderBase(
+      <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Tu correo quedó verificado/)).toBeInTheDocument();
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
   });
 });
 
