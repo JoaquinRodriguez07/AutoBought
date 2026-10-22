@@ -23,6 +23,7 @@ import {
   obtenerMarcas,
   obtenerMetodosPago,
   obtenerModelos,
+  obtenerAnios,
   obtenerPerfil,
   obtenerRecomendaciones,
   obtenerRepuestos,
@@ -406,6 +407,18 @@ describe("catalog API", () => {
       2,
       `${BASE_URL}/api/v1/models?brand=VW%20%26%20Audi`
     );
+  });
+
+  it("requests years from the API base URL with the brand and model encoded", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ years: [2020, 2021] }))
+      .mockResolvedValueOnce(response({}));
+
+    await expect(obtenerAnios("VW & Audi", "Golf GTI")).resolves.toEqual([2020, 2021]);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/years?brand=VW%20%26%20Audi&model=Golf%20GTI`
+    );
+    await expect(obtenerAnios("Toyota", "Corolla")).resolves.toEqual([]);
   });
 });
 
