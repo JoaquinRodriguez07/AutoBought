@@ -8,7 +8,7 @@ Con el stack levantado (`docker compose up -d`), los scripts se corren dentro de
 # 1. Catálogo: modelos de autos y repuestos (backend/data/*.json)
 docker exec backend uv run python -m scripts.seed
 
-# 2. Usuarios de prueba con direcciones y tarjetas (opcional)
+# 2. Clientes de prueba con direcciones y tarjetas, y un vendedor (opcional)
 docker exec backend uv run python -m scripts.seed_demo_users
 
 # 3. Historial de pedidos de los últimos 12 meses, para el dashboard del vendedor
@@ -25,13 +25,14 @@ Sin Docker, desde `backend/` y con el `.venv` activado: `python -m scripts.seed`
 
 ### Usuarios de prueba
 
-`scripts.seed_demo_users` crea 3 clientes con direcciones y tarjetas cargadas:
+`scripts.seed_demo_users` crea 3 clientes con direcciones y tarjetas cargadas, y un vendedor:
 
 | Correo | Contraseña | Para probar |
 |---|---|---|
 | `ana.perez@autobought.com` | `Repuestos2026` | 2 direcciones, Visa y Mastercard, una compra en el historial |
 | `martin.rodriguez@autobought.com` | `Motor2026x` | American Express, OCA y una tarjeta vencida |
 | `lucia.fernandez@autobought.com` | `Frenos2026x` | Dirección en el interior con apartamento y S/N, OCA |
+| `vendedor@autobought.com` | `Ventas2026x` | Vendedor: con el mismo login entra a `/dashboard` en vez de a la tienda |
 
 ### Historial de pedidos
 
