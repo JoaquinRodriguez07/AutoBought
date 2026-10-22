@@ -35,6 +35,10 @@ jest.mock("./api", () => ({
   obtenerDetalleCompra: jest.fn(),
   agregarFavoritoAPI: jest.fn(),
   quitarFavoritoAPI: jest.fn(),
+  pedirRecuperacion: jest.fn(),
+  restablecerPassword: jest.fn(),
+  verificarCorreo: jest.fn(),
+  reenviarVerificacion: jest.fn(),
 }));
 jest.mock(
   "react-hot-toast",
@@ -102,6 +106,7 @@ import {
   registrar,
   vaciarCarritoAPI,
   renovarToken,
+  verificarCorreo,
 } from "./api";
 import {
   decodeToken,
@@ -852,6 +857,16 @@ describe("Favoritos", () => {
 });
 
 describe("Login", () => {
+  it("lleva a recuperar la contraseña", async () => {
+    const user = userEvent.setup();
+    const onOlvidePassword = jest.fn();
+    render(<Login {...navigationProps()} onOlvidePassword={onOlvidePassword} />);
+
+    await user.click(screen.getByRole("button", { name: "¿Olvidaste tu contraseña?" }));
+
+    expect(onOlvidePassword).toHaveBeenCalled();
+  });
+
   it("toggles password visibility and remembers the user selection", async () => {
     const user = userEvent.setup();
     render(<Login {...navigationProps()} />);
@@ -1141,6 +1156,53 @@ describe("App sesión", () => {
 
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
     expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+  });
+});
+
+describe("App verificación del correo", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const sesionSinVerificar = {
+    userId: "1", nombre: "Ana", email: "ana@example.com", token: `x.${payload}.y`, emailVerificado: false,
+  };
+
+  it("muestra el aviso a un cliente sin verificar", () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
+
+    renderBase(
+      <MemoryRouter>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("region", { name: "Verificación del correo" })).toBeInTheDocument();
+  });
+
+  it("al abrir el enlace del mail con la sesión iniciada, saca el aviso", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
+    verificarCorreo.mockResolvedValue();
+
+    renderBase(
+      <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Tu correo quedó verificado/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Verificación del correo" })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("autobought-sesion")).emailVerificado).toBe(true);
+  });
+
+  it("el enlace del mail también funciona sin sesión", async () => {
+    verificarCorreo.mockResolvedValue();
+
+    renderBase(
+      <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Tu correo quedó verificado/)).toBeInTheDocument();
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
   });
 });
 

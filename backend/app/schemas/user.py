@@ -26,6 +26,7 @@ class ClientOut(BaseModel):
     name: str
     email: str
     phone: str | None = None
+    email_verified: bool
 
 
 

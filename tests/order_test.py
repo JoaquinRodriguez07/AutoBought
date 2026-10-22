@@ -9,7 +9,7 @@ from app.models.shipping_address import ShippingAddress
 
 
 def make_client(db_session, username="ana", email="ana@example.com"):
-	cliente = Client(username=username, password="secret", name="Ana", email=email)
+	cliente = Client(username=username, password="secret", name="Ana", email=email, email_verified=True)
 	db_session.add(cliente)
 	db_session.commit()
 	db_session.refresh(cliente)
@@ -147,6 +147,25 @@ def test_confirm_order_requires_token(client):
 	response = client.post("/api/v1/orders")
 
 	assert response.status_code == 401
+
+
+def test_confirm_order_with_unverified_email_returns_403_and_changes_nothing(client, db_session):
+	cliente = make_client(db_session)
+	cliente.email_verified = False
+	db_session.commit()
+	make_address(db_session, cliente)
+	make_payment_method(db_session, cliente)
+	pastillas = make_part(db_session, stock=5)
+	make_cart(db_session, cliente, [(pastillas, 2)])
+	pastillas_id = pastillas.id
+
+	response = client.post("/api/v1/orders", headers=auth_headers(cliente))
+
+	assert response.status_code == 403
+	assert "Verificá tu correo" in response.json()["detail"]
+	db_session.expire_all()
+	assert db_session.get(Part, pastillas_id).stock == 5
+	assert db_session.query(Order).count() == 0
 
 
 # =====================================================

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { guardarSesion, obtenerSesion, sesionValida } from "./auth";
@@ -24,6 +24,10 @@ import Marcas from "./Marcas";
 import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
 import ProtectedRoute from "./ProtectedRoute";
+import RecuperarPassword from "./RecuperarPassword";
+import RestablecerPassword from "./RestablecerPassword";
+import VerificarCorreo from "./VerificarCorreo";
+import AvisoVerificarCorreo from "./AvisoVerificarCorreo";
 
 function App() {
   const navigate = useNavigate();
@@ -263,6 +267,21 @@ function App() {
   };
 
   /* =====================================================
+     CORREO VERIFICADO
+     El enlace del mail se puede abrir con o sin sesión; si
+     hay una abierta, se le saca el aviso de verificación.
+  ====================================================== */
+
+  const marcarCorreoVerificado = useCallback(() => {
+    const sesionActual = obtenerSesion();
+    if (!sesionActual) return;
+
+    const verificada = { ...sesionActual, emailVerificado: true };
+    guardarSesion(verificada);
+    setUsuario((actual) => (actual ? { ...actual, emailVerificado: true } : actual));
+  }, []);
+
+  /* =====================================================
      CERRAR SESIÓN
   ====================================================== */
 
@@ -413,6 +432,8 @@ function App() {
   ====================================================== */
 
   return (
+    <>
+    <AvisoVerificarCorreo usuario={usuario} />
     <Routes>
       {/* =================================================
           HOME
@@ -445,6 +466,44 @@ function App() {
             {...propsNavbar}
             onIniciarSesion={iniciarSesion}
             onRegistro={() => navigate("/registro")}
+            onOlvidePassword={() => navigate("/recuperar-password")}
+          />
+        }
+      />
+
+      {/* =================================================
+          CUENTA: RECUPERAR CONTRASEÑA Y VERIFICAR CORREO
+          Se abren desde los enlaces de los mails, sin sesión.
+      ================================================== */}
+
+      <Route
+        path="/recuperar-password"
+        element={
+          <RecuperarPassword
+            {...propsNavbar}
+            onVolverAlLogin={() => navigate("/login")}
+          />
+        }
+      />
+
+      <Route
+        path="/restablecer-password"
+        element={
+          <RestablecerPassword
+            {...propsNavbar}
+            onIniciarSesion={() => navigate("/login")}
+            onPedirOtroEnlace={() => navigate("/recuperar-password")}
+          />
+        }
+      />
+
+      <Route
+        path="/verificar-correo"
+        element={
+          <VerificarCorreo
+            {...propsNavbar}
+            onVerificado={marcarCorreoVerificado}
+            onIrALaTienda={() => navigate("/")}
           />
         }
       />
@@ -614,6 +673,7 @@ function App() {
         }
       />
     </Routes>
+    </>
   );
 }
 

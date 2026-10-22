@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String, false
 
 from app.db.base import Base
 
@@ -12,6 +12,8 @@ class User(Base):
     password = Column(String(255), nullable=False)
     name = Column(String(120), nullable=False)
     email = Column(String(255), nullable=False, unique=True)
+    # Sin verificar se puede navegar, pero no confirmar compras.
+    email_verified = Column(Boolean, nullable=False, default=False, server_default=false())
 
     __mapper_args__ = {
         "polymorphic_on": user_type,

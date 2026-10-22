@@ -66,6 +66,12 @@ def confirm_order(
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
 ):
+    if not client.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Verificá tu correo para confirmar la compra. Te mandamos un enlace al registrarte.",
+        )
+
     client_id = client.user_id
     body = body or OrderConfirm()
 

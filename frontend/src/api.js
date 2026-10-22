@@ -164,6 +164,7 @@ function mapearPerfil(data) {
     apellido: "",
     email: data.email,
     telefono: formatearTelefonoUY(data.phone),
+    emailVerificado: data.email_verified,
   };
 }
 
@@ -244,6 +245,88 @@ export async function cambiarPassword(actual, nueva) {
             "Revisá la nueva contraseña."
           : "No pudimos cambiar tu contraseña.";
   throw new Error(mensaje);
+}
+
+/* =====================================================
+   MAILS DE CUENTA
+   Verificar el correo y recuperar la contraseña. Los enlaces
+   de los mails traen un `token` que estas funciones mandan
+   al backend.
+====================================================== */
+
+// POST sin sesión que solo importa si salió bien: devuelve el JSON (o
+// null) y, si falla, tira un Error con el `detail` del backend.
+async function postCuenta(ruta, cuerpo, mensajePorDefecto, headers = {}) {
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/${ruta}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    const mensaje =
+      typeof data?.detail === "string"
+        ? data.detail
+        : response.status === 422
+          ? Object.values(camposConError(data?.detail))[0] || mensajePorDefecto
+          : mensajePorDefecto;
+    const error = new Error(mensaje);
+    error.status = response.status;
+    throw error;
+  }
+
+  return data;
+}
+
+/** POST /api/v1/auth/verify-email — 204, o 400 si el enlace no sirve. */
+export async function verificarCorreo(token) {
+  await postCuenta("verify-email", { token }, "No pudimos verificar tu correo.");
+}
+
+/** POST /api/v1/auth/verify-email/resend — vuelve a mandar el mail. */
+export async function reenviarVerificacion() {
+  const sesion = obtenerSesion();
+  await postCuenta(
+    "verify-email/resend",
+    undefined,
+    "No pudimos reenviar el mail.",
+    { Authorization: `Bearer ${sesion?.token}` }
+  );
+}
+
+/**
+ * POST /api/v1/auth/password/forgot — 202 siempre, exista o no el
+ * correo. Devuelve el mensaje del backend para mostrarlo tal cual.
+ */
+export async function pedirRecuperacion(email) {
+  const data = await postCuenta(
+    "password/forgot",
+    { email },
+    "No pudimos procesar el pedido."
+  );
+  return data?.detail;
+}
+
+/** POST /api/v1/auth/password/reset — 204; 400 enlace inválido; 422 contraseña débil. */
+export async function restablecerPassword(token, nueva) {
+  await postCuenta(
+    "password/reset",
+    { token, new_password: nueva },
+    "No pudimos cambiar tu contraseña."
+  );
 }
 
 /* =====================================================

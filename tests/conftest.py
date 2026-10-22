@@ -58,3 +58,11 @@ def client(db_session):
         
     # Clear the overrides to ensure tests remain isolated
     app.dependency_overrides.clear()
+
+@pytest.fixture(autouse=True)
+def mails(monkeypatch):
+    """Ningún test manda mails reales: el envío SMTP se reemplaza por una
+    lista con los mensajes que se habrían mandado."""
+    enviados = []
+    monkeypatch.setattr("app.core.email._enviar_smtp", enviados.append)
+    return enviados
