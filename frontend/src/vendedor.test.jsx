@@ -19,6 +19,8 @@ jest.mock("./api", () => ({
   vaciarCarritoAPI: jest.fn(),
   obtenerMarcas: jest.fn(),
   obtenerModelos: jest.fn(),
+  obtenerAnios: jest.fn(),
+  obtenerMasVendidos: jest.fn(),
   obtenerDirecciones: jest.fn(),
   crearDireccion: jest.fn(),
   marcarDireccionPrincipal: jest.fn(),
@@ -57,7 +59,9 @@ import {
   obtenerFavoritos,
   obtenerHistorialCompras,
   obtenerMarcas,
+  obtenerMasVendidos,
   obtenerMetodosPago,
+  obtenerAnios,
   obtenerModelos,
   obtenerPerfil,
   obtenerRecomendaciones,
@@ -109,6 +113,8 @@ beforeEach(() => {
   agregarItemCarrito.mockResolvedValue(emptyCart);
   obtenerMarcas.mockResolvedValue([{ brand: "Volkswagen" }]);
   obtenerModelos.mockResolvedValue([]);
+  obtenerAnios.mockResolvedValue([]);
+  obtenerMasVendidos.mockResolvedValue([]);
   obtenerDirecciones.mockResolvedValue([]);
   obtenerMetodosPago.mockResolvedValue([]);
   obtenerRecomendaciones.mockResolvedValue([]);
