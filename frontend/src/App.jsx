@@ -4,8 +4,11 @@ import toast from "react-hot-toast";
 import { guardarSesion, obtenerSesion, sesionValida } from "./auth";
 import { useRenovacionSesion } from "./useRenovacionSesion";
 import {
+  agregarAvisoStock,
   agregarFavoritoAPI,
+  obtenerAvisosStock,
   obtenerFavoritos,
+  quitarAvisoStock,
   quitarFavoritoAPI,
 } from "./api";
 import { useCart } from "./context/CartContext";
@@ -28,6 +31,7 @@ import RecuperarPassword from "./RecuperarPassword";
 import RestablecerPassword from "./RestablecerPassword";
 import VerificarCorreo from "./VerificarCorreo";
 import AvisoVerificarCorreo from "./AvisoVerificarCorreo";
+import DarseDeBaja from "./DarseDeBaja";
 
 function App() {
   const navigate = useNavigate();
@@ -75,6 +79,31 @@ function App() {
       })
       .catch(() => {
         if (!cancelado) setFavoritos([]);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [userId, haySesionConToken]);
+
+  /* =====================================================
+     AVISOS DE STOCK («Avisame cuando haya»)
+     Ids de los repuestos agotados de los que el cliente
+     pidió aviso. Se cargan igual que los favoritos.
+  ====================================================== */
+
+  const [avisosStock, setAvisosStock] = useState([]);
+
+  useEffect(() => {
+    if (!haySesionConToken) return;
+
+    let cancelado = false;
+    obtenerAvisosStock()
+      .then((ids) => {
+        if (!cancelado) setAvisosStock(ids);
+      })
+      .catch(() => {
+        if (!cancelado) setAvisosStock([]);
       });
 
     return () => {
@@ -293,6 +322,7 @@ function App() {
 
     limpiarCarritoLocal();
     setFavoritos([]);
+    setAvisosStock([]);
     navigate("/");
   };
 
@@ -373,6 +403,43 @@ function App() {
       toast.error(error.message || "No pudimos actualizar tus favoritos.");
     }
   };
+
+  const alternarAvisoStock = async (producto) => {
+    if (!usuario) {
+      navigate("/login");
+      return;
+    }
+
+    const partId = producto.partId;
+    const tenia = avisosStock.includes(partId);
+
+    setAvisosStock((actual) =>
+      tenia ? actual.filter((id) => id !== partId) : [...actual, partId]
+    );
+
+    try {
+      if (tenia) {
+        await quitarAvisoStock(partId);
+      } else {
+        await agregarAvisoStock(partId);
+        toast.success("Listo: te mandamos un mail cuando vuelva a haber stock.");
+      }
+    } catch (error) {
+      setAvisosStock((actual) =>
+        tenia ? [...actual, partId] : actual.filter((id) => id !== partId)
+      );
+
+      if (error.status === 401) {
+        toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
+        navigate("/login");
+        return;
+      }
+
+      toast.error(error.message || "No pudimos actualizar el aviso.");
+    }
+  };
+
+  const tieneAvisoStock = (partId) => avisosStock.includes(partId);
 
   const esFavorito = (id) =>
     favoritos.some(
@@ -498,6 +565,16 @@ function App() {
       />
 
       <Route
+        path="/baja-mails"
+        element={
+          <DarseDeBaja
+            {...propsNavbar}
+            onIrALaTienda={() => navigate("/")}
+          />
+        }
+      />
+
+      <Route
         path="/verificar-correo"
         element={
           <VerificarCorreo
@@ -541,6 +618,8 @@ function App() {
             favoritos={favoritos}
             onAlternarFavorito={alternarFavorito}
             esFavorito={esFavorito}
+            onAlternarAvisoStock={alternarAvisoStock}
+            tieneAvisoStock={tieneAvisoStock}
           />
         }
       />
@@ -555,6 +634,8 @@ function App() {
             producto={productoSeleccionado}
             onAlternarFavorito={alternarFavorito}
             esFavorito={esFavorito}
+            onAlternarAvisoStock={alternarAvisoStock}
+            tieneAvisoStock={tieneAvisoStock}
           />
         }
       />

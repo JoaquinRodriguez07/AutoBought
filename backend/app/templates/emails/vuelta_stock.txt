@@ -1,0 +1,6 @@
+Hola {{ nombre }}, el repuesto que esperabas ya está disponible:
+
+{{ repuesto }} — {{ precio }}
+
+Hay pocas unidades: si lo necesitás, no esperes mucho.
+Ver el repuesto: {{ enlace }}

@@ -39,6 +39,10 @@ class VerifyEmailRequest(BaseModel):
     token: str = Field(min_length=1)
 
 
+class UnsubscribeRequest(BaseModel):
+    token: str = Field(min_length=1)
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 

@@ -39,10 +39,15 @@ jest.mock("./api", () => ({
   restablecerPassword: jest.fn(),
   verificarCorreo: jest.fn(),
   reenviarVerificacion: jest.fn(),
+  obtenerAvisosStock: jest.fn(),
+  agregarAvisoStock: jest.fn(),
+  quitarAvisoStock: jest.fn(),
+  guardarPreferenciasMails: jest.fn(),
+  darseDeBaja: jest.fn(),
 }));
 jest.mock(
   "react-hot-toast",
-  () => ({ __esModule: true, default: { error: jest.fn() } }),
+  () => ({ __esModule: true, default: { error: jest.fn(), success: jest.fn() } }),
   { virtual: true }
 );
 
@@ -107,6 +112,9 @@ import {
   vaciarCarritoAPI,
   renovarToken,
   verificarCorreo,
+  obtenerAvisosStock,
+  agregarAvisoStock,
+  quitarAvisoStock,
 } from "./api";
 import {
   decodeToken,
@@ -243,6 +251,7 @@ beforeEach(() => {
   eliminarMetodoPagoAPI.mockResolvedValue({});
   obtenerRecomendaciones.mockResolvedValue([]);
   obtenerFavoritos.mockResolvedValue([]);
+  obtenerAvisosStock.mockResolvedValue([]);
   obtenerHistorialCompras.mockResolvedValue([]);
   obtenerDetalleCompra.mockResolvedValue({});
   agregarFavoritoAPI.mockResolvedValue();
@@ -1053,6 +1062,80 @@ describe("App", () => {
     expect(screen.getByText("Tu Carrito de Compras")).toBeInTheDocument();
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     expect(agregarItemCarrito).toHaveBeenCalledWith("BP1234", 1);
+  });
+});
+
+describe("App avisos de stock", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const agotado = { ...catalogProducts[2], id: "FAR-77", partId: 77, nombre: "Faro Agotado", stock: 0 };
+
+  const renderCatalogo = async () => {
+    const user = userEvent.setup();
+    obtenerRepuestos.mockResolvedValue([catalogProducts[0], agotado]);
+    renderBase(
+      <MemoryRouter initialEntries={["/catalogo"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+    await screen.findByText("Faro Agotado");
+    return user;
+  };
+
+  const conSesion = () =>
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` })
+    );
+
+  it("solo los repuestos sin stock ofrecen el aviso", async () => {
+    await renderCatalogo();
+
+    expect(screen.getAllByRole("button", { name: /Avisame cuando haya/ })).toHaveLength(1);
+  });
+
+  it("pide y cancela el aviso de un repuesto agotado", async () => {
+    conSesion();
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    expect(agregarAvisoStock).toHaveBeenCalledWith(77);
+    expect(toast.success).toHaveBeenCalled();
+    const pedido = await screen.findByRole("button", { name: /Te vamos a avisar/ });
+    expect(pedido).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(pedido);
+
+    expect(quitarAvisoStock).toHaveBeenCalledWith(77);
+    expect(await screen.findByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
+  });
+
+  it("muestra los avisos que ya había pedido", async () => {
+    conSesion();
+    obtenerAvisosStock.mockResolvedValue([77]);
+    await renderCatalogo();
+
+    expect(await screen.findByRole("button", { name: /Te vamos a avisar/ })).toBeInTheDocument();
+  });
+
+  it("si falla, vuelve atrás y muestra el error", async () => {
+    conSesion();
+    agregarAvisoStock.mockRejectedValue(new Error("No pudimos actualizar el aviso."));
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar el aviso."));
+    expect(screen.getByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
+  });
+
+  it("sin sesión lleva al login", async () => {
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    expect(agregarAvisoStock).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
   });
 });
 

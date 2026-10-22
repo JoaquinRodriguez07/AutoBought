@@ -7,6 +7,7 @@ from app.core import validators
 from app.core.config import FRONTEND_URL
 from app.core.email import enviar_mail
 from app.core.security import (
+    DARSE_DE_BAJA,
     RECUPERAR_PASSWORD,
     VERIFICAR_CORREO,
     create_access_token,
@@ -25,9 +26,10 @@ from app.schemas.auth import (
     RegisterRequest,
     ResetPasswordRequest,
     Token,
+    UnsubscribeRequest,
     VerifyEmailRequest,
 )
-from app.schemas.user import ClientOut, ClientUpdate, PasswordChange
+from app.schemas.user import ClientOut, ClientUpdate, EmailPreferences, PasswordChange
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -194,6 +196,17 @@ def reset_password(
     _mandar_aviso_password_cambiada(background_tasks, user)
 
 
+@router.post("/unsubscribe", status_code=status.HTTP_204_NO_CONTENT)
+def unsubscribe(data: UnsubscribeRequest, db: Session = Depends(get_db)):
+    """Enlace «No quiero recibir estos mails» de los mails comerciales. No
+    pide sesión. Para volver a recibirlos, el interruptor del perfil."""
+    user = _usuario_del_token(db, decode_purpose_token(data.token, DARSE_DE_BAJA))
+    if not isinstance(user, Client):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El enlace no es válido.")
+    if user.marketing_emails:
+        crud_user.set_marketing_emails(db, user, False)
+
+
 def _usuario_del_token(db: Session, payload: dict | None) -> User | None:
     if payload is None:
         return None
@@ -260,3 +273,13 @@ def change_password(
 
     crud_user.update_password(db, client, hash_password(data.new_password))
     _mandar_aviso_password_cambiada(background_tasks, client)
+
+
+@router.put("/me/preferences", response_model=ClientOut)
+def update_preferences(
+    data: EmailPreferences,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client),
+):
+    """Interruptor «Ofertas y recordatorios por mail» del perfil."""
+    return crud_user.set_marketing_emails(db, client, data.marketing_emails)

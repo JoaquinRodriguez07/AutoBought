@@ -67,3 +67,10 @@ def update_password(db: Session, user: User, password_hash: str) -> None:
 def mark_email_verified(db: Session, user: User) -> None:
     user.email_verified = True
     db.commit()
+
+
+def set_marketing_emails(db: Session, client: Client, value: bool) -> Client:
+    client.marketing_emails = value
+    db.commit()
+    db.refresh(client)
+    return client

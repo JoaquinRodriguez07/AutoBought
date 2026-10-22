@@ -113,6 +113,34 @@ def test_confirm_order_creates_order_decreases_stock_and_clears_cart(client, db_
 	assert db_session.get(Order, body["order_id"]) is not None
 
 
+def test_confirm_order_sends_confirmation_email_with_detail_and_total(client, db_session, mails):
+	cliente = make_client(db_session)
+	make_address(db_session, cliente)
+	make_payment_method(db_session, cliente)
+	pastillas = make_part(db_session, stock=5, price=1500)
+	make_cart(db_session, cliente, [(pastillas, 2)])
+
+	response = client.post("/api/v1/orders", headers=auth_headers(cliente))
+
+	assert len(mails) == 1
+	assert mails[0]["To"] == "ana@example.com"
+	assert mails[0]["Subject"] == f"Confirmamos tu pedido #{response.json()['order_id']}"
+	texto = mails[0].get_body(preferencelist=("plain",)).get_content()
+	assert "2 x Pastillas de freno: $ 3.000" in texto
+	assert "Total: $ 3.000" in texto
+	assert "Av. Italia 1234, Montevideo, Montevideo" in texto
+	assert "Visa •••• 1234" in texto
+
+
+def test_failed_order_sends_no_email(client, db_session, mails):
+	cliente = make_client(db_session)
+	make_cart(db_session, cliente)
+
+	client.post("/api/v1/orders", headers=auth_headers(cliente))
+
+	assert mails == []
+
+
 def test_confirm_order_with_insufficient_stock_returns_409_and_changes_nothing(client, db_session):
 	cliente = make_client(db_session)
 	make_address(db_session, cliente)
