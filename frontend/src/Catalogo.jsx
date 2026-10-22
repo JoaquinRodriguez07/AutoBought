@@ -420,6 +420,11 @@ export default function Catalogo({
     setSearchParams(limpio ? { q: limpio } : {});
   };
 
+  // Lo escrito que todavía no se buscó en el servidor: para eso se ofrece
+  // el botón "Buscar ... en todo el catálogo" (así no hace falta saber
+  // que existe el Enter).
+  const textoSinBuscar = busqueda.trim() !== consulta ? busqueda.trim() : "";
+
   // "Borrar filtros" del banner: quita el vehículo activo Y el resto de
   // los filtros, para que el catálogo vuelva a la lista completa.
   const borrarVehiculoYFiltros = () => {
@@ -551,6 +556,16 @@ export default function Catalogo({
                 placeholder="Buscar repuesto por nombre, código o fabricante..."
                 className="lg:max-w-[520px]"
               />
+
+              {textoSinBuscar && (
+                <button
+                  type="button"
+                  onClick={() => buscar(textoSinBuscar)}
+                  className="mt-2 text-sm text-gray-500 hover:text-orange-500 transition"
+                >
+                  Buscar <span className="font-bold text-gray-900">"{textoSinBuscar}"</span> en todo el catálogo →
+                </button>
+              )}
 
             </div>
 
@@ -932,7 +947,10 @@ export default function Catalogo({
 
               {!cargando && !error && productosMostrados.length === 0 && (
                 busqueda.trim() ? (
-                  <SinResultadosBusqueda termino={busqueda.trim()} />
+                  <SinResultadosBusqueda
+                    termino={busqueda.trim()}
+                    onBuscarEnTodo={textoSinBuscar ? () => buscar(textoSinBuscar) : undefined}
+                  />
                 ) : (
                   <div className="py-20 text-center text-gray-400 text-sm">
                     {productos.length > 0

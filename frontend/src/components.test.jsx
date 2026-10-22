@@ -810,6 +810,37 @@ it("opens with the manufacturer from the URL already checked", async () => {
   expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
 });
 
+it("offers the server search for what was typed, also when nothing on screen matches", async () => {
+  const user = userEvent.setup();
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno" },
+  });
+
+  render(
+    <>
+      <Catalogo {...navigationProps()} esFavorito={() => false} />
+      <RutaActual />
+    </>
+  );
+  await screen.findByText("Pastillas de Freno Delanteras Bosch");
+
+  await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastilas");
+
+  // Con errores no encuentra nada en pantalla: se ofrece en la barra y en grande.
+  expect(screen.getByRole("status")).toHaveTextContent("pastilas");
+  const ofertas = screen.getAllByRole("button", { name: /en todo el catálogo/ });
+  expect(ofertas).toHaveLength(2);
+
+  await user.click(ofertas[1]);
+
+  await waitFor(() => expect(buscarTexto).toHaveBeenCalledWith("pastilas"));
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastilas");
+  expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+  // Ya buscado: no se vuelve a ofrecer.
+  expect(screen.queryByRole("button", { name: /en todo el catálogo/ })).not.toBeInTheDocument();
+});
+
 it("shows the manual filter message when the search cannot be interpreted", async () => {
   const props = navigationProps();
 
