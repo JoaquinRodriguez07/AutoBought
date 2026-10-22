@@ -7,16 +7,24 @@ import { IconoFlecha } from "./Iconos";
  * Barra lateral del catálogo. Solo muestra y avisa: los valores de los
  * filtros viven en Catalogo.jsx, que es el que filtra.
  *
- * Cada sección es un <details>, así se puede plegar sin estado propio.
+ * Cada sección es un <details> que se puede plegar. Categoría y
+ * Fabricante arrancan abiertas; el resto, cerradas salvo que ya tengan
+ * algo elegido, así la barra es corta y baja junto con la página.
  * Las listas largas (fabricantes, marcas) muestran las primeras
  * VISIBLES opciones, las que más repuestos tienen, y un "Ver todos".
  */
 
 const VISIBLES = 6;
 
-function Seccion({ titulo, children }) {
+function Seccion({ titulo, abiertaAlInicio = true, children }) {
+  const [abierta, setAbierta] = useState(abiertaAlInicio);
+
   return (
-    <details open className="group border-b border-gray-100 py-4">
+    <details
+      open={abierta}
+      onToggle={(e) => setAbierta(e.currentTarget.open)}
+      className="group border-b border-gray-100 py-4"
+    >
       <summary className="flex items-center justify-between cursor-pointer list-none text-xs font-black uppercase tracking-wide [&::-webkit-details-marker]:hidden">
         {titulo}
         <IconoFlecha className="w-4 h-4 text-gray-400 transition group-open:rotate-180" />
@@ -159,7 +167,7 @@ export default function FiltrosCatalogo({
 
       {/* PRECIO */}
 
-      <Seccion titulo="Precio">
+      <Seccion titulo="Precio" abiertaAlInicio={precioMin !== "" || precioMax !== ""}>
         <div className="flex items-center gap-2">
           <input
             type="number"
@@ -187,7 +195,7 @@ export default function FiltrosCatalogo({
 
       {/* DISPONIBILIDAD */}
 
-      <Seccion titulo="Disponibilidad">
+      <Seccion titulo="Disponibilidad" abiertaAlInicio={soloConStock}>
         <label className="flex items-center gap-2 py-1.5 cursor-pointer text-sm text-gray-700">
           <input
             type="checkbox"
@@ -204,7 +212,7 @@ export default function FiltrosCatalogo({
           todo es de esa marca, así que no se muestra. */}
 
       {opcionesMarca.length > 1 && (
-        <Seccion titulo="Marca del auto">
+        <Seccion titulo="Marca del auto" abiertaAlInicio={marcasAuto.length > 0}>
           <ListaTildable
             opciones={opcionesMarca}
             seleccionados={marcasAuto}

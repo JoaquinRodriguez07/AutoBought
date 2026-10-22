@@ -5,6 +5,7 @@ import Navbar from "./Navbar";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import SearchBar from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
+import EncabezadoPagina from "./EncabezadoPagina";
 import FiltrosCatalogo from "./FiltrosCatalogo";
 import { IconoCarrito, IconoCerrar, IconoCorazon, IconoFiltros } from "./Iconos";
 import { filtrarRepuestos } from "./filtrarRepuestos";
@@ -515,63 +516,55 @@ export default function Catalogo({
           CONTENIDO
       ================================================== */}
 
-      <main className="pt-[88px]">
+      <main>
 
         {/* =================================================
             ENCABEZADO
         ================================================== */}
 
-        <section className="bg-[#f5f5f5] px-5 md:px-10 py-8">
+        <EncabezadoPagina
+          ancho="max-w-[1200px]"
+          migas={[
+            { texto: "Inicio", ir: onHome },
+            { texto: "Repuestos", ir: () => cambiarCategoria(null) },
+            categoria || "Todos",
+          ]}
+          titulo={categoria || "Todos los repuestos"}
+        >
 
-          <div className="max-w-[1200px] mx-auto">
+          {/* VEHÍCULO ACTIVO */}
+          {/* Oculto si no hay vehículo activo en VehicleContext. */}
 
-            <p className="text-xs text-gray-400">
-              Inicio › Repuestos › {categoria || "Todos"}
-            </p>
-
-            <h1 className="text-2xl font-black mt-2">
-              {categoria || "Todos los repuestos"}
-            </h1>
-
-            {/* VEHÍCULO ACTIVO */}
-            {/* Oculto si no hay vehículo activo en VehicleContext. */}
-
-            {vehiculoActivo && (
-              <div className="mt-5">
-                <ActiveVehicleBanner
-                  onCambiar={onHome}
-                  onBorrar={borrarVehiculoYFiltros}
-                />
-              </div>
-            )}
-
-            {/* BUSCADOR */}
-
-            <div className="mt-5">
-
-              <SearchBar
-                value={busqueda}
-                onChange={setBusqueda}
-                onSubmit={buscar}
-                placeholder="Buscar repuesto por nombre, código o fabricante..."
-                className="lg:max-w-[520px]"
+          {vehiculoActivo && (
+            <div className="mb-5">
+              <ActiveVehicleBanner
+                onCambiar={onHome}
+                onBorrar={borrarVehiculoYFiltros}
               />
-
-              {textoSinBuscar && (
-                <button
-                  type="button"
-                  onClick={() => buscar(textoSinBuscar)}
-                  className="mt-2 text-sm text-gray-500 hover:text-orange-500 transition"
-                >
-                  Buscar <span className="font-bold text-gray-900">"{textoSinBuscar}"</span> en todo el catálogo →
-                </button>
-              )}
-
             </div>
+          )}
 
-          </div>
+          {/* BUSCADOR */}
 
-        </section>
+          <SearchBar
+            value={busqueda}
+            onChange={setBusqueda}
+            onSubmit={buscar}
+            placeholder="Buscar repuesto por nombre, código o fabricante..."
+            className="lg:max-w-[520px]"
+          />
+
+          {textoSinBuscar && (
+            <button
+              type="button"
+              onClick={() => buscar(textoSinBuscar)}
+              className="mt-2 text-sm text-gray-300 hover:text-orange-400 transition"
+            >
+              Buscar <span className="font-bold text-white">"{textoSinBuscar}"</span> en todo el catálogo →
+            </button>
+          )}
+
+        </EncabezadoPagina>
 
         {/* =================================================
             CATÁLOGO
@@ -587,7 +580,7 @@ export default function Catalogo({
 
             <aside
               aria-label="Filtros"
-              className={`${filtrosAbiertos ? "block" : "hidden"} lg:block lg:sticky lg:top-[104px] lg:self-start lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto lg:pr-4`}
+              className={`${filtrosAbiertos ? "block" : "hidden"} lg:block`}
             >
 
               <FiltrosCatalogo

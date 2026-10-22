@@ -3,12 +3,14 @@ import Navbar from "./Navbar";
 import { confirmarCompra, obtenerDirecciones, obtenerMetodosPago } from "./api";
 import { useCart } from "./context/CartContext";
 import SugerenciasCarrito from "./SugerenciasCarrito";
+import EncabezadoPagina from "./EncabezadoPagina";
 import { IconoBasura, IconoCandado, IconoCarrito, IconoCheck } from "./Iconos";
 
 
 export default function Carrito({
   onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
   cantidadFavoritos, onDetalle, onDirecciones, onMetodosPago,
+  usuario, onPerfil, onHistorial, onCerrarSesion,
 }) {
   const { cart: productos, updateQuantity, removeFromCart, clearCart, total, cargarCarrito } = useCart();
 
@@ -17,6 +19,7 @@ export default function Carrito({
   const totalFinal = subtotal + envio;
 
   const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
+  const unidades = productos.reduce((suma, p) => suma + p.cantidad, 0);
 
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -91,21 +94,30 @@ export default function Carrito({
   };
 
   const resumen = (
-    <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit shadow-xs">
-      <h2 className="text-[13px] font-black">Resumen del pedido</h2>
-      <div className="mt-6 space-y-4">
-        <div className="flex justify-between text-sm"><span className="text-gray-500">Subtotal</span><span className="font-bold">{precio(subtotal)}</span></div>
+    <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit shadow-xs lg:sticky lg:top-24">
+      <h2 className="text-base font-black">Resumen del pedido</h2>
+      <div className="mt-5 space-y-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">
+            Subtotal ({unidades} {unidades === 1 ? "unidad" : "unidades"})
+          </span>
+          <span className="font-bold">{precio(subtotal)}</span>
+        </div>
         <div className="flex justify-between text-sm"><span className="text-gray-500">Envío</span><span className="text-green-600 font-bold">Gratis</span></div>
       </div>
-      <div className="border-t border-gray-200 mt-6 pt-5 flex justify-between items-end">
-        <span className="text-xs text-gray-400">TOTAL</span>
+      <div className="border-t border-gray-200 mt-5 pt-4 flex justify-between items-end">
+        <span className="text-sm font-bold">Total</span>
         <span className="text-2xl font-black text-orange-500">{precio(totalFinal)}</span>
       </div>
       <button onClick={abrirConfirmacion} disabled={productos.length === 0}
-        className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 mt-6 text-sm font-black disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-500">
+        className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md h-12 mt-5 text-sm font-black disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-500">
         FINALIZAR COMPRA
       </button>
-      <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-3">
+      <button type="button" onClick={() => onCatalogo()}
+        className="w-full mt-2 h-10 text-sm font-bold text-gray-600 hover:text-orange-500 transition">
+        Seguir comprando
+      </button>
+      <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-2 pt-3 border-t border-gray-100">
         <IconoCandado className="w-3.5 h-3.5" />
         Pago 100% seguro y protegido
       </p>
@@ -211,100 +223,124 @@ export default function Carrito({
     <div className="min-h-screen bg-white text-gray-900 font-sans">
       <Navbar paginaActual="carrito" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
+        usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
+        onMetodosPago={onMetodosPago} onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
         cantidadFavoritos={cantidadFavoritos} />
 
-      <main className="pt-[88px]">
-        <section className="bg-[#f5f5f5] px-5 md:px-10 py-8">
+      <main>
+        <EncabezadoPagina
+          migas={[{ texto: "Inicio", ir: onHome }, "Carrito"]}
+          titulo="Tu Carrito de Compras"
+          descripcion="Revisá tus repuestos antes de pagar."
+        />
+
+        <div className="px-5 md:px-10 py-8">
           <div className="max-w-[1100px] mx-auto">
-            <p className="text-xs text-gray-400">Inicio › Carrito</p>
-            <h1 className="text-2xl font-black mt-2">Tu Carrito de Compras</h1>
-            <p className="text-sm text-gray-500 mt-1">Revisá tus repuestos antes de pagar.</p>
-          </div>
-        </section>
 
-        <div className="max-w-[1100px] mx-auto px-5 md:px-10 py-8">
-
-          {productos.length === 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_310px] gap-6">
-              <div className="bg-white border border-gray-200 rounded-xl p-16 text-center shadow-xs">
-                <span className="mx-auto mb-4 w-16 h-16 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
-                  <IconoCarrito className="w-8 h-8" />
-                </span>
-                <h2 className="text-xl font-black">Tu carrito está vacío</h2>
-                <p className="text-sm text-gray-400 mt-2">Agregá repuestos desde el catálogo para verlos acá.</p>
-                <button onClick={() => onCatalogo()}
-                  className="mt-6 bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-md text-sm font-black">
-                  VER REPUESTOS
-                </button>
-              </div>
-              {resumen}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_310px] gap-6">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm font-bold">{productos.length} producto(s)</p>
-                  <button onClick={clearCart} className="text-xs text-gray-400 hover:text-orange-500">
-                    Vaciar carrito
+            {productos.length === 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+                <div className="bg-white border border-gray-200 rounded-xl px-8 py-12 text-center shadow-xs">
+                  <span className="mx-auto mb-4 w-16 h-16 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
+                    <IconoCarrito className="w-8 h-8" />
+                  </span>
+                  <h2 className="text-xl font-black">Tu carrito está vacío</h2>
+                  <p className="text-sm text-gray-400 mt-2">Agregá repuestos desde el catálogo para verlos acá.</p>
+                  <button onClick={() => onCatalogo()}
+                    className="mt-6 bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-md text-sm font-black">
+                    VER REPUESTOS
                   </button>
                 </div>
+                {resumen}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+                <div className="min-w-0">
 
-                {productos.map((producto) => {
-                  const alcanzoMaximo = producto.cantidad >= producto.stock;
-                  return (
-                    <div key={producto.id} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row gap-4 shadow-xs">
-                      <button onClick={() => onDetalle(producto)} className="w-full md:w-[150px] h-[115px] rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                        <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
-                      </button>
+                  {/* LISTA: una sola tarjeta, una fila compacta por
+                      producto, para que con muchos no se haga eterna. */}
 
-                      <div className="flex-1">
-                        <p className="text-orange-500 text-[11px] uppercase tracking-wide font-black">{producto.categoria}</p>
-                        <button onClick={() => onDetalle(producto)} className="text-left text-sm font-black mt-1 hover:text-orange-500">
-                          {producto.nombre}
-                        </button>
-                        <p className="text-xs text-green-600 font-bold mt-3">En stock</p>
-                      </div>
+                  <section className="bg-white border border-gray-200 rounded-xl shadow-xs">
 
-                      <div className="flex md:flex-col items-center justify-center gap-2">
-                        <span className="text-xs text-gray-400">Cantidad</span>
-                        <div className="flex items-center border border-gray-200 rounded-md">
-                          <button onClick={() => updateQuantity(producto.id, producto.cantidad - 1)} className="w-8 h-8">−</button>
-                          <span className="w-8 text-center text-sm font-bold">{producto.cantidad}</span>
-                          <button
-                            onClick={() => updateQuantity(producto.id, producto.cantidad + 1)}
-                            disabled={alcanzoMaximo}
-                            className="w-8 h-8 disabled:opacity-40"
-                          >
-                            +
-                          </button>
-                        </div>
-                        {alcanzoMaximo && (
-                          <span className="text-[11px] text-orange-500 font-bold">Stock máximo</span>
-                        )}
-                      </div>
-
-                      <div className="flex md:flex-col justify-center items-end min-w-[100px]">
-                        <p className="text-lg font-black">{precio(producto.precio * producto.cantidad)}</p>
-                        <p className="text-xs text-gray-400 mt-1">{precio(producto.precio)} c/u</p>
-                      </div>
-
-                      <button onClick={() => removeFromCart(producto.id)}
-                        aria-label={`Quitar ${producto.nombre} del carrito`}
-                        title="Quitar del carrito"
-                        className="self-center w-9 h-9 rounded-md border border-gray-200 text-gray-400 hover:border-red-400 hover:text-red-500 flex items-center justify-center transition">
+                    <div className="flex justify-between items-center px-5 py-3 border-b border-gray-200">
+                      <h2 className="text-base font-black">
+                        Productos <span className="text-gray-400 font-bold">({productos.length})</span>
+                      </h2>
+                      <button onClick={clearCart}
+                        className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-red-500 transition">
                         <IconoBasura className="w-4 h-4" />
+                        Vaciar carrito
                       </button>
                     </div>
-                  );
-                
-                })}
-                <SugerenciasCarrito />
+
+                    <ul className="divide-y divide-gray-100">
+                      {productos.map((producto) => {
+                        const alcanzoMaximo = producto.cantidad >= producto.stock;
+                        return (
+                          <li key={producto.id} className="flex items-center gap-4 px-5 py-4">
+
+                            <button onClick={() => onDetalle(producto)}
+                              className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                              <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
+                            </button>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="text-orange-500 text-[11px] uppercase tracking-wide font-black">{producto.categoria}</p>
+                              <button onClick={() => onDetalle(producto)}
+                                className="text-left text-sm font-bold leading-snug mt-0.5 hover:text-orange-500">
+                                {producto.nombre}
+                              </button>
+                              <div className="flex items-center gap-3 mt-1.5 text-xs">
+                                <span className="text-green-600 font-bold">En stock</span>
+                                <button onClick={() => removeFromCart(producto.id)}
+                                  aria-label={`Quitar ${producto.nombre} del carrito`}
+                                  className="text-gray-400 hover:text-red-500 underline transition">
+                                  Quitar
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center border border-gray-200 rounded-md">
+                                <button onClick={() => updateQuantity(producto.id, producto.cantidad - 1)} className="w-8 h-8">−</button>
+                                <span className="w-8 text-center text-sm font-bold">{producto.cantidad}</span>
+                                <button
+                                  onClick={() => updateQuantity(producto.id, producto.cantidad + 1)}
+                                  disabled={alcanzoMaximo}
+                                  className="w-8 h-8 disabled:opacity-40"
+                                >
+                                  +
+                                </button>
+                              </div>
+                              {alcanzoMaximo && (
+                                <span className="text-[11px] text-orange-500 font-bold">Stock máximo</span>
+                              )}
+                            </div>
+
+                            <div className="w-24 text-right shrink-0">
+                              <p className="text-base font-black">{precio(producto.precio * producto.cantidad)}</p>
+                              {producto.cantidad > 1 && (
+                                <p className="text-xs text-gray-400 mt-0.5">{precio(producto.precio)} c/u</p>
+                              )}
+                            </div>
+
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                  </section>
+
+                  {/* Las sugerencias acompañan debajo de la lista, chicas,
+                      sin competir con el carrito. */}
+                  <SugerenciasCarrito />
+
+                </div>
+
+                {resumen}
               </div>
-            
- 
-              {resumen}
-            </div>
-          )}
+            )}
+
+          </div>
         </div>
       </main>
     </div>

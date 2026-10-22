@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { guardarSesion, obtenerSesion, sesionValida } from "./auth";
 import { useRenovacionSesion } from "./useRenovacionSesion";
@@ -27,14 +27,32 @@ import Marcas from "./Marcas";
 import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
 import ProtectedRoute from "./ProtectedRoute";
+import Footer from "./Footer";
 import RecuperarPassword from "./RecuperarPassword";
 import RestablecerPassword from "./RestablecerPassword";
 import VerificarCorreo from "./VerificarCorreo";
 import AvisoVerificarCorreo from "./AvisoVerificarCorreo";
 import DarseDeBaja from "./DarseDeBaja";
 
+const RUTAS_SIN_FOOTER = [
+  "/login",
+  "/registro",
+  "/recuperar-password",
+  "/restablecer-password",
+  "/verificar-correo",
+  "/baja-mails",
+];
+
 function App() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  // Al pasar a otra página se arranca desde arriba (sin esto, el
+  // navegador conserva el scroll de la página anterior).
+  useEffect(() => {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pathname]);
   const { cargarCarrito, limpiarCarritoLocal } = useCart();
   const { activarVehiculo } = useVehicle();
 
@@ -504,9 +522,18 @@ function App() {
      RENDER
   ====================================================== */
 
+  // El footer queda siempre al fondo: si la página tiene poco contenido
+  // (un carrito vacío), el espacio que sobra queda arriba del footer y no
+  // debajo. Cada página trae su propio `min-h-screen`; acá se reemplaza
+  // por "ocupar lo que sobre" (flex-1) para que la página y el footer
+  // juntos llenen la pantalla.
+  const conFooter = !RUTAS_SIN_FOOTER.includes(pathname);
+
   return (
     <>
     <AvisoVerificarCorreo usuario={usuario} />
+    <div className={conFooter ? "min-h-screen flex flex-col" : undefined}>
+    <div className={conFooter ? "flex-1 flex flex-col *:flex-1 *:min-h-0!" : undefined}>
     <Routes>
       {/* =================================================
           HOME
@@ -753,6 +780,10 @@ function App() {
         }
       />
     </Routes>
+    </div>
+    {/* Las pantallas de iniciar sesión y registro tienen su propio armado. */}
+    {conFooter && <Footer {...propsNavbar} />}
+    </div>
     </>
   );
 }

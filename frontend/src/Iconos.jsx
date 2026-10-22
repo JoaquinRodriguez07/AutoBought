@@ -175,3 +175,83 @@ export function IconoCandado(props) {
     </Icono>
   );
 }
+
+// ---- Categorías del catálogo (ver iconoDeCategoria en Home.jsx) ----
+
+export function IconoEscobilla(props) {
+  return (
+    <Icono {...props}>
+      <path d="M4 20 18 6M18 6l2 2M14 10l-6-6M9 15l-5-5" />
+    </Icono>
+  );
+}
+
+export function IconoRayo(props) {
+  return (
+    <Icono {...props}>
+      <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />
+    </Icono>
+  );
+}
+
+export function IconoChispa(props) {
+  return (
+    <Icono {...props}>
+      <path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" />
+      <circle cx="12" cy="12" r="2.5" />
+    </Icono>
+  );
+}
+
+export function IconoFiltro(props) {
+  return (
+    <Icono {...props}>
+      <path d="M3 4h18l-7 8v6l-4 2v-8L3 4Z" />
+    </Icono>
+  );
+}
+
+export function IconoDisco(props) {
+  return (
+    <Icono {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+    </Icono>
+  );
+}
+
+export function IconoGota(props) {
+  return (
+    <Icono {...props}>
+      <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z" />
+    </Icono>
+  );
+}
+
+export function IconoEngranaje(props) {
+  return (
+    <Icono {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+      <circle cx="12" cy="12" r="7" />
+    </Icono>
+  );
+}
+
+export function IconoTermometro(props) {
+  return (
+    <Icono {...props}>
+      <path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z" />
+      <path d="M12 9v6" />
+    </Icono>
+  );
+}
+
+export function IconoResorte(props) {
+  return (
+    <Icono {...props}>
+      <path d="M6 3h12M6 21h12M7 6l10 3M7 9l10 3M7 12l10 3M7 15l10 3" />
+    </Icono>
+  );
+}

@@ -23,7 +23,7 @@ export default function ActiveVehicleBanner({ onCambiar, onBorrar }) {
   return (
     <div
       role="status"
-      className="bg-[#151719] text-white rounded-lg px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      className="bg-white/10 border border-white/15 backdrop-blur-sm text-white rounded-lg px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
     >
       <div className="flex items-center gap-3">
         <span className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-orange-500">
@@ -31,7 +31,7 @@ export default function ActiveVehicleBanner({ onCambiar, onBorrar }) {
         </span>
 
         <p className="text-sm">
-          <span className="text-gray-400">
+          <span className="text-gray-300">
             Mostrando repuestos para:{" "}
           </span>
           <span className="font-black">

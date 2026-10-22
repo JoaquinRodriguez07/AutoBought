@@ -64,47 +64,45 @@ export default function SugerenciasCarrito() {
   };
 
   return (
-    <section
-      aria-labelledby="titulo-sugerencias"
-      className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs"
-    >
-      <h2 id="titulo-sugerencias" className="text-[13px] font-black">
+    <section aria-labelledby="titulo-sugerencias" className="mt-6">
+      <h2 id="titulo-sugerencias" className="text-sm font-black">
         También podrías necesitar esto...
       </h2>
 
-      <ul className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+      <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
         {visibles.map((producto) => (
           <li
             key={producto.id}
-            className="border border-gray-200 rounded-lg p-3 flex flex-col"
+            className="bg-white border border-gray-200 rounded-lg p-3 flex gap-3"
           >
-            <div className="h-[90px] rounded-md overflow-hidden bg-gray-100">
-              <img
-                src={producto.imagen}
-                alt={producto.nombre}
-                className="w-full h-full object-cover"
-              />
+            <img
+              src={producto.imagen}
+              alt={producto.nombre}
+              className="w-14 h-14 rounded-md object-cover bg-gray-100 shrink-0"
+            />
+
+            <div className="flex flex-col min-w-0 flex-1">
+              <p className="text-orange-500 text-[10px] uppercase tracking-wide font-black truncate">
+                {producto.fabricante || producto.marcaPrincipal}
+              </p>
+              <p className="text-xs font-bold leading-snug line-clamp-2">
+                {producto.nombre}
+              </p>
+              <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+                <p className="text-sm font-black">
+                  {precio(producto.precio)}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => agregar(producto)}
+                  disabled={agregando === producto.id}
+                  aria-label={`Agregar ${producto.nombre} al carrito`}
+                  className="text-xs font-black text-orange-500 hover:text-orange-600 disabled:opacity-60"
+                >
+                  {agregando === producto.id ? "Agregando..." : "+ Agregar"}
+                </button>
+              </div>
             </div>
-
-            <p className="text-orange-500 text-[8px] font-black mt-3">
-              {producto.fabricante || producto.marcaPrincipal}
-            </p>
-            <p className="text-[11px] font-black mt-1 flex-1">
-              {producto.nombre}
-            </p>
-            <p className="text-[13px] font-black mt-2">
-              {precio(producto.precio)}
-            </p>
-
-            <button
-              type="button"
-              onClick={() => agregar(producto)}
-              disabled={agregando === producto.id}
-              aria-label={`Agregar ${producto.nombre} al carrito`}
-              className="mt-3 bg-orange-500 hover:bg-orange-600 text-white rounded-md py-2 text-[9px] font-black disabled:opacity-60"
-            >
-              {agregando === producto.id ? "AGREGANDO..." : "AGREGAR AL CARRITO"}
-            </button>
           </li>
         ))}
       </ul>

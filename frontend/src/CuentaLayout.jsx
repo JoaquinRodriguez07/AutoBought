@@ -1,4 +1,5 @@
 import Navbar from "./Navbar";
+import EncabezadoPagina from "./EncabezadoPagina";
 import {
   IconoCaja,
   IconoSalir,
@@ -70,36 +71,29 @@ export default function CuentaLayout({
         onCerrarSesion={onCerrarSesion}
       />
 
-      <main className="pt-[88px]">
+      <main>
 
-        {/* ENCABEZADO */}
+        {/* ENCABEZADO: el saludo, con la inicial y el correo */}
 
-        <section className="bg-[#f5f5f5] px-5 md:px-10 py-8">
-          <div className="max-w-[1100px] mx-auto">
-            <p className="text-xs text-gray-400">
-              Inicio › Mi cuenta › {titulo}
-            </p>
+        <EncabezadoPagina
+          migas={[
+            { texto: "Inicio", ir: onHome },
+            { texto: "Mi cuenta", ir: onPerfil },
+            titulo,
+          ]}
+          titulo={usuario?.nombre ? `Hola, ${usuario.nombre.split(" ")[0]}` : "Mi cuenta"}
+          descripcion={usuario?.email}
+          inicio={
+            <span
+              aria-hidden="true"
+              className="w-14 h-14 shrink-0 rounded-full bg-orange-500 text-white text-2xl font-black flex items-center justify-center"
+            >
+              {(usuario?.nombre || "U").charAt(0).toUpperCase()}
+            </span>
+          }
+        />
 
-            <div className="flex items-center gap-4 mt-4">
-              <span
-                aria-hidden="true"
-                className="w-14 h-14 shrink-0 rounded-full bg-orange-500 text-white text-2xl font-black flex items-center justify-center"
-              >
-                {(usuario?.nombre || "U").charAt(0).toUpperCase()}
-              </span>
-              <div className="min-w-0">
-                <h1 className="text-2xl font-black">
-                  {usuario?.nombre ? `Hola, ${usuario.nombre.split(" ")[0]}` : "Mi cuenta"}
-                </h1>
-                {usuario?.email && (
-                  <p className="text-sm text-gray-500 mt-0.5 truncate">{usuario.email}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="px-5 md:px-10 py-8">
+        <section className="px-5 md:px-10 pt-8 pb-16">
           <div className="max-w-[1100px] mx-auto grid grid-cols-1 lg:grid-cols-[230px_1fr] gap-8">
 
             {/* MENÚ */}

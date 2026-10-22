@@ -338,17 +338,21 @@ describe("Navbar", () => {
 });
 
 describe("Home", () => {
-  it("renders the hero and opens the catalog from the search button", async () => {
+  it("renders the hero with the vehicle selector as the main action", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
     render(<Home {...props} />);
 
     expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: /buscar repuestos/i })[0]);
+    expect(screen.getByText("¿Qué auto tenés?")).toBeInTheDocument();
+    // Sin auto elegido no se puede buscar ni hay nada para borrar.
+    const buscar = screen.getByRole("button", { name: "BUSCAR REPUESTOS" });
+    expect(buscar).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "BORRAR FILTROS" })).not.toBeInTheDocument();
+    await user.click(buscar);
 
-    expect(props.onCatalogo).toHaveBeenCalledWith();
-
+    expect(props.onCatalogo).not.toHaveBeenCalled();
   });
 
   it("loads model and year options and searches with the selected vehicle", async () => {
@@ -396,7 +400,7 @@ describe("Home", () => {
 
     render(<Home {...props} />);
 
-    expect(await screen.findByRole("heading", { name: /encontrá lo que necesitás/i }))
+    expect(await screen.findByRole("heading", { name: "Categorías" }))
       .toBeInTheDocument();
     expect(screen.queryByText("Cargando categorías…")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Frenos/ })).not.toBeInTheDocument();
@@ -990,6 +994,18 @@ describe("Favoritos", () => {
     expect(props.onCatalogo).toHaveBeenCalledWith();
   });
 
+  it("makes the breadcrumb steps links, except the current page", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Favoritos {...props} favoritos={[]} />);
+
+    await user.click(screen.getByRole("button", { name: "Inicio" }));
+    expect(props.onHome).toHaveBeenCalled();
+    // La página actual es texto, no link.
+    expect(screen.getByText("Favoritos", { selector: "span" }).closest("button")).toBeNull();
+  });
+
   it("renders favorites and supports remove, detail, and add actions", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -1161,7 +1177,7 @@ describe("Marcas", () => {
 
     render(<Marcas {...props} />);
     expect(await screen.findByText("1 marcas")).toBeInTheDocument();
-    expect(screen.getByText("Volkswagen")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Logo Volkswagen" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Volkswagen/i }));
     expect(props.onCatalogo).toHaveBeenCalledWith(null, { brand: "Volkswagen", model: "", year: "" });
@@ -1169,6 +1185,19 @@ describe("Marcas", () => {
 });
 
 describe("App", () => {
+  it("shows the footer on the store pages but not on login", async () => {
+    const user = userEvent.setup();
+    renderBase(
+      <MemoryRouter>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("Mis pedidos");
+    await user.click(screen.getByTitle("Iniciar sesión"));
+    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
+  });
+
   it("starts on home and changes pages through the navbar", async () => {
     const user = userEvent.setup();
     renderBase(
@@ -2160,6 +2189,22 @@ describe("Direcciones", () => {
 
     expect(props.onMetodosPago).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
+  });
+
+  it("opens the account menu from the navbar also inside the account pages", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onHistorial: jest.fn() };
+    obtenerDirecciones.mockResolvedValue([]);
+
+    render(<Direcciones {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+
+    await user.click(screen.getByTitle("Mi cuenta"));
+    // "Mi perfil" está solo en el menú desplegable (el menú de la
+    // izquierda dice "Información personal").
+    const desplegable = screen.getByRole("button", { name: "Mi perfil" }).closest("div.absolute");
+    await user.click(within(desplegable).getByRole("button", { name: "Historial de compras" }));
+
+    expect(props.onHistorial).toHaveBeenCalled();
   });
 
   it("changes the primary address and returns to the profile", async () => {

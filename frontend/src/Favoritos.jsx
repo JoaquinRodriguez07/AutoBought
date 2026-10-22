@@ -1,11 +1,13 @@
 import Navbar from "./Navbar";
 import { useCart } from "./context/CartContext";
 import { IconoCarrito, IconoCorazon } from "./Iconos";
+import EncabezadoPagina from "./EncabezadoPagina";
 
 export default function Favoritos({
   onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
   cantidadFavoritos, favoritos, onAlternarFavorito,
   onDetalle,
+  usuario, onPerfil, onDirecciones, onMetodosPago, onHistorial, onCerrarSesion,
 }) {
   const { addToCart } = useCart();
   const precio = (v) => `$${v.toLocaleString("es-UY")}`;
@@ -14,18 +16,18 @@ export default function Favoritos({
     <div className="min-h-screen bg-white text-gray-900 font-sans">
       <Navbar paginaActual="favoritos" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
+        usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
+        onMetodosPago={onMetodosPago} onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
         cantidadFavoritos={cantidadFavoritos} />
 
-      <main className="pt-[88px]">
-        <section className="bg-[#f5f5f5] px-5 md:px-10 py-8">
-          <div className="max-w-[1100px] mx-auto">
-            <p className="text-xs text-gray-400">Inicio › Favoritos</p>
-            <h1 className="text-2xl font-black mt-2">Mis favoritos</h1>
-            <p className="text-sm text-gray-500 mt-1">Los repuestos que guardaste para tener a mano.</p>
-          </div>
-        </section>
+      <main>
+        <EncabezadoPagina
+          migas={[{ texto: "Inicio", ir: onHome }, "Favoritos"]}
+          titulo="Mis favoritos"
+          descripcion="Los repuestos que guardaste para tener a mano."
+        />
 
-        <div className="max-w-[1100px] mx-auto px-5 md:px-10 pb-14">
+        <div className="max-w-[1100px] mx-auto px-5 md:px-10 pb-14 box-content">
 
           {favoritos.length === 0 ? (
             <div className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-16 text-center">

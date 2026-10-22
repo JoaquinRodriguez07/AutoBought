@@ -43,3 +43,36 @@
     opacity: 0.7;
   }
 }
+
+/*
+  Cinta de logos del inicio: se mueve sola en un bucle continuo (la lista
+  va dos veces y se corre la mitad), se frena al pasar el mouse y queda
+  quieta si el sistema pide reducir el movimiento.
+*/
+@keyframes cinta {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.cinta {
+  animation: cinta 35s linear infinite;
+}
+
+.cinta-reversa {
+  animation-direction: reverse;
+}
+
+.cinta-contenedor:hover .cinta,
+.cinta-contenedor:focus-within .cinta {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinta {
+    animation: none;
+  }
+}
