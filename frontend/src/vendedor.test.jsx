@@ -31,6 +31,10 @@ jest.mock("./api", () => ({
   eliminarMetodoPagoAPI: jest.fn(),
   obtenerRecomendaciones: jest.fn(),
   obtenerFavoritos: jest.fn(),
+  obtenerAvisosStock: jest.fn(),
+  agregarAvisoStock: jest.fn(),
+  quitarAvisoStock: jest.fn(),
+  reenviarVerificacion: jest.fn(),
   obtenerHistorialCompras: jest.fn(),
   obtenerDetalleCompra: jest.fn(),
   agregarFavoritoAPI: jest.fn(),
@@ -56,6 +60,7 @@ import {
   obtenerCategorias,
   obtenerDetalleCompra,
   obtenerDirecciones,
+  obtenerAvisosStock,
   obtenerFavoritos,
   obtenerHistorialCompras,
   obtenerMarcas,
@@ -119,6 +124,7 @@ beforeEach(() => {
   obtenerMetodosPago.mockResolvedValue([]);
   obtenerRecomendaciones.mockResolvedValue([]);
   obtenerFavoritos.mockResolvedValue([]);
+  obtenerAvisosStock.mockResolvedValue([]);
   obtenerHistorialCompras.mockResolvedValue([]);
   obtenerDetalleCompra.mockResolvedValue({});
   obtenerPerfil.mockResolvedValue({
@@ -140,6 +146,7 @@ const pedidosDeCliente = () => [
   obtenerPerfil,
   obtenerCarrito,
   obtenerFavoritos,
+  obtenerAvisosStock,
   obtenerDirecciones,
   obtenerMetodosPago,
   obtenerHistorialCompras,
@@ -180,6 +187,7 @@ describe("login según el tipo de usuario", () => {
     expect(obtenerPerfil).toHaveBeenCalled();
     expect(obtenerCarrito).toHaveBeenCalled();
     await waitFor(() => expect(obtenerFavoritos).toHaveBeenCalled());
+    await waitFor(() => expect(obtenerAvisosStock).toHaveBeenCalled());
     expect(screen.queryByRole("heading", { name: "Portal del vendedor" })).not.toBeInTheDocument();
   });
 });

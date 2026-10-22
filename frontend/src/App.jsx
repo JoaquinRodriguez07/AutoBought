@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { esVendedor, guardarSesion, obtenerSesion, sesionValida } from "./auth";
 import { useRenovacionSesion } from "./useRenovacionSesion";
 import {
+  agregarAvisoStock,
   agregarFavoritoAPI,
+  obtenerAvisosStock,
   obtenerFavoritos,
+  quitarAvisoStock,
   quitarFavoritoAPI,
 } from "./api";
 import { useCart } from "./context/CartContext";
@@ -26,6 +29,11 @@ import Favoritos from "./Favoritos";
 import ProtectedRoute, { ClientOnlyRoute } from "./ProtectedRoute";
 import EmployeeRoute from "./EmployeeRoute";
 import PortalVendedor from "./dashboard/PortalVendedor";
+import RecuperarPassword from "./RecuperarPassword";
+import RestablecerPassword from "./RestablecerPassword";
+import VerificarCorreo from "./VerificarCorreo";
+import AvisoVerificarCorreo from "./AvisoVerificarCorreo";
+import DarseDeBaja from "./DarseDeBaja";
 
 function App() {
   const navigate = useNavigate();
@@ -75,6 +83,32 @@ function App() {
       })
       .catch(() => {
         if (!cancelado) setFavoritos([]);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [userId, haySesionConToken, vendedor]);
+
+  /* =====================================================
+     AVISOS DE STOCK («Avisame cuando haya»)
+     Ids de los repuestos agotados de los que el cliente
+     pidió aviso. Se cargan igual que los favoritos.
+  ====================================================== */
+
+  const [avisosStock, setAvisosStock] = useState([]);
+
+  useEffect(() => {
+    // Un vendedor no pide avisos de stock (la API le responde 403).
+    if (!haySesionConToken || vendedor) return;
+
+    let cancelado = false;
+    obtenerAvisosStock()
+      .then((ids) => {
+        if (!cancelado) setAvisosStock(ids);
+      })
+      .catch(() => {
+        if (!cancelado) setAvisosStock([]);
       });
 
     return () => {
@@ -278,6 +312,21 @@ function App() {
   };
 
   /* =====================================================
+     CORREO VERIFICADO
+     El enlace del mail se puede abrir con o sin sesión; si
+     hay una abierta, se le saca el aviso de verificación.
+  ====================================================== */
+
+  const marcarCorreoVerificado = useCallback(() => {
+    const sesionActual = obtenerSesion();
+    if (!sesionActual) return;
+
+    const verificada = { ...sesionActual, emailVerificado: true };
+    guardarSesion(verificada);
+    setUsuario((actual) => (actual ? { ...actual, emailVerificado: true } : actual));
+  }, []);
+
+  /* =====================================================
      CERRAR SESIÓN
   ====================================================== */
 
@@ -289,6 +338,7 @@ function App() {
 
     limpiarCarritoLocal();
     setFavoritos([]);
+    setAvisosStock([]);
     navigate("/");
   };
 
@@ -375,6 +425,48 @@ function App() {
     }
   };
 
+  const alternarAvisoStock = async (producto) => {
+    if (!usuario) {
+      navigate("/login");
+      return;
+    }
+
+    if (vendedor) {
+      toast.error("Los vendedores no piden avisos de stock.");
+      return;
+    }
+
+    const partId = producto.partId;
+    const tenia = avisosStock.includes(partId);
+
+    setAvisosStock((actual) =>
+      tenia ? actual.filter((id) => id !== partId) : [...actual, partId]
+    );
+
+    try {
+      if (tenia) {
+        await quitarAvisoStock(partId);
+      } else {
+        await agregarAvisoStock(partId);
+        toast.success("Listo: te mandamos un mail cuando vuelva a haber stock.");
+      }
+    } catch (error) {
+      setAvisosStock((actual) =>
+        tenia ? [...actual, partId] : actual.filter((id) => id !== partId)
+      );
+
+      if (error.status === 401) {
+        toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
+        navigate("/login");
+        return;
+      }
+
+      toast.error(error.message || "No pudimos actualizar el aviso.");
+    }
+  };
+
+  const tieneAvisoStock = (partId) => avisosStock.includes(partId);
+
   const esFavorito = (id) =>
     favoritos.some(
       (item) => item.id === id
@@ -433,6 +525,8 @@ function App() {
   ====================================================== */
 
   return (
+    <>
+    <AvisoVerificarCorreo usuario={usuario} />
     <Routes>
       {/* =================================================
           HOME
@@ -465,6 +559,54 @@ function App() {
             {...propsNavbar}
             onIniciarSesion={iniciarSesion}
             onRegistro={() => navigate("/registro")}
+            onOlvidePassword={() => navigate("/recuperar-password")}
+          />
+        }
+      />
+
+      {/* =================================================
+          CUENTA: RECUPERAR CONTRASEÑA Y VERIFICAR CORREO
+          Se abren desde los enlaces de los mails, sin sesión.
+      ================================================== */}
+
+      <Route
+        path="/recuperar-password"
+        element={
+          <RecuperarPassword
+            {...propsNavbar}
+            onVolverAlLogin={() => navigate("/login")}
+          />
+        }
+      />
+
+      <Route
+        path="/restablecer-password"
+        element={
+          <RestablecerPassword
+            {...propsNavbar}
+            onIniciarSesion={() => navigate("/login")}
+            onPedirOtroEnlace={() => navigate("/recuperar-password")}
+          />
+        }
+      />
+
+      <Route
+        path="/baja-mails"
+        element={
+          <DarseDeBaja
+            {...propsNavbar}
+            onIrALaTienda={() => navigate("/")}
+          />
+        }
+      />
+
+      <Route
+        path="/verificar-correo"
+        element={
+          <VerificarCorreo
+            {...propsNavbar}
+            onVerificado={marcarCorreoVerificado}
+            onIrALaTienda={() => navigate("/")}
           />
         }
       />
@@ -502,6 +644,8 @@ function App() {
             favoritos={favoritos}
             onAlternarFavorito={alternarFavorito}
             esFavorito={esFavorito}
+            onAlternarAvisoStock={alternarAvisoStock}
+            tieneAvisoStock={tieneAvisoStock}
           />
         }
       />
@@ -516,6 +660,8 @@ function App() {
             producto={productoSeleccionado}
             onAlternarFavorito={alternarFavorito}
             esFavorito={esFavorito}
+            onAlternarAvisoStock={alternarAvisoStock}
+            tieneAvisoStock={tieneAvisoStock}
           />
         }
       />
@@ -660,6 +806,7 @@ function App() {
         />
       </Route>
     </Routes>
+    </>
   );
 }
 

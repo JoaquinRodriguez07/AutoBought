@@ -35,10 +35,19 @@ jest.mock("./api", () => ({
   obtenerDetalleCompra: jest.fn(),
   agregarFavoritoAPI: jest.fn(),
   quitarFavoritoAPI: jest.fn(),
+  pedirRecuperacion: jest.fn(),
+  restablecerPassword: jest.fn(),
+  verificarCorreo: jest.fn(),
+  reenviarVerificacion: jest.fn(),
+  obtenerAvisosStock: jest.fn(),
+  agregarAvisoStock: jest.fn(),
+  quitarAvisoStock: jest.fn(),
+  guardarPreferenciasMails: jest.fn(),
+  darseDeBaja: jest.fn(),
 }));
 jest.mock(
   "react-hot-toast",
-  () => ({ __esModule: true, default: { error: jest.fn() } }),
+  () => ({ __esModule: true, default: { error: jest.fn(), success: jest.fn() } }),
   { virtual: true }
 );
 
@@ -102,6 +111,10 @@ import {
   registrar,
   vaciarCarritoAPI,
   renovarToken,
+  verificarCorreo,
+  obtenerAvisosStock,
+  agregarAvisoStock,
+  quitarAvisoStock,
 } from "./api";
 import {
   decodeToken,
@@ -238,6 +251,7 @@ beforeEach(() => {
   eliminarMetodoPagoAPI.mockResolvedValue({});
   obtenerRecomendaciones.mockResolvedValue([]);
   obtenerFavoritos.mockResolvedValue([]);
+  obtenerAvisosStock.mockResolvedValue([]);
   obtenerHistorialCompras.mockResolvedValue([]);
   obtenerDetalleCompra.mockResolvedValue({});
   agregarFavoritoAPI.mockResolvedValue();
@@ -852,6 +866,16 @@ describe("Favoritos", () => {
 });
 
 describe("Login", () => {
+  it("lleva a recuperar la contraseña", async () => {
+    const user = userEvent.setup();
+    const onOlvidePassword = jest.fn();
+    render(<Login {...navigationProps()} onOlvidePassword={onOlvidePassword} />);
+
+    await user.click(screen.getByRole("button", { name: "¿Olvidaste tu contraseña?" }));
+
+    expect(onOlvidePassword).toHaveBeenCalled();
+  });
+
   it("toggles password visibility and remembers the user selection", async () => {
     const user = userEvent.setup();
     render(<Login {...navigationProps()} />);
@@ -1041,6 +1065,80 @@ describe("App", () => {
   });
 });
 
+describe("App avisos de stock", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const agotado = { ...catalogProducts[2], id: "FAR-77", partId: 77, nombre: "Faro Agotado", stock: 0 };
+
+  const renderCatalogo = async () => {
+    const user = userEvent.setup();
+    obtenerRepuestos.mockResolvedValue([catalogProducts[0], agotado]);
+    renderBase(
+      <MemoryRouter initialEntries={["/catalogo"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+    await screen.findByText("Faro Agotado");
+    return user;
+  };
+
+  const conSesion = () =>
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` })
+    );
+
+  it("solo los repuestos sin stock ofrecen el aviso", async () => {
+    await renderCatalogo();
+
+    expect(screen.getAllByRole("button", { name: /Avisame cuando haya/ })).toHaveLength(1);
+  });
+
+  it("pide y cancela el aviso de un repuesto agotado", async () => {
+    conSesion();
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    expect(agregarAvisoStock).toHaveBeenCalledWith(77);
+    expect(toast.success).toHaveBeenCalled();
+    const pedido = await screen.findByRole("button", { name: /Te vamos a avisar/ });
+    expect(pedido).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(pedido);
+
+    expect(quitarAvisoStock).toHaveBeenCalledWith(77);
+    expect(await screen.findByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
+  });
+
+  it("muestra los avisos que ya había pedido", async () => {
+    conSesion();
+    obtenerAvisosStock.mockResolvedValue([77]);
+    await renderCatalogo();
+
+    expect(await screen.findByRole("button", { name: /Te vamos a avisar/ })).toBeInTheDocument();
+  });
+
+  it("si falla, vuelve atrás y muestra el error", async () => {
+    conSesion();
+    agregarAvisoStock.mockRejectedValue(new Error("No pudimos actualizar el aviso."));
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar el aviso."));
+    expect(screen.getByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
+  });
+
+  it("sin sesión lleva al login", async () => {
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    expect(agregarAvisoStock).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
+  });
+});
+
 describe("App favoritos", () => {
   const tokenValido = () => {
     const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
@@ -1141,6 +1239,53 @@ describe("App sesión", () => {
 
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
     expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+  });
+});
+
+describe("App verificación del correo", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const sesionSinVerificar = {
+    userId: "1", nombre: "Ana", email: "ana@example.com", token: `x.${payload}.y`, emailVerificado: false,
+  };
+
+  it("muestra el aviso a un cliente sin verificar", () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
+
+    renderBase(
+      <MemoryRouter>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("region", { name: "Verificación del correo" })).toBeInTheDocument();
+  });
+
+  it("al abrir el enlace del mail con la sesión iniciada, saca el aviso", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
+    verificarCorreo.mockResolvedValue();
+
+    renderBase(
+      <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Tu correo quedó verificado/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Verificación del correo" })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("autobought-sesion")).emailVerificado).toBe(true);
+  });
+
+  it("el enlace del mail también funciona sin sesión", async () => {
+    verificarCorreo.mockResolvedValue();
+
+    renderBase(
+      <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Tu correo quedó verificado/)).toBeInTheDocument();
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
   });
 });
 

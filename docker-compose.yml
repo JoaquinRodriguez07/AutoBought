@@ -33,6 +33,13 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://${LOCAL_DB_USER:-ingsoft2}:${LOCAL_DB_PASSWORD}@${LOCAL_DB_HOST:-postgres}:${LOCAL_DB_PORT:-5432}/${LOCAL_DB_NAME:-ingsoft2db}
       SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en el .env de la raíz (ver .env.example)}
+      # Sin variables en el .env, los mails van a Mailpit (http://localhost:8025).
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-AutoBought <no-reply@autobought.local>}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
 
     ports:
       - "8000:8000"
@@ -40,6 +47,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
     volumes:
       - ./backend:/app
@@ -54,6 +63,14 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://${REMOTE_DB_USER:-}:${REMOTE_DB_PASSWORD:-}@${REMOTE_DB_HOST:-}:${REMOTE_DB_PORT:-5432}/${REMOTE_DB_NAME:-ingsoft2db}
       SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en el .env de la raíz (ver .env.example)}
+      # El perfil remoto no levanta Mailpit: para mandar mails hay que
+      # configurar el SMTP de Gmail en el .env.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-AutoBought <no-reply@autobought.local>}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
 
     ports:
       - "8001:8000"
@@ -61,6 +78,17 @@ services:
     volumes:
       - ./backend:/app
       - /app/.venv
+
+  # Servidor de mail falso para desarrollo: recibe todo lo que manda el
+  # backend y lo muestra en http://localhost:8025, sin mandar nada real.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: mailpit
+    profiles: ["local"]
+    restart: unless-stopped
+
+    ports:
+      - "8025:8025"
 
   frontend:
     build: ./frontend

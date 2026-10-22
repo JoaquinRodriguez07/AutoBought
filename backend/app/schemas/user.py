@@ -26,6 +26,8 @@ class ClientOut(BaseModel):
     name: str
     email: str
     phone: str | None = None
+    email_verified: bool
+    marketing_emails: bool
 
 
 
@@ -74,3 +76,9 @@ class PasswordChange(BaseModel):
         # La regla de que no contenga el correo se chequea en el endpoint,
         # que es el que conoce al cliente.
         return validators.password_segura(value)
+
+
+class EmailPreferences(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    marketing_emails: bool

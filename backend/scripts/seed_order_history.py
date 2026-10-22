@@ -181,6 +181,8 @@ def _crear_clientes(db: Session, rng: random.Random, hasta: date) -> list[dict]:
             password_hash=password_hash,
             phone=f"+59899{rng.randrange(100000, 1000000)}",
         )
+        # Son ficticios: que las tareas diarias no les manden recordatorios.
+        crud_user.set_marketing_emails(db, client, False)
         ciudad, departamento, calles = rng.choice(LOCALIDADES)
         direccion = crud_address.create_address(db, client.user_id, ShippingAddressCreate(
             personal_name="Casa",

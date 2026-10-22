@@ -142,6 +142,13 @@ export function validarCambioPassword({ actual, nueva, repetir }, email = "") {
   });
 }
 
+export function validarPasswordNueva({ nueva, repetir }) {
+  return soloErrores({
+    nueva: validarPassword(nueva),
+    repetir: nueva === repetir ? null : "Las contraseñas no coinciden.",
+  });
+}
+
 /* ----------------------------------------------------------- direcciones */
 
 export function validarDireccion(f) {
