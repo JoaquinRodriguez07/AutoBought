@@ -641,6 +641,42 @@ describe("Catalogo", () => {
     expect(screen.getByRole("checkbox", { name: /Brembo/ })).not.toBeChecked();
   });
 
+  it("filters by price, stock and car brand and shows each filter as a removable chip", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+    obtenerRepuestos.mockResolvedValue([
+      { ...catalogProducts[0], precio: 1500, stock: 0, marcas: ["Chevrolet"], modelos: ["Onix"] },
+      { ...catalogProducts[1], precio: 4200, stock: 3, marcas: ["Ford"], modelos: ["Ka"] },
+      { ...catalogProducts[2], precio: 900, stock: 8, marcas: ["Chevrolet", "Ford"], modelos: [] },
+    ]);
+
+    render(<Catalogo {...props} />);
+
+    expect(await screen.findByText("Para Chevrolet Onix")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Solo con stock" }));
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole("spinbutton", { name: "Precio máximo" }), "1000");
+    expect(screen.getByText("Filtro de Aire")).toBeInTheDocument();
+    expect(screen.queryByText("Discos de Freno Delanteros")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Quitar filtro Hasta $1.000" }));
+    expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: /Ford/ }));
+    await user.click(screen.getByRole("button", { name: "Quitar filtro Con stock" }));
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quitar filtro Para Ford" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+    expect(screen.getByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Quitar filtro/ })).not.toBeInTheDocument();
+  });
+
   it("changes category and toggles a product favorite", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -657,7 +693,7 @@ describe("Catalogo", () => {
         expect.objectContaining({ categoria: "Motor" })
       );
     });
-    const favoriteButtons = screen.getAllByRole("button", { name: "♡" });
+    const favoriteButtons = screen.getAllByRole("button", { name: "Marcar como favorito" });
     await user.click(favoriteButtons[favoriteButtons.length - 1]);
 
     expect(props.onAlternarFavorito).toHaveBeenCalledWith(
@@ -1219,12 +1255,12 @@ describe("App favoritos", () => {
     await user.click(await corazon(nombre));
 
     expect(agregarFavoritoAPI).toHaveBeenCalledWith("BP1234");
-    expect(await corazon(nombre)).toHaveTextContent("♥");
+    expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "true");
 
     await user.click(await corazon(nombre));
 
     expect(quitarFavoritoAPI).toHaveBeenCalledWith("BP1234");
-    expect(await corazon(nombre)).toHaveTextContent("♡");
+    expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "false");
   });
 
   it("reverts the heart and shows the error when the API fails", async () => {
@@ -1236,7 +1272,7 @@ describe("App favoritos", () => {
     await user.click(screen.getByRole("button", { name: "Repuestos" }));
     await user.click(await corazon(nombre));
 
-    await waitFor(async () => expect(await corazon(nombre)).toHaveTextContent("♡"));
+    await waitFor(async () => expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "false"));
     expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar tus favoritos.");
   });
 });
@@ -2134,6 +2170,20 @@ describe("SearchBar and search helpers", () => {
     expect(filtrarRepuestos(repuestos, { fabricantes: ["NGK", "Mann-Filter"] }))
       .toEqual([repuestos[0], repuestos[2]]);
     expect(filtrarRepuestos(repuestos, { busqueda: "bosch" })).toEqual([repuestos[1]]);
+
+    const conPrecio = [
+      { nombre: "Faro", precio: 6900, stock: 0, marcas: ["Ford"] },
+      { nombre: "Bujía", precio: 620, stock: 4, marcas: ["Fiat", "Ford"] },
+      { nombre: "Aceite", precio: 2600, stock: 9, marcas: ["Fiat"] },
+    ];
+    const nombres = (lista) => lista.map((p) => p.nombre);
+    expect(nombres(filtrarRepuestos(conPrecio, { precioMin: "600", precioMax: "3000" })))
+      .toEqual(["Bujía", "Aceite"]);
+    expect(nombres(filtrarRepuestos(conPrecio, { precioMax: "", soloConStock: true })))
+      .toEqual(["Bujía", "Aceite"]);
+    expect(nombres(filtrarRepuestos(conPrecio, { marcasAuto: ["Ford"] }))).toEqual(["Faro", "Bujía"]);
+    expect(nombres(filtrarRepuestos(conPrecio, { orden: "Nombre A-Z" })))
+      .toEqual(["Aceite", "Bujía", "Faro"]);
   });
 
   it("renders the no-results message", () => {

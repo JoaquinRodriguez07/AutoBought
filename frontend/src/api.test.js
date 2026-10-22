@@ -67,6 +67,8 @@ const uiPart = {
   stock: 7,
   marca: "Volkswagen Audi",
   marcaPrincipal: "Volkswagen",
+  marcas: ["Volkswagen", "Audi"],
+  modelos: [],
   imagen: IMAGEN_PLACEHOLDER,
 };
 

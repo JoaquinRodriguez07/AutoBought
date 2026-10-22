@@ -48,6 +48,12 @@ const getPrecio = (p) => p.precio ?? p.price ?? 0;
 const getMarca = (p) =>
   p.marca ??
   (Array.isArray(p.compatible_brands) ? p.compatible_brands.join(" ") : "");
+const getMarcas = (p) => p.marcas ?? p.compatible_brands ?? [];
+const getStock = (p) => p.stock ?? 0;
+
+// Un precio vacío ("" o null) es "sin límite".
+const limite = (valor) =>
+  valor === "" || valor === null || valor === undefined ? null : Number(valor);
 
 /**
  * @param {Array<object>} productos - array de repuestos (mock o API).
@@ -55,12 +61,25 @@ const getMarca = (p) =>
  * @param {string} [opciones.categoria] - categoría seleccionada en el sidebar.
  * @param {string} [opciones.busqueda]  - texto ingresado en el SearchBar.
  * @param {string[]} [opciones.fabricantes] - fabricantes tildados; vacío = todos.
- * @param {string} [opciones.orden]     - "Menor precio" | "Mayor precio" | otro.
+ * @param {string[]} [opciones.marcasAuto] - marcas de auto tildadas; vacío = todas.
+ * @param {number|string} [opciones.precioMin] - precio mínimo; vacío = sin límite.
+ * @param {number|string} [opciones.precioMax] - precio máximo; vacío = sin límite.
+ * @param {boolean} [opciones.soloConStock] - oculta los repuestos sin stock.
+ * @param {string} [opciones.orden]     - "Menor precio" | "Mayor precio" | "Nombre A-Z" | otro.
  * @returns {Array<object>} nuevo array filtrado y ordenado (no muta el original).
  */
 export function filtrarRepuestos(
   productos,
-  { categoria, busqueda = "", fabricantes = [], orden } = {}
+  {
+    categoria,
+    busqueda = "",
+    fabricantes = [],
+    marcasAuto = [],
+    precioMin,
+    precioMax,
+    soloConStock = false,
+    orden,
+  } = {}
 ) {
   let lista = Array.isArray(productos) ? productos : [];
 
@@ -83,6 +102,23 @@ export function filtrarRepuestos(
     lista = lista.filter((p) => fabricantes.includes(getFabricante(p)));
   }
 
+  if (marcasAuto.length > 0) {
+    lista = lista.filter((p) => getMarcas(p).some((m) => marcasAuto.includes(m)));
+  }
+
+  const minimo = limite(precioMin);
+  const maximo = limite(precioMax);
+  if (minimo !== null) {
+    lista = lista.filter((p) => getPrecio(p) >= minimo);
+  }
+  if (maximo !== null) {
+    lista = lista.filter((p) => getPrecio(p) <= maximo);
+  }
+
+  if (soloConStock) {
+    lista = lista.filter((p) => getStock(p) > 0);
+  }
+
   const listaOrdenada = [...lista];
 
   if (orden === "Menor precio") {
@@ -91,6 +127,10 @@ export function filtrarRepuestos(
 
   if (orden === "Mayor precio") {
     listaOrdenada.sort((a, b) => getPrecio(b) - getPrecio(a));
+  }
+
+  if (orden === "Nombre A-Z") {
+    listaOrdenada.sort((a, b) => getNombre(a).localeCompare(getNombre(b), "es"));
   }
 
   return listaOrdenada;
