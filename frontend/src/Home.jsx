@@ -5,6 +5,7 @@ import BrandDropdown from "./BrandDropdown";
 import ModelDropdown from "./ModelDropdown";
 import { obtenerAnios, obtenerCategorias, obtenerMasVendidos } from "./api";
 import { useVehicle } from "./context/VehicleContext";
+import repuestos from "./assets/repuestos.jpg";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
 import BMWLogo from "./assets/Logos Vehiculos/BMW.png";
@@ -342,7 +343,7 @@ export default function Home({
       <section className="relative min-h-[620px] flex items-center overflow-hidden">
 
         <img
-          src="/src/assets/repuestos.jpg"
+          src={repuestos}
           alt="Repuestos para vehículos"
           className="absolute inset-0 w-full h-full object-cover"
         />
