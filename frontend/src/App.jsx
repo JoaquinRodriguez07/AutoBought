@@ -421,7 +421,7 @@ function App() {
       <Route
         path="/"
         element={
-          <Home {...propsNavbar} />
+          <Home {...propsNavbar} onDetalle={irAlDetalle} />
         }
       />
 
