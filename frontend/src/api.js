@@ -570,6 +570,17 @@ export async function obtenerModelos(brand) {
   return data.models || [];
 }
 
+export async function obtenerAnios(brand, model) {
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/years?brand=${encodeURIComponent(
+      brand
+    )}&model=${encodeURIComponent(model)}`,
+    "No pudimos cargar los años."
+  );
+
+  return data.years || [];
+}
+
 
 /* =====================================================
    DIRECCIONES
