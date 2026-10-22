@@ -252,7 +252,7 @@ def recordar_carritos_abandonados(db: Session, ahora: datetime | None = None) ->
         if actualizado > limite or ya_avisado:
             continue
 
-        enviar_mail(
+        if not enviar_mail(
             cart.client.email,
             "Te quedó algo en el carrito",
             "carrito_abandonado",
@@ -262,7 +262,8 @@ def recordar_carritos_abandonados(db: Session, ahora: datetime | None = None) ->
                 "enlace": f"{FRONTEND_URL}/carrito",
             },
             enlace_baja=enlace_baja(cart.client),
-        )
+        ):
+            continue  # Sin marcar: se reintenta en la próxima corrida.
         cart.reminder_sent_at = ahora
         enviados += 1
 
@@ -321,7 +322,7 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
             continue
 
         client = item.order.client
-        enviar_mail(
+        if not enviar_mail(
             client.email,
             f"¿Toca cambiar {item.part.name}?",
             "recordatorio_mantenimiento",
@@ -332,7 +333,8 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
                 "enlace": _enlace_repuesto(item.part),
             },
             enlace_baja=enlace_baja(client),
-        )
+        ):
+            continue  # Sin marcar: se reintenta en la próxima corrida.
         item.reminder_sent_at = ahora
         enviados += 1
 

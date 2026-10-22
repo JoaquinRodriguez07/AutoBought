@@ -20,3 +20,6 @@ EMAIL_FROM = os.getenv("EMAIL_FROM", "AutoBought <no-reply@autobought.local>")
 
 # Los enlaces de los mails llevan a esta dirección del frontend.
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+
+# Vercel Cron lo manda para llamar a /tareas/diarias. Vacío: nadie puede llamarlo.
+CRON_SECRET = os.getenv("CRON_SECRET", "")
