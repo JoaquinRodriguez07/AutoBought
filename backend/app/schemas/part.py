@@ -25,6 +25,7 @@ class SearchEntities(BaseModel):
     brand: Optional[str] = None
     model: Optional[str] = None
     year: Optional[int] = None
+    fuel: Optional[str] = None
 
 
 class PartsResponse(BaseModel):

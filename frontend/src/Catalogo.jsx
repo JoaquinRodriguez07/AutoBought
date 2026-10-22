@@ -140,7 +140,8 @@ export default function Catalogo({
         (entities.part ||
           entities.brand ||
           entities.model ||
-          entities.year);
+          entities.year ||
+          entities.fuel);
 
       if (!tieneEntidades) {
         setRespuesta({

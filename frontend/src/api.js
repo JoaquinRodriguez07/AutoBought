@@ -389,6 +389,7 @@ export async function buscarTexto(texto) {
       brand: null,
       model: null,
       year: null,
+      fuel: null,
     },
   };
 }
