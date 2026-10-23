@@ -4,10 +4,19 @@ Usage: python -m scripts.seed
 
 Reads data/car_models.json and data/parts.json and inserts them. Run
 scripts/generate_dataset.py first if those files don't exist yet.
+
+Si la base ya tiene el catálogo, no lo vuelve a cargar: actualiza los
+repuestos que ya existen (por su código) con lo que cambió en parts.json
+(nombre, descripción, especificaciones y garantía), sin tocar precios,
+stock, pedidos, carritos ni favoritos. Las columnas que se agregaron
+después de creada la base (descripción, especificaciones, garantía) se
+agregan solas: no hace falta borrar la base.
 """
 
 import json
 from pathlib import Path
+
+from sqlalchemy import inspect, text
 
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
@@ -24,12 +33,61 @@ def load_json(filename, key):
     return json.loads(path.read_text(encoding="utf-8"))[key]
 
 
+# Columnas de `part` que no estaban cuando se crearon las primeras bases.
+# create_all no agrega columnas a una tabla que ya existe.
+NEW_PART_COLUMNS = {
+    "description": "TEXT",
+    "specifications": "JSON",  # JSONB en Postgres (ver models/part.py)
+    "warranty_months": "INTEGER",
+    "warranty_provider": "VARCHAR(20)",
+}
+
+DETAIL_FIELDS = ("name", "description", "specifications", "warranty_months", "warranty_provider")
+
+
+def add_missing_columns():
+    postgres = engine.dialect.name == "postgresql"
+    existing = {column["name"]: column["type"] for column in inspect(engine).get_columns("part")}
+    with engine.begin() as connection:
+        for name, sql_type in NEW_PART_COLUMNS.items():
+            if postgres and sql_type == "JSON":
+                sql_type = "JSONB"
+            if name not in existing:
+                connection.execute(text(f"ALTER TABLE part ADD COLUMN {name} {sql_type}"))
+                print(f"Added column part.{name}.")
+            elif postgres and sql_type == "JSONB" and type(existing[name]).__name__ == "JSON":
+                # Una columna creada como JSON común (sin comparación) pasa a JSONB.
+                connection.execute(text(
+                    f"ALTER TABLE part ALTER COLUMN {name} TYPE JSONB USING {name}::jsonb"
+                ))
+                print(f"Changed column part.{name} to JSONB.")
+
+
+def update_details(db, parts_data):
+    by_code = {part.part_code: part for part in db.query(Part)}
+    updated = 0
+    for data in parts_data:
+        part = by_code.get(data["part_code"])
+        if part is None:
+            continue
+        changed = False
+        for field in DETAIL_FIELDS:
+            if getattr(part, field) != data[field]:
+                setattr(part, field, data[field])
+                changed = True
+        updated += changed
+    db.commit()
+    return updated
+
+
 def main():
     Base.metadata.create_all(bind=engine)
+    add_missing_columns()
     db = SessionLocal()
 
     if db.query(CarModel).count() > 0:
-        print("Data already loaded, skipping.")
+        updated = update_details(db, load_json("parts.json", "parts"))
+        print(f"Data already loaded: updated the details of {updated} parts.")
         db.close()
         return
 
@@ -56,6 +114,10 @@ def main():
             color=data["color"],
             price=data["price"],
             stock=data["stock"],
+            description=data["description"],
+            specifications=data["specifications"],
+            warranty_months=data["warranty_months"],
+            warranty_provider=data["warranty_provider"],
         )
         db.add(part)
         db.flush()

@@ -80,6 +80,20 @@ beforeEach(() => {
   obtenerMetodosPago.mockResolvedValue([tarjeta(7, "1234", true)]);
 });
 
+describe("Carrito: productos", () => {
+  test("Muestra el código de cada repuesto, para distinguir los que tienen el mismo nombre", () => {
+    conCarrito([
+      { ...itemCarrito(1, "Radiador Valeo", 8700, 1), codigo: "COL-0001" },
+      { ...itemCarrito(2, "Radiador Valeo", 9100, 1), codigo: "COL-0002" },
+    ]);
+
+    renderCarrito();
+
+    expect(screen.getByText("Código: COL-0001")).toBeInTheDocument();
+    expect(screen.getByText("Código: COL-0002")).toBeInTheDocument();
+  });
+});
+
 describe("Carrito: confirmación de compra (HU 1.9)", () => {
   test("Compra confirmada: muestra el identificador del pedido y refresca el carrito", async () => {
     const user = userEvent.setup();

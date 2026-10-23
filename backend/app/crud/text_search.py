@@ -420,6 +420,12 @@ def extract_entities(db: Session, text: str) -> dict:
 
     car_models = db.execute(select(CarModel.brand, CarModel.model).distinct()).all()
 
+    # Errores de tipeo también en la marca y el modelo ("onixx", "chevrolt").
+    # Los nombres de los repuestos no traen el auto (está en las
+    # compatibilidades), así que el vocabulario suma las marcas y modelos.
+    vocabulary = _load_searchable(db) + [f"{brand} {model}" for brand, model in car_models]
+    rest = " ".join(_correct_typos(rest.split(), vocabulary))
+
     # 1) Modelo. Va antes que el año porque hay modelos como "2008".
     #    Los más largos primero, para no quedarse con un pedazo.
     for brand, model in sorted(car_models, key=lambda row: len(row[1]), reverse=True):

@@ -12,3 +12,6 @@ coverage_html/
 
 # Variables de entorno locales (docker compose)
 .env
+
+# Dependencias de Node
+node_modules/

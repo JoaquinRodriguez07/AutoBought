@@ -803,7 +803,7 @@ export default function Catalogo({
                       <div className="flex flex-col flex-1 p-4">
 
                         <p className="text-[11px] font-black uppercase tracking-wide text-orange-500">
-                          {producto.fabricante || producto.marcaPrincipal || producto.marca}
+                          {producto.fabricante}
                         </p>
 
                         <h3 className="text-sm font-bold mt-1 leading-snug">
