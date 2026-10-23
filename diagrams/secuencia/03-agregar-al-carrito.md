@@ -78,6 +78,19 @@ sequenceDiagram
             A-->>S: { items, total }
             S->>S: setCart, setTotal
             S-->>C: Actualiza el carrito y el contador del Navbar
+            opt Desde Catálogo o Detalle
+                P-->>C: Aviso "Repuesto agregado al carrito."<br/>(Deshacer · Ok · Ver carrito)
+                opt Deshacer
+                    C->>P: Deshacer
+                    P->>S: deshacerAgregado(id, cantidad agregada)
+                    alt Ya había unidades antes
+                        S->>A: PATCH /api/v1/cart/items/{id} (cantidad previa)
+                    else No había unidades antes
+                        S->>A: DELETE /api/v1/cart/items/{id}
+                    end
+                    A-->>S: carrito actualizado
+                end
+            end
         else 401
             A-->>S: error (status 401)
             S->>S: Limpiar carrito local

@@ -40,6 +40,19 @@ export function sesionValida(sesion) {
   return payload.exp * 1000 > Date.now();
 }
 
+// El JWT del login trae `user_type`: "client" (comprador) o "employee"
+// (vendedor). Login.jsx lo guarda en `sesion.userType`.
+export const TIPO_VENDEDOR = "employee";
+
+/**
+ * true si la sesión es de un vendedor. Los vendedores no tienen perfil de
+ * cliente, carrito ni favoritos: esos endpoints les responden 403, así que
+ * la UI no tiene que pedirlos.
+ */
+export function esVendedor(sesion) {
+  return sesion?.userType === TIPO_VENDEDOR;
+}
+
 export function haySesionActiva() {
   return sesionValida(obtenerSesion());
 }

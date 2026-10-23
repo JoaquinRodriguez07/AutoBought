@@ -1,4 +1,5 @@
-"""Crea clientes de prueba con direcciones y tarjetas ya cargadas.
+"""Crea clientes y un vendedor de prueba. Los clientes traen direcciones y
+tarjetas ya cargadas.
 
 Usage: python -m scripts.seed_demo_users
        (en Docker: docker exec backend uv run python -m scripts.seed_demo_users)
@@ -16,6 +17,7 @@ antes, para que haya repuestos con los que armar la compra de ejemplo.
 | ana.perez@autobought.com        | Repuestos2026 | 2 direcciones, Visa y Mastercard, una compra   |
 | martin.rodriguez@autobought.com | Motor2026x    | Amex, OCA y una tarjeta vencida                |
 | lucia.fernandez@autobought.com  | Frenos2026x   | Dirección en el interior con apto. y S/N, OCA  |
+| vendedor@autobought.com         | Ventas2026x   | Vendedor (rol employee): entra a /dashboard    |
 
 Las tarjetas son los números de prueba públicos de cada marca (Visa
 4111 1111 1111 1111, Mastercard 5555 5555 5555 4444, Amex 3782 822463
@@ -28,6 +30,7 @@ from datetime import date
 
 from sqlalchemy import select
 
+from app.core import validators
 from app.core.security import hash_password
 from app.crud import cart as crud_cart
 from app.crud import order as crud_order
@@ -111,6 +114,17 @@ USUARIOS = [
     },
 ]
 
+# Vendedores (rol employee). La contraseña pasa por la misma regla que la de
+# los clientes (no puede contener la parte local del correo, por eso no es
+# "Vendedor...").
+VENDEDORES = [
+    {
+        "name": "Vendedor AutoBought",
+        "email": "vendedor@autobought.com",
+        "password": "Ventas2026x",
+    },
+]
+
 
 def _crear_compra(db, client_id: int, items: list[tuple[str, int]]) -> int | None:
     """Arma un carrito con un repuesto de cada categoría y lo compra."""
@@ -170,12 +184,30 @@ def crear_usuario(db, datos: dict) -> str:
     return f"{cuenta.email} / {datos['cuenta']['password']}: {detalle}."
 
 
+def crear_vendedor(db, datos: dict) -> str:
+    email = datos["email"]
+    password = validators.password_segura(datos["password"], email)
+
+    if crud_user.get_user_by_email(db, email):
+        return f"{email}: ya existe, se saltea."
+
+    crud_user.create_employee(
+        db,
+        name=datos["name"],
+        email=email,
+        password_hash=hash_password(password),
+    )
+    return f"{email} / {password}: vendedor."
+
+
 def main():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         for datos in USUARIOS:
             print(crear_usuario(db, datos))
+        for datos in VENDEDORES:
+            print(crear_vendedor(db, datos))
     finally:
         db.close()
 

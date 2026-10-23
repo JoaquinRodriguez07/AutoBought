@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.client import Client
+from app.models.employee import Employee
 from app.models.user import User
 
 
@@ -49,6 +50,29 @@ def create_client(
     db.commit()
     db.refresh(client)
     return client
+
+
+def create_employee(
+    db: Session,
+    *,
+    name: str,
+    email: str,
+    password_hash: str,
+) -> Employee:
+    """Inserta user + employee (vendedor). Puede lanzar IntegrityError
+    (UNIQUE) si dos altas con el mismo correo compiten; el caller hace el
+    rollback."""
+    email = email.strip().lower()
+    employee = Employee(
+        username=_username_disponible(db, email),
+        password=password_hash,
+        name=name,
+        email=email,
+    )
+    db.add(employee)
+    db.commit()
+    db.refresh(employee)
+    return employee
 
 
 def update_client(db: Session, client: Client, *, name: str, phone: str | None) -> Client:
