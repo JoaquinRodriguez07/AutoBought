@@ -33,11 +33,14 @@ def _credenciales_invalidas() -> HTTPException:
 
 def _decodificar_token(
     credentials: HTTPAuthorizationCredentials | None,
-) -> tuple[int, str | None]:
-    """Valida el token y devuelve (id de usuario, user_type del token).
+) -> tuple[int, str | None, int]:
+    """Valida el token y devuelve (id de usuario, user_type, versión de sesión).
 
-    401 si falta, es inválido, venció o no trae un id de usuario válido.
-    No toca la base: cada dependencia busca al usuario que le corresponde.
+    401 si falta, es inválido, venció, no trae un id de usuario válido o su
+    claim `sv` no es un entero. Un token sin `sv` (emitido antes de que
+    existiera) cuenta como versión 0.
+    No toca la base: cada dependencia busca al usuario que le corresponde y
+    compara la versión con _verificar_version_de_sesion.
     """
     if credentials is None:
         raise _credenciales_invalidas()
@@ -54,8 +57,21 @@ def _decodificar_token(
         raise _credenciales_invalidas()
 
     try:
-        return int(user_id), payload.get("user_type")
+        user_id = int(user_id)
     except (TypeError, ValueError):
+        raise _credenciales_invalidas()
+
+    session_version = payload.get("sv", 0)
+    # bool es subclase de int: `true` en el JWT no es una versión válida.
+    if isinstance(session_version, bool) or not isinstance(session_version, int):
+        raise _credenciales_invalidas()
+
+    return user_id, payload.get("user_type"), session_version
+
+
+def _verificar_version_de_sesion(user: User, session_version: int) -> None:
+    """401 si la contraseña cambió después de emitir el token."""
+    if user.session_version != session_version:
         raise _credenciales_invalidas()
 
 
@@ -65,10 +81,11 @@ def get_current_client(
 ) -> Client:
     """Autentica al cliente dueño del token en Authorization: Bearer.
 
-    401 si falta el token, es inválido, venció o el usuario ya no existe.
+    401 si falta el token, es inválido, venció, el usuario ya no existe o la
+    contraseña cambió después de emitirlo.
     403 si el token es válido pero no es de un cliente (ej: empleado).
     """
-    client_id, user_type = _decodificar_token(credentials)
+    client_id, user_type, session_version = _decodificar_token(credentials)
 
     if user_type != "client":
         raise HTTPException(
@@ -79,6 +96,7 @@ def get_current_client(
     client = db.get(Client, client_id)
     if client is None:
         raise _credenciales_invalidas()
+    _verificar_version_de_sesion(client, session_version)
 
     return client
 
@@ -89,10 +107,11 @@ def get_current_employee(
 ) -> Employee:
     """Autentica al empleado (vendedor) dueño del token en Authorization: Bearer.
 
-    401 si falta el token, es inválido, venció o el usuario ya no existe.
+    401 si falta el token, es inválido, venció, el usuario ya no existe o la
+    contraseña cambió después de emitirlo.
     403 si el token es válido pero no es de un empleado (ej: cliente).
     """
-    employee_id, user_type = _decodificar_token(credentials)
+    employee_id, user_type, session_version = _decodificar_token(credentials)
 
     if user_type != "employee":
         raise HTTPException(
@@ -103,6 +122,7 @@ def get_current_employee(
     employee = db.get(Employee, employee_id)
     if employee is None:
         raise _credenciales_invalidas()
+    _verificar_version_de_sesion(employee, session_version)
 
     return employee
 
@@ -113,14 +133,16 @@ def get_current_user(
 ) -> User:
     """Autentica al usuario dueño del token, sea cliente o empleado.
 
-    401 si falta el token, es inválido, venció o el usuario ya no existe.
+    401 si falta el token, es inválido, venció, el usuario ya no existe o la
+    contraseña cambió después de emitirlo.
     Para endpoints que sirven a cualquier rol (ej: renovar la sesión); los
     que son de un solo rol usan get_current_client / get_current_employee.
     """
-    user_id, _ = _decodificar_token(credentials)
+    user_id, _, session_version = _decodificar_token(credentials)
 
     user = db.get(User, user_id)
     if user is None:
         raise _credenciales_invalidas()
+    _verificar_version_de_sesion(user, session_version)
 
     return user

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { cambiarPassword } from "./api";
+import { guardarSesion, obtenerSesion } from "./auth";
 import ErrorCampo from "./ErrorCampo";
 import { conError, propsError } from "./erroresCampo";
 import { validarCambioPassword } from "./validaciones";
@@ -16,6 +17,7 @@ export default function CambiarPassword({ email = "" }) {
   const [error, setError] = useState("");
   const [errores, setErrores] = useState({});
   const [exito, setExito] = useState(false);
+  const [sinTokenNuevo, setSinTokenNuevo] = useState(false);
 
   const manejarCambio = (e) => {
     const { name, value } = e.target;
@@ -26,6 +28,7 @@ export default function CambiarPassword({ email = "" }) {
 
   const abrir = () => {
     setExito(false);
+    setSinTokenNuevo(false);
     setAbierto(true);
   };
 
@@ -47,7 +50,26 @@ export default function CambiarPassword({ email = "" }) {
     setError("");
 
     try {
-      await cambiarPassword(formulario.actual, formulario.nueva);
+      const data = await cambiarPassword(formulario.actual, formulario.nueva);
+
+      // El backend invalidó todos los tokens anteriores, también el de esta
+      // sesión: se guarda el nuevo ANTES de mostrar el éxito para que el
+      // próximo pedido (y la renovación automática) ya use el válido.
+      // Guardarlo actualiza el `usuario` de App (ver alGuardarSesion).
+      const sesion = obtenerSesion();
+      if (sesion && data?.access_token) {
+        guardarSesion({
+          ...sesion,
+          token: data.access_token,
+          ...(data.token_type ? { tokenType: data.token_type } : {}),
+        });
+        setSinTokenNuevo(false);
+      } else if (sesion) {
+        // La contraseña se cambió pero no llegó un token nuevo: el actual
+        // está revocado. No se muestra un éxito engañoso.
+        setSinTokenNuevo(true);
+      }
+
       setFormulario(FORMULARIO_VACIO);
       setAbierto(false);
       setExito(true);
@@ -84,9 +106,16 @@ export default function CambiarPassword({ email = "" }) {
 
       </div>
 
-      {exito && (
+      {exito && !sinTokenNuevo && (
         <p className="text-green-600 text-sm mt-4">
           Tu contraseña se actualizó correctamente.
+        </p>
+      )}
+
+      {exito && sinTokenNuevo && (
+        <p role="alert" className="text-orange-600 text-sm mt-4">
+          Tu contraseña se actualizó, pero tu sesión actual ya no es válida.
+          Iniciá sesión de nuevo con la contraseña nueva.
         </p>
       )}
 

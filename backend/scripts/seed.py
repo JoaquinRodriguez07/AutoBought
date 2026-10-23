@@ -9,6 +9,8 @@ scripts/generate_dataset.py first if those files don't exist yet.
 import json
 from pathlib import Path
 
+from sqlalchemy import text
+
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
 from app.models.car_model import CarModel
@@ -24,8 +26,21 @@ def load_json(filename, key):
     return json.loads(path.read_text(encoding="utf-8"))[key]
 
 
+def agregar_columnas_nuevas():
+    """Parche hasta que haya migraciones: create_all no agrega columnas a
+    tablas que ya existen. Se puede correr muchas veces. Sintaxis de Postgres."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS '
+                "session_version INTEGER NOT NULL DEFAULT 0"
+            )
+        )
+
+
 def main():
     Base.metadata.create_all(bind=engine)
+    agregar_columnas_nuevas()
     db = SessionLocal()
 
     if db.query(CarModel).count() > 0:

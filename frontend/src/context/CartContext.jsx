@@ -65,16 +65,12 @@ export function CartProvider({ children }) {
   }, []);
 
   // Traduce los errores de la API a la reacción que le corresponde en
-  // la UI: 401 → la sesión venció, se limpia el carrito y se manda a
-  // login; el resto de los códigos (404/409/422/...) solo se avisan
-  // con un toast, el mensaje ya viene en español desde el backend.
+  // la UI: 401 → no se hace nada acá, `alSesionInvalida` (api.js) lo maneja
+  // en App.jsx (limpia el carrito, avisa y manda a login); el resto de los
+  // códigos (404/409/422/...) solo se avisan con un toast, el mensaje ya
+  // viene en español desde el backend.
   const manejarError = (error) => {
-    if (error.status === 401) {
-      limpiarCarritoLocal();
-      toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
-      navigate("/login");
-      return;
-    }
+    if (error.status === 401) return;
 
     toast.error(error.message || "No pudimos actualizar el carrito.");
   };

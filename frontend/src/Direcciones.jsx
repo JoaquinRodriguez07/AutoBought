@@ -103,6 +103,8 @@ export default function Direcciones(navegacion) {
       await eliminarDireccionAPI(id);
       setDirecciones(await obtenerDirecciones());
     } catch (err) {
+      // Un 401 ya lo manejó alSesionInvalida (cerró la sesión y fue a /login).
+      if (err.status === 401) return;
       alert(err.message);
     }
   };
@@ -112,6 +114,8 @@ export default function Direcciones(navegacion) {
       await marcarDireccionPrincipal(id);
       setDirecciones(await obtenerDirecciones());
     } catch (err) {
+      // Un 401 ya lo manejó alSesionInvalida (cerró la sesión y fue a /login).
+      if (err.status === 401) return;
       alert(err.message);
     }
   };

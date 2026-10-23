@@ -132,6 +132,8 @@ export default function MetodosPago(navegacion) {
       await eliminarMetodoPagoAPI(id);
       setMetodos(await obtenerMetodosPago());
     } catch (err) {
+      // Un 401 ya lo manejó alSesionInvalida (cerró la sesión y fue a /login).
+      if (err.status === 401) return;
       alert(err.message);
     }
   };
@@ -141,6 +143,8 @@ export default function MetodosPago(navegacion) {
       await marcarMetodoPagoPrincipal(id);
       setMetodos(await obtenerMetodosPago());
     } catch (err) {
+      // Un 401 ya lo manejó alSesionInvalida (cerró la sesión y fue a /login).
+      if (err.status === 401) return;
       alert(err.message);
     }
   };

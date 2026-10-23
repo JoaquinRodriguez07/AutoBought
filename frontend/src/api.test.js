@@ -3,6 +3,7 @@ jest.mock("./auth", () => ({
 }));
 
 import {
+  alSesionInvalida,
   actualizarItemCarrito,
   agregarFavoritoAPI,
   actualizarPerfil,
@@ -363,6 +364,34 @@ describe("renovarToken", () => {
     });
   });
 
+  it("ignores the answer when the session token changed while the request was in flight", async () => {
+    // Cambió la contraseña en este dispositivo y se guardó un token nuevo
+    // mientras /refresh viajaba con el viejo: ni su 200 ni su 401 valen.
+    fetch.mockImplementation(async () => {
+      obtenerSesion.mockReturnValue({ token: "jwt-nuevo" });
+      return response({ access_token: "token-con-sv-viejo", token_type: "bearer" });
+    });
+    await expect(renovarToken()).rejects.toThrow("La sesión cambió mientras se renovaba.");
+
+    obtenerSesion.mockReturnValue({ token: "jwt-token" });
+    fetch.mockImplementation(async () => {
+      obtenerSesion.mockReturnValue({ token: "jwt-nuevo" });
+      return response({ detail: "x" }, { ok: false, status: 401 });
+    });
+    const error = await renovarToken().catch((e) => e);
+    expect(error.message).toBe("La sesión cambió mientras se renovaba.");
+    expect(error.status).toBeUndefined();
+  });
+
+  it("ignores the answer when the session was closed while the request was in flight", async () => {
+    fetch.mockImplementation(async () => {
+      obtenerSesion.mockReturnValue(null);
+      return response({ access_token: "token-nuevo", token_type: "bearer" });
+    });
+
+    await expect(renovarToken()).rejects.toThrow("La sesión cambió mientras se renovaba.");
+  });
+
   it("keeps the status of other server errors so the caller can retry", async () => {
     fetch.mockResolvedValue(response({}, { ok: false, status: 503 }));
 
@@ -463,7 +492,10 @@ describe("actualizarPerfil", () => {
       .mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
     const datos = { nombre: "Ana", apellido: "", telefono: "" };
-    await expect(actualizarPerfil(datos)).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
+    await expect(actualizarPerfil(datos)).rejects.toMatchObject({
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+      status: 401,
+    });
     await expect(actualizarPerfil(datos)).rejects.toThrow("Revisá el nombre y el teléfono (ej: 099 123 456).");
     await expect(actualizarPerfil(datos)).rejects.toThrow("No pudimos guardar tus datos.");
     await expect(actualizarPerfil(datos)).rejects.toThrow("No pudimos conectar con el servidor.");
@@ -471,10 +503,11 @@ describe("actualizarPerfil", () => {
 });
 
 describe("cambiarPassword", () => {
-  it("sends both passwords with the session token", async () => {
-    fetch.mockResolvedValue({ ok: true, status: 204, json: jest.fn() });
+  it("sends both passwords with the session token and returns the new token", async () => {
+    const data = { access_token: "jwt-nuevo", token_type: "bearer" };
+    fetch.mockResolvedValue(response(data));
 
-    await expect(cambiarPassword("secreto123", "nueva-clave-1")).resolves.toBeUndefined();
+    await expect(cambiarPassword("secreto123", "nueva-clave-1")).resolves.toEqual(data);
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me/password`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
@@ -502,10 +535,106 @@ describe("cambiarPassword", () => {
       .mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
     await expect(cambiarPassword("a", "b")).rejects.toThrow("La contraseña actual es incorrecta.");
-    await expect(cambiarPassword("a", "b")).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
+    await expect(cambiarPassword("a", "b")).rejects.toMatchObject({
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+      status: 401,
+    });
     await expect(cambiarPassword("a", "b")).rejects.toThrow("Revisá la nueva contraseña.");
     await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos cambiar tu contraseña.");
     await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("alSesionInvalida", () => {
+  const sin401 = { ok: false, status: 401 };
+  let alInvalidarse;
+  let desregistrar;
+
+  beforeEach(() => {
+    alInvalidarse = jest.fn();
+    desregistrar = alSesionInvalida(alInvalidarse);
+  });
+
+  afterEach(() => {
+    desregistrar();
+  });
+
+  it.each([
+    ["obtenerFavoritos", () => obtenerFavoritos()],
+    ["obtenerCarrito", () => obtenerCarrito()],
+    ["agregarItemCarrito", () => agregarItemCarrito(1, 1)],
+    ["obtenerDirecciones", () => obtenerDirecciones()],
+    ["obtenerMetodosPago", () => obtenerMetodosPago()],
+    ["obtenerAvisosStock", () => obtenerAvisosStock()],
+    ["obtenerPerfil", () => obtenerPerfil("jwt-token")],
+    ["actualizarPerfil", () => actualizarPerfil({ nombre: "Ana", apellido: "", telefono: "" })],
+    ["cambiarPassword", () => cambiarPassword("a", "b")],
+    ["reenviarVerificacion", () => reenviarVerificacion()],
+  ])("fires when %s gets a 401 with the session token", async (_nombre, llamar) => {
+    fetch.mockResolvedValue(response({ detail: "Token inválido o expirado." }, sin401));
+
+    await expect(llamar()).rejects.toThrow();
+
+    expect(alInvalidarse).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire for the 401 of a failed login", async () => {
+    fetch.mockResolvedValue(response({ detail: "Credenciales inválidas" }, sin401));
+
+    await expect(login("user@example.com", "bad")).rejects.toThrow();
+
+    expect(alInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("does not fire for the 400 of a wrong current password", async () => {
+    fetch.mockResolvedValue(
+      response({ detail: "La contraseña actual es incorrecta." }, { ok: false, status: 400 })
+    );
+
+    await expect(cambiarPassword("mal", "nueva-clave-1")).rejects.toThrow(
+      "La contraseña actual es incorrecta."
+    );
+
+    expect(alInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("does not fire for other error statuses", async () => {
+    fetch.mockResolvedValue(response({ detail: "x" }, { ok: false, status: 403 }));
+
+    await expect(obtenerCarrito()).rejects.toThrow();
+
+    expect(alInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("does not fire when the request did not send a token", async () => {
+    obtenerSesion.mockReturnValue(null);
+    fetch.mockResolvedValue(response({ detail: "x" }, sin401));
+
+    await expect(obtenerCarrito()).rejects.toThrow();
+
+    expect(alInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("ignores a 401 for a token that is no longer the session one", async () => {
+    // El token cambió mientras el pedido estaba en vuelo (cambio de contraseña
+    // o sesión ya cerrada): el 401 es del token viejo.
+    fetch.mockImplementation(async () => {
+      obtenerSesion.mockReturnValue({ token: "jwt-nuevo" });
+      return response({ detail: "x" }, sin401);
+    });
+
+    await expect(obtenerCarrito()).rejects.toThrow();
+
+    expect(alInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("stops calling the handler once it is unregistered", async () => {
+    desregistrar();
+    fetch.mockResolvedValue(response({ detail: "x" }, sin401));
+
+    await expect(obtenerFavoritos()).rejects.toThrow();
+
+    expect(alInvalidarse).not.toHaveBeenCalled();
   });
 });
 

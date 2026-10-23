@@ -8,6 +8,44 @@ import { formatearTelefonoUY } from "./telefono";
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
+/* =====================================================
+   SESIÓN INVÁLIDA (401)
+   Cuando el backend rechaza el token de un pedido autenticado
+   (la contraseña se cambió en otro dispositivo, el token venció),
+   la sesión terminó. En vez de que cada pantalla maneje su 401,
+   App.jsx registra UN manejador con `alSesionInvalida` y es el
+   único que cierra la sesión, avisa y lleva a /login.
+====================================================== */
+
+const manejadoresSesionInvalida = new Set();
+
+/**
+ * Registra `fn` para que se llame cuando un pedido que mandó
+ * `Authorization: Bearer` recibe un 401. Devuelve la función que la
+ * desregistra.
+ *
+ * NO se dispara con el 401 de `login` (contraseña incorrecta: no hay
+ * sesión que cerrar) ni con el 400 de «contraseña actual incorrecta» de
+ * `cambiarPassword`. `renovarToken` tampoco: su 401 ya llega a App.jsx por
+ * `useRenovacionSesion`.
+ */
+export function alSesionInvalida(fn) {
+  manejadoresSesionInvalida.add(fn);
+  return () => manejadoresSesionInvalida.delete(fn);
+}
+
+/**
+ * Avisa que el token `tokenEnviado` fue rechazado. Se ignora si la sesión
+ * guardada ya no usa ese token: o ya se cerró (varios pedidos en vuelo
+ * dieron 401 a la vez: solo el primero cierra la sesión) o se renovó (un
+ * pedido viejo, hecho con el token anterior al cambio de contraseña, no
+ * tiene que cerrar la sesión nueva).
+ */
+function avisarSesionInvalida(tokenEnviado) {
+  if (!tokenEnviado || obtenerSesion()?.token !== tokenEnviado) return;
+  [...manejadoresSesionInvalida].forEach((fn) => fn());
+}
+
 export async function login(email, password) {
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
     method: "POST",
@@ -112,6 +150,15 @@ export async function renovarToken() {
     data = null;
   }
 
+  // La sesión cambió mientras el pedido estaba en vuelo (cambió la contraseña
+  // en este dispositivo y se guardó un token nuevo, o se cerró): la respuesta
+  // es del token viejo, ya revocado. No se usa, ni siquiera su 401: pisaría
+  // o cerraría la sesión nueva. Sin `status`, useRenovacionSesion lo toma
+  // como pasajero y, si la sesión sigue, reprograma con el token vigente.
+  if (obtenerSesion()?.token !== sesion?.token) {
+    throw new Error("La sesión cambió mientras se renovaba.");
+  }
+
   if (!response.ok || !data?.access_token) {
     const error = new Error(
       response.status === 401
@@ -153,6 +200,8 @@ export async function obtenerPerfil(token) {
   } catch {
     data = null;
   }
+
+  if (response.status === 401) avisarSesionInvalida(token);
 
   if (!response.ok || !data) {
     throw new Error("No pudimos cargar tu perfil.");
@@ -199,6 +248,8 @@ export async function actualizarPerfil({ nombre, apellido, telefono }) {
     data = null;
   }
 
+  if (response.status === 401) avisarSesionInvalida(sesion?.token);
+
   if (!response.ok || !data) {
     const mensaje =
       response.status === 401
@@ -207,12 +258,22 @@ export async function actualizarPerfil({ nombre, apellido, telefono }) {
           ? Object.values(camposConError(data?.detail))[0] ||
             "Revisá el nombre y el teléfono (ej: 099 123 456)."
           : "No pudimos guardar tus datos.";
-    throw new Error(mensaje);
+    const error = new Error(mensaje);
+    error.status = response.status;
+    throw error;
   }
 
   return mapearPerfil(data);
 }
 
+/**
+ * PATCH /api/v1/auth/me/password
+ *
+ * Al cambiar la contraseña el backend invalida TODOS los tokens anteriores
+ * (también el de esta sesión) y devuelve uno nuevo, `{ access_token,
+ * token_type }`, el único válido: quien llama tiene que guardarlo para que
+ * este dispositivo siga logueado (ver CambiarPassword.jsx).
+ */
 export async function cambiarPassword(actual, nueva) {
   const sesion = obtenerSesion();
   let response;
@@ -230,14 +291,18 @@ export async function cambiarPassword(actual, nueva) {
     throw new Error("No pudimos conectar con el servidor.");
   }
 
-  if (response.ok) return;
-
   let data = null;
   try {
     data = await response.json();
   } catch {
     data = null;
   }
+
+  if (response.ok) return data;
+
+  // Solo el 401 (token inválido) es sesión inválida: el 400 de «contraseña
+  // actual incorrecta» es un error del formulario.
+  if (response.status === 401) avisarSesionInvalida(sesion?.token);
 
   const mensaje =
     response.status === 401
@@ -248,7 +313,9 @@ export async function cambiarPassword(actual, nueva) {
           ? Object.values(camposConError(data?.detail))[0] ||
             "Revisá la nueva contraseña."
           : "No pudimos cambiar tu contraseña.";
-  throw new Error(mensaje);
+  const error = new Error(mensaje);
+  error.status = response.status;
+  throw error;
 }
 
 /* =====================================================
@@ -303,12 +370,18 @@ export async function verificarCorreo(token) {
 /** POST /api/v1/auth/verify-email/resend — vuelve a mandar el mail. */
 export async function reenviarVerificacion() {
   const sesion = obtenerSesion();
-  await postCuenta(
-    "verify-email/resend",
-    undefined,
-    "No pudimos reenviar el mail.",
-    { Authorization: `Bearer ${sesion?.token}` }
-  );
+
+  try {
+    await postCuenta(
+      "verify-email/resend",
+      undefined,
+      "No pudimos reenviar el mail.",
+      { Authorization: `Bearer ${sesion?.token}` }
+    );
+  } catch (error) {
+    if (error.status === 401) avisarSesionInvalida(sesion?.token);
+    throw error;
+  }
 }
 
 /**
@@ -557,7 +630,7 @@ export async function obtenerMasVendidos({ limite = 4, dias = 90 } = {}) {
  * GET/POST/PATCH/DELETE de `/api/v1/cart*` devuelven los mismos
  * códigos que ya maneja `errorDeRespuesta` (401/403/404/409/422), pero
  * acá el mensaje por status importa para que CartContext decida qué
- * hacer (401 → redirigir a login, 409 → avisar el stock disponible).
+ * hacer (401 → lo maneja `alSesionInvalida`, 409 → avisar el stock disponible).
  * Se guarda en `error.status` en vez de parsear el mensaje.
  */
 const MENSAJES_POR_STATUS_CARRITO = {
@@ -588,6 +661,8 @@ async function pedirCarrito(url, options = {}) {
   const data = await leerJson(response);
 
   if (!response.ok) {
+    if (response.status === 401) avisarSesionInvalida(sesion?.token);
+
     const detalle =
       data !== SIN_JSON && typeof data?.detail === "string"
         ? data.detail
@@ -763,6 +838,8 @@ async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGeneri
   const data = response.status === 204 ? null : await leerJson(response);
 
   if (!response.ok) {
+    if (response.status === 401) avisarSesionInvalida(sesion?.token);
+
     const detalle =
       data !== SIN_JSON && typeof data?.detail === "string"
         ? data.detail
