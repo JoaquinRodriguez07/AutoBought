@@ -87,7 +87,7 @@ describe("SugerenciasCarrito (HU 3.2)", () => {
       })
     );
 
-    expect(addToCart).toHaveBeenCalledWith(discos, 1);
+    expect(addToCart).toHaveBeenCalledWith(discos, 1, { aviso: false });
 
     // El carrito ya trae el repuesto agregado (lo actualiza CartContext).
     conCarrito([pastillas, itemCarrito(discos.partId, discos.nombre)], addToCart);

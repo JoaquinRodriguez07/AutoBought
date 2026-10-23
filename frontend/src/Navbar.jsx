@@ -6,6 +6,22 @@ import BusquedaCabecera from "./BusquedaCabecera";
 import { IconoCorazon } from "./Iconos";
 import logo from "./assets/logo.png";
 
+// Los contadores (carrito y favoritos) rebotan cuando SUBEN (se agregó
+// algo). Se compara con el valor anterior durante el render en vez de
+// en un efecto; el pulso se usa como key para que la animación se
+// repita en cada agregado.
+function usePulsoAlSubir(valor) {
+  const [valorPrevio, setValorPrevio] = useState(valor);
+  const [pulso, setPulso] = useState(0);
+  if (valor !== valorPrevio) {
+    if (valor > valorPrevio) setPulso((p) => p + 1);
+    setValorPrevio(valor);
+  }
+  return pulso;
+}
+
+const claseRebote = (pulso) => (pulso > 0 ? "motion-safe:animate-rebote" : "");
+
 export default function Navbar({
   paginaActual,
   onHome,
@@ -29,6 +45,9 @@ export default function Navbar({
   const navigate = useNavigate();
   const vendedor = esVendedor(usuario);
   const [menuUsuario, setMenuUsuario] = useState(false);
+
+  const pulsoCarrito = usePulsoAlSubir(cantidadCarrito);
+  const pulsoFavoritos = usePulsoAlSubir(cantidadFavoritos);
 
   const menuRef = useRef(null);
 
@@ -363,7 +382,10 @@ export default function Navbar({
           />
 
           {cantidadFavoritos > 0 && (
-            <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+            <span
+              key={pulsoFavoritos}
+              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${claseRebote(pulsoFavoritos)}`}
+            >
               {cantidadFavoritos}
             </span>
           )}
@@ -412,7 +434,10 @@ export default function Navbar({
           </svg>
 
           {cantidadCarrito > 0 && (
-            <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
+            <span
+              key={pulsoCarrito}
+              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${claseRebote(pulsoCarrito)}`}
+            >
               {cantidadCarrito}
             </span>
           )}
