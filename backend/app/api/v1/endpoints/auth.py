@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_client, get_current_user, get_db
 from app.core import validators
+from app.core.auth_attempts import clear_failures, is_blocked, register_failure
 from app.core.config import FRONTEND_URL
 from app.core.email import enviar_mail
 from app.core.security import (
@@ -68,13 +69,22 @@ def _mandar_aviso_password_cambiada(background_tasks: BackgroundTasks, user: Use
 
 @router.post("/login", response_model=Token)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
+    if is_blocked(db, credentials.email):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demasiados intentos. Probá de nuevo en unos minutos.",
+        )
+
     user = crud_user.get_user_by_email(db, credentials.email)
 
     if not user or not verify_password(credentials.password, user.password):
+        register_failure(db, credentials.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo electrónico o contraseña incorrectos.",
         )
+
+    clear_failures(db, user.email)
 
     access_token = create_access_token(
         subject=str(user.user_id),
@@ -252,7 +262,14 @@ def change_password(
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
 ):
+    if is_blocked(db, client.email):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demasiados intentos. Probá de nuevo en unos minutos.",
+        )
+
     if not verify_password(data.current_password, client.password):
+        register_failure(db, client.email)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La contraseña actual es incorrecta.",
@@ -272,6 +289,7 @@ def change_password(
         ) from None
 
     crud_user.update_password(db, client, hash_password(data.new_password))
+    clear_failures(db, client.email)
     _mandar_aviso_password_cambiada(background_tasks, client)
 
 
