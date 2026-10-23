@@ -767,7 +767,7 @@ export default function Catalogo({
 
                       {/* IMAGEN */}
 
-                      <div className="relative h-[180px] bg-gray-50">
+                      <div className="relative h-[180px] bg-white">
 
                         {/* Sin filtro, el catálogo completo son más de
                             mil tarjetas: lazy evita decodificar todas
@@ -777,7 +777,7 @@ export default function Catalogo({
                           src={producto.imagen}
                           alt={producto.nombre}
                           loading="lazy"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain p-3"
                         />
 
                         <button

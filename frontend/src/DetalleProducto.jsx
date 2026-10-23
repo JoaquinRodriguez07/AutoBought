@@ -108,8 +108,8 @@ export default function DetalleProducto({
         <section className="max-w-[1200px] mx-auto px-5 md:px-10">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr_0.7fr] gap-7">
             <div>
-              <div className="relative h-[360px] bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
-                <img src={imagenes[imagenActiva]} alt={productoActual.nombre} className="w-full h-full object-cover" />
+              <div className="relative h-[360px] bg-white rounded-xl overflow-hidden border border-gray-100">
+                <img src={imagenes[imagenActiva]} alt={productoActual.nombre} className="w-full h-full object-contain p-6" />
                 <button onClick={() => onAlternarFavorito(productoActual)}
                   className={`absolute top-4 right-4 w-10 h-10 bg-white rounded-full shadow-md text-xl ${favorito ? "text-orange-500" : "text-gray-500"}`}>
                   {favorito ? "♥" : "♡"}
@@ -120,7 +120,7 @@ export default function DetalleProducto({
                 {imagenes.map((imagen, index) => (
                   <button key={index} onClick={() => setImagenActiva(index)}
                     className={`w-[70px] h-[58px] rounded-md overflow-hidden border-2 ${imagenActiva === index ? "border-orange-500" : "border-gray-200"}`}>
-                    <img src={imagen} alt="" className="w-full h-full object-cover" />
+                    <img src={imagen} alt="" className="w-full h-full object-contain bg-white p-1" />
                   </button>
                 ))}
               </div>

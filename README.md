@@ -29,14 +29,14 @@ Sobre una base que ya tiene el catálogo, `scripts.seed` no lo vuelve a cargar: 
 
 ### Imágenes de los repuestos
 
-Los 1089 repuestos salen de 17 tipos de pieza (bujía, discos de freno, radiador...), y cada repuesto muestra la imagen de su tipo. La tabla de tipos está en `frontend/src/imagenesRepuestos.js` (el tipo se reconoce por cómo empieza el nombre, y cada tipo tiene la descripción técnica que se le pide al modelo) y las imágenes en `frontend/public/repuestos/`. Son ilustrativas y genéricas, sin marcas, y se generan con Nano Banana Pro (`gemini-3-pro-image`), la API de imágenes de Gemini. Requiere una clave con facturación activa (unos USD 0,13 por imagen).
+Los 1089 repuestos salen de 17 tipos de pieza (bujía, discos de freno, radiador...) y de 2 a 4 fabricantes por tipo. Cada repuesto muestra la imagen de su tipo en la versión de su fabricante: la del fabricante principal es la imagen base, y la de cada uno de los demás se genera a partir de ella cambiando el color o el diseño (46 imágenes en total). La tabla de tipos está en `frontend/src/imagenesRepuestos.js` (el tipo se reconoce por cómo empieza el nombre, y cada tipo tiene la descripción técnica que se le pide al modelo) y las imágenes en `frontend/public/repuestos/`. Son ilustrativas y genéricas, sin marcas, y se generan con Nano Banana Pro (`gemini-3-pro-image`), la API de imágenes de Gemini. Requiere una clave con facturación activa (unos USD 0,13 por imagen).
 
 ```bash
 cd frontend
 GEMINI_API_KEY=tu-clave npm run imagenes -- --variantes 3     # 3 opciones por tipo para comparar
 npm run imagenes -- --elegir bujia 2                          # quedarse con la opción 2 de bujía
 GEMINI_API_KEY=tu-clave npm run imagenes -- --solo bujia      # regenerar una o varias (separadas por coma)
-GEMINI_API_KEY=tu-clave npm run imagenes                      # una sola por tipo, solo las que faltan
+GEMINI_API_KEY=tu-clave npm run imagenes                      # solo las que faltan (primero las bases, después las de fabricante)
 npm run imagenes -- --prueba                                  # ver los prompts sin llamar a la API
 ```
 

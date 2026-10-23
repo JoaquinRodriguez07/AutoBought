@@ -4,6 +4,7 @@ import {
   armarHojaDeContacto,
   armarPedido,
   armarPrompt,
+  armarPromptFabricante,
   extraerImagen,
   leerOpciones,
 } from "./imagenes-gemini";
@@ -21,6 +22,17 @@ describe("armarPrompt", () => {
 
   it("mentions the reference photo only when there is one", () => {
     expect(armarPrompt("a radiator", { conReferencia: true })).toContain("reference photo");
+  });
+});
+
+describe("armarPromptFabricante", () => {
+  it("asks to edit the base image changing only the manufacturer's details", () => {
+    const prompt = armarPromptFabricante("a car battery", "the case is light gray");
+
+    expect(prompt).toContain("Edit the attached reference");
+    expect(prompt).toContain("the case is light gray");
+    expect(prompt).toContain("same camera angle");
+    expect(prompt).toContain("no logos");
   });
 });
 
