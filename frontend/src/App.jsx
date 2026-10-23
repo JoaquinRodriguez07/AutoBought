@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { guardarSesion, obtenerSesion, sesionValida } from "./auth";
+import { esVendedor, guardarSesion, obtenerSesion, sesionValida } from "./auth";
 import { useRenovacionSesion } from "./useRenovacionSesion";
 import {
   agregarAvisoStock,
@@ -27,6 +27,8 @@ import Marcas from "./Marcas";
 import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
 import ProtectedRoute from "./ProtectedRoute";
+import EmployeeRoute from "./EmployeeRoute";
+import PortalVendedor from "./dashboard/PortalVendedor";
 import PaginaNoEncontrada from "./PaginaNoEncontrada";
 import RecuperarPassword from "./RecuperarPassword";
 import RestablecerPassword from "./RestablecerPassword";
@@ -69,9 +71,11 @@ function App() {
   // pedir (y pisar) los favoritos.
   const userId = usuario?.userId;
   const haySesionConToken = Boolean(usuario?.token);
+  const vendedor = esVendedor(usuario);
 
   useEffect(() => {
-    if (!haySesionConToken) return;
+    // Un vendedor no tiene favoritos (la API le responde 403).
+    if (!haySesionConToken || vendedor) return;
 
     let cancelado = false;
     obtenerFavoritos()
@@ -85,7 +89,7 @@ function App() {
     return () => {
       cancelado = true;
     };
-  }, [userId, haySesionConToken]);
+  }, [userId, haySesionConToken, vendedor]);
 
   /* =====================================================
      AVISOS DE STOCK («Avisame cuando haya»)
@@ -96,7 +100,8 @@ function App() {
   const [avisosStock, setAvisosStock] = useState([]);
 
   useEffect(() => {
-    if (!haySesionConToken) return;
+    // Un vendedor no pide avisos de stock (la API le responde 403).
+    if (!haySesionConToken || vendedor) return;
 
     let cancelado = false;
     obtenerAvisosStock()
@@ -110,7 +115,7 @@ function App() {
     return () => {
       cancelado = true;
     };
-  }, [userId, haySesionConToken]);
+  }, [userId, haySesionConToken, vendedor]);
 
   /* =====================================================
      DIRECCIONES
@@ -236,6 +241,11 @@ function App() {
       return;
     }
 
+    if (vendedor) {
+      navigate("/dashboard");
+      return;
+    }
+
     navigate("/favoritos");
   };
 
@@ -259,6 +269,12 @@ function App() {
         "autobought-sesion",
         JSON.stringify(usuarioLogueado)
       );
+    }
+
+    // Un vendedor no tiene carrito: va directo a su portal.
+    if (esVendedor(usuarioLogueado)) {
+      navigate("/dashboard");
+      return;
     }
 
     cargarCarrito();
@@ -372,6 +388,11 @@ function App() {
       return;
     }
 
+    if (vendedor) {
+      toast.error("Los vendedores no tienen favoritos.");
+      return;
+    }
+
     const existe = favoritos.some(
       (item) => item.id === producto.id
     );
@@ -408,6 +429,11 @@ function App() {
   const alternarAvisoStock = async (producto) => {
     if (!usuario) {
       navigate("/login");
+      return;
+    }
+
+    if (vendedor) {
+      toast.error("Los vendedores no piden avisos de stock.");
       return;
     }
 
@@ -735,6 +761,23 @@ function App() {
               {...propsNavbar}
               historialCompras={historialCompras}
               onPerfil={() => navigate("/perfil")}
+            />
+          }
+        />
+      </Route>
+
+      {/* =================================================
+          PORTAL DEL VENDEDOR
+          (solo sesiones de vendedor)
+      ================================================== */}
+
+      <Route element={<EmployeeRoute />}>
+        <Route
+          path="/dashboard"
+          element={
+            <PortalVendedor
+              {...propsNavbar}
+              usuario={usuario}
             />
           }
         />

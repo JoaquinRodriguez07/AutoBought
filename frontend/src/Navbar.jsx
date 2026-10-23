@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCart } from "./context/CartContext";
+import { esVendedor } from "./auth";
 import BusquedaCabecera from "./BusquedaCabecera";
 import logo from "./assets/logo.png";
 
@@ -20,6 +22,8 @@ export default function Navbar({
   usuario,
 }) {
   const { cantidadCarrito } = useCart();
+  const navigate = useNavigate();
+  const vendedor = esVendedor(usuario);
   const [menuUsuario, setMenuUsuario] = useState(false);
 
   const menuRef = useRef(null);
@@ -181,7 +185,8 @@ export default function Navbar({
               paginaActual === "perfil" ||
               paginaActual === "direcciones" ||
               paginaActual === "metodosPago" ||
-              paginaActual === "historialCompras"
+              paginaActual === "historialCompras" ||
+              paginaActual === "dashboard"
                 ? "text-orange-500"
                 : "hover:text-orange-500"
             }`}
@@ -212,6 +217,49 @@ export default function Navbar({
 
           {usuario &&
             menuUsuario &&
+            vendedor && (
+              <div className="absolute right-0 top-9 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
+
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-[10px] font-black text-gray-900">
+                    Vendedor
+                  </p>
+
+                  <p className="text-[8px] text-gray-400 mt-1 truncate">
+                    {usuario.email || ""}
+                  </p>
+                </div>
+
+                <div className="py-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      ejecutarAccion(() => navigate("/dashboard"))
+                    }
+                    className="w-full text-left px-4 py-2.5 text-[9px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                  >
+                    Dashboard
+                  </button>
+                </div>
+
+                <div className="border-t border-gray-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      ejecutarAccion(onCerrarSesion)
+                    }
+                    className="w-full text-left px-4 py-2.5 text-[9px] font-bold text-red-500 hover:bg-red-50 transition"
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+
+              </div>
+            )}
+
+          {usuario &&
+            menuUsuario &&
+            !vendedor &&
             paginaActual !== "perfil" && (
               <div className="absolute right-0 top-9 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
 
@@ -301,6 +349,7 @@ export default function Navbar({
             FAVORITOS
         ================================================== */}
 
+        {!vendedor && (
         <button
           type="button"
           onClick={onFavoritos}
@@ -323,11 +372,13 @@ export default function Navbar({
             </span>
           )}
         </button>
+        )}
 
         {/* =================================================
             CARRITO
         ================================================== */}
 
+        {!vendedor && (
         <button
           type="button"
           onClick={onCarrito}
@@ -370,6 +421,7 @@ export default function Navbar({
             </span>
           )}
         </button>
+        )}
 
       </div>
 

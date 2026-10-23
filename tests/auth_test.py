@@ -7,7 +7,8 @@ import pytest
 
 from app.core.config import JWT_ALGORITHM, SECRET_KEY
 from app.core.phone import normalize_uy_phone
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token, hash_password, verify_password
+from app.crud import user as crud_user
 from app.models.client import Client
 from app.models.user import User
 
@@ -484,12 +485,79 @@ def test_refresh_de_un_cliente_que_ya_no_existe_devuelve_401(client):
     assert response.status_code == 401
 
 
-def test_refresh_con_token_de_empleado_devuelve_403(client):
-    token = create_access_token(subject="1", extra_claims={"user_type": "employee"})
+def _crear_vendedor(db_session, email="vendedor@example.com"):
+    return crud_user.create_employee(
+        db_session, name="Vendedor Uno", email=email, password_hash=hash_password("secreto123")
+    )
+
+
+def test_login_de_vendedor_devuelve_token_con_user_type_employee(client, db_session):
+    _crear_vendedor(db_session)
+
+    response = client.post(LOGIN, json={"email": "vendedor@example.com", "password": "secreto123"})
+
+    assert response.status_code == 200
+    assert _claims(response.json()["access_token"])["user_type"] == "employee"
+
+
+def test_refresh_con_token_de_cliente_conserva_user_type_client(client):
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
 
     response = client.post(REFRESH, headers={"Authorization": f"Bearer {token}"})
 
+    assert response.status_code == 200
+    assert _claims(response.json()["access_token"])["user_type"] == "client"
+
+
+def test_refresh_con_token_de_vendedor_devuelve_token_nuevo_de_vendedor(client, db_session):
+    vendedor = _crear_vendedor(db_session)
+    viejo = _token(vendedor.user_id, minutos=2, user_type="employee")
+
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {viejo}"})
+
+    assert response.status_code == 200
+    nuevo = _claims(response.json()["access_token"])
+    assert nuevo["sub"] == str(vendedor.user_id)
+    assert nuevo["user_type"] == "employee"
+    assert nuevo["exp"] > _claims(viejo)["exp"]
+
+
+def test_refresh_usa_el_user_type_de_la_base_y_no_el_del_token(client, db_session):
+    vendedor = _crear_vendedor(db_session)
+    # Token con un user_type que no coincide con el guardado.
+    token = _token(vendedor.user_id, minutos=5, user_type="client")
+
+    response = client.post(REFRESH, headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert _claims(response.json()["access_token"])["user_type"] == "employee"
+
+
+def test_refresh_de_un_vendedor_que_ya_no_existe_devuelve_401(client):
+    token = _token(9999, minutos=5, user_type="employee")
+
+    assert client.post(REFRESH, headers={"Authorization": f"Bearer {token}"}).status_code == 401
+
+
+def test_agregar_al_carrito_con_token_de_vendedor_devuelve_403(client, db_session):
+    vendedor = _crear_vendedor(db_session)
+    token = _token(vendedor.user_id, minutos=5, user_type="employee")
+
+    response = client.post(
+        "/api/v1/cart/items",
+        json={"part_id": 1, "amount": 1},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
     assert response.status_code == 403
+    assert response.json()["detail"] == "Esta acción requiere una cuenta de cliente."
+
+
+def test_perfil_de_cliente_con_token_de_vendedor_devuelve_403(client, db_session):
+    vendedor = _crear_vendedor(db_session)
+    token = _token(vendedor.user_id, minutos=5, user_type="employee")
+
+    assert client.get(ME, headers={"Authorization": f"Bearer {token}"}).status_code == 403
 
 
 # =====================================================
