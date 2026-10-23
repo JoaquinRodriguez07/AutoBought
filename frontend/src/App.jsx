@@ -666,8 +666,9 @@ function App() {
           CATÁLOGO Y DETALLE DE PRODUCTO
           Navegar el catálogo es público: no requiere sesión.
           Agregar al carrito o marcar favoritos sí la requiere
-          (ver el guard de addToCart en CartContext y el de
-          alternarFavorito, que redirigen a /login).
+          (ver el guard de addToCart en CartContext, que muestra
+          un aviso con botón "Iniciar sesión", y el de
+          alternarFavorito, que redirige a /login).
       ================================================== */}
 
       <Route

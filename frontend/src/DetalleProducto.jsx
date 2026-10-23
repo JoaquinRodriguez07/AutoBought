@@ -1,8 +1,7 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
-import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
+import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import BotonAvisoStock from "./BotonAvisoStock";
-import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 
 export default function DetalleProducto({
@@ -25,12 +24,10 @@ export default function DetalleProducto({
   onHistorial,
   onCerrarSesion,
 }) {
-  const { addToCart, deshacerAgregado } = useCart();
   const { vehiculoActivo: filtrosVehiculo } = useVehicle();
   const [cantidad, setCantidad] = useState(1);
   const [imagenActiva, setImagenActiva] = useState(0);
   const [pestana, setPestana] = useState("descripcion");
-  const [productoAgregado, setProductoAgregado] = useState(null);
 
   // DEUDA CONOCIDA (diferida): si no llega `producto` (refresh o link
   // compartido a /producto, donde el estado de App ya está vacío) se
@@ -69,22 +66,8 @@ export default function DetalleProducto({
   const favorito = esFavorito(productoActual.id);
   const imagenes = [productoActual.imagen, productoActual.imagen, productoActual.imagen];
 
-  // =====================================================
-  // AGREGAR AL CARRITO
-  // =====================================================
-
+  // El agregado lo hace BotonAgregarCarrito y el aviso, CartContext.
   const sinStock = productoActual.stock === 0;
-
-  const agregar = async () => {
-    if (sinStock) return;
-
-    const cantidadPedida = cantidad;
-    const agregado = await addToCart(productoActual, cantidadPedida);
-    setCantidad(1);
-    if (agregado) {
-      setProductoAgregado({ ...productoActual, cantidadAgregada: cantidadPedida });
-    }
-  };
 
   const tabs = [
     ["descripcion", "Descripción"],
@@ -96,15 +79,6 @@ export default function DetalleProducto({
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
-      <ConfirmacionAgregarCarrito
-        producto={productoAgregado}
-        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
-        onCerrar={() => setProductoAgregado(null)}
-        onVerCarrito={() => {
-          setProductoAgregado(null);
-          onCarrito();
-        }}
-      />
       <Navbar paginaActual="detalle" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
         usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
@@ -177,15 +151,15 @@ export default function DetalleProducto({
                   <span className="w-9 flex items-center justify-center text-[10px]">{sinStock ? 0 : cantidad}</span>
                   <button onClick={() => setCantidad((v) => Math.min(productoActual.stock, v + 1))} disabled={sinStock || cantidad >= productoActual.stock} className="w-9 disabled:opacity-40">+</button>
                 </div>
-                <button
-                  onClick={agregar}
-                  disabled={sinStock}
-                  className={`flex-1 rounded-md text-[10px] font-black transition ${
-                    sinStock ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-orange-500 hover:bg-orange-600 text-white"
-                  }`}
+                <BotonAgregarCarrito
+                  producto={productoActual}
+                  cantidad={cantidad}
+                  textoSinStock="SIN STOCK"
+                  onTerminar={() => setCantidad(1)}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-md text-[10px] font-black"
                 >
-                  {sinStock ? "SIN STOCK" : "🛒 AGREGAR AL CARRITO"}
-                </button>
+                  🛒 AGREGAR AL CARRITO
+                </BotonAgregarCarrito>
               </div>
               <button onClick={() => onAlternarFavorito(productoActual)}
                 className={`w-full mt-2 h-10 border rounded-md text-[10px] font-bold ${favorito ? "border-orange-500 text-orange-500" : "border-gray-200 text-gray-600"}`}>
