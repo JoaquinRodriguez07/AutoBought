@@ -23,7 +23,9 @@ Sin Docker, desde `backend/` y con el `.venv` activado: `python -m scripts.seed`
 
 Cada repuesto tiene su fabricante (`MANUFACTURERS` en el mismo script), como en una casa de repuestos real: las pastillas del Onix pueden ser Bosch, Brembo o TRW, y cada una es un producto distinto, con su código, precio y stock. El fabricante principal de cada tipo de repuesto lo hace para todos los autos; los demás solo para algunos.
 
-`scripts.seed` no actualiza un catálogo ya cargado: para ver repuestos nuevos, o cuando cambia una tabla (por ejemplo, la columna `manufacturer` de `part`), hay que recrear la base y volver a correr los tres scripts. En local: `docker compose down -v`, `docker compose up -d` y los scripts de arriba.
+Cada repuesto trae además una descripción, sus especificaciones técnicas (diámetro, material, medidas, etc., según el tipo) y su garantía: cuántos meses y quién la cubre, el fabricante o el vendedor (las marcas económicas de `VENDOR_WARRANTY` no tienen garantía de fábrica en el país y la cubre la tienda). Ni el nombre ni la descripción nombran autos ("Radiador Valeo", no "Radiador Valeo Chevrolet Onix"): para qué autos es cada repuesto lo dicen sus compatibilidades, que el detalle muestra en la pestaña Aplicaciones. Los de motor sí llevan el código del motor ("Filtro de aceite Mann-Filter 1.4 8V"). El script falla si un repuesto tiene como fabricante una marca de auto, o si el nombre o la descripción nombran una marca o un modelo de auto.
+
+Sobre una base que ya tiene el catálogo, `scripts.seed` no lo vuelve a cargar: agrega las columnas nuevas de `part` si faltan y actualiza, por código, el nombre, la descripción, las especificaciones y la garantía de los repuestos que ya existen, sin tocar precios, stock, pedidos, carritos ni favoritos. Así, después de bajar cambios del catálogo alcanza con volver a correrlo (también contra la base de la nube). Para ver repuestos **nuevos** (códigos que la base no tiene) sí hay que recrear la base y volver a correr los tres scripts. En local: `docker compose down -v`, `docker compose up -d` y los scripts de arriba.
 
 ### Usuarios de prueba
 

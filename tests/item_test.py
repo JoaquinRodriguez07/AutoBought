@@ -75,6 +75,14 @@ def test_list_parts_and_build_part_output(db_session):
 		"color": None,
 		"price": 12500,
 		"stock": 5,
+		"description": None,
+		"specifications": [],
+		"warranty_months": None,
+		"warranty_provider": None,
+		"compatibilities": [
+			{"brand": "Toyota", "model": "Corolla", "engine_code": "2ZR", "year_from": 2018, "year_to": 2020},
+			{"brand": "Toyota", "model": "Yaris", "engine_code": "1NZ", "year_from": 2016, "year_to": 2022},
+		],
 	}
 
 

@@ -8,9 +8,9 @@ def make_catalog(db_session):
     cronos = CarModel(brand="Fiat", model="Cronos", engine_code="1.3 Firefly")
 
     parts = [
-        Part(part_code="BRK-0001", name="Pastillas de freno delanteras Chevrolet Onix",
+        Part(part_code="BRK-0001", name="Pastillas de freno delanteras Bosch",
              manufacturer="Bosch", category="Frenos", price=3000, stock=5),
-        Part(part_code="BRK-0002", name="Pastillas de freno delanteras Fiat Cronos",
+        Part(part_code="BRK-0002", name="Pastillas de freno delanteras Bosch",
              manufacturer="Bosch", category="Frenos", price=3000, stock=5),
         Part(part_code="FIL-0001", name="Filtro de aceite 1.0 Turbo",
              manufacturer="Bosch", category="Filtros", price=800, stock=10),
@@ -138,6 +138,20 @@ def test_error_de_tipeo(client, db_session):
     assert con_error["entities"] == ENTIDADES_FRENOS_ONIX
     assert [p["id"] for p in con_error["parts"]] == [p["id"] for p in normal["parts"]]
     assert [p["part_code"] for p in con_error["parts"]] == ["BRK-0001"]
+
+
+def test_error_de_tipeo_en_el_modelo_y_la_marca(client, db_session):
+    # El auto no está en el nombre del repuesto (está en las
+    # compatibilidades): el corrector igual tiene que reconocerlo.
+    make_catalog(db_session)
+
+    response = client.get("/api/v1/parts", params={"q": "pastillas de freno onixx 2020"}).json()
+    assert response["entities"] == ENTIDADES_FRENOS_ONIX
+    assert [p["part_code"] for p in response["parts"]] == ["BRK-0001"]
+
+    response = client.get("/api/v1/parts", params={"q": "pastillas de freno chevrolt"}).json()
+    assert response["entities"]["brand"] == "Chevrolet"
+    assert [p["part_code"] for p in response["parts"]] == ["BRK-0001"]
 
 
 def test_sinonimo(client, db_session):

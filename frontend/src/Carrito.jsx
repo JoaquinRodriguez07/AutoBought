@@ -289,6 +289,11 @@ export default function Carrito({
                                 className="text-left text-sm font-bold leading-snug mt-0.5 hover:text-orange-500">
                                 {producto.nombre}
                               </button>
+                              {/* Hay repuestos con el mismo nombre para autos distintos
+                                  (el auto no va en el nombre): el código los distingue. */}
+                              {producto.codigo && (
+                                <p className="text-[11px] text-gray-400">Código: {producto.codigo}</p>
+                              )}
                               <div className="flex items-center gap-3 mt-1.5 text-xs">
                                 <span className="text-green-600 font-bold">En stock</span>
                                 <button onClick={() => removeFromCart(producto.id)}

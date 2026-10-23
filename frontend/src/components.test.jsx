@@ -59,6 +59,7 @@ import Carrito from "./Carrito";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
 import Favoritos from "./Favoritos";
+import { mapearRepuesto } from "./mapearRepuesto";
 import ConfirmacionAgregarCarrito, { DURACION_AVISO_MS } from "./ConfirmacionAgregarCarrito";
 import Home from "./Home";
 import Login from "./Login";
@@ -148,7 +149,6 @@ const product = {
   especificaciones: [["Material", "Semi-metalico"]],
   aplicaciones: ["Volkswagen Gol"],
   garantia: "6 meses",
-  opiniones: [{ nombre: "Ana", estrellas: 5, texto: "Excelente" }],
 };
 
 const catalogProducts = [
@@ -911,6 +911,48 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
 });
 
 describe("DetalleProducto", () => {
+  it("shows the manufacturer above the name, never a compatible car brand, and the new details", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+    const repuesto = mapearRepuesto({
+      id: 7,
+      name: "Filtro de aceite Mann-Filter 1.4 8V",
+      manufacturer: "Mann-Filter",
+      part_code: "FIL-0001",
+      category: "Filtros",
+      price: 790,
+      stock: 3,
+      compatible_brands: ["Chevrolet"],
+      compatible_models: ["Onix"],
+      description: "Filtro de aceite Mann-Filter 1.4 8V. Retiene las impurezas del aceite.",
+      specifications: [["Rosca", "M20 x 1,5"]],
+      warranty_months: 6,
+      warranty_provider: "fabricante",
+      compatibilities: [
+        { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 },
+      ],
+    });
+
+    render(<DetalleProducto {...props} producto={repuesto} />);
+
+    const titulo = screen.getByRole("heading", { level: 1, name: repuesto.nombre });
+    expect(titulo.previousElementSibling).toHaveTextContent("Mann-Filter");
+    expect(screen.queryByText("Chevrolet", { exact: true })).not.toBeInTheDocument();
+    expect(screen.getByText(/Retiene las impurezas/)).toBeInTheDocument();
+    expect(screen.getAllByText("6 meses de garantía del fabricante (Mann-Filter), por defectos de fabricación.").length)
+      .toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "Especificaciones" }));
+    expect(screen.getByText("M20 x 1,5")).toBeInTheDocument();
+
+    // Los autos van en Aplicaciones, no en la descripción.
+    await user.click(screen.getByRole("button", { name: "Aplicaciones" }));
+    expect(screen.getByText("Chevrolet Onix 1.4 8V (2013–2019)")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Opiniones/ })).not.toBeInTheDocument();
+  });
+
   it("shows the add confirmation and supports undo and cart navigation", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -2421,6 +2463,12 @@ describe("SearchBar and search helpers", () => {
     expect(filtrarRepuestos(repuestos, { busqueda: "bosch" })).toEqual([repuestos[1]]);
     // Por palabras, en cualquier orden y sin importar las tildes.
     expect(filtrarRepuestos(repuestos, { busqueda: "ngk bujia" })).toEqual([repuestos[0]]);
+    // El auto no está en el nombre: se encuentra por los modelos compatibles.
+    const radiadores = [
+      { nombre: "Radiador Valeo", marcas: ["Chevrolet"], modelos: ["Onix"] },
+      { nombre: "Radiador Valeo", marcas: ["Fiat"], modelos: ["Cronos"] },
+    ];
+    expect(filtrarRepuestos(radiadores, { busqueda: "radiador onix" })).toEqual([radiadores[0]]);
 
     const conPrecio = [
       { nombre: "Faro", precio: 6900, stock: 0, marcas: ["Ford"] },

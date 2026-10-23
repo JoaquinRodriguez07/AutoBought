@@ -69,6 +69,10 @@ const uiPart = {
   marcaPrincipal: "Volkswagen",
   marcas: ["Volkswagen", "Audi"],
   modelos: [],
+  descripcion: "",
+  especificaciones: [],
+  garantia: "",
+  aplicaciones: [],
   imagen: IMAGEN_PLACEHOLDER,
 };
 
@@ -595,6 +599,7 @@ describe("cart API", () => {
   const backendCart = {
     items: [{
       part_id: 21,
+      part_code: "BRK-0021",
       name: "Disco de freno",
       price: 2450,
       amount: 2,
@@ -608,6 +613,7 @@ describe("cart API", () => {
     items: [{
       id: "21",
       partId: 21,
+      codigo: "BRK-0021",
       nombre: "Disco de freno",
       precio: 2450,
       cantidad: 2,

@@ -19,6 +19,7 @@ The main manufacturer makes it for every car; the others only for some
 """
 
 import json
+import re
 import zlib
 from pathlib import Path
 
@@ -167,6 +168,66 @@ MANUFACTURERS = {
     "Batería": [("Moura", 1.0), ("Bosch", 1.15), ("Willard", 0.9)],
 }
 
+# Garantía de cada repuesto, en meses, por tipo (por cómo empieza el
+# nombre). La da el fabricante, salvo las marcas económicas de
+# VENDOR_WARRANTY: esas no tienen garantía de fábrica en el país y la cubre
+# el vendedor (la tienda).
+WARRANTY_MONTHS = {
+    "Filtro": 6,
+    "Bujía": 12,
+    "Bobina de encendido": 12,
+    "Kit de distribución": 12,
+    "Bomba de agua": 12,
+    "Pastillas de freno": 6,
+    "Discos de freno": 12,
+    "Amortiguador": 24,
+    "Faro": 12,
+    "Radiador": 12,
+    "Refrigerante": 6,
+    "Aceite de motor": 6,
+    "Escobilla": 6,
+    "Batería": 18,
+}
+
+VENDOR_WARRANTY = {"Fram", "Fremax", "Depo", "Willard"}
+
+# Para qué sirve cada tipo de repuesto: la segunda oración de la
+# descripción (la primera dice qué es y para qué autos).
+USES = {
+    "Filtro de aceite": "Retiene las impurezas del aceite y protege el motor del desgaste. "
+                        "Se recomienda cambiarlo junto con el aceite, cada 10.000 km.",
+    "Filtro de aire": "Evita que entren polvo y partículas al motor y mantiene el consumo. "
+                      "Se recomienda revisarlo cada 10.000 km y cambiarlo cada 20.000 km.",
+    "Filtro de combustible": "Retiene la suciedad y el agua del combustible antes de que "
+                             "lleguen a los inyectores. Se recomienda cambiarlo cada 20.000 km.",
+    "Filtro de habitáculo": "Filtra el aire que entra a la cabina por la ventilación y el aire "
+                            "acondicionado. Se recomienda cambiarlo una vez por año.",
+    "Bujía": "Genera la chispa que enciende la mezcla en cada cilindro. Unas bujías gastadas "
+             "hacen que el motor arranque mal y consuma más.",
+    "Bobina de encendido": "Eleva la tensión de la batería para que las bujías den chispa. "
+                           "Si falla, el motor tironea o pierde potencia.",
+    "Kit de distribución": "Sincroniza el cigüeñal con los árboles de levas. Se cambia completo "
+                           "(correa, tensor y polea) cada 60.000 km para evitar roturas del motor.",
+    "Bomba de agua": "Hace circular el refrigerante por el motor y el radiador. Se recomienda "
+                     "cambiarla junto con el kit de distribución.",
+    "Pastillas de freno": "Frenan el auto al apretar contra los discos. Se recomienda revisarlas "
+                          "cada 10.000 km y cambiarlas siempre de a pares.",
+    "Discos de freno": "Superficie contra la que frenan las pastillas. Se cambian de a pares, "
+                       "junto con pastillas nuevas.",
+    "Amortiguador": "Mantiene las ruedas apoyadas en el piso y el auto estable en curvas y "
+                    "frenadas. Se cambian de a pares.",
+    "Faro": "Conjunto óptico completo, listo para instalar. Las lámparas se venden aparte.",
+    "Radiador": "Disipa el calor del refrigerante para que el motor no recaliente.",
+    "Refrigerante": "Mantiene la temperatura del motor y lo protege de la corrosión. "
+                    "Listo para usar, sin diluir.",
+    "Aceite de motor": "Lubrica y protege el motor. Alcanza para un cambio completo en la "
+                       "mayoría de los motores nafteros chicos y medianos.",
+    "Escobilla": "Limpia el parabrisas sin dejar marcas. Se recomienda cambiarla una vez "
+                 "por año o cuando empieza a rayar o a dejar agua.",
+    "Batería": "Libre de mantenimiento: no hay que agregarle agua. Se entrega cargada y "
+               "lista para instalar.",
+}
+
 PREFIXES = {
     "Filtros": "FIL",
     "Encendido": "IGN",
@@ -233,6 +294,201 @@ def calc_stock(part_code, category):
     return seed % cap + 1
 
 
+def by_prefix(table, name):
+    return next(value for prefix, value in table.items() if name.startswith(prefix))
+
+
+def pick(options, key):
+    """Una opción elegida siempre igual para la misma clave (como el stock):
+    los datos cambian entre repuestos pero no entre corridas."""
+    return options[zlib.crc32(key.encode()) % len(options)]
+
+
+# Qué tan grande es el auto más grande que usa el repuesto: los frenos, la
+# suspensión y el radiador de una pickup son más grandes que los de un auto
+# chico.
+SIZE = {"hatchback": 0, "sedan": 1, "van": 2, "minivan": 2, "suv": 3, "pickup": 4}
+
+
+def specifications(name, manufacturer, compatible, code):
+    """Especificaciones técnicas del repuesto, como pares [nombre, valor]."""
+    size = max(SIZE[m["segment"]] for m in compatible)
+    diesel = all(m["engine_code"] in DIESEL_ENGINES for m in compatible)
+    economy = manufacturer in VENDOR_WARRANTY
+
+    def mm(values):
+        return f"{values[min(size, len(values) - 1)]} mm"
+
+    if name.startswith("Filtro de aceite"):
+        return [
+            ["Rosca", pick(["M20 x 1,5", "3/4\" - 16 UNF", "M22 x 1,5"], code)],
+            ["Diámetro exterior", f"{pick([76, 80, 93], code)} mm"],
+            ["Altura", f"{pick([65, 79, 86, 100], code)} mm"],
+            ["Válvula antirretorno", "Sí"],
+            ["Medio filtrante", "Celulosa" if economy else "Fibra sintética"],
+        ]
+    if name.startswith("Filtro de aire"):
+        return [
+            ["Forma", pick(["Panel rectangular", "Panel trapezoidal", "Cilíndrico"], code)],
+            ["Largo", f"{pick([220, 245, 268, 290], code)} mm"],
+            ["Ancho", f"{pick([160, 180, 195], code)} mm"],
+            ["Alto", f"{pick([40, 50, 58], code)} mm"],
+            ["Material", "Celulosa" if economy else "Celulosa con tratamiento ignífugo"],
+        ]
+    if name.startswith("Filtro de combustible"):
+        return [
+            ["Combustible", "Diésel" if diesel else "Nafta"],
+            ["Tipo", "Con separador de agua" if diesel else "En línea"],
+            ["Conexión", pick(["8 mm", "10 mm"], code)],
+            ["Presión máxima", "8 bar" if diesel else "6 bar"],
+        ]
+    if name.startswith("Filtro de habitáculo"):
+        return [
+            ["Tipo", pick(["Partículas", "Carbón activado"], code)],
+            ["Largo", f"{pick([200, 215, 235, 254], code)} mm"],
+            ["Ancho", f"{pick([180, 200, 215], code)} mm"],
+            ["Alto", f"{pick([25, 30, 35], code)} mm"],
+        ]
+    if name.startswith("Bujía"):
+        electrode = {"NGK": "Iridio", "Denso": "Platino"}.get(manufacturer, "Níquel")
+        return [
+            ["Rosca", "M14 x 1,25"],
+            ["Electrodo central", electrode],
+            ["Calibración", pick(["0,8 mm", "0,9 mm", "1,0 mm"], code)],
+            ["Grado térmico", pick(["5", "6", "7"], code)],
+            ["Duración estimada", "60.000 km" if electrode != "Níquel" else "30.000 km"],
+        ]
+    if name.startswith("Bobina de encendido"):
+        kind = pick(["Lápiz (una por cilindro)", "Bloque (4 salidas)"], code)
+        return [
+            ["Tipo", kind],
+            ["Tensión de entrada", "12 V"],
+            ["Conector", pick(["3 pines", "4 pines"], code)],
+            ["Unidades", "1" if kind.startswith("Lápiz") else "1 (para los 4 cilindros)"],
+        ]
+    if name.startswith("Kit de distribución"):
+        return [
+            ["Incluye", "Correa, tensor y polea"],
+            ["Dientes de la correa", str(pick([107, 113, 124, 137, 150], code))],
+            ["Ancho de la correa", pick(["17 mm", "19 mm", "25,4 mm"], code)],
+            ["Cambio recomendado", "Cada 60.000 km"],
+        ]
+    if name.startswith("Bomba de agua"):
+        return [
+            ["Impulsor", "Plástico" if manufacturer == "Gates" else "Metálico"],
+            ["Junta", "Incluida"],
+            ["Accionamiento", "Correa de distribución"],
+        ]
+    if name.startswith("Pastillas de freno"):
+        material = {"Brembo": "Cerámico", "Ferodo": "Orgánico"}.get(manufacturer, "Semimetálico")
+        return [
+            ["Posición", "Delanteras"],
+            ["Material", material],
+            ["Ancho", mm([131, 138, 148, 156, 168])],
+            ["Alto", mm([52, 54, 57, 59, 64])],
+            ["Espesor", mm([17, 17, 18, 18, 19])],
+            ["Sensor de desgaste", pick(["Incluido", "No incluido"], code)],
+            ["Unidades", "4 (juego para el eje delantero)"],
+        ]
+    if name.startswith("Discos de freno"):
+        return [
+            ["Posición", "Delanteros"],
+            ["Diámetro", mm([256, 262, 280, 285, 300])],
+            ["Espesor", mm([22, 22, 24, 26, 28])],
+            ["Tipo", "Sólido" if size == 0 and economy else "Ventilado"],
+            ["Agujeros", str(pick([4, 5], code) if size < 4 else 6)],
+            ["Material", "Fundición gris"],
+            ["Unidades", "2 (par)"],
+        ]
+    if name.startswith("Amortiguador"):
+        return [
+            ["Posición", "Delantero"],
+            ["Tipo", "Hidráulico" if manufacturer == "KYB" else "Gas presurizado"],
+            ["Largo extendido", mm([480, 495, 510, 530, 560])],
+            ["Largo comprimido", mm([330, 340, 350, 365, 380])],
+            ["Unidades", "1"],
+        ]
+    if name.startswith("Faro"):
+        return [
+            ["Lámpara", pick(["H4", "H7 + H1", "H4 + LED diurna"], code)],
+            ["Lente", "Policarbonato"],
+            ["Regulación de altura", pick(["Manual", "Eléctrica"], code)],
+            ["Lado", pick(["Izquierdo", "Derecho"], code)],
+        ]
+    if name.startswith("Radiador"):
+        return [
+            ["Material del núcleo", "Aluminio"],
+            ["Tanques", "Plástico reforzado"],
+            ["Ancho del núcleo", mm([550, 580, 610, 650, 700])],
+            ["Alto del núcleo", mm([375, 390, 415, 440, 480])],
+            ["Transmisión", pick(["Manual", "Manual y automática"], code)],
+        ]
+    if name.startswith("Refrigerante"):
+        return [
+            ["Volumen", "1 L"],
+            ["Tipo", "Orgánico (OAT)"],
+            ["Color", "Verde"],
+            ["Preparación", "Listo para usar"],
+        ]
+    if name.startswith("Aceite de motor"):
+        return [
+            ["Viscosidad", "5W-30"],
+            ["Volumen", "4 L"],
+            ["Base", "Semisintético" if manufacturer == "Shell" else "Sintético"],
+            ["Norma", "API SP / ACEA A3/B4"],
+        ]
+    if name.startswith("Escobilla"):
+        return [
+            ["Tipo", "Plana (sin armazón)" if manufacturer == "Bosch" else "Convencional"],
+            ["Largo", f"{pick([450, 500, 550, 600], code)} mm"],
+            ["Unidades", "1"],
+        ]
+    if name.startswith("Batería"):
+        amp_hours = int(name.split("12V ")[1].removesuffix("Ah"))
+        return [
+            ["Tensión", "12 V"],
+            ["Capacidad", f"{amp_hours} Ah"],
+            ["Corriente de arranque (CCA)", f"{round(amp_hours * 9.5 / 10) * 10} A"],
+            ["Medidas", {45: "207 x 175 x 175 mm", 60: "242 x 175 x 175 mm",
+                         75: "278 x 175 x 190 mm", 90: "306 x 173 x 222 mm"}[amp_hours]],
+            ["Polaridad", "Positivo a la derecha"],
+        ]
+    raise ValueError(f"Sin especificaciones para {name!r}")
+
+
+def description(name, manufacturer, suffix):
+    """Qué es el repuesto y para qué sirve. Los autos no van acá: están en
+    las compatibilidades (la pestaña Aplicaciones del detalle)."""
+    return f"{name} {manufacturer}{suffix}. {by_prefix(USES, name)}"
+
+
+def warranty(name, manufacturer):
+    provider = "vendedor" if manufacturer in VENDOR_WARRANTY else "fabricante"
+    return by_prefix(WARRANTY_MONTHS, name), provider
+
+
+def check_parts(parts, car_models):
+    """Reglas que el catálogo tiene que cumplir. Falla en vez de escribir
+    datos que no las cumplan."""
+    car_brands = {m["brand"] for m in car_models}
+    car_words = car_brands | {m["model"] for m in car_models}
+    for part in parts:
+        # El fabricante es quien hace el repuesto, nunca la marca del auto:
+        # la marca del auto va en las compatibilidades.
+        if part["manufacturer"] in car_brands:
+            raise ValueError(f"{part['part_code']}: el fabricante {part['manufacturer']!r} es una marca de auto")
+        if part["manufacturer"] not in part["name"]:
+            raise ValueError(f"{part['part_code']}: el nombre no dice su fabricante")
+        # Ni el nombre ni la descripción nombran autos: para qué autos es un
+        # repuesto lo dicen sus compatibilidades.
+        for field in ("name", "description"):
+            words = set(re.findall(r"[\w-]+", part[field]))
+            if words & car_words:
+                raise ValueError(
+                    f"{part['part_code']}: el campo {field} nombra un auto ({', '.join(sorted(words & car_words))})"
+                )
+
+
 def compatibility_entry(car_model):
     return {
         "brand": car_model["brand"],
@@ -255,7 +511,10 @@ def build_parts(car_models):
     # Cada repuesto antes de elegir el fabricante. El fabricante va en el
     # nombre justo después del tipo ("Bujía NGK 1.4 8V"): los recordatorios
     # de mantenimiento y la estacionalidad reconocen el repuesto por cómo
-    # empieza el nombre.
+    # empieza el nombre. Los de motor llevan el código del motor (es como se
+    # piden en una casa de repuestos); la marca y el modelo del auto nunca
+    # van en el nombre: están en las compatibilidades. El `group` (motor o
+    # modelo) sigue decidiendo qué fabricantes hacen cada repuesto.
     # (name, suffix, category, base_price, color, compatible, group, by_segment)
     base_parts = []
 
@@ -269,7 +528,7 @@ def build_parts(car_models):
     for car_model in car_models:
         for name, category, base_price, color in MODEL_PARTS:
             group = f"{car_model['brand']} {car_model['model']}"
-            base(name, f" {group}", category, base_price, color, [car_model], group)
+            base(name, "", category, base_price, color, [car_model], group)
 
     for name, category, base_price, color in UNIVERSAL_PARTS:
         base(name, "", category, base_price, color, car_models, None)
@@ -282,11 +541,11 @@ def build_parts(car_models):
     for car_model in car_models:
         for name, category, base_price, color in EXTRA_MODEL_PARTS:
             group = f"{car_model['brand']} {car_model['model']}"
-            base(name, f" {group}", category, base_price, color, [car_model], group)
+            base(name, "", category, base_price, color, [car_model], group)
 
     for (brand, model), models in group_by_model(car_models).items():
         for name, category, base_price, color in BODY_PARTS:
-            base(name, f" {brand} {model}", category, base_price, color, models, f"{brand} {model}")
+            base(name, "", category, base_price, color, models, f"{brand} {model}")
 
     for name, price, fits in BATTERIES:
         base(name, "", "Eléctrico", price, None, [m for m in car_models if fits(m)], None, by_segment=False)
@@ -295,6 +554,7 @@ def build_parts(car_models):
         name, suffix, category, base_price, color, compatible, _, by_segment = part
         code = next_code(category)
         price = base_price * factor
+        warranty_months, warranty_provider = warranty(name, manufacturer)
         parts.append(
             {
                 "part_code": code,
@@ -304,6 +564,10 @@ def build_parts(car_models):
                 "color": color,
                 "price": calc_price(price, compatible) if by_segment else int(round(price / 10) * 10),
                 "stock": calc_stock(code, category),
+                "description": description(name, manufacturer, suffix),
+                "specifications": specifications(name, manufacturer, compatible, code),
+                "warranty_months": warranty_months,
+                "warranty_provider": warranty_provider,
                 "compatibilities": [compatibility_entry(m) for m in compatible],
             }
         )
@@ -325,6 +589,7 @@ def build_parts(car_models):
 def main():
     car_models = build_car_models()
     parts = build_parts(car_models)
+    check_parts(parts, car_models)
 
     DATA_DIR.mkdir(exist_ok=True)
     for filename, content in (

@@ -182,6 +182,13 @@ def test_mantiene_la_estructura_de_parts(client, db_session):
         "color": None,
         "price": 1000,
         "stock": 10,
+        "description": None,
+        "specifications": [],
+        "warranty_months": None,
+        "warranty_provider": None,
+        "compatibilities": [
+            {"brand": "Chevrolet", "model": "Onix", "engine_code": "1.4 SPE/4", "year_from": 2013, "year_to": 2020},
+        ],
     }
 
 
