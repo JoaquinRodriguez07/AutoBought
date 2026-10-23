@@ -2,8 +2,11 @@ import { mapearCategoria, mapearItemCarrito, mapearRepuesto } from "./mapearRepu
 import { obtenerSesion } from "./auth";
 import { formatearTelefonoUY } from "./telefono";
 
+// En Vercel el frontend y el backend comparten dominio: frontend/.env.production
+// deja VITE_API_URL vacía y los pedidos van a /api/v1/... del mismo sitio.
+// En desarrollo (y en Docker) la variable no está o apunta al backend local.
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
 export async function login(email, password) {
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
