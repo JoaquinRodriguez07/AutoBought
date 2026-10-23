@@ -1,4 +1,5 @@
 import { useVehicle } from "./context/VehicleContext";
+import { IconoAuto } from "./Iconos";
 
 /**
  * ActiveVehicleBanner
@@ -22,15 +23,15 @@ export default function ActiveVehicleBanner({ onCambiar, onBorrar }) {
   return (
     <div
       role="status"
-      className="bg-[#151719] text-white rounded-lg px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      className="bg-white/10 border border-white/15 backdrop-blur-sm text-white rounded-lg px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
     >
       <div className="flex items-center gap-3">
-        <span className="text-xl" aria-hidden="true">
-          🚗
+        <span className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-orange-500">
+          <IconoAuto className="w-5 h-5" />
         </span>
 
-        <p className="text-[12px]">
-          <span className="text-gray-400">
+        <p className="text-sm">
+          <span className="text-gray-300">
             Mostrando repuestos para:{" "}
           </span>
           <span className="font-black">
@@ -44,7 +45,7 @@ export default function ActiveVehicleBanner({ onCambiar, onBorrar }) {
           <button
             type="button"
             onClick={onCambiar}
-            className="text-orange-500 text-[9px] font-bold underline"
+            className="text-orange-500 text-xs font-bold underline"
           >
             Cambiar vehículo
           </button>
@@ -54,7 +55,7 @@ export default function ActiveVehicleBanner({ onCambiar, onBorrar }) {
           <button
             type="button"
             onClick={onBorrar}
-            className="border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md px-3 h-8 text-[9px] font-bold transition"
+            className="border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md px-3 h-8 text-xs font-bold transition"
           >
             Borrar filtros
           </button>

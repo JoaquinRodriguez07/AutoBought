@@ -29,6 +29,8 @@ describe("mapearRepuesto", () => {
       stock: 8,
       marca: "Chevrolet Volkswagen",
       marcaPrincipal: "Chevrolet",
+      marcas: ["Chevrolet", "Volkswagen"],
+      modelos: [],
       imagen: IMAGEN_PLACEHOLDER,
     });
   });
@@ -45,6 +47,8 @@ describe("mapearRepuesto", () => {
       stock: 0,
       marca: "",
       marcaPrincipal: "",
+      marcas: [],
+      modelos: [],
       imagen: IMAGEN_PLACEHOLDER,
     });
   });

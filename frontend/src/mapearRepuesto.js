@@ -18,7 +18,8 @@
  *   category                     →  categoria
  *   price                        →  precio
  *   stock                        →  stock
- *   compatible_brands            →  marca + marcaPrincipal (ver abajo)
+ *   compatible_brands            →  marca + marcaPrincipal + marcas (ver abajo)
+ *   compatible_models            →  modelos
  *   (no existe)                  →  imagen  (placeholder fijo)
  *
  * MARCAS: un repuesto puede ser compatible con varias marcas. Se
@@ -33,6 +34,7 @@
  *     las pantallas tienen lugar para una sola, así que renderizan
  *     `marcaPrincipal ?? marca` (el `??` cubre lo viejo guardado en
  *     localStorage, que solo tiene `marca`).
+ *   - `marcas`: la lista, para el filtro "Marca del auto" del catálogo.
  *
  * IDs: `PartOut.id` es un NÚMERO y los ids del mock son STRINGS
  * ("BP1234"). El carrito y favoritos viven en localStorage y comparan
@@ -43,8 +45,8 @@
  * backend), que sí necesitan el número.
  *
  * DEUDA CONOCIDA (diferida a propósito): el backend ya manda
- * `compatible_models`, `year_from`, `year_to`, `engine_code` y `color`,
- * y acá se descartan. Por eso, en todo producto que venga de la API, las
+ * `year_from`, `year_to`, `engine_code` y `color`, y acá se descartan
+ * (`compatible_models` solo se usa en la tarjeta del catálogo). Por eso, en todo producto que venga de la API, las
  * pestañas "Aplicaciones" y "Especificaciones" de DetalleProducto
  * muestran su estado vacío aunque el dato haya llegado en la respuesta.
  */
@@ -71,6 +73,8 @@ export function mapearRepuesto(part) {
     stock: part.stock ?? 0,
     marca: marcas.join(" "),
     marcaPrincipal: marcas[0] ?? "",
+    marcas,
+    modelos: Array.isArray(part.compatible_models) ? part.compatible_models : [],
     imagen: IMAGEN_PLACEHOLDER,
   };
 }

@@ -6,6 +6,21 @@ import ModelDropdown from "./ModelDropdown";
 import { obtenerAnios, obtenerCategorias, obtenerMasVendidos } from "./api";
 import { useVehicle } from "./context/VehicleContext";
 import repuestos from "./assets/repuestos.jpg";
+import {
+  IconoAuto,
+  IconoCaja,
+  IconoCamion,
+  IconoChispa,
+  IconoDisco,
+  IconoEngranaje,
+  IconoEscobilla,
+  IconoEscudo,
+  IconoFiltro,
+  IconoGota,
+  IconoRayo,
+  IconoResorte,
+  IconoTermometro,
+} from "./Iconos";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
 import BMWLogo from "./assets/Logos Vehiculos/BMW.png";
@@ -21,6 +36,28 @@ import PeugeotLogo from "./assets/Logos Vehiculos/Peugeot.webp";
 import RenaultLogo from "./assets/Logos Vehiculos/Renault.png";
 import SuzukiLogo from "./assets/Logos Vehiculos/Suzuki.png";
 import VolkswagenLogo from "./assets/Logos Vehiculos/Volkswagen.webp";
+
+// Los fabricantes principales del catálogo (ver MANUFACTURERS en
+// backend/scripts/generate_dataset.py).
+const FABRICANTES = ["Bosch", "Brembo", "NGK", "Mann-Filter", "Monroe", "Valeo", "Castrol", "Moura"];
+
+// Ícono de cada categoría. Las categorías vienen del servidor: una que no
+// esté acá (nueva) se muestra con el ícono genérico, sin romper nada.
+const ICONOS_CATEGORIA = {
+  Accesorios: IconoEscobilla,
+  Carrocería: IconoAuto,
+  Eléctrico: IconoRayo,
+  Encendido: IconoChispa,
+  Filtros: IconoFiltro,
+  Frenos: IconoDisco,
+  Lubricantes: IconoGota,
+  Motor: IconoEngranaje,
+  Refrigeración: IconoTermometro,
+  Suspensión: IconoResorte,
+};
+
+// Las que más se buscan van destacadas, más grandes, arriba.
+const CATEGORIAS_DESTACADAS = ["Frenos", "Filtros", "Motor"];
 
 export default function Home({
   usuario,
@@ -66,9 +103,6 @@ export default function Home({
   const [years, setYears] = useState([]);
   const [loadingYears, setLoadingYears] = useState(false);
 
-  // Se activa cuando el usuario toca el botón del hero con un borrador
-  // incompleto y un vehículo activo (ver `avisoHero`).
-  const [intentoHero, setIntentoHero] = useState(false);
 
   // ==========================================
   // SINCRONIZAR CON EL VEHÍCULO ACTIVO
@@ -112,21 +146,6 @@ export default function Home({
     selectedBrand && selectedModel && selectedYear
   );
 
-  // Hay un vehículo activo y el borrador quedó incompleto: abrir el
-  // catálogo mostraría el vehículo anterior, no lo que se ve en Home.
-  // Se deriva del estado, así que desaparece solo al completar el borrador.
-  const borradorIgualAlActivo =
-     Boolean(vehiculoActivo) &&
-     vehiculoActivo.brand === selectedBrand &&
-     vehiculoActivo.model === selectedModel &&
-     vehiculoActivo.year === selectedYear;
-
-   const avisoHero =
-     intentoHero &&
-     Boolean(vehiculoActivo) &&
-     !puedeBuscar &&
-     !borradorIgualAlActivo;
-
   const hayAlgoParaBorrar = Boolean(
     selectedBrand || selectedModel || selectedYear || vehiculoActivo
   );
@@ -134,32 +153,14 @@ export default function Home({
   const buscarRepuestos = () => {
     if (!puedeBuscar) return;
 
-    setIntentoHero(false);
+    const vehiculo = {
+      brand: selectedBrand,
+      model: selectedModel,
+      year: selectedYear,
+    };
 
-       const vehiculo = {
-     brand: selectedBrand,
-     model: selectedModel,
-     year: selectedYear,
-   };
-
-   activarVehiculo(vehiculo);
-   onCatalogo(null, vehiculo);
-
-   
-  };
-
-  // El botón grande del hero aplica el vehículo si la selección está
-  // completa. Si hay un vehículo activo y el borrador está incompleto NO
-  // navega (el catálogo abriría con el vehículo anterior) y avisa. Sin
-  // vehículo activo, abre el catálogo completo como siempre.
-  const buscarDesdeHero = () => {
-    if (puedeBuscar) {
-      buscarRepuestos();
-    } else if (vehiculoActivo && !borradorIgualAlActivo) {
-      setIntentoHero(true);
-    } else {
-      onCatalogo();
-    }
+    activarVehiculo(vehiculo);
+    onCatalogo(null, vehiculo);
   };
 
   // Vuelve todo al estado inicial (solo Marca habilitado) y quita el
@@ -169,7 +170,6 @@ export default function Home({
     setSelectedModel("");
     setSelectedYear("");
     setYears([]);
-    setIntentoHero(false);
     limpiarVehiculo();
   };
 
@@ -337,466 +337,430 @@ export default function Home({
       />
 
       {/* =====================================================
-          HERO
+          HERO + SELECTOR DE VEHÍCULO
       ====================================================== */}
+      {/* La acción principal del inicio es elegir el auto: el selector
+          va adentro del hero. Lo elegido es un borrador hasta tocar
+          "Buscar repuestos" (ver arriba). */}
 
-      <section className="relative min-h-[620px] flex items-center overflow-hidden">
+      <section className="relative overflow-hidden bg-black">
 
+        {/* Oscurecida y corrida hacia abajo para que no se vean las
+            partes blancas de la foto. */}
         <img
           src={repuestos}
           alt="Repuestos para vehículos"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover object-bottom"
         />
 
-        <div className="absolute inset-0 bg-black/65" />
+        <div className="absolute inset-0 bg-black/60" />
+        <div className="absolute inset-0 bg-linear-to-r from-black/85 via-black/60 to-black/50" />
 
-        <div className="absolute inset-0 bg-linear-to-r from-black/80 via-black/50 to-black/20" />
+        <div className="relative z-10 max-w-[1100px] mx-auto px-6 md:px-10 pt-36 pb-12">
 
-        <div className="relative z-10 max-w-[1200px] w-full mx-auto px-6 md:px-10 pt-20">
+          <p className="text-orange-500 text-xs font-black tracking-[4px]">
+            REPUESTOS PARA TU AUTO
+          </p>
 
-          <div className="max-w-[650px]">
+          <h1 className="text-white text-4xl md:text-6xl font-black italic uppercase leading-none mt-4 max-w-[680px]">
+            REPUESTOS QUE TE MANTIENEN EN MOVIMIENTO
+          </h1>
 
-            <p className="text-orange-500 text-[10px] md:text-xs font-black tracking-[5px] mb-5">
-              PREMIUM PERFORMANCE PARTS
-            </p>
+          <p className="text-gray-300 text-base mt-5 max-w-[520px] leading-relaxed">
+            Elegí tu auto y te mostramos los repuestos que le sirven,
+            de las mejores marcas.
+          </p>
 
-            <h1 className="text-white text-4xl md:text-6xl font-black italic uppercase leading-[0.95] md:leading-none">
-              REPUESTOS QUE TE
-              <br />
-              MANTIENEN EN
-              <br />
-              MOVIMIENTO
-            </h1>
+          {/* SELECTOR DE VEHÍCULO */}
 
-            <p className="text-gray-300 text-sm md:text-base mt-7 max-w-[540px] leading-relaxed md:leading-6">
-              Calidad, confianza y las mejores marcas en un solo
-              lugar. Encontrá el repuesto exacto para potenciar
-              el rendimiento de tu vehículo.
-            </p>
+          <div className="mt-10 bg-[#151719]/95 border border-white/10 rounded-xl shadow-2xl p-5 md:p-6">
 
-            <button
-              type="button"
-              onClick={buscarDesdeHero}
-              className="mt-8 bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded-lg text-[11px] font-black transition"
-            >
-              BUSCAR REPUESTOS →
-            </button>
+            <p className="text-white text-sm font-black">¿Qué auto tenés?</p>
 
-            {avisoHero && (
-              <p
-                role="alert"
-                className="mt-3 text-[11px] text-orange-300 max-w-[540px]"
+            <div className="mt-4 flex flex-col md:flex-row md:items-end gap-4">
+
+              <label className="flex-1">
+                <span className="block text-xs text-gray-400 font-bold mb-2">MARCA</span>
+                <BrandDropdown
+                  value={selectedBrand}
+                  onChange={handleBrandChange}
+                  className="w-full bg-white rounded-md px-3 h-11 text-sm outline-hidden"
+                />
+              </label>
+
+              <label className="flex-1">
+                <span className="block text-xs text-gray-400 font-bold mb-2">MODELO</span>
+                <ModelDropdown
+                  brand={selectedBrand}
+                  value={selectedModel}
+                  onChange={handleModelChange}
+                  className="w-full bg-white rounded-md px-3 h-11 text-sm outline-hidden disabled:bg-gray-300 disabled:text-gray-500"
+                />
+              </label>
+
+              <label className="flex-1">
+                <span className="block text-xs text-gray-400 font-bold mb-2">AÑO</span>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  disabled={!selectedModel || loadingYears}
+                  className="w-full bg-white rounded-md px-3 h-11 text-sm outline-hidden disabled:bg-gray-300 disabled:text-gray-500"
+                >
+                  <option value="">
+                    {!selectedModel
+                      ? "Seleccioná un modelo"
+                      : loadingYears
+                      ? "Cargando años..."
+                      : "Seleccioná un año"}
+                  </option>
+
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button
+                type="button"
+                onClick={buscarRepuestos}
+                disabled={!puedeBuscar}
+                className="h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md px-7 text-xs font-black transition disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
               >
-                Completá marca, modelo y año para cambiar de vehículo, o
-                usá "Borrar filtros" para ver todo el catálogo.
-              </p>
-            )}
+                BUSCAR REPUESTOS
+              </button>
 
-          </div>
+              {hayAlgoParaBorrar && (
+                <button
+                  type="button"
+                  onClick={borrarFiltros}
+                  className="h-11 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md px-5 text-xs font-black transition"
+                >
+                  BORRAR FILTROS
+                </button>
+              )}
 
-          <div className="absolute hidden lg:block right-10 bottom-16 text-white/30 text-[9px] tracking-[5px] leading-[1.8]">
-            <p>TU AUTO</p>
-            <p>NUESTRA</p>
-            <p>PASIÓN</p>
+            </div>
+
           </div>
 
         </div>
+
       </section>
 
       {/* =====================================================
-          SELECTOR DE VEHÍCULO
+          BENEFICIOS
       ====================================================== */}
 
-      <section className="relative z-20 -mt-10 px-5">
+      <section className="bg-[#151719] border-t border-white/10">
 
-        <div className="max-w-[1050px] mx-auto bg-[#151719] rounded-xl shadow-2xl p-5 md:p-7">
+        <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-6 grid grid-cols-1 md:grid-cols-3 gap-5">
 
-          <div className="flex flex-col md:flex-row md:items-end gap-4">
+          {[
+            [IconoEscudo, "Repuestos de calidad", "De fabricantes reconocidos."],
+            [IconoAuto, "Compatibilidad", "Solo lo que le sirve a tu auto."],
+            [IconoCamion, "Envíos a todo el país", "Recibí tus repuestos donde estés."],
+          ].map(([Icono, titulo, texto]) => (
 
-            {/* MARCA */}
+            <div key={titulo} className="flex items-center gap-3">
 
-            <div className="flex-1">
+              <span className="shrink-0 w-10 h-10 rounded-full bg-orange-500/15 text-orange-500 flex items-center justify-center">
+                <Icono className="w-5 h-5" />
+              </span>
 
-              <p className="text-[9px] text-gray-400 font-bold mb-2">
-                MARCA
-              </p>
-
-              <BrandDropdown
-                value={selectedBrand}
-                onChange={handleBrandChange}
-                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-hidden"
-              />
-
-            </div>
-
-            {/* MODELO */}
-
-            <div className="flex-1">
-
-              <p className="text-[9px] text-gray-400 font-bold mb-2">
-                MODELO
-              </p>
-
-              <ModelDropdown
-                brand={selectedBrand}
-                value={selectedModel}
-                onChange={handleModelChange}
-                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-hidden"
-              />
+              <div>
+                <h3 className="text-white text-sm font-black">{titulo}</h3>
+                <p className="text-gray-400 text-sm">{texto}</p>
+              </div>
 
             </div>
 
-            {/* AÑO */}
-
-            <div className="flex-1">
-
-              <p className="text-[9px] text-gray-400 font-bold mb-2">
-                AÑO
-              </p>
-
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                disabled={!selectedModel || loadingYears}
-                className="w-full bg-white rounded-md px-3 py-3 text-[10px] outline-hidden disabled:bg-gray-200 disabled:text-gray-400"
-              >
-                <option value="">
-                  {!selectedModel
-                    ? "Seleccioná un modelo"
-                    : loadingYears
-                    ? "Cargando años..."
-                    : "Seleccioná un año"}
-                </option>
-
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-
-            </div>
-
-            <button
-              type="button"
-              onClick={buscarRepuestos}
-              disabled={!puedeBuscar}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-md px-7 py-3 text-[10px] font-black transition disabled:bg-gray-500 disabled:text-gray-300 disabled:hover:bg-gray-500 disabled:cursor-not-allowed"
-            >
-              BUSCAR REPUESTOS
-            </button>
-
-            <button
-              type="button"
-              onClick={borrarFiltros}
-              disabled={!hayAlgoParaBorrar}
-              className="border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md px-5 py-3 text-[10px] font-black transition disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-orange-500 disabled:cursor-not-allowed"
-            >
-              BORRAR FILTROS
-            </button>
-
-          </div>
+          ))}
 
         </div>
+
       </section>
 
       {/* =====================================================
           CATEGORÍAS
       ====================================================== */}
 
-      <section className="max-w-[1100px] mx-auto px-6 md:px-10 pt-16">
-
-        <div className="flex items-end justify-between mb-9">
-
-          <div>
-
-            <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
-              TODO PARA TU AUTO
-            </p>
-
-            <h2 className="text-2xl md:text-3xl font-black italic uppercase mt-2">
-              ENCONTRÁ LO QUE NECESITÁS
-            </h2>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onCatalogo()}
-            className="text-orange-500 text-[10px] font-bold hover:underline"
-          >
-            Ver todas →
-          </button>
-
-        </div>
+      <Seccion
+        etiqueta="TODO PARA TU AUTO"
+        titulo="Categorías"
+        accion="Ver todas"
+        onAccion={() => onCatalogo()}
+      >
 
         {categorias === null && (
-          <p className="text-[10px] text-gray-400">
+          <p className="text-sm text-gray-400">
             Cargando categorías…
           </p>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+        {/* Mosaico: las destacadas grandes arriba y el resto debajo. */}
 
-          {(categorias || []).map((categoria) => (
-
-            <button
-              key={categoria.nombre}
-              type="button"
-              onClick={() => onCatalogo(categoria.nombre)}
-              className="h-24 bg-white border border-gray-200 rounded-xl hover:border-orange-400 hover:shadow-md hover:-translate-y-1 transition duration-300 flex items-center justify-center"
-            >
-              <p className="text-[10px] font-bold">
-                {categoria.nombre}
-              </p>
-            </button>
-
-          ))}
-
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {(categorias || [])
+            .filter((c) => CATEGORIAS_DESTACADAS.includes(c.nombre))
+            .sort((a, b) => CATEGORIAS_DESTACADAS.indexOf(a.nombre) - CATEGORIAS_DESTACADAS.indexOf(b.nombre))
+            .map((categoria) => (
+              <TarjetaCategoria
+                key={categoria.nombre}
+                nombre={categoria.nombre}
+                grande
+                onClick={() => onCatalogo(categoria.nombre)}
+              />
+            ))}
         </div>
 
-      </section>
-
-      {/* =====================================================
-          MARCAS
-      ====================================================== */}
-
-      <section className="max-w-[1100px] mx-auto px-6 md:px-10 py-16">
-
-        <div className="flex items-end justify-between mb-7">
-
-          <div>
-
-            <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
-              TRABAJAMOS CON
-            </p>
-
-            <h2 className="text-2xl font-black italic uppercase mt-1">
-              LAS MEJORES MARCAS
-            </h2>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={onMarcas}
-            className="text-orange-500 text-[10px] font-bold hover:underline"
-          >
-            Ver todas →
-          </button>
-
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-3">
+          {(categorias || [])
+            .filter((c) => !CATEGORIAS_DESTACADAS.includes(c.nombre))
+            .map((categoria) => (
+              <TarjetaCategoria
+                key={categoria.nombre}
+                nombre={categoria.nombre}
+                onClick={() => onCatalogo(categoria.nombre)}
+              />
+            ))}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
-
-          {marcas.map((marca) => (
-
-            <button
-              key={marca.nombre}
-              type="button"
-              onClick={() =>
-                onCatalogo(null, {
-                  brand: marca.nombre,
-                  model: "",
-                  year: "",
-                })
-              }
-              className="h-24 bg-gray-50 border border-gray-100 rounded-lg flex flex-col items-center justify-center hover:bg-white hover:border-orange-300 hover:shadow-md transition duration-300 group"
-            >
-
-              {marca.logo ? (
-
-                <div className="h-12 w-24 flex items-center justify-center">
-
-                  <img
-                    src={marca.logo}
-                    alt={`Logo ${marca.nombre}`}
-                    className="max-h-11 max-w-[85px] object-contain group-hover:scale-105 transition duration-300"
-                  />
-
-                </div>
-
-              ) : (
-
-                <div className="h-12 flex items-center justify-center">
-
-                  <span className="text-[11px] font-black text-gray-500 group-hover:text-orange-500 transition">
-                    {marca.nombre}
-                  </span>
-
-                </div>
-
-              )}
-
-              <span className="text-[8px] text-gray-500 font-semibold mt-1">
-                {marca.nombre}
-              </span>
-
-            </button>
-
-          ))}
-
-        </div>
-
-      </section>
+      </Seccion>
 
       {/* =====================================================
           MÁS VENDIDOS
       ====================================================== */}
+      {/* Si no hay ventas o el pedido falla, la sección no se muestra. */}
 
       {masVendidos?.length !== 0 && (
-      <section className="max-w-[1150px] mx-auto px-5 md:px-8 pb-16">
 
-        <div className="bg-[#f3f3f3] rounded-2xl p-6 md:p-9">
-
-          <div className="flex items-end justify-between mb-7">
-
-            <div>
-
-              <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
-                LO MÁS ELEGIDO
-              </p>
-
-              <h2 className="text-2xl md:text-3xl font-black italic uppercase mt-1">
-                MÁS VENDIDOS
-              </h2>
-
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onCatalogo()}
-              className="text-orange-500 text-[10px] font-bold hover:underline"
-            >
-              Ver más →
-            </button>
-
-          </div>
+        <Seccion
+          gris
+          etiqueta="LO MÁS ELEGIDO"
+          titulo="Más vendidos"
+          accion="Ver más"
+          onAccion={() => onCatalogo()}
+        >
 
           {masVendidos === null && (
-            <p className="text-[10px] text-gray-400">
+            <p className="text-sm text-gray-400">
               Cargando más vendidos…
             </p>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
             {(masVendidos ?? []).map((producto) => (
 
-              <div
+              <article
                 key={producto.id}
-                className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg transition"
+                className="flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition"
               >
 
-                <div className="h-48 bg-gray-100 overflow-hidden">
-
+                <div className="h-44 bg-gray-50">
                   <img
                     src={producto.imagen}
                     alt={producto.nombre}
                     className="w-full h-full object-cover"
                   />
-
                 </div>
 
-                <div className="p-4">
+                {/* flex + mt-auto: el botón queda abajo aunque el
+                    nombre ocupe una o dos líneas. */}
+                <div className="flex flex-col flex-1 p-4">
 
-                  <p className="text-[9px] text-orange-500 font-black">
-                    {producto.marcaPrincipal}
+                  <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">
+                    {producto.fabricante || producto.marcaPrincipal}
                   </p>
 
-                  <h3 className="text-[12px] font-bold mt-1">
+                  <h3 className="text-sm font-bold mt-1 leading-snug">
                     {producto.nombre}
                   </h3>
 
-                  <p className="text-[9px] text-gray-400 mt-1">
-                    Código: {producto.codigo}
-                  </p>
-
-                  <p className="text-lg font-black mt-4">
+                  <p className="text-xl font-black mt-auto pt-4">
                     {precio(producto.precio)}
                   </p>
 
                   <button
                     type="button"
                     onClick={() => onDetalle(producto)}
-                    className="w-full mt-3 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md py-2 text-[9px] font-bold transition"
+                    className="w-full mt-3 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md h-9 text-xs font-bold transition"
                   >
                     VER REPUESTO
                   </button>
 
                 </div>
 
-              </div>
+              </article>
 
             ))}
 
           </div>
 
-        </div>
+        </Seccion>
 
-      </section>
       )}
 
       {/* =====================================================
-          BENEFICIOS
+          MARCAS Y FABRICANTES
       ====================================================== */}
 
-      <section className="bg-[#151719]">
+      <Seccion
+        gris={masVendidos?.length === 0}
+        etiqueta="TRABAJAMOS CON"
+        titulo="Las mejores marcas"
+        accion="Ver todas"
+        onAccion={onMarcas}
+      >
 
-        <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Dos cintas que se mueven solas: autos para un lado y
+            fabricantes para el otro (ver .cinta en index.css). */}
 
-          <div>
+        <p className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-3">
+          Repuestos para tu auto
+        </p>
 
-            <p className="text-orange-500 text-xl">
-              ✓
-            </p>
+        <Cinta>
+          {(copia) =>
+            marcas.map((marca) => (
+              <button
+                key={marca.nombre}
+                type="button"
+                tabIndex={copia ? -1 : undefined}
+                onClick={() => onCatalogo(null, null, { marca: marca.nombre })}
+                title={marca.nombre}
+                aria-label={`Ver repuestos de ${marca.nombre}`}
+                className="group shrink-0 w-36 h-14 flex items-center justify-center"
+              >
+                {marca.logo ? (
+                  <img
+                    src={marca.logo}
+                    alt={`Logo ${marca.nombre}`}
+                    className="max-h-10 max-w-[72px] object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition duration-300"
+                  />
+                ) : (
+                  <span className="text-sm font-black text-gray-400 group-hover:text-gray-900">
+                    {marca.nombre}
+                  </span>
+                )}
+              </button>
+            ))
+          }
+        </Cinta>
 
-            <h3 className="text-white text-[11px] font-black mt-2">
-              REPUESTOS DE CALIDAD
-            </h3>
+        <p className="text-xs text-gray-400 font-bold uppercase tracking-wide mt-8 mb-3">
+          Fabricantes de repuestos
+        </p>
 
-            <p className="text-gray-500 text-[9px] mt-2">
-              Trabajamos con marcas reconocidas.
-            </p>
+        <Cinta reversa>
+          {(copia) =>
+            FABRICANTES.map((fabricante) => (
+              <button
+                key={fabricante}
+                type="button"
+                tabIndex={copia ? -1 : undefined}
+                onClick={() => onCatalogo(null, null, { fabricante })}
+                className="shrink-0 w-40 h-12 text-lg font-black italic tracking-tight text-gray-400 hover:text-orange-500 transition"
+              >
+                {fabricante}
+              </button>
+            ))
+          }
+        </Cinta>
 
-          </div>
-
-          <div>
-
-            <p className="text-orange-500 text-xl">
-              ✓
-            </p>
-
-            <h3 className="text-white text-[11px] font-black mt-2">
-              COMPATIBILIDAD
-            </h3>
-
-            <p className="text-gray-500 text-[9px] mt-2">
-              Encontrá piezas compatibles con tu vehículo.
-            </p>
-
-          </div>
-
-          <div>
-
-            <p className="text-orange-500 text-xl">
-              ✓
-            </p>
-
-            <h3 className="text-white text-[11px] font-black mt-2">
-              ENVÍOS A TODO EL PAÍS
-            </h3>
-
-            <p className="text-gray-500 text-[9px] mt-2">
-              Recibí tus repuestos donde estés.
-            </p>
-
-          </div>
-
-        </div>
-
-      </section>
+      </Seccion>
 
     </div>
+  );
+}
+
+// Tarjeta oscura de una categoría, con el ícono grande y transparente
+// de fondo. `grande` para las destacadas.
+function TarjetaCategoria({ nombre, grande = false, onClick }) {
+  const Icono = ICONOS_CATEGORIA[nombre] || IconoCaja;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-xl bg-linear-to-br from-[#23272e] to-[#121417] border border-white/5 hover:border-orange-500/60 hover:-translate-y-0.5 hover:shadow-xl text-left flex flex-col justify-between transition duration-300 ${
+        grande ? "h-44 p-6" : "h-32 p-4"
+      }`}
+    >
+      <Icono
+        className={`absolute text-white/5 group-hover:text-orange-500/15 transition duration-300 ${
+          grande ? "-right-6 -bottom-6 w-40 h-40" : "-right-4 -bottom-4 w-24 h-24"
+        }`}
+      />
+
+      <span
+        className={`relative rounded-full bg-orange-500/15 text-orange-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition duration-300 ${
+          grande ? "w-12 h-12" : "w-10 h-10"
+        }`}
+      >
+        <Icono className={grande ? "w-6 h-6" : "w-5 h-5"} />
+      </span>
+
+      <span className="relative">
+        <span className={`block text-white font-black ${grande ? "text-xl" : "text-sm"}`}>
+          {nombre}
+        </span>
+        <span className="block text-orange-400 text-xs font-bold mt-1 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition duration-300">
+          Ver repuestos →
+        </span>
+      </span>
+    </button>
+  );
+}
+
+// Cinta que se mueve sola. `children` es una función que arma los
+// elementos: se llama dos veces (la segunda, copia oculta para lectores
+// de pantalla y teclado) para que el bucle no tenga cortes.
+function Cinta({ reversa = false, children }) {
+  return (
+    <div className="cinta-contenedor overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
+      <div className={`cinta flex w-max ${reversa ? "cinta-reversa" : ""}`}>
+        <div className="flex">{children(false)}</div>
+        <div className="flex" aria-hidden="true">{children(true)}</div>
+      </div>
+    </div>
+  );
+}
+
+// Todas las secciones del inicio tienen el mismo armado: mismo ancho y
+// separación, etiqueta naranja, título y un enlace a la derecha. `gris`
+// alterna el fondo para que se note dónde termina cada una.
+function Seccion({ etiqueta, titulo, accion, onAccion, gris = false, children }) {
+  return (
+    <section className={gris ? "bg-[#f5f5f5]" : "bg-white"}>
+      <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-14">
+
+        <div className="flex items-end justify-between gap-4 mb-7">
+          <div>
+            <p className="text-orange-500 text-xs font-black tracking-[4px]">
+              {etiqueta}
+            </p>
+            <h2 className="text-2xl md:text-3xl font-black italic uppercase mt-1">
+              {titulo}
+            </h2>
+          </div>
+
+          {accion && (
+            <button
+              type="button"
+              onClick={onAccion}
+              className="text-orange-500 text-sm font-bold hover:underline whitespace-nowrap"
+            >
+              {accion} →
+            </button>
+          )}
+        </div>
+
+        {children}
+
+      </div>
+    </section>
   );
 }

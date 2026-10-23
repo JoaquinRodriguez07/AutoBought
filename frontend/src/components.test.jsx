@@ -1,4 +1,4 @@
-import { fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -59,6 +59,7 @@ import Carrito from "./Carrito";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
 import Favoritos from "./Favoritos";
+import ConfirmacionAgregarCarrito, { DURACION_AVISO_MS } from "./ConfirmacionAgregarCarrito";
 import Home from "./Home";
 import Login from "./Login";
 import Marcas from "./Marcas";
@@ -338,17 +339,21 @@ describe("Navbar", () => {
 });
 
 describe("Home", () => {
-  it("renders the hero and opens the catalog from the search button", async () => {
+  it("renders the hero with the vehicle selector as the main action", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
     render(<Home {...props} />);
 
     expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: /buscar repuestos/i })[0]);
+    expect(screen.getByText("¿Qué auto tenés?")).toBeInTheDocument();
+    // Sin auto elegido no se puede buscar ni hay nada para borrar.
+    const buscar = screen.getByRole("button", { name: "BUSCAR REPUESTOS" });
+    expect(buscar).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "BORRAR FILTROS" })).not.toBeInTheDocument();
+    await user.click(buscar);
 
-    expect(props.onCatalogo).toHaveBeenCalledWith();
-
+    expect(props.onCatalogo).not.toHaveBeenCalled();
   });
 
   it("loads model and year options and searches with the selected vehicle", async () => {
@@ -385,7 +390,7 @@ describe("Home", () => {
 
     render(<Home {...props} />);
 
-    await user.click(await screen.findByRole("button", { name: "Motor" }));
+    await user.click(await screen.findByRole("button", { name: /^Motor/ }));
 
     expect(props.onCatalogo).toHaveBeenCalledWith("Motor");
   });
@@ -396,10 +401,10 @@ describe("Home", () => {
 
     render(<Home {...props} />);
 
-    expect(await screen.findByRole("heading", { name: /encontrá lo que necesitás/i }))
+    expect(await screen.findByRole("heading", { name: "Categorías" }))
       .toBeInTheDocument();
     expect(screen.queryByText("Cargando categorías…")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Frenos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Frenos/ })).not.toBeInTheDocument();
   });
 
   it("shows the real best sellers and opens the detail of the one clicked", async () => {
@@ -412,9 +417,31 @@ describe("Home", () => {
     expect(await screen.findByText(catalogProducts[0].nombre)).toBeInTheDocument();
     expect(screen.getByText(`$${catalogProducts[0].precio.toLocaleString("es-UY")}`))
       .toBeInTheDocument();
+    // Arriba va el fabricante, no la marca del auto.
+    expect(screen.getAllByText("Bosch").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "VER REPUESTO" }));
 
     expect(props.onDetalle).toHaveBeenCalledWith(catalogProducts[0]);
+  });
+
+  it("opens the catalog filtered by the manufacturer clicked", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Home {...props} />);
+    await user.click(screen.getByRole("button", { name: "Brembo" }));
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { fabricante: "Brembo" });
+  });
+
+  it("opens the catalog filtered by the brand logo clicked, without making it the active vehicle", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Home {...props} />);
+    await user.click(screen.getAllByRole("button", { name: "Ver repuestos de Volkswagen" })[0]);
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { marca: "Volkswagen" });
   });
 
   it.each([
@@ -567,30 +594,25 @@ describe("Catalogo", () => {
     render(<Catalogo {...props} categoriaInicial="Frenos" />);
     await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
 
-    let dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Repuesto agregado al carrito.")).toBeInTheDocument();
+    let dialog = await screen.findByRole("status");
+    expect(within(dialog).getByText("Agregado al carrito")).toBeInTheDocument();
     expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
-      .toEqual(["Deshacer", "Ok", "Ver carrito"]);
+      .toEqual(["✕", "Deshacer", "Ver carrito"]);
 
-    fireEvent.click(dialog.parentElement);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
-    dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Ok" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Cerrar aviso" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
-    dialog = await screen.findByRole("dialog");
+    dialog = await screen.findByRole("status");
     await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("BP1234"));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
-    dialog = await screen.findByRole("dialog");
+    dialog = await screen.findByRole("status");
     await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
     expect(props.onCarrito).toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("undo only removes the quantity that was just added", async () => {
@@ -609,7 +631,7 @@ describe("Catalogo", () => {
     render(<Catalogo {...props} categoriaInicial="Frenos" />);
     await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("status");
     await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
 
     await waitFor(() => expect(actualizarItemCarrito).toHaveBeenCalledWith("BP1234", 2));
@@ -641,6 +663,42 @@ describe("Catalogo", () => {
     expect(screen.getByRole("checkbox", { name: /Brembo/ })).not.toBeChecked();
   });
 
+  it("filters by price, stock and car brand and shows each filter as a removable chip", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+    obtenerRepuestos.mockResolvedValue([
+      { ...catalogProducts[0], precio: 1500, stock: 0, marcas: ["Chevrolet"], modelos: ["Onix"] },
+      { ...catalogProducts[1], precio: 4200, stock: 3, marcas: ["Ford"], modelos: ["Ka"] },
+      { ...catalogProducts[2], precio: 900, stock: 8, marcas: ["Chevrolet", "Ford"], modelos: [] },
+    ]);
+
+    render(<Catalogo {...props} />);
+
+    expect(await screen.findByText("Para Chevrolet Onix")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Solo con stock" }));
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole("spinbutton", { name: "Precio máximo" }), "1000");
+    expect(screen.getByText("Filtro de Aire")).toBeInTheDocument();
+    expect(screen.queryByText("Discos de Freno Delanteros")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Quitar filtro Hasta $1.000" }));
+    expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: /Ford/ }));
+    await user.click(screen.getByRole("button", { name: "Quitar filtro Con stock" }));
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quitar filtro Para Ford" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+    expect(screen.getByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Quitar filtro/ })).not.toBeInTheDocument();
+  });
+
   it("changes category and toggles a product favorite", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -657,7 +715,7 @@ describe("Catalogo", () => {
         expect.objectContaining({ categoria: "Motor" })
       );
     });
-    const favoriteButtons = screen.getAllByRole("button", { name: "♡" });
+    const favoriteButtons = screen.getAllByRole("button", { name: "Marcar como favorito" });
     await user.click(favoriteButtons[favoriteButtons.length - 1]);
 
     expect(props.onAlternarFavorito).toHaveBeenCalledWith(
@@ -725,6 +783,90 @@ it("shows free search results and activates the detected vehicle", async () => {
   expect(obtenerRepuestos).not.toHaveBeenCalled();
 });
 
+it("runs the server search from the catalog bar on Enter and hides the header search", async () => {
+  const user = userEvent.setup();
+  const props = navigationProps();
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno" },
+  });
+
+  render(
+    <>
+      <Catalogo {...props} esFavorito={() => false} />
+      <RutaActual />
+    </>
+  );
+
+  expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+
+  await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastillas de frenos{Enter}");
+
+  await waitFor(() => expect(buscarTexto).toHaveBeenCalledWith("pastillas de frenos"));
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastillas");
+  expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+});
+
+it("opens with the manufacturer from the URL already checked", async () => {
+  const props = navigationProps();
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?fabricante=Brembo"] }
+  );
+
+  expect(await screen.findByRole("checkbox", { name: /Brembo/ })).toBeChecked();
+  expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+});
+
+it("opens with the car brand from the URL already checked", async () => {
+  obtenerRepuestos.mockResolvedValue([
+    { ...catalogProducts[0], marcas: ["Chevrolet"] },
+    { ...catalogProducts[1], marcas: ["Ford"] },
+  ]);
+
+  render(
+    <Catalogo {...navigationProps()} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?marca=Ford"] }
+  );
+
+  expect(await screen.findByRole("checkbox", { name: /Ford/ })).toBeChecked();
+  expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+});
+
+it("offers the server search for what was typed, also when nothing on screen matches", async () => {
+  const user = userEvent.setup();
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno" },
+  });
+
+  render(
+    <>
+      <Catalogo {...navigationProps()} esFavorito={() => false} />
+      <RutaActual />
+    </>
+  );
+  await screen.findByText("Pastillas de Freno Delanteras Bosch");
+
+  await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastilas");
+
+  // Con errores no encuentra nada en pantalla: se ofrece en la barra y en grande.
+  expect(screen.getByRole("status")).toHaveTextContent("pastilas");
+  const ofertas = screen.getAllByRole("button", { name: /en todo el catálogo/ });
+  expect(ofertas).toHaveLength(2);
+
+  await user.click(ofertas[1]);
+
+  await waitFor(() => expect(buscarTexto).toHaveBeenCalledWith("pastilas"));
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastilas");
+  expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+  // Ya buscado: no se vuelve a ofrecer.
+  expect(screen.queryByRole("button", { name: /en todo el catálogo/ })).not.toBeInTheDocument();
+});
+
 it("shows the manual filter message when the search cannot be interpreted", async () => {
   const props = navigationProps();
 
@@ -786,20 +928,18 @@ describe("DetalleProducto", () => {
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
 
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 2));
-    let dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Repuesto agregado al carrito.")).toBeInTheDocument();
-    expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
-      .toEqual(["Deshacer", "Ok", "Ver carrito"]);
+    let dialog = await screen.findByRole("status");
+    expect(within(dialog).getByText("Agregado al carrito")).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
-    dialog = await screen.findByRole("dialog");
+    dialog = await screen.findByRole("status");
     await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
     expect(props.onCarrito).toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Especificaciones" }));
     expect(screen.getByText("Especificaciones técnicas")).toBeInTheDocument();
@@ -838,7 +978,7 @@ describe("Carrito", () => {
     await user.click(screen.getByRole("button", { name: "−" }));
     expect(await screen.findAllByText("2", { exact: true })).toHaveLength(2);
     expect(screen.getAllByText("$3.000")).toHaveLength(3);
-    await user.click(screen.getByRole("button", { name: "🗑" }));
+    await user.click(screen.getByRole("button", { name: /Quitar .* del carrito/ }));
 
     expect(actualizarItemCarrito).toHaveBeenNthCalledWith(1, "TEST-001", 3);
     expect(actualizarItemCarrito).toHaveBeenNthCalledWith(2, "TEST-001", 2);
@@ -874,6 +1014,18 @@ describe("Favoritos", () => {
     expect(props.onCatalogo).toHaveBeenCalledWith();
   });
 
+  it("makes the breadcrumb steps links, except the current page", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Favoritos {...props} favoritos={[]} />);
+
+    await user.click(screen.getByRole("button", { name: "Inicio" }));
+    expect(props.onHome).toHaveBeenCalled();
+    // La página actual es texto, no link.
+    expect(screen.getByText("Favoritos", { selector: "span" }).closest("button")).toBeNull();
+  });
+
   it("renders favorites and supports remove, detail, and add actions", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -882,7 +1034,7 @@ describe("Favoritos", () => {
 
     startClientSession();
     render(<Favoritos {...props} favoritos={[product]} />);
-    const favoriteButtons = screen.getAllByRole("button", { name: "♥" });
+    const favoriteButtons = screen.getAllByRole("button", { name: "Quitar de favoritos" });
     await user.click(favoriteButtons[favoriteButtons.length - 1]);
     await user.click(screen.getByRole("button", { name: product.nombre }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
@@ -890,6 +1042,48 @@ describe("Favoritos", () => {
     expect(props.onAlternarFavorito).toHaveBeenCalledWith(product);
     expect(props.onDetalle).toHaveBeenCalledWith(product);
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 1));
+  });
+
+  it("confirms the add to cart with a notice that can undo it", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    startClientSession();
+    render(<Favoritos {...props} favoritos={[product]} />);
+
+    await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
+
+    const aviso = await screen.findByRole("status");
+    expect(within(aviso).getByText(product.nombre)).toBeInTheDocument();
+    await user.click(within(aviso).getByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});
+
+describe("ConfirmacionAgregarCarrito", () => {
+  afterEach(() => jest.useRealTimers());
+
+  it("closes by itself after a few seconds, but waits while the mouse is over it", () => {
+    jest.useFakeTimers();
+    const onCerrar = jest.fn();
+    render(
+      <ConfirmacionAgregarCarrito
+        producto={product}
+        onDeshacer={jest.fn()}
+        onCerrar={onCerrar}
+        onVerCarrito={jest.fn()}
+      />
+    );
+
+    fireEvent.mouseEnter(screen.getByRole("status"));
+    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS + 1000));
+    expect(onCerrar).not.toHaveBeenCalled();
+
+    fireEvent.mouseLeave(screen.getByRole("status"));
+    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS - 1));
+    expect(onCerrar).not.toHaveBeenCalled();
+    act(() => jest.advanceTimersByTime(1));
+    expect(onCerrar).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1045,14 +1239,27 @@ describe("Marcas", () => {
 
     render(<Marcas {...props} />);
     expect(await screen.findByText("1 marcas")).toBeInTheDocument();
-    expect(screen.getByText("Volkswagen")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Logo Volkswagen" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Volkswagen/i }));
-    expect(props.onCatalogo).toHaveBeenCalledWith(null, { brand: "Volkswagen", model: "", year: "" });
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { marca: "Volkswagen" });
   });
 });
 
 describe("App", () => {
+  it("shows the footer on the store pages but not on login", async () => {
+    const user = userEvent.setup();
+    renderBase(
+      <MemoryRouter>
+        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("Mis pedidos");
+    await user.click(screen.getByTitle("Iniciar sesión"));
+    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
+  });
+
   it("starts on home and changes pages through the navbar", async () => {
     const user = userEvent.setup();
     renderBase(
@@ -1219,12 +1426,12 @@ describe("App favoritos", () => {
     await user.click(await corazon(nombre));
 
     expect(agregarFavoritoAPI).toHaveBeenCalledWith("BP1234");
-    expect(await corazon(nombre)).toHaveTextContent("♥");
+    expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "true");
 
     await user.click(await corazon(nombre));
 
     expect(quitarFavoritoAPI).toHaveBeenCalledWith("BP1234");
-    expect(await corazon(nombre)).toHaveTextContent("♡");
+    expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "false");
   });
 
   it("reverts the heart and shows the error when the API fails", async () => {
@@ -1236,7 +1443,7 @@ describe("App favoritos", () => {
     await user.click(screen.getByRole("button", { name: "Repuestos" }));
     await user.click(await corazon(nombre));
 
-    await waitFor(async () => expect(await corazon(nombre)).toHaveTextContent("♡"));
+    await waitFor(async () => expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "false"));
     expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar tus favoritos.");
   });
 });
@@ -1261,7 +1468,7 @@ describe("App sesión", () => {
     );
     await user.click(await screen.findByRole("button", { name: "EDITAR" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
-    await user.click(screen.getByRole("button", { name: "CERRAR SESIÓN" }));
+    await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
     responder({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -1585,7 +1792,7 @@ describe("Perfil", () => {
     props.onActualizarUsuario = jest.fn();
     props.onDirecciones = jest.fn();
     props.onMetodosPago = jest.fn();
-    props.onHistorialCompras = jest.fn();
+    props.onHistorial = jest.fn();
     props.onCerrarSesion = jest.fn();
     const usuario = {
       id: 1,
@@ -1602,7 +1809,7 @@ describe("Perfil", () => {
     });
 
     render(<Perfil {...props} usuario={usuario} />);
-    expect(screen.getByRole("heading", { name: "MI PERFIL" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Información personal" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
     expect(screen.queryByText("APELLIDO")).not.toBeInTheDocument();
     const nameInput = screen.getByDisplayValue("Ana Perez");
@@ -1622,7 +1829,7 @@ describe("Perfil", () => {
     );
     expect(props.onDirecciones).toHaveBeenCalled();
     expect(props.onMetodosPago).toHaveBeenCalled();
-    expect(props.onHistorialCompras).toHaveBeenCalled();
+    expect(props.onHistorial).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
   });
 
@@ -2056,6 +2263,40 @@ describe("Direcciones", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Ya tenés guardada esta dirección.");
   });
 
+  it("shows the account menu with the current section marked and a log out", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onMetodosPago: jest.fn(), onCerrarSesion: jest.fn() };
+    obtenerDirecciones.mockResolvedValue([]);
+
+    render(<Direcciones {...props} usuario={{ nombre: "Ana Pérez" }} />);
+
+    const menu = screen.getByRole("navigation", { name: "Mi cuenta" });
+    expect(within(menu).getByRole("button", { name: "Direcciones" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("Hola, Ana")).toBeInTheDocument();
+
+    await user.click(within(menu).getByRole("button", { name: "Métodos de pago" }));
+    await user.click(within(menu).getByRole("button", { name: "Cerrar sesión" }));
+
+    expect(props.onMetodosPago).toHaveBeenCalled();
+    expect(props.onCerrarSesion).toHaveBeenCalled();
+  });
+
+  it("opens the account menu from the navbar also inside the account pages", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onHistorial: jest.fn() };
+    obtenerDirecciones.mockResolvedValue([]);
+
+    render(<Direcciones {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+
+    await user.click(screen.getByTitle("Mi cuenta"));
+    // "Mi perfil" está solo en el menú desplegable (el menú de la
+    // izquierda dice "Información personal").
+    const desplegable = screen.getByRole("button", { name: "Mi perfil" }).closest("div.absolute");
+    await user.click(within(desplegable).getByRole("button", { name: "Historial de compras" }));
+
+    expect(props.onHistorial).toHaveBeenCalled();
+  });
+
   it("changes the primary address and returns to the profile", async () => {
     const user = userEvent.setup();
     const onPerfil = jest.fn();
@@ -2074,7 +2315,8 @@ describe("Direcciones", () => {
 
     await user.click(await screen.findByRole("button", { name: "MARCAR COMO PRINCIPAL" }));
     expect(await screen.findAllByText("PRINCIPAL")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: /volver a mi perfil/i }));
+    // El menú de la cuenta reemplaza al viejo "Volver a mi perfil".
+    await user.click(screen.getByRole("button", { name: "Información personal" }));
     expect(onPerfil).toHaveBeenCalled();
     expect(marcarDireccionPrincipal).toHaveBeenCalledWith(2);
   });
@@ -2162,6 +2404,22 @@ describe("SearchBar and search helpers", () => {
     expect(filtrarRepuestos(repuestos, { fabricantes: ["NGK", "Mann-Filter"] }))
       .toEqual([repuestos[0], repuestos[2]]);
     expect(filtrarRepuestos(repuestos, { busqueda: "bosch" })).toEqual([repuestos[1]]);
+    // Por palabras, en cualquier orden y sin importar las tildes.
+    expect(filtrarRepuestos(repuestos, { busqueda: "ngk bujia" })).toEqual([repuestos[0]]);
+
+    const conPrecio = [
+      { nombre: "Faro", precio: 6900, stock: 0, marcas: ["Ford"] },
+      { nombre: "Bujía", precio: 620, stock: 4, marcas: ["Fiat", "Ford"] },
+      { nombre: "Aceite", precio: 2600, stock: 9, marcas: ["Fiat"] },
+    ];
+    const nombres = (lista) => lista.map((p) => p.nombre);
+    expect(nombres(filtrarRepuestos(conPrecio, { precioMin: "600", precioMax: "3000" })))
+      .toEqual(["Bujía", "Aceite"]);
+    expect(nombres(filtrarRepuestos(conPrecio, { precioMax: "", soloConStock: true })))
+      .toEqual(["Bujía", "Aceite"]);
+    expect(nombres(filtrarRepuestos(conPrecio, { marcasAuto: ["Ford"] }))).toEqual(["Faro", "Bujía"]);
+    expect(nombres(filtrarRepuestos(conPrecio, { orden: "Nombre A-Z" })))
+      .toEqual(["Aceite", "Bujía", "Faro"]);
   });
 
   it("renders the no-results message", () => {

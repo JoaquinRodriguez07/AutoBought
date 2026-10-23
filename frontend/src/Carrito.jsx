@@ -3,11 +3,14 @@ import Navbar from "./Navbar";
 import { confirmarCompra, obtenerDirecciones, obtenerMetodosPago } from "./api";
 import { useCart } from "./context/CartContext";
 import SugerenciasCarrito from "./SugerenciasCarrito";
+import EncabezadoPagina from "./EncabezadoPagina";
+import { IconoBasura, IconoCandado, IconoCarrito, IconoCheck } from "./Iconos";
 
 
 export default function Carrito({
   onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
   cantidadFavoritos, onDetalle, onDirecciones, onMetodosPago,
+  usuario, onPerfil, onHistorial, onCerrarSesion,
 }) {
   const { cart: productos, updateQuantity, removeFromCart, clearCart, total, cargarCarrito } = useCart();
 
@@ -16,6 +19,7 @@ export default function Carrito({
   const totalFinal = subtotal + envio;
 
   const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
+  const unidades = productos.reduce((suma, p) => suma + p.cantidad, 0);
 
   const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -90,21 +94,33 @@ export default function Carrito({
   };
 
   const resumen = (
-    <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit shadow-xs">
-      <h2 className="text-[13px] font-black">Resumen del pedido</h2>
-      <div className="mt-6 space-y-4">
-        <div className="flex justify-between text-[10px]"><span className="text-gray-500">Subtotal</span><span className="font-bold">{precio(subtotal)}</span></div>
-        <div className="flex justify-between text-[10px]"><span className="text-gray-500">Envío</span><span className="text-green-600 font-bold">Gratis</span></div>
+    <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit shadow-xs lg:sticky lg:top-24">
+      <h2 className="text-base font-black">Resumen del pedido</h2>
+      <div className="mt-5 space-y-3">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-500">
+            Subtotal ({unidades} {unidades === 1 ? "unidad" : "unidades"})
+          </span>
+          <span className="font-bold">{precio(subtotal)}</span>
+        </div>
+        <div className="flex justify-between text-sm"><span className="text-gray-500">Envío</span><span className="text-green-600 font-bold">Gratis</span></div>
       </div>
-      <div className="border-t border-gray-200 mt-6 pt-5 flex justify-between items-end">
-        <span className="text-[9px] text-gray-400">TOTAL</span>
+      <div className="border-t border-gray-200 mt-5 pt-4 flex justify-between items-end">
+        <span className="text-sm font-bold">Total</span>
         <span className="text-2xl font-black text-orange-500">{precio(totalFinal)}</span>
       </div>
       <button onClick={abrirConfirmacion} disabled={productos.length === 0}
-        className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 mt-6 text-[10px] font-black disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-500">
+        className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md h-12 mt-5 text-sm font-black disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-500">
         FINALIZAR COMPRA
       </button>
-      <p className="text-center text-[7px] text-gray-400 mt-3">🔒 Pago 100% seguro y protegido</p>
+      <button type="button" onClick={() => onCatalogo()}
+        className="w-full mt-2 h-10 text-sm font-bold text-gray-600 hover:text-orange-500 transition">
+        Seguir comprando
+      </button>
+      <p className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-2 pt-3 border-t border-gray-100">
+        <IconoCandado className="w-3.5 h-3.5" />
+        Pago 100% seguro y protegido
+      </p>
 
       {confirmacionAbierta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-5">
@@ -112,12 +128,14 @@ export default function Carrito({
             className="w-full max-w-[420px] bg-white rounded-xl p-6 shadow-lg">
             {pedido ? (
               <div className="text-center">
-                <div className="text-4xl mb-3">✅</div>
+                <span className="mx-auto mb-3 w-14 h-14 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                  <IconoCheck className="w-7 h-7" />
+                </span>
                 <h2 id="titulo-confirmar-compra" className="text-lg font-black">¡Compra confirmada!</h2>
-                <p className="text-[10px] text-gray-500 mt-2">Tu número de pedido es</p>
+                <p className="text-sm text-gray-500 mt-2">Tu número de pedido es</p>
                 <p className="text-2xl font-black text-orange-500 mt-1">{`#${pedido.id}`}</p>
                 <button onClick={cerrarConfirmacion}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 mt-6 text-[10px] font-black">
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 mt-6 text-sm font-black">
                   ACEPTAR
                 </button>
               </div>
@@ -126,31 +144,31 @@ export default function Carrito({
                 <h2 id="titulo-confirmar-compra" className="text-lg font-black">Confirmá tu compra</h2>
                 <ul className="mt-4 space-y-2 max-h-[240px] overflow-y-auto">
                   {productos.map((producto) => (
-                    <li key={producto.id} className="flex justify-between gap-3 text-[10px]">
+                    <li key={producto.id} className="flex justify-between gap-3 text-sm">
                       <span>{producto.nombre} × {producto.cantidad}</span>
                       <span className="font-bold whitespace-nowrap">{precio(producto.precio * producto.cantidad)}</span>
                     </li>
                   ))}
                 </ul>
                 <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between items-end">
-                  <span className="text-[9px] text-gray-400">TOTAL</span>
+                  <span className="text-xs text-gray-400">TOTAL</span>
                   <span className="text-xl font-black text-orange-500">{precio(totalFinal)}</span>
                 </div>
                 {cargandoDatos ? (
-                  <p role="status" className="mt-4 text-[10px] text-gray-500">Cargando tus datos de envío y pago...</p>
+                  <p role="status" className="mt-4 text-sm text-gray-500">Cargando tus datos de envío y pago...</p>
                 ) : (
                   <div className="mt-4 space-y-3">
                     <div>
-                      <label htmlFor="direccion-envio" className="block text-[9px] font-black text-gray-500">DIRECCIÓN DE ENVÍO</label>
+                      <label htmlFor="direccion-envio" className="block text-xs font-black text-gray-500">DIRECCIÓN DE ENVÍO</label>
                       {direcciones.length > 0 ? (
                         <select id="direccion-envio" value={direccionId} onChange={(e) => setDireccionId(e.target.value)}
-                          className="w-full mt-1 border border-gray-200 rounded-md px-3 py-2 text-[10px] bg-white outline-hidden focus:border-orange-500">
+                          className="w-full mt-1 border border-gray-200 rounded-md px-3 py-2 text-sm bg-white outline-hidden focus:border-orange-500">
                           {direcciones.map((d) => (
                             <option key={d.id} value={String(d.id)}>{textoDireccion(d)}</option>
                           ))}
                         </select>
                       ) : (
-                        <p className="mt-1 text-[10px] text-gray-500">
+                        <p className="mt-1 text-sm text-gray-500">
                           No tenés direcciones guardadas.{" "}
                           <button type="button" onClick={onDirecciones} className="text-orange-500 font-bold hover:underline">
                             Agregar una dirección
@@ -159,16 +177,16 @@ export default function Carrito({
                       )}
                     </div>
                     <div>
-                      <label htmlFor="metodo-pago" className="block text-[9px] font-black text-gray-500">MÉTODO DE PAGO</label>
+                      <label htmlFor="metodo-pago" className="block text-xs font-black text-gray-500">MÉTODO DE PAGO</label>
                       {hayTarjetaVigente ? (
                         <select id="metodo-pago" value={metodoPagoId} onChange={(e) => setMetodoPagoId(e.target.value)}
-                          className="w-full mt-1 border border-gray-200 rounded-md px-3 py-2 text-[10px] bg-white outline-hidden focus:border-orange-500">
+                          className="w-full mt-1 border border-gray-200 rounded-md px-3 py-2 text-sm bg-white outline-hidden focus:border-orange-500">
                           {metodosPago.map((m) => (
                             <option key={m.id} value={String(m.id)} disabled={m.vencida}>{textoMetodoPago(m)}</option>
                           ))}
                         </select>
                       ) : (
-                        <p className="mt-1 text-[10px] text-gray-500">
+                        <p className="mt-1 text-sm text-gray-500">
                           {metodosPago.length > 0
                             ? "Tus tarjetas guardadas están vencidas."
                             : "No tenés tarjetas guardadas."}{" "}
@@ -181,15 +199,15 @@ export default function Carrito({
                   </div>
                 )}
                 {errorCompra && (
-                  <p role="alert" className="mt-4 text-[10px] text-red-600 font-bold">{errorCompra}</p>
+                  <p role="alert" className="mt-4 text-sm text-red-600 font-bold">{errorCompra}</p>
                 )}
                 <div className="mt-6 flex gap-3">
                   <button onClick={cerrarConfirmacion} disabled={enviando}
-                    className="flex-1 border border-gray-200 rounded-md py-3 text-[10px] font-black text-gray-500 hover:border-orange-500 hover:text-orange-500 disabled:opacity-40">
+                    className="flex-1 border border-gray-200 rounded-md py-3 text-sm font-black text-gray-500 hover:border-orange-500 hover:text-orange-500 disabled:opacity-40">
                     CANCELAR
                   </button>
                   <button onClick={confirmar} disabled={!puedeConfirmar}
-                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 text-[10px] font-black disabled:opacity-40">
+                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 text-sm font-black disabled:opacity-40">
                     {enviando ? "CONFIRMANDO..." : "CONFIRMAR COMPRA"}
                   </button>
                 </div>
@@ -202,95 +220,128 @@ export default function Carrito({
   );
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] text-gray-900 font-sans">
+    <div className="min-h-screen bg-white text-gray-900 font-sans">
       <Navbar paginaActual="carrito" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
+        usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
+        onMetodosPago={onMetodosPago} onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
         cantidadFavoritos={cantidadFavoritos} />
 
-      <main className="pt-[105px] max-w-[1100px] mx-auto px-5 pb-14">
-        <div className="mb-7">
-          <p className="text-orange-500 text-[9px] font-black tracking-[4px]">AUTOBOUGHT</p>
-          <h1 className="text-3xl md:text-4xl font-black italic uppercase mt-1">Tu Carrito de Compras</h1>
-          <p className="text-[10px] text-gray-500 mt-2">Revisá tus repuestos antes de proceder al pago.</p>
-        </div>
+      <main>
+        <EncabezadoPagina
+          migas={[{ texto: "Inicio", ir: onHome }, "Carrito"]}
+          titulo="Tu Carrito de Compras"
+          descripcion="Revisá tus repuestos antes de pagar."
+        />
 
-        {productos.length === 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_310px] gap-6">
-            <div className="bg-white border border-gray-200 rounded-xl p-16 text-center shadow-xs">
-              <div className="text-5xl mb-4">🛒</div>
-              <h2 className="text-xl font-black">Tu carrito está vacío</h2>
-              <p className="text-[10px] text-gray-400 mt-2">Agregá repuestos desde el catálogo para verlos acá.</p>
-              <button onClick={() => onCatalogo()}
-                className="mt-6 bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-md text-[10px] font-black">
-                VER REPUESTOS
-              </button>
-            </div>
-            {resumen}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_310px] gap-6">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-[10px] font-bold">{productos.length} producto(s)</p>
-                <button onClick={clearCart} className="text-[9px] text-gray-400 hover:text-orange-500">
-                  Vaciar carrito
-                </button>
+        <div className="px-5 md:px-10 py-8">
+          <div className="max-w-[1100px] mx-auto">
+
+            {productos.length === 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+                <div className="bg-white border border-gray-200 rounded-xl px-8 py-12 text-center shadow-xs">
+                  <span className="mx-auto mb-4 w-16 h-16 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
+                    <IconoCarrito className="w-8 h-8" />
+                  </span>
+                  <h2 className="text-xl font-black">Tu carrito está vacío</h2>
+                  <p className="text-sm text-gray-400 mt-2">Agregá repuestos desde el catálogo para verlos acá.</p>
+                  <button onClick={() => onCatalogo()}
+                    className="mt-6 bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-md text-sm font-black">
+                    VER REPUESTOS
+                  </button>
+                </div>
+                {resumen}
               </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+                <div className="min-w-0">
 
-              {productos.map((producto) => {
-                const alcanzoMaximo = producto.cantidad >= producto.stock;
-                return (
-                  <div key={producto.id} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col md:flex-row gap-4 shadow-xs">
-                    <button onClick={() => onDetalle(producto)} className="w-full md:w-[150px] h-[115px] rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                      <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
-                    </button>
+                  {/* LISTA: una sola tarjeta, una fila compacta por
+                      producto, para que con muchos no se haga eterna. */}
 
-                    <div className="flex-1">
-                      <p className="text-orange-500 text-[8px] font-black">{producto.marcaPrincipal ?? producto.marca}</p>
-                      <button onClick={() => onDetalle(producto)} className="text-left text-[12px] font-black mt-1 hover:text-orange-500">
-                        {producto.nombre}
+                  <section className="bg-white border border-gray-200 rounded-xl shadow-xs">
+
+                    <div className="flex justify-between items-center px-5 py-3 border-b border-gray-200">
+                      <h2 className="text-base font-black">
+                        Productos <span className="text-gray-400 font-bold">({productos.length})</span>
+                      </h2>
+                      <button onClick={clearCart}
+                        className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-red-500 transition">
+                        <IconoBasura className="w-4 h-4" />
+                        Vaciar carrito
                       </button>
-                      <p className="text-[9px] text-green-600 font-bold mt-3">✓ En stock</p>
                     </div>
 
-                    <div className="flex md:flex-col items-center justify-center gap-2">
-                      <span className="text-[8px] text-gray-400">Cantidad</span>
-                      <div className="flex items-center border border-gray-200 rounded-md">
-                        <button onClick={() => updateQuantity(producto.id, producto.cantidad - 1)} className="w-8 h-8">−</button>
-                        <span className="w-8 text-center text-[10px] font-bold">{producto.cantidad}</span>
-                        <button
-                          onClick={() => updateQuantity(producto.id, producto.cantidad + 1)}
-                          disabled={alcanzoMaximo}
-                          className="w-8 h-8 disabled:opacity-40"
-                        >
-                          +
-                        </button>
-                      </div>
-                      {alcanzoMaximo && (
-                        <span className="text-[7px] text-orange-500 font-bold">Stock máximo</span>
-                      )}
-                    </div>
+                    <ul className="divide-y divide-gray-100">
+                      {productos.map((producto) => {
+                        const alcanzoMaximo = producto.cantidad >= producto.stock;
+                        return (
+                          <li key={producto.id} className="flex items-center gap-4 px-5 py-4">
 
-                    <div className="flex md:flex-col justify-center items-end min-w-[100px]">
-                      <p className="text-lg font-black">{precio(producto.precio * producto.cantidad)}</p>
-                      <p className="text-[8px] text-gray-400 mt-1">{precio(producto.precio)} c/u</p>
-                    </div>
+                            <button onClick={() => onDetalle(producto)}
+                              className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                              <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
+                            </button>
 
-                    <button onClick={() => removeFromCart(producto.id)}
-                      className="self-center w-9 h-9 rounded-md border border-gray-200 text-gray-400 hover:border-orange-500 hover:text-orange-500">
-                      🗑
-                    </button>
-                  </div>
-                );
-                
-              })}
-              <SugerenciasCarrito />
-            </div>
-            
- 
-            {resumen}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-orange-500 text-[11px] uppercase tracking-wide font-black">{producto.categoria}</p>
+                              <button onClick={() => onDetalle(producto)}
+                                className="text-left text-sm font-bold leading-snug mt-0.5 hover:text-orange-500">
+                                {producto.nombre}
+                              </button>
+                              <div className="flex items-center gap-3 mt-1.5 text-xs">
+                                <span className="text-green-600 font-bold">En stock</span>
+                                <button onClick={() => removeFromCart(producto.id)}
+                                  aria-label={`Quitar ${producto.nombre} del carrito`}
+                                  className="text-gray-400 hover:text-red-500 underline transition">
+                                  Quitar
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center border border-gray-200 rounded-md">
+                                <button onClick={() => updateQuantity(producto.id, producto.cantidad - 1)} className="w-8 h-8">−</button>
+                                <span className="w-8 text-center text-sm font-bold">{producto.cantidad}</span>
+                                <button
+                                  onClick={() => updateQuantity(producto.id, producto.cantidad + 1)}
+                                  disabled={alcanzoMaximo}
+                                  className="w-8 h-8 disabled:opacity-40"
+                                >
+                                  +
+                                </button>
+                              </div>
+                              {alcanzoMaximo && (
+                                <span className="text-[11px] text-orange-500 font-bold">Stock máximo</span>
+                              )}
+                            </div>
+
+                            <div className="w-24 text-right shrink-0">
+                              <p className="text-base font-black">{precio(producto.precio * producto.cantidad)}</p>
+                              {producto.cantidad > 1 && (
+                                <p className="text-xs text-gray-400 mt-0.5">{precio(producto.precio)} c/u</p>
+                              )}
+                            </div>
+
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                  </section>
+
+                  {/* Las sugerencias acompañan debajo de la lista, chicas,
+                      sin competir con el carrito. */}
+                  <SugerenciasCarrito />
+
+                </div>
+
+                {resumen}
+              </div>
+            )}
+
           </div>
-        )}
+        </div>
       </main>
     </div>
   );

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCart } from "./context/CartContext";
 import { esVendedor } from "./auth";
 import BusquedaCabecera from "./BusquedaCabecera";
+import { IconoCorazon } from "./Iconos";
 import logo from "./assets/logo.png";
 
 export default function Navbar({
@@ -20,6 +21,9 @@ export default function Navbar({
   onCerrarSesion,
   cantidadFavoritos = 0,
   usuario,
+  // El catálogo tiene su propia barra (que también hace esta búsqueda):
+  // ahí se oculta la del menú para no mostrar dos.
+  mostrarBusqueda = true,
 }) {
   const { cantidadCarrito } = useCart();
   const navigate = useNavigate();
@@ -67,14 +71,8 @@ export default function Navbar({
       return;
     }
 
-    // Si estamos en Perfil, no abrimos el menú
-    if (paginaActual === "perfil") {
-      setMenuUsuario(false);
-      return;
-    }
-
-    // Si hay sesión y no estamos en Perfil,
-    // abrir/cerrar menú
+    // Con sesión, abre/cierra el menú de la cuenta (en todas las
+    // páginas, también en las de la cuenta).
     setMenuUsuario((actual) => !actual);
   };
 
@@ -118,7 +116,7 @@ export default function Navbar({
         <button
           type="button"
           onClick={onHome}
-          className={`text-[11px] font-semibold transition ${
+          className={`text-sm font-semibold transition ${
             paginaActual === "home"
               ? "text-orange-500"
               : "text-gray-800 hover:text-orange-500"
@@ -130,7 +128,7 @@ export default function Navbar({
         <button
           type="button"
           onClick={onMarcas}
-          className={`text-[11px] font-semibold transition ${
+          className={`text-sm font-semibold transition ${
             paginaActual === "marcas"
               ? "text-orange-500"
               : "text-gray-800 hover:text-orange-500"
@@ -142,7 +140,7 @@ export default function Navbar({
         <button
           type="button"
           onClick={() => onCatalogo()}
-          className={`text-[11px] font-semibold transition ${
+          className={`text-sm font-semibold transition ${
             paginaActual === "catalogo" ||
             paginaActual === "detalle"
               ? "text-orange-500"
@@ -159,7 +157,7 @@ export default function Navbar({
       ================================================== */}
 
       <div className="hidden md:block flex-1 max-w-[330px] mx-6">
-        <BusquedaCabecera />
+        {mostrarBusqueda && <BusquedaCabecera />}
       </div>
 
       {/* =================================================
@@ -221,11 +219,11 @@ export default function Navbar({
               <div className="absolute right-0 top-9 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
 
                 <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-[10px] font-black text-gray-900">
+                  <p className="text-sm font-black text-gray-900">
                     Vendedor
                   </p>
 
-                  <p className="text-[8px] text-gray-400 mt-1 truncate">
+                  <p className="text-xs text-gray-400 mt-1 truncate">
                     {usuario.email || ""}
                   </p>
                 </div>
@@ -236,7 +234,7 @@ export default function Navbar({
                     onClick={() =>
                       ejecutarAccion(() => navigate("/dashboard"))
                     }
-                    className="w-full text-left px-4 py-2.5 text-[9px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
                     Dashboard
                   </button>
@@ -248,7 +246,7 @@ export default function Navbar({
                     onClick={() =>
                       ejecutarAccion(onCerrarSesion)
                     }
-                    className="w-full text-left px-4 py-2.5 text-[9px] font-bold text-red-500 hover:bg-red-50 transition"
+                    className="w-full text-left px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 transition"
                   >
                     Cerrar sesión
                   </button>
@@ -259,20 +257,19 @@ export default function Navbar({
 
           {usuario &&
             menuUsuario &&
-            !vendedor &&
-            paginaActual !== "perfil" && (
+            !vendedor && (
               <div className="absolute right-0 top-9 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
 
                 {/* CABECERA */}
 
                 <div className="px-4 py-3 border-b border-gray-100">
 
-                  <p className="text-[10px] font-black text-gray-900">
+                  <p className="text-sm font-black text-gray-900">
                     {usuario.nombre || "Usuario"}{" "}
                     {usuario.apellido || ""}
                   </p>
 
-                  <p className="text-[8px] text-gray-400 mt-1 truncate">
+                  <p className="text-xs text-gray-400 mt-1 truncate">
                     {usuario.email || ""}
                   </p>
 
@@ -287,7 +284,7 @@ export default function Navbar({
                     onClick={() =>
                       ejecutarAccion(onPerfil)
                     }
-                    className="w-full text-left px-4 py-2.5 text-[9px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
                     Mi perfil
                   </button>
@@ -297,7 +294,7 @@ export default function Navbar({
                     onClick={() =>
                       ejecutarAccion(onDirecciones)
                     }
-                    className="w-full text-left px-4 py-2.5 text-[9px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
                     Direcciones
                   </button>
@@ -307,7 +304,7 @@ export default function Navbar({
                     onClick={() =>
                       ejecutarAccion(onMetodosPago)
                     }
-                    className="w-full text-left px-4 py-2.5 text-[9px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
                     Métodos de pago
                   </button>
@@ -317,7 +314,7 @@ export default function Navbar({
                     onClick={() =>
                       ejecutarAccion(onHistorial)
                     }
-                    className="w-full text-left px-4 py-2.5 text-[9px] font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
                     Historial de compras
                   </button>
@@ -333,7 +330,7 @@ export default function Navbar({
                     onClick={() =>
                       ejecutarAccion(onCerrarSesion)
                     }
-                    className="w-full text-left px-4 py-2.5 text-[9px] font-bold text-red-500 hover:bg-red-50 transition"
+                    className="w-full text-left px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 transition"
                   >
                     Cerrar sesión
                   </button>
@@ -360,14 +357,13 @@ export default function Navbar({
           }`}
           title="Favoritos"
         >
-          <span className="text-[21px] leading-none">
-            {paginaActual === "favoritos"
-              ? "♥"
-              : "♡"}
-          </span>
+          <IconoCorazon
+            lleno={paginaActual === "favoritos"}
+            className="w-5 h-5"
+          />
 
           {cantidadFavoritos > 0 && (
-            <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[8px] flex items-center justify-center font-bold">
+            <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
               {cantidadFavoritos}
             </span>
           )}
@@ -416,7 +412,7 @@ export default function Navbar({
           </svg>
 
           {cantidadCarrito > 0 && (
-            <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[8px] flex items-center justify-center font-bold">
+            <span className="absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
               {cantidadCarrito}
             </span>
           )}

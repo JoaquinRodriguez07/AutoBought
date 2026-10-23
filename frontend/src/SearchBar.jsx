@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { IconoCerrar, IconoLupa } from "./Iconos";
 
 /**
  * SearchBar
@@ -71,7 +72,7 @@ export default function SearchBar({
         autoFocus={autoFocus}
         aria-label="Buscar repuesto por nombre o código"
         placeholder={placeholder}
-        className="flex-1 px-4 py-4 text-[10px] outline-hidden"
+        className="flex-1 min-w-0 px-4 py-3 text-sm outline-hidden [&::-webkit-search-cancel-button]:appearance-none"
       />
 
       {interno && (
@@ -79,9 +80,9 @@ export default function SearchBar({
           type="button"
           onClick={limpiar}
           aria-label="Limpiar búsqueda"
-          className="px-3 text-gray-400 hover:text-gray-600 text-[12px]"
+          className="px-3 text-gray-400 hover:text-gray-600"
         >
-          ✕
+          <IconoCerrar />
         </button>
       )}
 
@@ -89,9 +90,9 @@ export default function SearchBar({
         type="button"
         onClick={buscar}
         aria-label="Buscar"
-        className="bg-orange-500 hover:bg-orange-600 text-white w-14 transition"
+        className="bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition"
       >
-        🔍
+        <IconoLupa className="w-5 h-5" />
       </button>
     </div>
   );

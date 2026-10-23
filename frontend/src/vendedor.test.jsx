@@ -393,7 +393,7 @@ describe("App con sesión de cliente o anónima", () => {
     guardar(sesionDe("client", { nombre: "Ana" }));
     renderApp("/perfil");
 
-    expect(await screen.findByRole("button", { name: "CERRAR SESIÓN" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
     expect(rutaActual()).toBe("/perfil");
   });
 
