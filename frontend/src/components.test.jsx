@@ -1085,6 +1085,21 @@ describe("ConfirmacionAgregarCarrito", () => {
     act(() => jest.advanceTimersByTime(1));
     expect(onCerrar).toHaveBeenCalledTimes(1);
   });
+
+  it("the next notice closes by itself even if the previous one was closed with the mouse over it", () => {
+    jest.useFakeTimers();
+    const onCerrar = jest.fn();
+    const props = { onDeshacer: jest.fn(), onCerrar, onVerCarrito: jest.fn() };
+    const { rerender } = render(<ConfirmacionAgregarCarrito {...props} producto={product} />);
+
+    // Se cierra con el mouse encima: el mouseLeave nunca llega.
+    fireEvent.mouseEnter(screen.getByRole("status"));
+    rerender(<ConfirmacionAgregarCarrito {...props} producto={null} />);
+    rerender(<ConfirmacionAgregarCarrito {...props} producto={{ ...product }} />);
+
+    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS));
+    expect(onCerrar).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("Login", () => {

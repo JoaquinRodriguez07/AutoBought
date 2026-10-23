@@ -19,6 +19,15 @@ export default function ConfirmacionAgregarCarrito({
 }) {
   const [pausado, setPausado] = useState(false);
 
+  // Cada aviso nuevo arranca sin pausa. Si no, al cerrar uno con el mouse
+  // encima (Deshacer, ✕) nunca llega el mouseLeave y el siguiente no se
+  // iría solo.
+  const [productoMostrado, setProductoMostrado] = useState(producto);
+  if (producto !== productoMostrado) {
+    setProductoMostrado(producto);
+    setPausado(false);
+  }
+
   // Quien lo usa pasa `onCerrar` como función nueva en cada render: se
   // guarda en una ref para que eso no reinicie la cuenta.
   const cerrar = useRef(onCerrar);
