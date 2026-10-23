@@ -34,7 +34,7 @@ export default function DetalleProducto({
 
   // DEUDA CONOCIDA (diferida): si no llega `producto` (refresh o link
   // compartido a /producto, donde el estado de App ya está vacío) se
-  // renderiza este producto inventado, con opiniones y specs que no
+  // renderiza este producto inventado, con specs que no
   // existen en ninguna base, y su AGREGAR mete el id fantasma "BP1234"
   // en el carrito real. Además, su breadcrumb llama a onCatalogo("Frenos")
   // y el backend no tiene ninguna categoría "Frenos", así que ese camino
@@ -42,7 +42,7 @@ export default function DetalleProducto({
   // verdad necesita un id en la ruta (/producto/:id) y un
   // GET /api/v1/parts/{id} que hoy no existe.
   const productoActual = producto || {
-    id: "BP1234", marca: "BOSCH", nombre: "Pastillas de Freno Delanteras Bosch",
+    id: "BP1234", fabricante: "Bosch", nombre: "Pastillas de Freno Delanteras Bosch",
     codigo: "BP1234", precio: 2450, categoria: "Frenos",
     imagen: "https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?q=80&w=900&auto=format&fit=crop",
     descripcion: "Pastillas de freno delanteras Bosch de alta performance. Diseñadas para brindar máxima seguridad y frenado eficiente.",
@@ -50,21 +50,7 @@ export default function DetalleProducto({
     especificaciones: [["Posición","Delanteras"],["Sistema de freno","Disco"],["Ancho","156,3 mm"],["Alto","58,7 mm"],["Espesor","17,5 mm"],["Material","Semi-metálico"]],
     aplicaciones: ["Volkswagen Gol 2019 Highline 1.6 MSI","Volkswagen Gol 2018 1.6 MSI","Volkswagen Voyage 2019 1.6 MSI"],
     garantia: "6 meses por defectos de fabricación.",
-    opiniones: [{nombre:"Martín",estrellas:5,texto:"Muy buena calidad y encajaron perfecto."},{nombre:"Lucía",estrellas:5,texto:"Llegaron rápido y el producto es excelente."}],
   };
-
-  // Nota de opiniones: se calcula con las opiniones REALES del producto.
-  // Si no hay ninguna no se muestra nota. Antes había un ★ 4.8/5 fijo que
-  // se renderizaba incluso arriba del estado vacío "todavía no tiene
-  // opiniones", es decir un número inventado presentado como la nota real
-  // del repuesto (todos los que vienen de la API llegan sin `opiniones`).
-  const opiniones = productoActual.opiniones || [];
-  const promedioOpiniones = opiniones.length
-    ? (
-        opiniones.reduce((total, o) => total + (o.estrellas || 0), 0) /
-        opiniones.length
-      ).toFixed(1)
-    : null;
 
   const favorito = esFavorito(productoActual.id);
   const imagenes = [productoActual.imagen, productoActual.imagen, productoActual.imagen];
@@ -91,7 +77,6 @@ export default function DetalleProducto({
     ["especificaciones", "Especificaciones"],
     ["aplicaciones", "Aplicaciones"],
     ["garantia", "Garantía"],
-    ["opiniones", `Opiniones (${productoActual.opiniones?.length || 0})`],
   ];
 
   return (
@@ -141,7 +126,9 @@ export default function DetalleProducto({
             </div>
 
             <div>
-              <p className="text-orange-500 text-[11px] font-black">{productoActual.marcaPrincipal ?? productoActual.marca}</p>
+              {/* Quién hace el repuesto. La marca del auto no va acá: es una
+                  compatibilidad (pestaña Aplicaciones). */}
+              <p className="text-orange-500 text-[11px] font-black uppercase">{productoActual.fabricante}</p>
               <h1 className="text-2xl md:text-3xl font-black mt-2 leading-tight md:leading-9">{productoActual.nombre}</h1>
               <p className="text-[10px] text-gray-400 mt-2">Código: {productoActual.codigo}</p>
               <p className="text-3xl font-black text-orange-500 mt-5">${productoActual.precio.toLocaleString("es-UY")}</p>
@@ -271,30 +258,6 @@ export default function DetalleProducto({
                 </div>
               )}
 
-              {pestana === "opiniones" && (
-                <div className="max-w-[800px]">
-                  <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-[11px] font-black uppercase">Opiniones de clientes</h2>
-                    {promedioOpiniones && (
-                      <span className="text-orange-500 font-black text-lg">★ {promedioOpiniones}/5</span>
-                    )}
-                  </div>
-                  {!productoActual.opiniones?.length && (
-                    <p className="text-[9px] text-gray-400">Este repuesto todavía no tiene opiniones.</p>
-                  )}
-                  <div className="space-y-3">
-                    {(productoActual.opiniones || []).map((opinion, index) => (
-                      <div key={index} className="border border-gray-100 rounded-xl p-4">
-                        <div className="flex justify-between">
-                          <p className="text-[10px] font-black">{opinion.nombre}</p>
-                          <p className="text-orange-500 text-[10px]">{"★".repeat(opinion.estrellas)}</p>
-                        </div>
-                        <p className="text-[9px] text-gray-500 mt-2">{opinion.texto}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </section>

@@ -37,6 +37,7 @@ class OrderOut(BaseModel):
 
 class OrderItemDetailOut(BaseModel):
     part_id: int
+    part_code: str
     name: str
     quantity: int
     frozen_price: int
@@ -75,6 +76,7 @@ def build_order_detail_out(order: Order) -> OrderDetailOut:
         items.append(
             OrderItemDetailOut(
                 part_id=order_item.part_id,
+                part_code=order_item.part.part_code,
                 name=order_item.part.name,
                 quantity=order_item.quantity,
                 frozen_price=order_item.frozen_price,

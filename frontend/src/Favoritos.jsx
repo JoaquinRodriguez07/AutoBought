@@ -72,7 +72,7 @@ export default function Favoritos({
                     </button>
                   </div>
                   <div className="p-4">
-                    <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">{producto.fabricante || producto.marcaPrincipal || producto.marca}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">{producto.fabricante}</p>
                     <button onClick={() => onDetalle(producto)} className="text-left text-sm font-bold mt-1 hover:text-orange-500">
                       {producto.nombre}
                     </button>

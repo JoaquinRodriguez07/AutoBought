@@ -49,6 +49,7 @@ const getMarca = (p) =>
   p.marca ??
   (Array.isArray(p.compatible_brands) ? p.compatible_brands.join(" ") : "");
 const getMarcas = (p) => p.marcas ?? p.compatible_brands ?? [];
+const getModelos = (p) => (p.modelos ?? p.compatible_models ?? []).join(" ");
 const getStock = (p) => p.stock ?? 0;
 
 // Minúsculas y sin tildes: "bujia" encuentra "Bujía".
@@ -91,12 +92,13 @@ export function filtrarRepuestos(
 
   if (palabras.length > 0) {
     // Búsqueda por texto: cada palabra tiene que aparecer en el nombre,
-    // código, fabricante, marcas o categoría, en cualquier orden
-    // ("pastillas onix" encuentra "Pastillas de freno ... Chevrolet Onix").
+    // código, fabricante, marcas o modelos compatibles o categoría, en
+    // cualquier orden ("pastillas onix" encuentra las pastillas que son
+    // para el Onix: el auto no está en el nombre, está en los modelos).
     // Coincidencia parcial: no hace falta el código completo.
     lista = lista.filter((p) => {
       const texto = normalizar(
-        `${getNombre(p)} ${getCodigo(p)} ${getFabricante(p)} ${getMarca(p)} ${getCategoria(p)}`
+        `${getNombre(p)} ${getCodigo(p)} ${getFabricante(p)} ${getMarca(p)} ${getModelos(p)} ${getCategoria(p)}`
       );
       return palabras.every((palabra) => texto.includes(palabra));
     });

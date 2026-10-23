@@ -1100,6 +1100,7 @@ function mapearPedido(p) {
     total: p.total ?? 0,
     items: (p.items || []).map((item) => ({
       partId: item.part_id,
+      codigo: item.part_code ?? "",
       nombre: item.name ?? "",
       cantidad: item.quantity,
       precio: item.frozen_price,

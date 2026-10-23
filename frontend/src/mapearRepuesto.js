@@ -20,6 +20,11 @@
  *   stock                        →  stock
  *   compatible_brands            →  marca + marcaPrincipal + marcas (ver abajo)
  *   compatible_models            →  modelos
+ *   description                  →  descripcion
+ *   specifications               →  especificaciones  ([nombre, valor])
+ *   warranty_months +
+ *   warranty_provider            →  garantia  (el texto que se muestra)
+ *   compatibilities              →  aplicaciones  ("Chevrolet Onix 1.4 8V (2013–2019)")
  *   (no existe)                  →  imagen  (placeholder fijo)
  *
  * MARCAS: un repuesto puede ser compatible con varias marcas. Se
@@ -44,11 +49,10 @@
  * numérico en `partId` para futuras llamadas a la API (ej: carrito del
  * backend), que sí necesitan el número.
  *
- * DEUDA CONOCIDA (diferida a propósito): el backend ya manda
- * `year_from`, `year_to`, `engine_code` y `color`, y acá se descartan
- * (`compatible_models` solo se usa en la tarjeta del catálogo). Por eso, en todo producto que venga de la API, las
- * pestañas "Aplicaciones" y "Especificaciones" de DetalleProducto
- * muestran su estado vacío aunque el dato haya llegado en la respuesta.
+ * Los autos van en `aplicaciones` (y `marcas`/`modelos`), nunca en el
+ * nombre ni en la descripción: para qué autos es un repuesto lo dicen sus
+ * compatibilidades. `year_from`, `year_to`, `engine_code` y `color`
+ * sueltos se descartan: `aplicaciones` ya los tiene, auto por auto.
  */
 
 import imagenPlaceholder from "./assets/repuestos.jpg";
@@ -56,6 +60,23 @@ import imagenPlaceholder from "./assets/repuestos.jpg";
 // El backend no expone imágenes todavía. Hasta que lo haga, todos los
 // repuestos usan este placeholder para que el <img> nunca quede roto.
 export const IMAGEN_PLACEHOLDER = imagenPlaceholder;
+
+// "12 meses de garantía del fabricante (Bosch), por defectos de
+// fabricación." Sin meses, vacío: la pantalla muestra "Consultar garantía".
+export function textoGarantia(meses, proveedor, fabricante) {
+  if (!meses) return "";
+  const quien =
+    proveedor === "vendedor"
+      ? "del vendedor (AutoBought)"
+      : `del fabricante${fabricante ? ` (${fabricante})` : ""}`;
+  return `${meses} meses de garantía ${quien}, por defectos de fabricación.`;
+}
+
+// Una línea por auto compatible, para la pestaña Aplicaciones del detalle.
+function textoAplicacion({ brand, model, engine_code, year_from, year_to }) {
+  const anios = year_from === year_to ? `${year_from}` : `${year_from}–${year_to}`;
+  return `${brand} ${model} ${engine_code} (${anios})`;
+}
 
 export function mapearRepuesto(part) {
   const marcas = Array.isArray(part.compatible_brands)
@@ -75,6 +96,10 @@ export function mapearRepuesto(part) {
     marcaPrincipal: marcas[0] ?? "",
     marcas,
     modelos: Array.isArray(part.compatible_models) ? part.compatible_models : [],
+    descripcion: part.description ?? "",
+    especificaciones: Array.isArray(part.specifications) ? part.specifications : [],
+    garantia: textoGarantia(part.warranty_months, part.warranty_provider, part.manufacturer),
+    aplicaciones: Array.isArray(part.compatibilities) ? part.compatibilities.map(textoAplicacion) : [],
     imagen: IMAGEN_PLACEHOLDER,
   };
 }
@@ -90,6 +115,7 @@ export function mapearItemCarrito(item) {
   return {
     id: String(item.part_id),
     partId: item.part_id,
+    codigo: item.part_code ?? "",
     nombre: item.name ?? "",
     precio: item.price ?? 0,
     cantidad: item.amount ?? 0,

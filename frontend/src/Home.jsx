@@ -572,7 +572,7 @@ export default function Home({
                 <div className="flex flex-col flex-1 p-4">
 
                   <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">
-                    {producto.fabricante || producto.marcaPrincipal}
+                    {producto.fabricante}
                   </p>
 
                   <h3 className="text-sm font-bold mt-1 leading-snug">

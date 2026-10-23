@@ -83,7 +83,7 @@ export default function SugerenciasCarrito() {
 
             <div className="flex flex-col min-w-0 flex-1">
               <p className="text-orange-500 text-[10px] uppercase tracking-wide font-black truncate">
-                {producto.fabricante || producto.marcaPrincipal}
+                {producto.fabricante}
               </p>
               <p className="text-xs font-bold leading-snug line-clamp-2">
                 {producto.nombre}

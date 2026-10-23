@@ -144,6 +144,7 @@ def test_history_full_details(client, db_session):
         "Brake pads": (2, 900),
         "Air filter": (1, 2500),
     }
+    assert {item["part_code"] for item in order["items"]} == {"BRK-001", "FLT-001"}
 
 
 def test_history_only_returns_the_authenticated_users_purchases(client, db_session):

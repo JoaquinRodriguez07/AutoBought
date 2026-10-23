@@ -97,6 +97,7 @@ def test_add_item_to_cart(client, db_session):
 	assert len(body["items"]) == 1
 	item = body["items"][0]
 	assert item["part_id"] == part.id
+	assert item["part_code"] == "BRK-001"
 	assert item["amount"] == 2
 	assert item["subtotal"] == 2000
 	assert item["stock"] == 5
