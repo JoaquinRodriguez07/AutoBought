@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
@@ -397,11 +397,10 @@ describe("App con sesión de cliente o anónima", () => {
     expect(rutaActual()).toBe("/perfil");
   });
 
-  it("keeps the blank screen of unprotected client routes for anonymous visitors", () => {
-    const { container } = renderApp("/favoritos");
+  it("sends anonymous visitors from private client routes to the login", async () => {
+    renderApp("/favoritos");
 
-    expect(rutaActual()).toBe("/favoritos");
-    expect(within(container).queryByText("Mis Favoritos")).not.toBeInTheDocument();
+    await waitFor(() => expect(rutaActual()).toBe("/login"));
   });
 
   it("keeps sending anonymous visitors from the cart to the login", async () => {

@@ -14,13 +14,3 @@ export default function ProtectedRoute() {
 
   return <Outlet />;
 }
-
-// Rutas de cliente que no exigen sesión por sí mismas (cada pantalla decide
-// qué hace sin sesión): solo desvía al vendedor a su portal.
-export function ClientOnlyRoute() {
-  if (esVendedor(obtenerSesion())) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <Outlet />;
-}
