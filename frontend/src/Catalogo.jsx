@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import BotonAvisoStock from "./BotonAvisoStock";
+import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import SearchBar from "./SearchBar";
@@ -779,6 +780,8 @@ export default function Catalogo({
                           loading="lazy"
                           className="w-full h-full object-contain p-3"
                         />
+
+                        <ChipFabricante fabricante={producto.fabricante} />
 
                         <button
                           type="button"

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import { useCart } from "./context/CartContext";
@@ -65,6 +66,7 @@ export default function Favoritos({
                 <div key={producto.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition">
                   <div className="relative h-[190px] bg-white">
                     <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-3" />
+                    <ChipFabricante fabricante={producto.fabricante} />
                     <button onClick={() => onAlternarFavorito(producto)}
                       aria-label="Quitar de favoritos"
                       className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white shadow-md text-orange-500 flex items-center justify-center transition hover:scale-105">

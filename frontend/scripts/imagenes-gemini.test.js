@@ -26,12 +26,12 @@ describe("armarPrompt", () => {
 });
 
 describe("armarPromptFabricante", () => {
-  it("asks to edit the base image changing only the manufacturer's details", () => {
-    const prompt = armarPromptFabricante("a car battery", "the case is light gray");
+  it("starts from the base image and changes only the manufacturer's colors and angle", () => {
+    const prompt = armarPromptFabricante("a car battery", "the case is light gray, seen from above");
 
-    expect(prompt).toContain("Edit the attached reference");
-    expect(prompt).toContain("the case is light gray");
-    expect(prompt).toContain("same camera angle");
+    expect(prompt).toContain("attached reference product photo as the base");
+    expect(prompt).toContain("the case is light gray, seen from above");
+    expect(prompt).toContain("same lighting, pure white background");
     expect(prompt).toContain("no logos");
   });
 });

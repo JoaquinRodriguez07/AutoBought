@@ -27,14 +27,14 @@ export function armarPrompt(pieza, { conReferencia = false } = {}) {
     .join(" ");
 }
 
-// Para la versión de otro fabricante: se edita la imagen base (que va como
-// referencia) cambiando solo lo indicado, así todas quedan con el mismo
-// ángulo, luz y fondo.
+// Para la versión de otro fabricante: se parte de la imagen base (que va
+// como referencia) y se cambia lo indicado: colores, detalles y ángulo.
+// Se mantienen la luz, el fondo y el estilo, así el catálogo queda parejo.
 export function armarPromptFabricante(pieza, cambio) {
   return [
-    `Edit the attached reference product photo. It shows ${pieza}.`,
-    `Show the same type of part as a different manufacturer's model, where ${cambio}.`,
-    "Keep exactly the same camera angle, framing, size in the frame, lighting, pure white background and photographic style as the reference.",
+    `Use the attached reference product photo as the base. It shows ${pieza}.`,
+    `Create a new product photo of the same type of part as a different manufacturer's model, where ${cambio}.`,
+    "Keep the same lighting, pure white background, size in the frame and photographic style as the reference; the camera angle may change only as described.",
     "It must still look like a real, commonly sold aftermarket part with correct proportions and mechanical details. Do not invent or add components.",
     "No text, no logos, no brand names, no printed labels with writing, no watermark, no people, no hands, no car.",
   ].join(" ");
