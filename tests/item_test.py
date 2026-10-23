@@ -25,6 +25,7 @@ def make_catalog(db_session):
 	part = Part(
 		part_code="BRK-001",
 		name="Brake pad",
+		manufacturer="Bosch",
 		category="Brakes",
 		price=12500,
 		stock=5,
@@ -63,6 +64,7 @@ def test_list_parts_and_build_part_output(db_session):
 	assert build_part_out(parts[0]).model_dump() == {
 		"id": parts[0].id,
 		"name": "Brake pad",
+		"manufacturer": "Bosch",
 		"compatible_brands": ["Toyota"],
 		"compatible_models": ["Corolla", "Yaris"],
 		"year_from": 2016,
@@ -114,6 +116,7 @@ def test_place_order_decreases_stock_clears_cart_and_freezes_price(db_session):
 	part = Part(
 		part_code="FLT-001",
 		name="Air filter",
+		manufacturer="Bosch",
 		category="Filters",
 		price=3000,
 		stock=4,
@@ -145,6 +148,7 @@ def test_place_order_rejects_insufficient_stock(db_session):
 	part = Part(
 		part_code="BAT-001",
 		name="Battery",
+		manufacturer="Bosch",
 		category="Electrical",
 		price=50000,
 		stock=1,
@@ -173,6 +177,7 @@ def test_cart_persists_client_items_and_part_relationships(db_session):
 	part = Part(
 		part_code="OIL-001",
 		name="Engine oil",
+		manufacturer="Bosch",
 		category="Fluids",
 		price=1800,
 		stock=8,
@@ -197,6 +202,7 @@ def test_order_persists_items_and_links_client_and_parts(db_session):
 	part = Part(
 		part_code="SPK-001",
 		name="Spark plug",
+		manufacturer="Bosch",
 		category="Ignition",
 		price=2200,
 		stock=6,
@@ -226,6 +232,7 @@ def test_part_persists_optional_color_and_default_stock(db_session):
 	part = Part(
 		part_code="WIP-001",
 		name="Wiper blade",
+		manufacturer="Bosch",
 		category="Visibility",
 		color="Black",
 		price=950,

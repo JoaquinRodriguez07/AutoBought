@@ -13,6 +13,7 @@
  *   PartOut (backend)            →  shape de la UI (mock)
  *   ----------------------------------------------------
  *   name                         →  nombre
+ *   manufacturer                 →  fabricante
  *   part_code                    →  codigo
  *   category                     →  categoria
  *   price                        →  precio
@@ -63,6 +64,7 @@ export function mapearRepuesto(part) {
     id: String(part.id),
     partId: part.id,
     nombre: part.name ?? "",
+    fabricante: part.manufacturer ?? "",
     codigo: part.part_code ?? "",
     categoria: part.category ?? "",
     precio: part.price ?? 0,

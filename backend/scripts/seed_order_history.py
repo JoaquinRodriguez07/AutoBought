@@ -83,11 +83,12 @@ CANTIDADES = ([1, 2, 3], [80, 17, 3])
 PROB_JUEGO_DE_BUJIAS = 0.6
 
 # Repuestos en riesgo: se eligen de estas categorías los de menos stock, y
-# se ajusta su demanda para que el último mes vendan ~2 veces su stock.
+# se ajusta su demanda para que el último mes vendan ~3 veces su stock
+# (con 2, el azar a veces los dejaba vendiendo menos que su stock).
 CATEGORIAS_EN_RIESGO = ["Encendido", "Frenos", "Motor", "Refrigeración"]
 EN_RIESGO_POR_CATEGORIA = 2
-VENTAS_SOBRE_STOCK = 2
-# Con menos stock, "vende el doble" son 2 o 3 unidades: no luce como alerta.
+VENTAS_SOBRE_STOCK = 3
+# Con menos stock, "vende el triple" son pocas unidades: no luce como alerta.
 STOCK_MINIMO_EN_RIESGO = 5
 
 URUGUAY = timezone(timedelta(hours=-3))

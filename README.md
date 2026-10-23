@@ -19,9 +19,11 @@ Sin Docker, desde `backend/` y con el `.venv` activado: `python -m scripts.seed`
 
 ### Catálogo
 
-`scripts.seed` carga `backend/data/car_models.json` (50 modelos) y `backend/data/parts.json` (509 repuestos). Esos archivos se generan con `scripts.generate_dataset`: para agregar un auto o un repuesto, se edita ese script y se vuelve a correr. Los repuestos nuevos van al final de sus listas (`EXTRA_ENGINE_PARTS`, etc.), para no cambiar el código ni el stock de los que ya existen.
+`scripts.seed` carga `backend/data/car_models.json` (50 modelos) y `backend/data/parts.json` (1089 repuestos). Esos archivos se generan con `scripts.generate_dataset`: para agregar un auto o un repuesto, se edita ese script y se vuelve a correr. Los repuestos nuevos van al final de sus listas (`EXTRA_ENGINE_PARTS`, etc.), para no cambiar el código ni el stock de los que ya existen.
 
-`scripts.seed` no actualiza un catálogo ya cargado: para ver repuestos nuevos hay que recrear la base.
+Cada repuesto tiene su fabricante (`MANUFACTURERS` en el mismo script), como en una casa de repuestos real: las pastillas del Onix pueden ser Bosch, Brembo o TRW, y cada una es un producto distinto, con su código, precio y stock. El fabricante principal de cada tipo de repuesto lo hace para todos los autos; los demás solo para algunos.
+
+`scripts.seed` no actualiza un catálogo ya cargado: para ver repuestos nuevos, o cuando cambia una tabla (por ejemplo, la columna `manufacturer` de `part`), hay que recrear la base y volver a correr los tres scripts. En local: `docker compose down -v`, `docker compose up -d` y los scripts de arriba.
 
 ### Usuarios de prueba
 

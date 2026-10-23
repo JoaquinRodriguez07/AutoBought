@@ -64,6 +64,7 @@ export default function Catalogo({
 
   const [orden, setOrden] = useState("Más relevantes");
   const [busqueda, setBusqueda] = useState("");
+  const [fabricantes, setFabricantes] = useState([]);
   const [cantidades, setCantidades] = useState({});
   const [productoAgregado, setProductoAgregado] = useState(null);
 
@@ -265,25 +266,47 @@ export default function Catalogo({
   // PRODUCTOS MOSTRADOS
   // ==========================================
   // Categoría y vehículo ya vienen filtrados por el backend. La búsqueda
-  // por texto (nombre, código, marcas compatibles y categoría) y el orden
-  // se resuelven en el navegador con filtrarRepuestos, en vivo mientras
-  // se escribe.
+  // por texto (nombre, código, fabricante, marcas compatibles y
+  // categoría), los fabricantes tildados y el orden se resuelven en el
+  // navegador con filtrarRepuestos, en vivo mientras se escribe.
 
   const productosMostrados = useMemo(
-    () => filtrarRepuestos(productos, { busqueda, orden }),
-    [productos, busqueda, orden]
+    () => filtrarRepuestos(productos, { busqueda, fabricantes, orden }),
+    [productos, busqueda, fabricantes, orden]
   );
+
+  // Los fabricantes del sidebar salen de los repuestos cargados (con la
+  // categoría y el vehículo ya aplicados), con cuántos hay de cada uno.
+  // Los tildados se muestran aunque ya no tengan repuestos, para poder
+  // destildarlos.
+  const opcionesFabricante = useMemo(() => {
+    const porFabricante = new Map(fabricantes.map((f) => [f, 0]));
+    for (const p of productos) {
+      if (p.fabricante) {
+        porFabricante.set(p.fabricante, (porFabricante.get(p.fabricante) ?? 0) + 1);
+      }
+    }
+    return [...porFabricante].sort(([a], [b]) => a.localeCompare(b, "es"));
+  }, [productos, fabricantes]);
+
+  const alternarFabricante = (fabricante) => {
+    setFabricantes((actual) =>
+      actual.includes(fabricante)
+        ? actual.filter((f) => f !== fabricante)
+        : [...actual, fabricante]
+    );
+  };
 
   // ==========================================
   // LIMPIAR FILTROS
   // ==========================================
   // Sin categoría, el efecto de arriba vuelve a pedir GET /api/v1/parts
   // sin ese parámetro (el vehículo, si hay uno activo, se mantiene:
-  // "Limpiar filtros" es solo de categoría y búsqueda; el vehículo se
-  // quita desde el banner).
+  // "Limpiar filtros" es solo de categoría, búsqueda y fabricantes; el
+  // vehículo se quita desde el banner).
 
   const hayFiltros =
-    Boolean(categoria) || Boolean(busqueda.trim());
+    Boolean(categoria) || Boolean(busqueda.trim()) || fabricantes.length > 0;
 
   // La categoría vive en dos lados: acá y en App (`categoriaCatalogo`,
   // que es lo que vuelve como `categoriaInicial` al entrar de nuevo al
@@ -305,6 +328,7 @@ export default function Catalogo({
 
     cambiarCategoria(null);
     setBusqueda("");
+    setFabricantes([]);
   };
 
   // "Borrar filtros" del banner: quita el vehículo activo Y el resto de
@@ -533,52 +557,45 @@ export default function Catalogo({
                 Limpiar filtros
               </button>
 
-              {/* MARCAS */}
-              {/* DEUDA CONOCIDA (el usuario decidió dejarlo así por ahora):
-                  estos cinco checkboxes están hardcodeados y no filtran
-                  nada. Al no ser controlados, el navegador les guarda el
-                  tilde, pero `hayFiltros` los ignora y `limpiarFiltros()`
-                  no los destilda: se pueden marcar dos, ver que el conteo
-                  de resultados no cambia y encontrar "Limpiar filtros"
-                  deshabilitado al lado. Además son fabricantes de
-                  repuestos (Bosch, TRW...) mientras que `compatible_brands`
-                  del backend son marcas de vehículo (Chevrolet, Volkswagen,
-                  Peugeot, Fiat, Ford, Renault, Toyota, Citroen, Kia), así
-                  que no coincidirían con nada ni aunque se cablearan. */}
+              {/* FABRICANTES */}
 
-              <div className="border-t border-gray-100 mt-5 pt-5">
+              {opcionesFabricante.length > 0 && (
 
-                <p className="text-[10px] font-black uppercase mb-4">
-                  Marca
-                </p>
+                <div className="border-t border-gray-100 mt-5 pt-5">
 
-                {[
-                  "Bosch",
-                  "TRW",
-                  "Brembo",
-                  "ATE",
-                  "Ferodo",
-                ].map((marca) => (
+                  <p className="text-[10px] font-black uppercase mb-4">
+                    Fabricante
+                  </p>
 
-                  <label
-                    key={marca}
-                    className="flex items-center gap-2 py-2 cursor-pointer"
-                  >
+                  {opcionesFabricante.map(([fabricante, cantidad]) => (
 
-                    <input
-                      type="checkbox"
-                      className="accent-orange-500"
-                    />
+                    <label
+                      key={fabricante}
+                      className="flex items-center gap-2 py-2 cursor-pointer"
+                    >
 
-                    <span className="text-[9px] text-gray-600">
-                      {marca}
-                    </span>
+                      <input
+                        type="checkbox"
+                        className="accent-orange-500"
+                        checked={fabricantes.includes(fabricante)}
+                        onChange={() => alternarFabricante(fabricante)}
+                      />
 
-                  </label>
+                      <span className="text-[9px] text-gray-600">
+                        {fabricante}
+                      </span>
 
-                ))}
+                      <span className="ml-auto text-[9px] bg-gray-100 rounded-full px-2 py-1">
+                        {cantidad}
+                      </span>
 
-              </div>
+                    </label>
+
+                  ))}
+
+                </div>
+
+              )}
 
             </aside>
 

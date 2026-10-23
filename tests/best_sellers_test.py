@@ -25,6 +25,7 @@ def make_part(db_session, part_code, stock=10):
     part = Part(
         part_code=part_code,
         name=f"Part {part_code}",
+        manufacturer="Bosch",
         category="Brakes",
         price=1000,
         stock=stock,

@@ -156,6 +156,7 @@ const catalogProducts = [
     id: "BP1234",
     codigo: "BP1234",
     nombre: "Pastillas de Freno Delanteras Bosch",
+    fabricante: "Bosch",
     marca: "Bosch",
     categoria: "Frenos",
   },
@@ -164,6 +165,7 @@ const catalogProducts = [
     id: "DB5678",
     codigo: "DB5678",
     nombre: "Discos de Freno Delanteros",
+    fabricante: "Brembo",
     marca: "Brembo",
     categoria: "Frenos",
   },
@@ -172,6 +174,7 @@ const catalogProducts = [
     id: "FA9012",
     codigo: "FA9012",
     nombre: "Filtro de Aire",
+    fabricante: "Mann",
     marca: "Mann",
     categoria: "Motor",
   },
@@ -611,6 +614,31 @@ describe("Catalogo", () => {
 
     await waitFor(() => expect(actualizarItemCarrito).toHaveBeenCalledWith("BP1234", 2));
     expect(eliminarItemCarrito).not.toHaveBeenCalled();
+  });
+
+  it("filters by the manufacturers of the loaded products and clears them", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+
+    render(<Catalogo {...props} categoriaInicial="Frenos" />);
+
+    expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    // Solo los fabricantes de lo cargado (Frenos): Mann es de Motor.
+    expect(screen.getByRole("checkbox", { name: /Bosch/ })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Mann/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: /Brembo/ }));
+
+    expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+
+    expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Brembo/ })).not.toBeChecked();
   });
 
   it("changes category and toggles a product favorite", async () => {
@@ -2125,6 +2153,15 @@ describe("SearchBar and search helpers", () => {
         { busqueda: "api" }
       )
     ).toHaveLength(1);
+
+    const repuestos = [
+      { nombre: "Bujía 1.4", fabricante: "NGK" },
+      { nombre: "Bujía 1.4", fabricante: "Bosch" },
+      { nombre: "Filtro 1.4", fabricante: "Mann-Filter" },
+    ];
+    expect(filtrarRepuestos(repuestos, { fabricantes: ["NGK", "Mann-Filter"] }))
+      .toEqual([repuestos[0], repuestos[2]]);
+    expect(filtrarRepuestos(repuestos, { busqueda: "bosch" })).toEqual([repuestos[1]]);
   });
 
   it("renders the no-results message", () => {

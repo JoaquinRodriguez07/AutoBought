@@ -34,8 +34,8 @@ def make_client(db, nombre="Ana", email="ana@example.com", marketing=True):
     return cliente
 
 
-def make_part(db, name="Aceite 10W-40 4L", price=1500, stock=5, code="ACE-001"):
-    part = Part(part_code=code, name=name, category="Lubricantes", price=price, stock=stock)
+def make_part(db, name="Aceite 10W-40 4L", price=1500, stock=5, code="ACE-001", manufacturer="Bosch"):
+    part = Part(part_code=code, name=name, manufacturer=manufacturer, category="Lubricantes", price=price, stock=stock)
     db.add(part)
     db.commit()
     db.refresh(part)
@@ -319,6 +319,16 @@ def test_pedido_cancelado_cliente_dado_de_baja_o_recompra_no_reciben(db_session,
 
     assert notificaciones.recordar_mantenimientos(db_session, AHORA) == 0
     assert mails == []
+
+
+def test_recomprar_el_mismo_repuesto_de_otro_fabricante_cuenta_como_recompra(db_session, mails):
+    cliente = make_client(db_session)
+    castrol = make_part(db_session, name="Aceite Castrol 10W-40 4L", manufacturer="Castrol")
+    mobil = make_part(db_session, name="Aceite Mobil 10W-40 4L", manufacturer="Mobil", code="ACE-002")
+    make_order(db_session, cliente, [(castrol, 1)], creado=AHORA - timedelta(days=186))
+    make_order(db_session, cliente, [(mobil, 1)], creado=AHORA - timedelta(days=30))
+
+    assert notificaciones.recordar_mantenimientos(db_session, AHORA) == 0
 
 
 def test_sumar_meses_ajusta_el_fin_de_mes():

@@ -9,6 +9,7 @@ class Part(Base):
     id = Column(Integer, primary_key = True)
     part_code = Column(String(50), nullable = False)
     name = Column(String(120), nullable = False)
+    manufacturer = Column(String(60), nullable = False)
     category = Column(String(60), nullable = False)
     color = Column(String(40), nullable = True)
     price = Column(Integer, nullable = False)

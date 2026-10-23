@@ -277,11 +277,17 @@ def _meses_de(part: Part) -> int | None:
     )
 
 
+def _tipo(part: Part) -> str:
+    """El repuesto sin el fabricante: "Bujía NGK 1.4 8V" y "Bujía Bosch 1.4 8V"
+    son el mismo tipo de repuesto."""
+    return part.name.replace(f" {part.manufacturer}", "", 1)
+
+
 def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
     """Un recordatorio por repuesto comprado cuyo plazo de cambio se cumplió
     en los últimos 7 días. Pedidos cancelados no cuentan, y si el cliente
-    volvió a comprar el mismo repuesto, el recordatorio es el de la compra
-    nueva."""
+    volvió a comprar el mismo tipo de repuesto (aunque sea de otro
+    fabricante), el recordatorio es el de la compra nueva."""
     ahora = ahora or datetime.now(timezone.utc)
     mas_viejo = _sumar_meses(ahora, -max(MESES_MANTENIMIENTO.values())) - timedelta(days=DIAS_VENTANA_MANTENIMIENTO)
 
@@ -298,15 +304,16 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
         .options(selectinload(OrderItem.part), selectinload(OrderItem.order).selectinload(Order.client))
     ).all()
 
-    ultima_compra = {
-        (client_id, part_id): _como_utc(fecha)
-        for client_id, part_id, fecha in db.execute(
-            select(Order.client_id, OrderItem.part_id, func.max(Order.created_at))
-            .join(OrderItem, OrderItem.order_id == Order.order_id)
-            .where(Order.status != OrderStatus.CANCELLED)
-            .group_by(Order.client_id, OrderItem.part_id)
-        )
-    }
+    ultima_compra: dict[tuple[int, str], datetime] = {}
+    for client_id, part, fecha in db.execute(
+        select(Order.client_id, Part, func.max(Order.created_at))
+        .join(OrderItem, OrderItem.order_id == Order.order_id)
+        .join(Part, Part.id == OrderItem.part_id)
+        .where(Order.status != OrderStatus.CANCELLED)
+        .group_by(Order.client_id, Part.id)
+    ):
+        clave = (client_id, _tipo(part))
+        ultima_compra[clave] = max(ultima_compra.get(clave, _como_utc(fecha)), _como_utc(fecha))
 
     enviados = 0
     for item in items:
@@ -314,7 +321,7 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
         if meses is None:
             continue
         comprado = _como_utc(item.order.created_at)
-        if ultima_compra[(item.order.client_id, item.part_id)] > comprado:
+        if ultima_compra[(item.order.client_id, _tipo(item.part))] > comprado:
             continue
         vence = _sumar_meses(comprado, meses)
         if not ahora - timedelta(days=DIAS_VENTANA_MANTENIMIENTO) <= vence <= ahora:

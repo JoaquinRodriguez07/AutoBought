@@ -20,6 +20,7 @@ def make_part(db_session, **overrides):
 	defaults = dict(
 		part_code="BRK-001",
 		name="Pastillas de freno",
+		manufacturer="Bosch",
 		category="Brakes",
 		price=1000,
 		stock=5,
