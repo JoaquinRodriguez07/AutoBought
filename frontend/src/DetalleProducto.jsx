@@ -115,6 +115,7 @@ export default function DetalleProducto({
                   {favorito ? "♥" : "♡"}
                 </button>
               </div>
+              <p className="text-[10px] text-gray-400 mt-2">Imagen ilustrativa.</p>
               <div className="flex items-center gap-3 mt-3">
                 {imagenes.map((imagen, index) => (
                   <button key={index} onClick={() => setImagenActiva(index)}

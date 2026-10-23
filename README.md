@@ -27,6 +27,20 @@ Cada repuesto trae además una descripción, sus especificaciones técnicas (di�
 
 Sobre una base que ya tiene el catálogo, `scripts.seed` no lo vuelve a cargar: agrega las columnas nuevas de `part` si faltan y actualiza, por código, el nombre, la descripción, las especificaciones y la garantía de los repuestos que ya existen, sin tocar precios, stock, pedidos, carritos ni favoritos. Así, después de bajar cambios del catálogo alcanza con volver a correrlo (también contra la base de la nube). Para ver repuestos **nuevos** (códigos que la base no tiene) sí hay que recrear la base y volver a correr los tres scripts. En local: `docker compose down -v`, `docker compose up -d` y los scripts de arriba.
 
+### Imágenes de los repuestos
+
+Los 1089 repuestos salen de 17 tipos de pieza (bujía, discos de freno, radiador...), y cada repuesto muestra la imagen de su tipo. La tabla de tipos está en `frontend/src/imagenesRepuestos.js` (el tipo se reconoce por cómo empieza el nombre) y las imágenes en `frontend/public/repuestos/`. Son ilustrativas y genéricas, sin marcas, y se generan con la API de imágenes de Gemini:
+
+```bash
+cd frontend
+GEMINI_API_KEY=tu-clave npm run imagenes                      # las que faltan
+GEMINI_API_KEY=tu-clave npm run imagenes -- --solo bujia      # regenerar una o varias (separadas por coma)
+GEMINI_API_KEY=tu-clave npm run imagenes -- --forzar          # todas de nuevo
+npm run imagenes -- --prueba                                  # ver los prompts sin llamar a la API
+```
+
+La clave se pasa como variable de entorno y nunca se sube al repositorio. El script guarda cada imagen como `.webp` de 600×600 px. Antes de subirlas hay que revisarlas y regenerar las que no se parezcan a la pieza. Un test falla si algún repuesto del catálogo no tiene tipo o si a algún tipo le falta la imagen.
+
 ### Usuarios de prueba
 
 `scripts.seed_demo_users` crea 3 clientes con direcciones y tarjetas cargadas, y un vendedor:
