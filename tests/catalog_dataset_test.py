@@ -115,6 +115,21 @@ def test_seed_agrega_las_columnas_que_faltan(base_vieja):
     assert set(seed.NEW_PART_COLUMNS) <= columnas
 
 
+def test_seed_agrega_la_version_de_sesion_a_una_tabla_user_vieja(base_vieja):
+    with base_vieja.begin() as connection:
+        connection.execute(text(
+            'CREATE TABLE "user" (user_id INTEGER PRIMARY KEY, email VARCHAR(255) NOT NULL)'
+        ))
+        connection.execute(text("INSERT INTO \"user\" (email) VALUES ('viejo@mail.com')"))
+
+    seed.add_missing_columns()
+    seed.add_missing_columns()  # la segunda vez no hace nada
+
+    with base_vieja.connect() as connection:
+        version = connection.execute(text('SELECT session_version FROM "user"')).scalar_one()
+    assert version == 0
+
+
 def test_seed_actualiza_los_detalles_sin_tocar_precio_ni_stock(base_vieja, catalogo):
     _, parts = catalogo
     seed.add_missing_columns()

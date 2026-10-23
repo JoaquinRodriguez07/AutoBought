@@ -8,6 +8,7 @@ jest.mock("./api", () => ({
   registrar: jest.fn(),
   obtenerPerfil: jest.fn(),
   renovarToken: jest.fn(),
+  alSesionInvalida: jest.fn(),
   actualizarPerfil: jest.fn(),
   cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
