@@ -629,13 +629,7 @@ export default function Home({
                 key={marca.nombre}
                 type="button"
                 tabIndex={copia ? -1 : undefined}
-                onClick={() =>
-                  onCatalogo(null, {
-                    brand: marca.nombre,
-                    model: "",
-                    year: "",
-                  })
-                }
+                onClick={() => onCatalogo(null, null, { marca: marca.nombre })}
                 title={marca.nombre}
                 aria-label={`Ver repuestos de ${marca.nombre}`}
                 className="group shrink-0 w-36 h-14 flex items-center justify-center"
@@ -667,7 +661,7 @@ export default function Home({
                 key={fabricante}
                 type="button"
                 tabIndex={copia ? -1 : undefined}
-                onClick={() => onCatalogo(null, null, fabricante)}
+                onClick={() => onCatalogo(null, null, { fabricante })}
                 className="shrink-0 w-40 h-12 text-lg font-black italic tracking-tight text-gray-400 hover:text-orange-500 transition"
               >
                 {fabricante}

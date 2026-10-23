@@ -229,20 +229,23 @@ function App() {
   // "Borrar filtros" (ver Home y Catalogo).
   // Si llega un vehículo (por ejemplo, la marca elegida en Home o en
    // /marcas), pasa a ser el Vehículo Activo.
-  // Con `fabricante` (los botones de fabricantes del inicio), el
-  // catálogo abre con ese fabricante tildado.
-  const irAlCatalogo = (categoria = null, vehiculo = null, fabricante = null) => {
+  // Con `fabricante` (los botones de fabricantes del inicio) o `marca`
+  // (los logos de marcas del inicio y de /marcas), el catálogo abre con
+  // ese filtro tildado. Son filtros de una sola vez: a diferencia del
+  // vehículo, no se arrastran al volver a entrar al catálogo.
+  const irAlCatalogo = (categoria = null, vehiculo = null, { fabricante, marca } = {}) => {
      setCategoriaCatalogo(categoria);
 
      if (vehiculo) {
        activarVehiculo(vehiculo);
      }
 
-     navigate(
-       fabricante
-         ? `/catalogo?fabricante=${encodeURIComponent(fabricante)}`
-         : "/catalogo"
-     );
+     const params = new URLSearchParams();
+     if (fabricante) params.set("fabricante", fabricante);
+     if (marca) params.set("marca", marca);
+     const query = params.toString();
+
+     navigate(query ? `/catalogo?${query}` : "/catalogo");
   };
 
   const irAlDetalle = (producto) => {

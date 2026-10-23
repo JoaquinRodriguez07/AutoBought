@@ -167,13 +167,7 @@ export default function Marcas({
                   <button
                     key={marca.brand}
                     type="button"
-                    onClick={() =>
-                      onCatalogo(null, {
-                        brand: marca.brand,
-                        model: "",
-                        year: "",
-                      })
-                    }
+                    onClick={() => onCatalogo(null, null, { marca: marca.brand })}
                     // Solo el logo; al pasar el mouse (o con el teclado) el
                     // logo sube y aparece "Ver repuestos". El nombre, en el
                     // cartelito del navegador al dejar el mouse encima.

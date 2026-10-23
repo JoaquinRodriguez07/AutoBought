@@ -14,6 +14,8 @@ import repuestos from "./assets/repuestos.jpg";
  *  - titulo      (string)
  *  - descripcion (string)   opcional
  *  - inicio      (node)     opcional, a la izquierda del título (ej. avatar)
+ *  - fin         (node)     opcional, a la derecha del título (ej. buscador);
+ *                           en celular va debajo
  *  - children    (node)     opcional, debajo (ej. el aviso del vehículo)
  *  - ancho       (string)   ancho máximo, para alinear con el contenido
  */
@@ -22,6 +24,7 @@ export default function EncabezadoPagina({
   titulo,
   descripcion,
   inicio,
+  fin,
   children,
   ancho = "max-w-[1100px]",
 }) {
@@ -62,16 +65,19 @@ export default function EncabezadoPagina({
           })}
         </p>
 
-        <div className="flex items-center gap-4 mt-3">
-          {inicio}
-          <div className="min-w-0">
-            <h1 className="text-white text-3xl md:text-4xl font-black italic uppercase leading-none">
-              {titulo}
-            </h1>
-            {descripcion && (
-              <p className="text-gray-300 text-sm mt-2 truncate">{descripcion}</p>
-            )}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-3">
+          <div className="flex items-center gap-4 min-w-0">
+            {inicio}
+            <div className="min-w-0">
+              <h1 className="text-white text-3xl md:text-4xl font-black italic uppercase leading-none">
+                {titulo}
+              </h1>
+              {descripcion && (
+                <p className="text-gray-300 text-sm mt-2 truncate">{descripcion}</p>
+              )}
+            </div>
           </div>
+          {fin && <div className="w-full lg:w-[420px] lg:shrink-0">{fin}</div>}
         </div>
 
         {children && <div className="mt-6">{children}</div>}

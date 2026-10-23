@@ -114,7 +114,10 @@ export default function Catalogo({
     const desdeInicio = searchParams.get("fabricante");
     return desdeInicio ? [desdeInicio] : [];
   });
-  const [marcasAuto, setMarcasAuto] = useState([]);
+  const [marcasAuto, setMarcasAuto] = useState(() => {
+    const desdeInicio = searchParams.get("marca");
+    return desdeInicio ? [desdeInicio] : [];
+  });
   const [precioMin, setPrecioMin] = useState("");
   const [precioMax, setPrecioMax] = useState("");
   const [soloConStock, setSoloConStock] = useState(false);
@@ -530,38 +533,40 @@ export default function Catalogo({
             categoria || "Todos",
           ]}
           titulo={categoria || "Todos los repuestos"}
+          fin={
+            <>
+
+              {/* BUSCADOR */}
+
+              <SearchBar
+                value={busqueda}
+                onChange={setBusqueda}
+                onSubmit={buscar}
+                placeholder="Buscar repuesto por nombre, código o fabricante..."
+              />
+
+              {textoSinBuscar && (
+                <button
+                  type="button"
+                  onClick={() => buscar(textoSinBuscar)}
+                  className="mt-2 text-sm text-gray-300 hover:text-orange-400 transition"
+                >
+                  Buscar <span className="font-bold text-white">"{textoSinBuscar}"</span> en todo el catálogo →
+                </button>
+              )}
+
+            </>
+          }
         >
 
           {/* VEHÍCULO ACTIVO */}
           {/* Oculto si no hay vehículo activo en VehicleContext. */}
 
           {vehiculoActivo && (
-            <div className="mb-5">
-              <ActiveVehicleBanner
-                onCambiar={onHome}
-                onBorrar={borrarVehiculoYFiltros}
-              />
-            </div>
-          )}
-
-          {/* BUSCADOR */}
-
-          <SearchBar
-            value={busqueda}
-            onChange={setBusqueda}
-            onSubmit={buscar}
-            placeholder="Buscar repuesto por nombre, código o fabricante..."
-            className="lg:max-w-[520px]"
-          />
-
-          {textoSinBuscar && (
-            <button
-              type="button"
-              onClick={() => buscar(textoSinBuscar)}
-              className="mt-2 text-sm text-gray-300 hover:text-orange-400 transition"
-            >
-              Buscar <span className="font-bold text-white">"{textoSinBuscar}"</span> en todo el catálogo →
-            </button>
+            <ActiveVehicleBanner
+              onCambiar={onHome}
+              onBorrar={borrarVehiculoYFiltros}
+            />
           )}
 
         </EncabezadoPagina>

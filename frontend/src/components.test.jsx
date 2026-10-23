@@ -430,7 +430,17 @@ describe("Home", () => {
     render(<Home {...props} />);
     await user.click(screen.getByRole("button", { name: "Brembo" }));
 
-    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, "Brembo");
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { fabricante: "Brembo" });
+  });
+
+  it("opens the catalog filtered by the brand logo clicked, without making it the active vehicle", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Home {...props} />);
+    await user.click(screen.getAllByRole("button", { name: "Ver repuestos de Volkswagen" })[0]);
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { marca: "Volkswagen" });
   });
 
   it.each([
@@ -814,6 +824,22 @@ it("opens with the manufacturer from the URL already checked", async () => {
   expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
 });
 
+it("opens with the car brand from the URL already checked", async () => {
+  obtenerRepuestos.mockResolvedValue([
+    { ...catalogProducts[0], marcas: ["Chevrolet"] },
+    { ...catalogProducts[1], marcas: ["Ford"] },
+  ]);
+
+  render(
+    <Catalogo {...navigationProps()} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?marca=Ford"] }
+  );
+
+  expect(await screen.findByRole("checkbox", { name: /Ford/ })).toBeChecked();
+  expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+});
+
 it("offers the server search for what was typed, also when nothing on screen matches", async () => {
   const user = userEvent.setup();
   buscarTexto.mockResolvedValue({
@@ -1180,7 +1206,7 @@ describe("Marcas", () => {
     expect(screen.getByRole("img", { name: "Logo Volkswagen" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Volkswagen/i }));
-    expect(props.onCatalogo).toHaveBeenCalledWith(null, { brand: "Volkswagen", model: "", year: "" });
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { marca: "Volkswagen" });
   });
 });
 
