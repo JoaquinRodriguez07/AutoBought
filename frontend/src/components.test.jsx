@@ -1,4 +1,4 @@
-import { fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -59,6 +59,7 @@ import Carrito from "./Carrito";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
 import Favoritos from "./Favoritos";
+import ConfirmacionAgregarCarrito, { DURACION_AVISO_MS } from "./ConfirmacionAgregarCarrito";
 import Home from "./Home";
 import Login from "./Login";
 import Marcas from "./Marcas";
@@ -593,30 +594,25 @@ describe("Catalogo", () => {
     render(<Catalogo {...props} categoriaInicial="Frenos" />);
     await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
 
-    let dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Repuesto agregado al carrito.")).toBeInTheDocument();
+    let dialog = await screen.findByRole("status");
+    expect(within(dialog).getByText("Agregado al carrito")).toBeInTheDocument();
     expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
-      .toEqual(["Deshacer", "Ok", "Ver carrito"]);
+      .toEqual(["✕", "Deshacer", "Ver carrito"]);
 
-    fireEvent.click(dialog.parentElement);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
-    dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Ok" }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Cerrar aviso" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
-    dialog = await screen.findByRole("dialog");
+    dialog = await screen.findByRole("status");
     await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("BP1234"));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
-    dialog = await screen.findByRole("dialog");
+    dialog = await screen.findByRole("status");
     await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
     expect(props.onCarrito).toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("undo only removes the quantity that was just added", async () => {
@@ -635,7 +631,7 @@ describe("Catalogo", () => {
     render(<Catalogo {...props} categoriaInicial="Frenos" />);
     await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("status");
     await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
 
     await waitFor(() => expect(actualizarItemCarrito).toHaveBeenCalledWith("BP1234", 2));
@@ -932,20 +928,18 @@ describe("DetalleProducto", () => {
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
 
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 2));
-    let dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Repuesto agregado al carrito.")).toBeInTheDocument();
-    expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
-      .toEqual(["Deshacer", "Ok", "Ver carrito"]);
+    let dialog = await screen.findByRole("status");
+    expect(within(dialog).getByText("Agregado al carrito")).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
-    dialog = await screen.findByRole("dialog");
+    dialog = await screen.findByRole("status");
     await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
     expect(props.onCarrito).toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Especificaciones" }));
     expect(screen.getByText("Especificaciones técnicas")).toBeInTheDocument();
@@ -1048,6 +1042,48 @@ describe("Favoritos", () => {
     expect(props.onAlternarFavorito).toHaveBeenCalledWith(product);
     expect(props.onDetalle).toHaveBeenCalledWith(product);
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 1));
+  });
+
+  it("confirms the add to cart with a notice that can undo it", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    startClientSession();
+    render(<Favoritos {...props} favoritos={[product]} />);
+
+    await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
+
+    const aviso = await screen.findByRole("status");
+    expect(within(aviso).getByText(product.nombre)).toBeInTheDocument();
+    await user.click(within(aviso).getByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});
+
+describe("ConfirmacionAgregarCarrito", () => {
+  afterEach(() => jest.useRealTimers());
+
+  it("closes by itself after a few seconds, but waits while the mouse is over it", () => {
+    jest.useFakeTimers();
+    const onCerrar = jest.fn();
+    render(
+      <ConfirmacionAgregarCarrito
+        producto={product}
+        onDeshacer={jest.fn()}
+        onCerrar={onCerrar}
+        onVerCarrito={jest.fn()}
+      />
+    );
+
+    fireEvent.mouseEnter(screen.getByRole("status"));
+    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS + 1000));
+    expect(onCerrar).not.toHaveBeenCalled();
+
+    fireEvent.mouseLeave(screen.getByRole("status"));
+    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS - 1));
+    expect(onCerrar).not.toHaveBeenCalled();
+    act(() => jest.advanceTimersByTime(1));
+    expect(onCerrar).toHaveBeenCalledTimes(1);
   });
 });
 
