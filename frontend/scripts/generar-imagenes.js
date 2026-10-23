@@ -13,6 +13,11 @@
 // al repo) junto con un index.html para compararlas, y se elige una por
 // tipo con --elegir.
 //
+// Originales: la web usa la versión de 600 px, pero la imagen tal como la
+// devuelve el modelo (2K) se guarda en imagenes-originales/<tipo>.jpg, para
+// usarla después como base de los modelos 3D. Con --variantes se guarda la
+// de la variante elegida. Tampoco se sube al repo.
+//
 // Referencias (opcional, para más fidelidad): si existe
 // imagenes-referencia/<archivo>.jpg (o .png / .webp), se manda como foto de
 // referencia de la pieza real. Usar fotos propias o con licencia libre;
@@ -41,6 +46,7 @@ const RAIZ = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CARPETA = join(RAIZ, "public", "repuestos");
 const CANDIDATAS = join(RAIZ, "imagenes-candidatas");
 const REFERENCIAS = join(RAIZ, "imagenes-referencia");
+const ORIGINALES = join(RAIZ, "imagenes-originales");
 const LADO_PX = 600;
 const CALIDAD_WEBP = 82;
 const ESPERA_REINTENTO_MS = Number(process.env.GEMINI_ESPERA_MS ?? 20_000);
@@ -86,12 +92,35 @@ async function pedirImagen(clave, pedido) {
   throw new Error("sin respuesta");
 }
 
+// La extensión según el formato real de lo que devolvió el modelo.
+async function extensionDe(sharp, imagen) {
+  const { format } = await sharp(imagen).metadata();
+  return format === "jpeg" ? "jpg" : format;
+}
+
+function originalDeCandidata(archivo, numero) {
+  for (const extension of ["jpg", "png", "webp"]) {
+    const ruta = join(CANDIDATAS, `${archivo}-${numero}-original.${extension}`);
+    if (existsSync(ruta)) return { ruta, extension };
+  }
+  return null;
+}
+
 function elegir({ archivo, numero }) {
   const origen = join(CANDIDATAS, `${archivo}-${numero}.webp`);
   if (!existsSync(origen)) salirConError(`No existe ${origen}. Generá primero con --variantes.`);
   mkdirSync(CARPETA, { recursive: true });
   copyFileSync(origen, join(CARPETA, `${archivo}.webp`));
-  console.log(`Listo: public/repuestos/${archivo}.webp es la variante ${numero}.`);
+
+  const original = originalDeCandidata(archivo, numero);
+  if (original) {
+    mkdirSync(ORIGINALES, { recursive: true });
+    copyFileSync(original.ruta, join(ORIGINALES, `${archivo}.${original.extension}`));
+  }
+  console.log(
+    `Listo: public/repuestos/${archivo}.webp es la variante ${numero}` +
+      (original ? ` (original en imagenes-originales/${archivo}.${original.extension}).` : ".")
+  );
 }
 
 async function main() {
@@ -139,6 +168,7 @@ async function main() {
   const { default: sharp } = await import("sharp");
   const destino = conVariantes ? CANDIDATAS : CARPETA;
   mkdirSync(destino, { recursive: true });
+  mkdirSync(conVariantes ? CANDIDATAS : ORIGINALES, { recursive: true });
 
   const total = tipos.length * opciones.variantes;
   console.log(`Modelo: ${modelo} (${tamanio}). Imágenes a generar: ${total}.\n`);
@@ -161,6 +191,13 @@ async function main() {
           .webp({ quality: CALIDAD_WEBP })
           .toBuffer();
         writeFileSync(join(destino, `${nombre}.webp`), webp);
+
+        // La original en alta resolución, para el 3D.
+        const extension = await extensionDe(sharp, original);
+        const rutaOriginal = conVariantes
+          ? join(CANDIDATAS, `${nombre}-original.${extension}`)
+          : join(ORIGINALES, `${tipo.archivo}.${extension}`);
+        writeFileSync(rutaOriginal, original);
         console.log(`listo (${Math.round(webp.length / 1024)} KB)`);
       } catch (error) {
         console.log(`falló: ${error.message}`);

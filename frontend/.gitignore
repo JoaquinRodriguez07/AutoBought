@@ -24,6 +24,7 @@ coverage
 *.sln
 *.sw?
 
-# Imágenes de repuestos: variantes para elegir y fotos de referencia (no se suben)
+# Imágenes de repuestos: variantes, referencias y originales en 2K (no se suben)
 imagenes-candidatas/
 imagenes-referencia/
+imagenes-originales/

@@ -40,7 +40,7 @@ GEMINI_API_KEY=tu-clave npm run imagenes                      # una sola por tip
 npm run imagenes -- --prueba                                  # ver los prompts sin llamar a la API
 ```
 
-Con `--variantes`, las opciones quedan en `frontend/imagenes-candidatas/` con un `index.html` para verlas lado a lado. Para más fidelidad, se puede dejar una foto real de la pieza en `frontend/imagenes-referencia/<tipo>.jpg` y el script la manda como referencia (solo fotos propias o con licencia libre). Ninguna de esas dos carpetas se sube al repositorio.
+Con `--variantes`, las opciones quedan en `frontend/imagenes-candidatas/` con un `index.html` para verlas lado a lado. Para más fidelidad, se puede dejar una foto real de la pieza en `frontend/imagenes-referencia/<tipo>.jpg` y el script la manda como referencia (solo fotos propias o con licencia libre). Además, la imagen original en 2K (tal como la devuelve el modelo) se guarda en `frontend/imagenes-originales/<tipo>.jpg`, para usarla más adelante como base de los modelos 3D; con `--variantes`, se guarda la de la variante elegida. Ninguna de esas tres carpetas se sube al repositorio.
 
 La clave se pasa como variable de entorno y nunca se sube al repositorio. Opcionales: `GEMINI_IMAGE_MODEL` (otro modelo) y `GEMINI_IMAGE_SIZE` (`1K`, `2K` o `4K`; por defecto `2K`). Cada imagen se guarda como `.webp` de 600×600 px. Un test falla si algún repuesto del catálogo no tiene tipo o si a algún tipo le falta la imagen.
 
