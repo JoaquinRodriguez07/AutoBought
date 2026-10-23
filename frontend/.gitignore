@@ -23,3 +23,7 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+# Imágenes de repuestos: variantes para elegir y fotos de referencia (no se suben)
+imagenes-candidatas/
+imagenes-referencia/
