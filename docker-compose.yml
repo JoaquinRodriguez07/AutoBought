@@ -40,6 +40,10 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-AutoBought <no-reply@autobought.local>}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      # Asistente de compra con IA: sin clave responde "no disponible".
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      IA_LIMITE_DIARIO: ${IA_LIMITE_DIARIO:-20}
 
     ports:
       - "8000:8000"
@@ -71,6 +75,10 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-AutoBought <no-reply@autobought.local>}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+      # Asistente de compra con IA: sin clave responde "no disponible".
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      IA_LIMITE_DIARIO: ${IA_LIMITE_DIARIO:-20}
 
     ports:
       - "8001:8000"
