@@ -40,6 +40,22 @@ export function armarPromptFabricante(pieza, cambio) {
   ].join(" ");
 }
 
+// Segunda vista: la MISMA pieza de la imagen de referencia, desde otro
+// ángulo. No se describe la pieza con palabras: la foto es la única fuente
+// de verdad, así una descripción genérica (por ejemplo "caja negra") no
+// contradice los colores de la versión de un fabricante. Se insiste en no
+// cambiar nada más que el ángulo.
+export function armarPromptVista(vista) {
+  return [
+    "The attached reference product photo shows an automotive spare part. Treat the photo as the only source of truth for its shape, colors, materials and details.",
+    `Create a second product photo of exactly the same physical object, ${vista}.`,
+    "It must be the identical part: same colors, materials, finish, proportions and every mechanical detail as in the reference. Only the camera angle changes.",
+    "Do not add, remove or redesign any component, and do not change the color of anything.",
+    "Keep the same soft studio lighting, pure white background and photorealistic e-commerce style, with the whole object visible and centered.",
+    "No text, no logos, no brand names, no printed labels with writing, no watermark, no people, no hands, no car.",
+  ].join(" ");
+}
+
 export function armarPedido(modelo, prompt, { referencias = [], tamanio = TAMANIO_POR_DEFECTO } = {}) {
   return {
     model: modelo,
@@ -83,15 +99,16 @@ export function extraerImagen(respuesta) {
 }
 
 // Argumentos de la línea de comandos:
-//   --prueba, --forzar, --solo a,b, --variantes N, --elegir <tipo> <N>
+//   --prueba, --forzar, --vistas, --solo a,b, --variantes N, --elegir <tipo> <N>
 export function leerOpciones(argumentos) {
-  const opciones = { prueba: false, forzar: false, solo: null, variantes: 1, elegir: null };
+  const opciones = { prueba: false, forzar: false, vistas: false, solo: null, variantes: 1, elegir: null };
 
   for (let i = 0; i < argumentos.length; i += 1) {
     const argumento = argumentos[i];
 
     if (argumento === "--prueba") opciones.prueba = true;
     else if (argumento === "--forzar") opciones.forzar = true;
+    else if (argumento === "--vistas") opciones.vistas = true;
     else if (argumento === "--solo") {
       opciones.solo = (argumentos[i + 1] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
       i += 1;

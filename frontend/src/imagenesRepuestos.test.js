@@ -1,7 +1,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { TIPOS_REPUESTO, aSlug, imagenDeTipo, imagenesEsperadas, tipoDeRepuesto } from "./imagenesRepuestos";
+import {
+  TIPOS_REPUESTO,
+  aSlug,
+  imagenDeTipo,
+  imagenesEsperadas,
+  imagenesExtraDeTipo,
+  tipoDeRepuesto,
+  vistasEsperadas,
+} from "./imagenesRepuestos";
 import { IMAGEN_PLACEHOLDER, imagenDeRepuesto } from "./mapearRepuesto";
 
 const RAIZ_FRONTEND = join(__dirname, "..");
@@ -39,6 +47,14 @@ describe("imagenDeRepuesto", () => {
   });
 });
 
+describe("imagenesExtraDeTipo", () => {
+  it("adds the second view of the part's own image", () => {
+    expect(imagenesExtraDeTipo("Batería 12V 90Ah Willard")).toEqual(["/repuestos/bateria-willard-vista.webp"]);
+    expect(imagenesExtraDeTipo("Radiador Valeo")).toEqual(["/repuestos/radiador-vista.webp"]);
+    expect(imagenesExtraDeTipo("Volante deportivo")).toEqual([]);
+  });
+});
+
 describe("aSlug", () => {
   it("turns a manufacturer into a file name", () => {
     expect(aSlug("Mann-Filter")).toBe("mann-filter");
@@ -65,6 +81,19 @@ describe("TIPOS_REPUESTO", () => {
 
     const combinaciones = new Set(parts.map((part) => imagenDeTipo(part.name)));
     expect(combinaciones.size).toBe(imagenesEsperadas().length);
+  });
+
+  it("has a second view description for every type", () => {
+    TIPOS_REPUESTO.forEach((tipo) => expect(tipo.vista).toEqual(expect.any(String)));
+    expect(vistasEsperadas()).toHaveLength(imagenesEsperadas().length);
+  });
+
+  it("has a generated second view for every image", () => {
+    const faltan = vistasEsperadas()
+      .filter((vista) => !existsSync(join(RAIZ_FRONTEND, "public", "repuestos", `${vista.archivo}.webp`)))
+      .map((vista) => vista.archivo);
+
+    expect(faltan).toEqual([]);
   });
 
   it("has a generated image for every type and manufacturer", () => {

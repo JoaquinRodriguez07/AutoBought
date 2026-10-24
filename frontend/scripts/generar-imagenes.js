@@ -11,6 +11,11 @@
 //   GEMINI_API_KEY=tu-clave npm run imagenes -- --variantes 3     # 3 opciones por tipo, para elegir
 //   npm run imagenes -- --elegir bujia 2                          # usar la variante 2 de bujia
 //   npm run imagenes -- --prueba                                  # ver los prompts, sin llamar a la API
+//   GEMINI_API_KEY=tu-clave npm run imagenes -- --vistas          # segunda vista (otro ángulo) de cada imagen
+//
+// --vistas trabaja sobre las segundas vistas (<archivo>-vista.webp) en vez
+// de las imágenes principales: cada una sale de su imagen principal, que va
+// como referencia, y admite las mismas opciones (--solo, --variantes...).
 //
 // Con --variantes, las opciones quedan en imagenes-candidatas/ (no se sube
 // al repo) junto con un index.html para compararlas, y se elige una por
@@ -33,7 +38,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { imagenesEsperadas } from "../src/imagenesRepuestos.js";
+import { imagenesEsperadas, vistasEsperadas } from "../src/imagenesRepuestos.js";
 import {
   MODELO_POR_DEFECTO,
   TAMANIO_POR_DEFECTO,
@@ -42,6 +47,7 @@ import {
   armarPedido,
   armarPrompt,
   armarPromptFabricante,
+  armarPromptVista,
   extraerImagen,
   leerOpciones,
 } from "./imagenes-gemini.js";
@@ -74,11 +80,14 @@ function buscarImagen(carpeta, archivo) {
 // Versión de un fabricante: la imagen base del tipo (la original en 2K si
 // está; si no, la de la web).
 function referenciaDe(objetivo) {
+  // Segunda vista: su imagen principal (la original en 2K si está).
+  if (objetivo.de) return buscarImagen(ORIGINALES, objetivo.de) ?? buscarImagen(CARPETA, objetivo.de);
   if (!objetivo.fabricante) return buscarImagen(REFERENCIAS, objetivo.archivo);
   return buscarImagen(ORIGINALES, objetivo.tipo.archivo) ?? buscarImagen(CARPETA, objetivo.tipo.archivo);
 }
 
 function promptDe(objetivo, referencia) {
+  if (objetivo.de) return armarPromptVista(objetivo.tipo.vista);
   return objetivo.fabricante
     ? armarPromptFabricante(objetivo.tipo.pieza, objetivo.cambio)
     : armarPrompt(objetivo.tipo.pieza, { conReferencia: !!referencia });
@@ -147,7 +156,7 @@ async function main() {
   const modelo = process.env.GEMINI_IMAGE_MODEL || MODELO_POR_DEFECTO;
   const tamanio = process.env.GEMINI_IMAGE_SIZE || TAMANIO_POR_DEFECTO;
 
-  const esperadas = imagenesEsperadas();
+  const esperadas = opciones.vistas ? vistasEsperadas() : imagenesEsperadas();
   const pedidos = [...(opciones.solo ?? []), ...(opciones.elegir ? [opciones.elegir.archivo] : [])];
   const desconocidos = pedidos.filter((archivo) => !esperadas.some((objetivo) => objetivo.archivo === archivo));
   if (desconocidos.length > 0) {
@@ -179,7 +188,13 @@ async function main() {
   if (opciones.prueba) {
     for (const objetivo of objetivos) {
       const referencia = referenciaDe(objetivo);
-      const nota = objetivo.fabricante ? " (a partir de la base)" : referencia ? " (con foto de referencia)" : "";
+      const nota = objetivo.de
+        ? ` (a partir de ${objetivo.de})`
+        : objetivo.fabricante
+          ? " (a partir de la base)"
+          : referencia
+            ? " (con foto de referencia)"
+            : "";
       console.log(`${objetivo.archivo}${nota}\n   ${promptDe(objetivo, referencia)}\n`);
     }
     return;
@@ -197,8 +212,9 @@ async function main() {
 
   for (const objetivo of objetivos) {
     const referencia = referenciaDe(objetivo);
-    if (objetivo.fabricante && !referencia) {
-      console.log(`- ${objetivo.archivo}... falta la imagen base (${objetivo.tipo.archivo}): generala primero.`);
+    if ((objetivo.de || objetivo.fabricante) && !referencia) {
+      const falta = objetivo.de ?? objetivo.tipo.archivo;
+      console.log(`- ${objetivo.archivo}... falta la imagen ${falta}: generala primero.`);
       fallidos.push(objetivo.archivo);
       continue;
     }
@@ -235,7 +251,9 @@ async function main() {
   if (conVariantes) {
     const filas = objetivos.map((objetivo) => ({
       archivo: objetivo.archivo,
-      prefijo: objetivo.fabricante ? `${objetivo.tipo.prefijo} · ${objetivo.fabricante}` : objetivo.tipo.prefijo,
+      prefijo:
+        (objetivo.fabricante ? `${objetivo.tipo.prefijo} · ${objetivo.fabricante}` : objetivo.tipo.prefijo) +
+        (objetivo.de ? " · segunda vista" : ""),
     }));
     writeFileSync(join(CANDIDATAS, "index.html"), armarHojaDeContacto(filas, opciones.variantes));
     console.log(`\nAbrí ${join(CANDIDATAS, "index.html")} para compararlas y elegí con:`);

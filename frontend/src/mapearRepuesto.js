@@ -57,7 +57,7 @@
  */
 
 import imagenPlaceholder from "./assets/repuestos.jpg";
-import { imagenDeTipo } from "./imagenesRepuestos";
+import { imagenDeTipo, imagenesExtraDeTipo } from "./imagenesRepuestos";
 
 // El backend no guarda fotos de los repuestos: cada uno muestra la imagen
 // de su tipo de pieza. Si el nombre no corresponde a ningún tipo conocido,
@@ -108,6 +108,7 @@ export function mapearRepuesto(part) {
     garantia: textoGarantia(part.warranty_months, part.warranty_provider, part.manufacturer),
     aplicaciones: Array.isArray(part.compatibilities) ? part.compatibilities.map(textoAplicacion) : [],
     imagen: imagenDeRepuesto(part.name),
+    imagenesExtra: imagenesExtraDeTipo(part.name),
   };
 }
 

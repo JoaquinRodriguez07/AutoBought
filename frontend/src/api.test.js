@@ -74,6 +74,7 @@ const uiPart = {
   garantia: "",
   aplicaciones: [],
   imagen: IMAGEN_PLACEHOLDER,
+  imagenesExtra: [],
 };
 
 /**

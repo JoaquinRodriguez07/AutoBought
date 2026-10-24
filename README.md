@@ -38,7 +38,10 @@ npm run imagenes -- --elegir bujia 2                          # quedarse con la 
 GEMINI_API_KEY=tu-clave npm run imagenes -- --solo bujia      # regenerar una o varias (separadas por coma)
 GEMINI_API_KEY=tu-clave npm run imagenes                      # solo las que faltan (primero las bases, después las de fabricante)
 npm run imagenes -- --prueba                                  # ver los prompts sin llamar a la API
+GEMINI_API_KEY=tu-clave npm run imagenes -- --vistas          # segunda vista (otro ángulo) de cada imagen
 ```
+
+Con `--vistas`, el script trabaja sobre las segundas vistas (`<imagen>-vista.webp`): la misma pieza desde otro ángulo, generada a partir de su imagen principal, que el detalle del repuesto muestra como miniatura. Acepta las mismas opciones (`--solo bateria-vista`, `--variantes`, `--elegir`).
 
 Con `--variantes`, las opciones quedan en `frontend/imagenes-candidatas/` con un `index.html` para verlas lado a lado. Para más fidelidad, se puede dejar una foto real de la pieza en `frontend/imagenes-referencia/<tipo>.jpg` y el script la manda como referencia (solo fotos propias o con licencia libre). Además, la imagen original en 2K (tal como la devuelve el modelo) se guarda en `frontend/imagenes-originales/<tipo>.jpg`, para usarla más adelante como base de los modelos 3D; con `--variantes`, se guarda la de la variante elegida. Ninguna de esas tres carpetas se sube al repositorio.
 

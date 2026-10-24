@@ -5,6 +5,7 @@ import {
   armarPedido,
   armarPrompt,
   armarPromptFabricante,
+  armarPromptVista,
   extraerImagen,
   leerOpciones,
 } from "./imagenes-gemini";
@@ -32,6 +33,18 @@ describe("armarPromptFabricante", () => {
     expect(prompt).toContain("attached reference product photo as the base");
     expect(prompt).toContain("the case is light gray, seen from above");
     expect(prompt).toContain("same lighting, pure white background");
+    expect(prompt).toContain("no logos");
+  });
+});
+
+describe("armarPromptVista", () => {
+  it("asks for the same object from another angle without changing anything else", () => {
+    const prompt = armarPromptVista("seen from above");
+
+    expect(prompt).toContain("exactly the same physical object, seen from above");
+    expect(prompt).toContain("Only the camera angle changes");
+    expect(prompt).toContain("do not change the color");
+    expect(prompt).toContain("only source of truth");
     expect(prompt).toContain("no logos");
   });
 });
@@ -103,11 +116,16 @@ describe("leerOpciones", () => {
     expect(leerOpciones(["--forzar", "--solo", "bujia, radiador", "--variantes", "3"])).toEqual({
       prueba: false,
       forzar: true,
+      vistas: false,
       solo: ["bujia", "radiador"],
       variantes: 3,
       elegir: null,
     });
     expect(leerOpciones(["--prueba"])).toMatchObject({ prueba: true, variantes: 1 });
+  });
+
+  it("switches to the second views", () => {
+    expect(leerOpciones(["--vistas", "--solo", "bateria-vista"])).toMatchObject({ vistas: true, solo: ["bateria-vista"] });
   });
 
   it("reads which variant to keep", () => {
