@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import auth, brands, parts, models, years, cart, shipping_address, payment_method, orders
-from app.api.v1.endpoints import favorites, recommendations, stock_alerts, analytics
+from app.api.v1.endpoints import favorites, recommendations, stock_alerts, analytics, asistente
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
@@ -17,3 +17,4 @@ api_router.include_router(recommendations.router)
 api_router.include_router(favorites.router)
 api_router.include_router(stock_alerts.router)
 api_router.include_router(analytics.router)
+api_router.include_router(asistente.router)

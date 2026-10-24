@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import Navbar from "./Navbar";
+import InvitacionAsistente from "./InvitacionAsistente";
 import BrandDropdown from "./BrandDropdown";
 import ModelDropdown from "./ModelDropdown";
 import { obtenerAnios, obtenerCategorias, obtenerMasVendidos } from "./api";
@@ -481,6 +482,12 @@ export default function Home({
         </div>
 
       </section>
+
+      {/* =====================================================
+          ASISTENTE DE COMPRA (IA)
+      ====================================================== */}
+
+      <InvitacionAsistente />
 
       {/* =====================================================
           CATEGORÍAS

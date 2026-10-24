@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import BotonAvisoStock from "./BotonAvisoStock";
 import Navbar from "./Navbar";
+import InvitacionAsistente from "./InvitacionAsistente";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import SearchBar from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
@@ -554,6 +555,8 @@ export default function Catalogo({
                   Buscar <span className="font-bold text-white">"{textoSinBuscar}"</span> en todo el catálogo →
                 </button>
               )}
+
+              {!textoSinBuscar && <InvitacionAsistente variante="enlace" />}
 
             </>
           }

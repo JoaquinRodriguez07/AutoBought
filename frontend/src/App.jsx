@@ -26,6 +26,7 @@ import DetalleProducto from "./DetalleProducto";
 import Marcas from "./Marcas";
 import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
+import Asistente from "./Asistente";
 import ProtectedRoute from "./ProtectedRoute";
 import Footer from "./Footer";
 import EmployeeRoute from "./EmployeeRoute";
@@ -730,6 +731,19 @@ function App() {
               {...propsNavbar}
               favoritos={favoritos}
               onAlternarFavorito={alternarFavorito}
+              onDetalle={irAlDetalle}
+            />
+          }
+        />
+
+        {/* ASISTENTE DE COMPRA (IA)
+            Pide sesión: cada consulta cuenta para el límite diario. */}
+
+        <Route
+          path="/asistente"
+          element={
+            <Asistente
+              {...propsNavbar}
               onDetalle={irAlDetalle}
             />
           }

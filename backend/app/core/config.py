@@ -25,6 +25,8 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 # responden "no disponible" y la aplicación sigue funcionando.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+# Solo para probar en local contra un servidor falso, sin gastar.
+GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googleapis.com/v1beta/interactions")
 IA_TIMEOUT_SEGUNDOS = float(os.getenv("IA_TIMEOUT_SEGUNDOS", "30"))
 # Consultas a la IA por usuario en las últimas 24 horas (controla el costo).
 IA_LIMITE_DIARIO = int(os.getenv("IA_LIMITE_DIARIO", "20"))
