@@ -1,13 +1,13 @@
-import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import toast from "react-hot-toast";
 
-import Asistente from "./Asistente";
+import ChatPit from "./ChatPit";
 import { consultarAsistente } from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
-import { PitProvider } from "./context/PitContext";
+import { PitProvider, usePit } from "./context/PitContext";
 
 jest.mock("./api", () => ({ consultarAsistente: jest.fn() }));
 jest.mock("./context/CartContext", () => ({ useCart: jest.fn() }));
@@ -60,12 +60,27 @@ function RutaActual() {
   return <p data-testid="ruta">{pathname}{search}</p>;
 }
 
+// El chat conectado a la conversación de PitContext, como lo usa PanelPit.
+function ChatConectado({ onHome = jest.fn(), onDetalle = jest.fn() }) {
+  const navigate = useNavigate();
+  const { vehiculo, conversacion } = usePit();
+  return (
+    <ChatPit
+      vehiculo={vehiculo}
+      conversacion={conversacion}
+      onDetalle={onDetalle}
+      onElegirVehiculo={onHome}
+      onBuscarEnCatalogo={(consulta) => navigate(`/catalogo?q=${encodeURIComponent(consulta)}`)}
+    />
+  );
+}
+
 function arbol(props = {}) {
   return (
-    <MemoryRouter initialEntries={["/asistente"]}>
+    <MemoryRouter initialEntries={["/catalogo"]}>
       <PitProvider>
         <Routes>
-          <Route path="*" element={<><Asistente onHome={jest.fn()} onDetalle={jest.fn()} {...props} /><RutaActual /></>} />
+          <Route path="*" element={<><ChatConectado {...props} /><RutaActual /></>} />
         </Routes>
       </PitProvider>
     </MemoryRouter>
@@ -100,7 +115,7 @@ beforeEach(() => {
   toast.success.mockClear();
 });
 
-describe("Pit (asistente)", () => {
+describe("ChatPit", () => {
   it("asks to choose the vehicle before chatting", async () => {
     const onHome = jest.fn();
     renderAsistente({ vehiculo: null, props: { onHome } });

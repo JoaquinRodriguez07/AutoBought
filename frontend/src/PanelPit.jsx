@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatPit from "./ChatPit";
 import { IconoPit } from "./Iconos";
@@ -16,11 +16,27 @@ import { usePit } from "./context/PitContext";
  * Las acciones que llevan a otra página (ver un repuesto, el carrito, el
  * catálogo) cierran el panel; la charla queda guardada en PitContext.
  */
+const SEGUNDOS_ETIQUETA = 6;
+
 export default function PanelPit({ onDetalle, onElegirVehiculo, onBuscarEnCatalogo, onVerCarrito }) {
   const { vehiculo, conversacion, abierto, abrir, cerrar } = usePit();
   const boton = useRef(null);
   const estabaAbierto = useRef(abierto);
   const hayCharla = conversacion.mensajes.length > 0;
+  // Al aparecer, el botón late dos veces para que se note; después queda
+  // quieto. Una vez que el cliente lo abrió, ya sabe que está ahí.
+  const [saludar, setSaludar] = useState(true);
+  // El globito se ve unos segundos al aparecer; después, solo al pasar el
+  // mouse o con el foco en el botón, para no tapar lo que hay abajo.
+  const [etiqueta, setEtiqueta] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setEtiqueta(false), SEGUNDOS_ETIQUETA * 1000);
+    return () => clearTimeout(timer);
+  }, []);
+  const abrirPanel = () => {
+    setSaludar(false);
+    abrir();
+  };
 
   useEffect(() => {
     if (!abierto) {
@@ -52,26 +68,29 @@ export default function PanelPit({ onDetalle, onElegirVehiculo, onBuscarEnCatalo
 
   if (!abierto) {
     return (
-      <div className="fixed right-4 bottom-4 md:right-8 md:bottom-7 z-40 flex items-center gap-3">
+      <div className="group fixed right-4 bottom-4 md:right-8 md:bottom-7 z-40 flex items-center gap-3">
         <button
           type="button"
-          onClick={abrir}
+          onClick={abrirPanel}
           tabIndex={-1}
           aria-hidden="true"
-          className="hidden md:block bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold shadow-lg hover:border-orange-500 transition"
+          className={`hidden ${etiqueta ? "md:block" : "md:group-hover:block md:group-focus-within:block"} bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold shadow-lg hover:border-orange-500 transition motion-safe:animate-aparecer`}
         >
-          {hayCharla ? "Seguir con Pit" : "¿Qué le pasa a tu auto?"}
+          {hayCharla ? "Seguir con Pit" : "¿Hacemos un pit stop?"}
         </button>
         <button
           ref={boton}
           type="button"
-          onClick={abrir}
+          onClick={abrirPanel}
           aria-label={hayCharla ? "Seguir la conversación con Pit" : "Abrir Pit, el asistente con IA"}
           className="relative w-16 h-16 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg flex items-center justify-center transition"
         >
-          {/* El latido llama la atención solo mientras no hay charla. */}
-          {!hayCharla && (
-            <span aria-hidden="true" className="absolute inset-0 rounded-2xl bg-orange-500 opacity-60 motion-safe:animate-ping" />
+          {saludar && !hayCharla && (
+            <span
+              aria-hidden="true"
+              data-testid="latido-pit"
+              className="absolute inset-0 rounded-2xl bg-orange-500 opacity-0 motion-safe:animate-llamar"
+            />
           )}
           <IconoPit className="relative w-8 h-8" />
           {hayCharla && (

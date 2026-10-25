@@ -206,7 +206,9 @@ function render(ui, options = {}) {
   return renderBase(
     <MemoryRouter initialEntries={initialEntries}>
       <CartProvider>
-        <VehicleProvider>{ui}</VehicleProvider>
+        <VehicleProvider>
+          <PitProvider>{ui}</PitProvider>
+        </VehicleProvider>
       </CartProvider>
     </MemoryRouter>,
     renderOptions
@@ -1375,14 +1377,24 @@ describe("App y Pit", () => {
     expect(screen.getByRole("button", { name: "Abrir Pit, el asistente con IA" })).toBeInTheDocument();
   });
 
-  it("does not show it without a session nor on the Pit page", () => {
-    const { unmount } = renderEn("/");
-    expect(screen.queryByRole("button", { name: /Abrir Pit/ })).not.toBeInTheDocument();
-    unmount();
+  it("does not show it without a session: the invitation asks to log in", async () => {
+    const user = userEvent.setup();
+    renderEn("/");
 
-    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
-    renderEn("/asistente");
     expect(screen.queryByRole("button", { name: /Abrir Pit/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "HABLAR CON PIT" }));
+    expect(screen.getByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
+  });
+
+  it("opens Pit at the side from the home invitation, without a page of its own", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+    renderEn("/");
+
+    await user.click(screen.getByRole("button", { name: "HABLAR CON PIT" }));
+
+    expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
   });
 });
 

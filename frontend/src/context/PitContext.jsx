@@ -9,7 +9,7 @@ import { useVehicle } from "./VehicleContext";
  * Una sola conversación con Pit para todo el sitio. Vive por encima de las
  * rutas (ver main.jsx), igual que el carrito: si el cliente abre Pit en el
  * catálogo, va al detalle de un repuesto y lo vuelve a abrir, la charla
- * sigue ahí. La página /asistente y el panel flotante muestran la misma.
+ * sigue ahí. Las invitaciones a Pit (inicio, catálogo) abren el mismo panel.
  *
  * `abierto` es si el panel flotante está a la vista.
  */

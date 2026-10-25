@@ -29,8 +29,8 @@ const precio = (valor) => `$${Number(valor || 0).toLocaleString("es-UY")}`;
  * ==========================================
  * La conversación con Pit, el asistente con IA. Solo dibuja: la lógica
  * (mensajes, historial firmado, errores) está en useConversacionPit, que
- * llega por `conversacion`. Ocupa todo el alto de su contenedor: la página
- * /asistente y el panel flotante (PanelPit), que le pasa `onCerrar`.
+ * llega por `conversacion`. Ocupa todo el alto de su contenedor: el panel
+ * lateral (PanelPit), que le pasa `onCerrar`.
  */
 export default function ChatPit({
   vehiculo,
@@ -103,7 +103,7 @@ export default function ChatPit({
           <p className="text-base font-black leading-tight">Pit</p>
           <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden="true" />
-            Tu mecánico con IA
+            Te acompaño en tu pit stop
           </p>
         </div>
         {mensajes.length > 0 && (
@@ -155,7 +155,8 @@ export default function ChatPit({
         ) : (
           <>
             <BurbujaPit>
-              ¡Hola! Contame con tus palabras qué le pasa a tu {vehiculo.model} y te digo qué revisar.
+              ¡Hola! Soy Pit, tu mecánico con IA, y te acompaño en este pit stop. Contame con tus palabras qué
+              le pasa a tu {vehiculo.model} y te digo qué revisar.
             </BurbujaPit>
             {mensajes.length === 0 && (
               <Opciones titulo="Por ejemplo" opciones={EJEMPLOS} onElegir={mandar} />

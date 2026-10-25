@@ -1,5 +1,5 @@
 import { MemoryRouter } from "react-router-dom";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import PanelPit from "./PanelPit";
@@ -69,6 +69,32 @@ describe("PanelPit", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(document.body.style.overflow).toBe("");
     expect(abrirPit()).toHaveFocus();
+  });
+
+  it("calls attention when it appears, but stops once it was opened", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    expect(screen.getByTestId("latido-pit")).toBeInTheDocument();
+    await user.click(abrirPit());
+    await user.click(screen.getByRole("button", { name: "Cerrar Pit" }));
+
+    expect(screen.queryByTestId("latido-pit")).not.toBeInTheDocument();
+  });
+
+  it("shows the label for a few seconds, then only on hover", () => {
+    jest.useFakeTimers();
+    try {
+      renderPanel();
+      const etiqueta = screen.getByText("¿Hacemos un pit stop?");
+      expect(etiqueta).toHaveClass("md:block");
+
+      act(() => jest.advanceTimersByTime(6000));
+      expect(etiqueta).not.toHaveClass("md:block");
+      expect(etiqueta).toHaveClass("md:group-hover:block");
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("closes with Escape and by clicking outside", async () => {

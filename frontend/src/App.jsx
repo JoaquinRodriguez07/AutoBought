@@ -26,7 +26,6 @@ import DetalleProducto from "./DetalleProducto";
 import Marcas from "./Marcas";
 import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
-import Asistente from "./Asistente";
 import PanelPit from "./PanelPit";
 import { usePit } from "./context/PitContext";
 import ProtectedRoute from "./ProtectedRoute";
@@ -564,10 +563,11 @@ function App() {
   // juntos llenen la pantalla.
   const conFooter = !RUTAS_SIN_FOOTER.includes(pathname);
 
-  // Pit flota en las páginas de la tienda para los clientes con sesión. No
-  // en /asistente (ya es Pit a pantalla completa), ni en las pantallas de
-  // cuenta sin footer (login, registro...), ni para el vendedor.
-  const mostrarPit = Boolean(usuario) && !vendedor && conFooter && pathname !== "/asistente";
+  // Pit (el asistente con IA) flota en las páginas de la tienda para los
+  // clientes con sesión: no en las pantallas de cuenta sin footer (login,
+  // registro...) ni para el vendedor. No tiene página propia: se abre al
+  // costado, sin salir de lo que el cliente estaba mirando.
+  const mostrarPit = Boolean(usuario) && !vendedor && conFooter;
 
   return (
     <>
@@ -740,19 +740,6 @@ function App() {
               {...propsNavbar}
               favoritos={favoritos}
               onAlternarFavorito={alternarFavorito}
-              onDetalle={irAlDetalle}
-            />
-          }
-        />
-
-        {/* ASISTENTE DE COMPRA (IA)
-            Pide sesión: cada consulta cuenta para el límite diario. */}
-
-        <Route
-          path="/asistente"
-          element={
-            <Asistente
-              {...propsNavbar}
               onDetalle={irAlDetalle}
             />
           }
