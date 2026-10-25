@@ -564,7 +564,6 @@ export default function Catalogo({
 
           {vehiculoActivo && (
             <ActiveVehicleBanner
-              onCambiar={onHome}
               onBorrar={borrarVehiculoYFiltros}
             />
           )}

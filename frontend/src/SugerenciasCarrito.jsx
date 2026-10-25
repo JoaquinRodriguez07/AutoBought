@@ -17,7 +17,7 @@ const MAX_SUGERENCIAS = 3;
 
 const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
 
-export default function SugerenciasCarrito() {
+export default function SugerenciasCarrito({ onDetalle }) {
   const { cart, addToCart } = useCart();
   const [sugerencias, setSugerencias] = useState([]);
   const [agregando, setAgregando] = useState(null);
@@ -85,9 +85,9 @@ export default function SugerenciasCarrito() {
               <p className="text-orange-500 text-[10px] uppercase tracking-wide font-black truncate">
                 {producto.fabricante}
               </p>
-              <p className="text-xs font-bold leading-snug line-clamp-2">
+              <button type="button" onClick={() => onDetalle?.(producto)} className="text-left text-xs font-bold leading-snug line-clamp-2 hover:text-orange-500">
                 {producto.nombre}
-              </p>
+              </button>
               <div className="flex items-center justify-between gap-2 mt-auto pt-1">
                 <p className="text-sm font-black">
                   {precio(producto.precio)}

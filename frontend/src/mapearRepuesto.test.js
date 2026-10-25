@@ -39,9 +39,15 @@ describe("mapearRepuesto", () => {
       marcaPrincipal: "Chevrolet",
       marcas: ["Chevrolet", "Volkswagen"],
       modelos: [],
+      compatibilidades: [
+        { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 },
+        { brand: "Volkswagen", model: "Gol", engine_code: "1.6 MSI", year_from: 2020, year_to: 2020 },
+      ],
       descripcion: "Pastillas de freno Brembo, para Chevrolet Onix.",
       especificaciones: [["Material", "Cerámico"], ["Espesor", "17 mm"]],
       garantia: "12 meses de garantía del fabricante (Brembo), por defectos de fabricación.",
+      garantiaMeses: 12,
+      proveedorGarantia: "fabricante",
       aplicaciones: ["Chevrolet Onix 1.4 8V (2013–2019)", "Volkswagen Gol 1.6 MSI (2020)"],
       imagen: IMAGEN_PLACEHOLDER,
     });
@@ -61,9 +67,12 @@ describe("mapearRepuesto", () => {
       marcaPrincipal: "",
       marcas: [],
       modelos: [],
+      compatibilidades: [],
       descripcion: "",
       especificaciones: [],
       garantia: "",
+      garantiaMeses: null,
+      proveedorGarantia: null,
       aplicaciones: [],
       imagen: IMAGEN_PLACEHOLDER,
     });
