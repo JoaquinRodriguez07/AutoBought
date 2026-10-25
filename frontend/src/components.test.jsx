@@ -1135,6 +1135,7 @@ describe("DetalleProducto", () => {
     expect(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Seleccionar vehículo" }))
       .toBeInTheDocument();
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "sin-vehiculo");
+    expect(screen.getByText("Elegí tu vehículo para verificar la compatibilidad")).toBeInTheDocument();
     expect(screen.getByTestId("vehicle-selection").lastElementChild).toHaveClass("grid-rows-[0fr]");
     expect(screen.queryByText("Compatibilidad de vehículo")).not.toBeInTheDocument();
     expect(screen.getByText("Chevrolet Onix")).toBeInTheDocument();
@@ -1183,7 +1184,7 @@ describe("DetalleProducto", () => {
       </>
     );
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "incompatible");
-    expect(screen.getByText("No compatible con tu vehículo")).toBeInTheDocument();
+    expect(screen.getByText("No es compatible con tu Chevrolet Onix 2020")).toBeInTheDocument();
   });
 
   it("accepts a matching brand when no model is selected", () => {
@@ -1213,7 +1214,7 @@ describe("DetalleProducto", () => {
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "no-disponible");
     expect(screen.getByText("La información de compatibilidad no está disponible.")).toBeInTheDocument();
     expect(screen.queryByText("Compatible con tu vehículo")).not.toBeInTheDocument();
-    expect(screen.queryByText("No compatible con tu vehículo")).not.toBeInTheDocument();
+    expect(screen.queryByText(/No es compatible/)).not.toBeInTheDocument();
   });
 
   it("does not claim incompatibility when a matching application lacks the selected vehicle year range", () => {
@@ -1234,7 +1235,7 @@ describe("DetalleProducto", () => {
 
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "no-verificable");
     expect(screen.queryByText("Compatible con tu vehículo")).not.toBeInTheDocument();
-    expect(screen.queryByText("No compatible con tu vehículo")).not.toBeInTheDocument();
+    expect(screen.queryByText(/No es compatible/)).not.toBeInTheDocument();
     expect(screen.getByText("Chevrolet Onix")).toBeInTheDocument();
   });
 
@@ -1282,7 +1283,7 @@ describe("DetalleProducto", () => {
     expect(selectorPanel.querySelector(".sm\\:grid-cols-3")).toBeInTheDocument();
     expect(selectorPanel.className).not.toMatch(/absolute|fixed/);
     expect(vehicleCard).not.toHaveClass("relative", "absolute", "fixed");
-    expect(vehicleCard.closest("header")).toBeInTheDocument();
+    expect(vehicleCard.closest("section")).toContainElement(screen.getByRole("heading", { level: 1 }));
     expect(screen.getAllByLabelText("MARCA")).toHaveLength(1);
     expect(screen.queryByText("Compatibilidad de vehículo")).not.toBeInTheDocument();
 
@@ -1293,7 +1294,7 @@ describe("DetalleProducto", () => {
     await user.click(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Confirmar" }));
 
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "incompatible");
-    expect(screen.getByText("No compatible con tu vehículo")).toBeInTheDocument();
+    expect(screen.getByText("No es compatible con tu Chevrolet Onix 2020")).toBeInTheDocument();
     expect(screen.getByText("Chevrolet Onix 2020")).toBeInTheDocument();
     const collapsedControls = screen.getByTestId("vehicle-selection").lastElementChild;
     expect(collapsedControls).toHaveClass("grid-rows-[0fr]");

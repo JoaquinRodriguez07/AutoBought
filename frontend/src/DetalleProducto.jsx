@@ -1,6 +1,6 @@
-﻿import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
-import { useEffect } from "react";
+import EncabezadoPagina from "./EncabezadoPagina";
 import { useParams } from "react-router-dom";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import BotonAvisoStock from "./BotonAvisoStock";
@@ -119,7 +119,10 @@ export default function DetalleProducto({
     );
   }
   const favorito = esFavorito(productoActual.id);
-  const imagenes = [productoActual.imagen, productoActual.imagen, productoActual.imagen];
+  // Cada repuesto tiene una sola imagen (la de su tipo y fabricante). Las
+  // miniaturas se muestran solo si hay más de una vista distinta: repetir
+  // la misma foto tres veces no aporta nada.
+  const imagenes = [...new Set([productoActual.imagen, ...(productoActual.imagenesExtra ?? [])].filter(Boolean))];
   const abrirSelectorVehiculo = () => {
     setSelectorVehiculoMontado(true);
     setEditandoVehiculo(true);
@@ -140,6 +143,7 @@ export default function DetalleProducto({
   const marcaSeleccionada = normalizar(filtrosVehiculo?.brand);
   const modeloSeleccionado = normalizar(filtrosVehiculo?.model);
   const anioSeleccionado = filtrosVehiculo?.year ? Number(filtrosVehiculo.year) : null;
+  const nombreVehiculo = [filtrosVehiculo?.brand, filtrosVehiculo?.model, filtrosVehiculo?.year].filter(Boolean).join(" ");
   // La API puede entregar compatibilidades estructuradas o aplicaciones como texto.
   // Normalizamos ambas formas para que la tarjeta no indique "no disponible"
   // cuando el producto sí trae aplicaciones registradas.
@@ -238,21 +242,22 @@ export default function DetalleProducto({
       {navbar}
 
       <main>
-        <header className="bg-[#17191B] text-white">
-          <div className="max-w-[1200px] mx-auto px-5 md:px-10 pt-[104px] pb-5">
-            <div className="flex items-center gap-2 text-[9px] text-gray-400">
-              <button onClick={onHome} className="hover:text-orange-500">Inicio</button><span>›</span>
-              <button onClick={() => onCatalogo(productoActual.categoria)} className="hover:text-orange-500">{productoActual.categoria}</button>
-              <span>›</span><span>{productoActual.nombre}</span>
-            </div>
-            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-wide text-orange-400">{productoActual.fabricante}</p>
-                <h1 className="mt-1 text-xl font-black leading-tight md:text-2xl">{productoActual.nombre}</h1>
-              </div>
+        <EncabezadoPagina
+          ancho="max-w-[1200px]"
+          migas={[
+            { texto: "Inicio", ir: onHome },
+            { texto: "Repuestos", ir: () => onCatalogo(null) },
+            ...(productoActual.categoria
+              ? [{ texto: productoActual.categoria, ir: () => onCatalogo(productoActual.categoria) }]
+              : []),
+            productoActual.nombre,
+          ]}
+          titulo={productoActual.nombre}
+          descripcion={productoActual.fabricante}
+          fin={
               <div id="vehicle-selection" data-testid="vehicle-selection"
                 data-compatibilidad={compatibilidades.length === 0 ? "no-disponible" : !marcaSeleccionada ? "sin-vehiculo" : compatible === null ? "no-verificable" : compatible ? "compatible" : "incompatible"}
-                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 md:w-[360px]">
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5">
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-orange-400"><IconoAuto className="h-5 w-5" /></span>
                   <div className="min-w-0 flex-1">
@@ -294,9 +299,8 @@ export default function DetalleProducto({
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </header>
+          }
+        />
 
         <section className="bg-gray-50 py-7 md:py-9">
           <div className="max-w-[1200px] mx-auto px-5 md:px-10">
@@ -305,7 +309,7 @@ export default function DetalleProducto({
               <div className="relative h-[360px] bg-white rounded-xl overflow-hidden border border-gray-100">
                 <img src={imagenes[imagenActiva] ?? imagenes[0]} alt={productoActual.nombre} className="w-full h-full object-contain p-6" />
                 <button onClick={() => onAlternarFavorito(productoActual)}
-                  className={`absolute top-4 right-4 w-10 h-10 bg-white rounded-full shadow-md text-xl ${favorito ? "text-orange-500" : "text-gray-500"}`}>
+                  className={`absolute top-4 right-4 flex w-10 h-10 items-center justify-center bg-white rounded-full shadow-md ${favorito ? "text-orange-500" : "text-gray-500"}`}>
                   <IconoCorazon className="h-5 w-5" relleno={favorito} />
                 </button>
               </div>
@@ -409,9 +413,14 @@ export default function DetalleProducto({
               </div>
               <div data-testid="compatibility-card" className="mt-3 min-w-0 rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
                 <h2 className="text-sm font-black text-gray-900">Compatibilidad</h2>
+                {!marcaSeleccionada && compatibilidades.length > 0 && (
+                  <p className="mt-3 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold leading-tight text-gray-700">
+                    Elegí tu vehículo para verificar la compatibilidad
+                  </p>
+                )}
                 {compatible !== null && compatibilidades.length > 0 && (
                   <p className={`mt-3 w-full rounded-lg border px-3 py-2 text-xs font-semibold leading-tight ${compatible ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"}`}>
-                    {compatible ? "Compatible con tu vehículo" : "No compatible con tu vehículo"}
+                    {compatible ? "Compatible con tu vehículo" : `No es compatible con tu ${nombreVehiculo}`}
                   </p>
                 )}
                 {!compatibilidades.length && <p className="mt-3 text-xs text-gray-600">La información de compatibilidad no está disponible.</p>}
