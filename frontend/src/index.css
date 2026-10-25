@@ -76,3 +76,22 @@
     animation: none;
   }
 }
+
+/*
+  Chat de Pit: cada mensaje entra con un deslizamiento corto. Se usa con
+  `motion-safe:`, así no se mueve si el sistema pide reducir el movimiento.
+*/
+@theme {
+  --animate-aparecer: aparecer 0.25s ease-out both;
+
+  @keyframes aparecer {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

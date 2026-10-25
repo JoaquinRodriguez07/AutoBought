@@ -115,6 +115,21 @@ def test_le_pasa_a_la_ia_el_vehiculo_y_el_texto(client, db_session, ia, catalogo
     assert "hace ruido atrás" in entrada
 
 
+def test_le_pasa_a_la_ia_la_conversacion(client, db_session, ia, catalogo):
+    headers = headers_de(make_client(db_session))
+    ia.texto = respuesta_ia(pregunta="¿Suena siempre o solo al frenar fuerte?")
+    primera = consultar(client, headers, texto="chilla al frenar").json()
+
+    seguir(client, headers, primera, texto="solo cuando freno fuerte")
+
+    _, entrada = ia.pedidos[-1]
+    assert "Cliente: chilla al frenar" in entrada
+    assert "Pit: Parece que las pastillas de freno están gastadas." in entrada
+    assert "¿Suena siempre o solo al frenar fuerte?" in entrada
+    # El mensaje nuevo va aparte, como último mensaje, no dentro de la conversación.
+    assert entrada.endswith('Último mensaje del cliente:\n"""\nsolo cuando freno fuerte\n"""')
+
+
 def test_descarta_tipos_inventados_repetidos_o_sin_repuestos_para_el_auto(client, db_session, ia, catalogo):
     ia.texto = respuesta_ia(tipos=[
         {"tipo": "Turbo compresor", "motivo": "inventado"},
@@ -151,6 +166,22 @@ def test_el_aviso_es_solo_para_urgencia_alta(client, db_session, ia, catalogo):
     ia.texto = respuesta_ia(urgencia="baja", aviso="no debería aparecer")
 
     assert consultar(client, headers_de(make_client(db_session))).json()["aviso"] is None
+
+
+def test_devuelve_hasta_3_respuestas_rapidas_cortas_para_la_pregunta(client, db_session, ia, catalogo):
+    headers = headers_de(make_client(db_session))
+    ia.texto = respuesta_ia(
+        pregunta="¿Cuándo suena?",
+        opciones=["Siempre", "  Solo al frenar fuerte ", "", "x" * 41, "En frío", "De noche"],
+    )
+
+    assert consultar(client, headers).json()["opciones"] == ["Siempre", "Solo al frenar fuerte", "En frío"]
+
+    # Sin pregunta no hay nada que contestar; y si vienen mal, no se rechaza la respuesta.
+    ia.texto = respuesta_ia(pregunta=None, opciones=["Siempre"])
+    assert consultar(client, headers).json()["opciones"] == []
+    ia.texto = respuesta_ia(pregunta="¿Cuándo suena?", opciones="Siempre")
+    assert consultar(client, headers).json()["opciones"] == []
 
 
 # =====================================================

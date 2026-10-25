@@ -48,6 +48,7 @@ class AsistenteOut(BaseModel):
     urgencia: Literal["alta", "media", "baja"]
     aviso: str | None
     pregunta: str | None
+    opciones: list[str]
     fuera_de_tema: bool
     recomendaciones: list[RecomendacionOut]
     # Lo que el frontend tiene que mandar en el próximo mensaje.
@@ -63,6 +64,7 @@ def build_asistente_out(resultado, historial: list[dict], firma: str) -> Asisten
         urgencia=resultado.urgencia,
         aviso=resultado.aviso,
         pregunta=resultado.pregunta,
+        opciones=resultado.opciones,
         fuera_de_tema=resultado.fuera_de_tema,
         recomendaciones=[
             RecomendacionOut(

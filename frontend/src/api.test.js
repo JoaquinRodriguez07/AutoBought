@@ -881,6 +881,25 @@ describe("assistant API", () => {
     expect(resultado.recomendaciones[0].repuestos[0]).toMatchObject({ id: "11", nombre: backendPart.name, fabricante: "Bosch", precio: 2800 });
   });
 
+  it("sends the signed history to continue the conversation and returns the new one", async () => {
+    const historial = [{ rol: "cliente", texto: "chilla" }, { rol: "asistente", texto: "Pastillas gastadas." }];
+    fetch.mockResolvedValue(response({
+      diagnostico: "Si es fuerte, revisá los discos.", urgencia: "media", aviso: null, pregunta: "¿Hace cuánto?",
+      opciones: ["Una semana"], fuera_de_tema: false, recomendaciones: [],
+      historial: [...historial, { rol: "cliente", texto: "fuerte" }], firma: "firma-2",
+    }));
+
+    const resultado = await consultarAsistente({
+      texto: "fuerte", marca: "Chevrolet", modelo: "Onix", anio: "2016", historial, firma: "firma-1",
+    });
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      texto: "fuerte", marca: "Chevrolet", modelo: "Onix", anio: 2016, historial, firma: "firma-1",
+    });
+    expect(resultado).toMatchObject({ opciones: ["Una semana"], firma: "firma-2" });
+    expect(resultado.historial).toHaveLength(3);
+  });
+
   it("keeps the status so the screen can offer the catalog search", async () => {
     fetch.mockResolvedValue(response({ detail: "El asistente no está disponible." }, { status: 503, ok: false }));
 
