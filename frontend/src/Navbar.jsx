@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCart } from "./context/CartContext";
 import { esVendedor } from "./auth";
 import BusquedaCabecera from "./BusquedaCabecera";
-import { IconoCorazon } from "./Iconos";
+import { IconoCorazon, IconoLupa } from "./Iconos";
 import logo from "./assets/logo.png";
 
 // Los contadores (carrito y favoritos) rebotan cuando SUBEN (se agregó
@@ -37,19 +37,46 @@ export default function Navbar({
   onCerrarSesion,
   cantidadFavoritos = 0,
   usuario,
-  // El catálogo tiene su propia barra (que también hace esta búsqueda):
-  // ahí se oculta la del menú para no mostrar dos.
-  mostrarBusqueda = true,
 }) {
   const { cantidadCarrito } = useCart();
   const navigate = useNavigate();
   const vendedor = esVendedor(usuario);
   const [menuUsuario, setMenuUsuario] = useState(false);
+  const [busquedaAbierta, setBusquedaAbierta] = useState(false);
 
   const pulsoCarrito = usePulsoAlSubir(cantidadCarrito);
   const pulsoFavoritos = usePulsoAlSubir(cantidadFavoritos);
 
   const menuRef = useRef(null);
+  const navbarRef = useRef(null);
+  const panelBusquedaRef = useRef(null);
+  const botonBusquedaRef = useRef(null);
+  const inputBusquedaRef = useRef(null);
+
+  useEffect(() => {
+    if (busquedaAbierta) inputBusquedaRef.current?.focus();
+  }, [busquedaAbierta]);
+
+  useEffect(() => {
+    if (!busquedaAbierta) return undefined;
+
+    const manejarClickAfuera = (event) => {
+      if (
+        !navbarRef.current?.contains(event.target) &&
+        !panelBusquedaRef.current?.contains(event.target)
+      ) {
+        setBusquedaAbierta(false);
+      }
+    };
+
+    document.addEventListener("mousedown", manejarClickAfuera);
+    return () => document.removeEventListener("mousedown", manejarClickAfuera);
+  }, [busquedaAbierta]);
+
+  const cerrarBusqueda = ({ devolverFoco = false } = {}) => {
+    setBusquedaAbierta(false);
+    if (devolverFoco) botonBusquedaRef.current?.focus();
+  };
 
   /* =====================================================
      CERRAR MENÚ AL HACER CLICK AFUERA
@@ -108,7 +135,8 @@ export default function Navbar({
   };
 
   return (
-    <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-32px)] max-w-[1085px] h-14 bg-white rounded-xl shadow-xl px-5 md:px-6 flex items-center justify-between">
+    <>
+    <nav ref={navbarRef} className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-32px)] max-w-[1085px] h-14 bg-white rounded-xl shadow-xl px-5 md:px-6 flex items-center justify-between">
 
       {/* =================================================
           LOGO
@@ -171,19 +199,23 @@ export default function Navbar({
 
       </div>
 
-{/* =================================================
-          BÚSQUEDA LIBRE
-      ================================================== */}
-
-      <div className="hidden md:block flex-1 max-w-[330px] mx-6">
-        {mostrarBusqueda && <BusquedaCabecera />}
-      </div>
-
       {/* =================================================
           ICONOS DERECHA
       ================================================== */}
 
       <div className="flex items-center gap-5 text-gray-700">
+
+        <button
+          ref={botonBusquedaRef}
+          type="button"
+          aria-label={busquedaAbierta ? "Cerrar búsqueda" : "Abrir búsqueda"}
+          aria-expanded={busquedaAbierta}
+          aria-controls="navbar-search-panel"
+          onClick={() => setBusquedaAbierta((abierta) => !abierta)}
+          className={`transition ${busquedaAbierta ? "text-orange-500" : "hover:text-orange-500"}`}
+        >
+          <IconoLupa className="h-5 w-5" />
+        </button>
 
         {/* =================================================
             USUARIO
@@ -447,5 +479,20 @@ export default function Navbar({
       </div>
 
     </nav>
+    {busquedaAbierta && (
+      <div
+        ref={panelBusquedaRef}
+        id="navbar-search-panel"
+        role="search"
+        className="fixed left-1/2 top-[4.75rem] z-40 w-[calc(100%-32px)] max-w-[330px] -translate-x-1/2"
+      >
+        <BusquedaCabecera
+          inputRef={inputBusquedaRef}
+          onSearch={() => cerrarBusqueda()}
+          onEscape={() => cerrarBusqueda({ devolverFoco: true })}
+        />
+      </div>
+    )}
+    </>
   );
 }

@@ -156,6 +156,11 @@ export default function HistorialCompras(navegacion) {
                   <p className="font-bold">
                     {producto.nombre || "Producto"}
                   </p>
+                  {producto.codigo && (
+                    <p className="text-xs text-gray-400">
+                      Código: {producto.codigo}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-500">
                     Cantidad: {producto.cantidad}
                   </p>

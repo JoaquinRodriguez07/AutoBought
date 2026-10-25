@@ -23,7 +23,29 @@ Sin Docker, desde `backend/` y con el `.venv` activado: `python -m scripts.seed`
 
 Cada repuesto tiene su fabricante (`MANUFACTURERS` en el mismo script), como en una casa de repuestos real: las pastillas del Onix pueden ser Bosch, Brembo o TRW, y cada una es un producto distinto, con su código, precio y stock. El fabricante principal de cada tipo de repuesto lo hace para todos los autos; los demás solo para algunos.
 
-`scripts.seed` no actualiza un catálogo ya cargado: para ver repuestos nuevos, o cuando cambia una tabla (por ejemplo, la columna `manufacturer` de `part`), hay que recrear la base y volver a correr los tres scripts. En local: `docker compose down -v`, `docker compose up -d` y los scripts de arriba.
+Cada repuesto trae además una descripción, sus especificaciones técnicas (diámetro, material, medidas, etc., según el tipo) y su garantía: cuántos meses y quién la cubre, el fabricante o el vendedor (las marcas económicas de `VENDOR_WARRANTY` no tienen garantía de fábrica en el país y la cubre la tienda). Ni el nombre ni la descripción nombran autos ("Radiador Valeo", no "Radiador Valeo Chevrolet Onix"): para qué autos es cada repuesto lo dicen sus compatibilidades, que el detalle muestra en la pestaña Aplicaciones. Los de motor sí llevan el código del motor ("Filtro de aceite Mann-Filter 1.4 8V"). El script falla si un repuesto tiene como fabricante una marca de auto, o si el nombre o la descripción nombran una marca o un modelo de auto.
+
+Sobre una base que ya tiene el catálogo, `scripts.seed` no lo vuelve a cargar: agrega las columnas nuevas de `part` si faltan y actualiza, por código, el nombre, la descripción, las especificaciones y la garantía de los repuestos que ya existen, sin tocar precios, stock, pedidos, carritos ni favoritos. Así, después de bajar cambios del catálogo alcanza con volver a correrlo (también contra la base de la nube). Para ver repuestos **nuevos** (códigos que la base no tiene) sí hay que recrear la base y volver a correr los tres scripts. En local: `docker compose down -v`, `docker compose up -d` y los scripts de arriba.
+
+### Imágenes de los repuestos
+
+Los 1089 repuestos salen de 17 tipos de pieza (bujía, discos de freno, radiador...) y de 2 a 4 fabricantes por tipo. Cada repuesto muestra la imagen de su tipo en la versión de su fabricante: la del fabricante principal es la imagen base, y la de cada uno de los demás se genera a partir de ella cambiando el color o el diseño (46 imágenes en total). La tabla de tipos está en `frontend/src/imagenesRepuestos.js` (el tipo se reconoce por cómo empieza el nombre, y cada tipo tiene la descripción técnica que se le pide al modelo) y las imágenes en `frontend/public/repuestos/`. Son ilustrativas y genéricas, sin marcas, y se generan con Nano Banana Pro (`gemini-3-pro-image`), la API de imágenes de Gemini. Requiere una clave con facturación activa (unos USD 0,13 por imagen).
+
+```bash
+cd frontend
+GEMINI_API_KEY=tu-clave npm run imagenes -- --variantes 3     # 3 opciones por tipo para comparar
+npm run imagenes -- --elegir bujia 2                          # quedarse con la opción 2 de bujía
+GEMINI_API_KEY=tu-clave npm run imagenes -- --solo bujia      # regenerar una o varias (separadas por coma)
+GEMINI_API_KEY=tu-clave npm run imagenes                      # solo las que faltan (primero las bases, después las de fabricante)
+npm run imagenes -- --prueba                                  # ver los prompts sin llamar a la API
+GEMINI_API_KEY=tu-clave npm run imagenes -- --vistas          # segunda vista (otro ángulo) de cada imagen
+```
+
+Con `--vistas`, el script trabaja sobre las segundas vistas (`<imagen>-vista.webp`): la misma pieza desde otro ángulo, generada a partir de su imagen principal, que el detalle del repuesto muestra como miniatura. Acepta las mismas opciones (`--solo bateria-vista`, `--variantes`, `--elegir`).
+
+Con `--variantes`, las opciones quedan en `frontend/imagenes-candidatas/` con un `index.html` para verlas lado a lado. Para más fidelidad, se puede dejar una foto real de la pieza en `frontend/imagenes-referencia/<tipo>.jpg` y el script la manda como referencia (solo fotos propias o con licencia libre). Además, la imagen original en 2K (tal como la devuelve el modelo) se guarda en `frontend/imagenes-originales/<tipo>.jpg`, para usarla más adelante como base de los modelos 3D; con `--variantes`, se guarda la de la variante elegida. Ninguna de esas tres carpetas se sube al repositorio.
+
+La clave se pasa como variable de entorno y nunca se sube al repositorio. Opcionales: `GEMINI_IMAGE_MODEL` (otro modelo) y `GEMINI_IMAGE_SIZE` (`1K`, `2K` o `4K`; por defecto `2K`). Cada imagen se guarda como `.webp` de 600×600 px. Un test falla si algún repuesto del catálogo no tiene tipo o si a algún tipo le falta la imagen.
 
 ### Usuarios de prueba
 
@@ -77,3 +99,21 @@ docker exec backend uv run python -m scripts.tareas_diarias
 En el servidor lo corre cron una vez por día (`0 10 * * * docker exec backend uv run python -m scripts.tareas_diarias`). Se puede correr más de una vez: cada recordatorio sale una sola vez.
 
 Estos mails, y el de baja de precio, son comerciales: traen el enlace «No quiero recibir estos mails» y se pueden apagar desde el perfil. Los 300 clientes ficticios de `scripts.seed_order_history` ya vienen dados de baja, para que las tareas diarias no les manden nada.
+
+## Tests de punta a punta (E2E)
+
+La carpeta `e2e/` tiene recorridos con [Playwright](https://playwright.dev) que abren la app en un Chrome de verdad y hacen lo que haría una persona: filtrar el catálogo desde el inicio (categoría, marca, fabricante), buscar, agregar al carrito y deshacer, favoritos, comprar con los datos guardados, registrarse y verificar el correo (leyendo el mail desde Mailpit) y entrar como vendedor.
+
+**En GitHub** corren solos cada vez que se mergea a `dev` o a `main` (`.github/workflows/e2e.yml`), y también a mano desde *Actions → E2E → Run workflow*. Cada corrida levanta la app con una base nueva y carga `scripts.seed` y `scripts.seed_demo_users`. Si algo falla, abre un issue con la etiqueta `e2e` (o comenta el que ya esté abierto para esa rama) con los recorridos que fallaron y el link a la corrida; las capturas, los videos y los logs de la app quedan 7 días en el artefacto `e2e-fallas`.
+
+**En local**, con la app levantada (`docker compose up -d`) y los dos seeds cargados:
+
+```bash
+cd e2e
+npm ci
+npx playwright install chromium   # solo la primera vez
+npx playwright test               # todos los recorridos
+npx playwright test --ui          # para verlos paso a paso
+```
+
+Ojo: en local usan tu base. Cada recorrido deja las cosas como estaban (deshace lo que agrega al carrito y a favoritos), pero la compra vacía el carrito de Ana antes de empezar y queda en su historial, y el registro crea un usuario `e2e-…@autobought.com` nuevo en cada corrida.

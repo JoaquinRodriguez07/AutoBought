@@ -1,3 +1,4 @@
+import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import { IconoCarrito, IconoCorazon } from "./Iconos";
@@ -44,8 +45,9 @@ export default function Favoritos({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
               {favoritos.map((producto) => (
                 <div key={producto.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition">
-                  <div className="relative h-[190px] bg-gray-50">
-                    <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
+                  <div className="relative h-[190px] bg-white">
+                    <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-3" />
+                    <ChipFabricante fabricante={producto.fabricante} />
                     <button onClick={() => onAlternarFavorito(producto)}
                       aria-label="Quitar de favoritos"
                       className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white shadow-md text-orange-500 flex items-center justify-center transition hover:scale-105">
@@ -53,7 +55,7 @@ export default function Favoritos({
                     </button>
                   </div>
                   <div className="p-4">
-                    <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">{producto.fabricante || producto.marcaPrincipal || producto.marca}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">{producto.fabricante}</p>
                     <button onClick={() => onDetalle(producto)} className="text-left text-sm font-bold mt-1 hover:text-orange-500">
                       {producto.nombre}
                     </button>

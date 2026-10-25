@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
-    "test:integration": "jest --config jest.integration.config.cjs --runInBand"
+    "test:integration": "jest --config jest.integration.config.cjs --runInBand",
+    "imagenes": "node scripts/generar-imagenes.js"
   },
   "dependencies": {
     "react": "^19.3.1",
@@ -36,6 +37,7 @@
     "oxlint": "^1.88.0",
     "pactum": "^3.9.1",
     "postcss": "^8.5.30",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.4"
   }

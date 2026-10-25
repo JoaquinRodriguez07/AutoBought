@@ -5,6 +5,14 @@ from pydantic import BaseModel
 from app.models.part import Part
 
 
+class CompatibilityOut(BaseModel):
+    brand: str
+    model: str
+    engine_code: str
+    year_from: int
+    year_to: int
+
+
 class PartOut(BaseModel):
     id: int
     name: str
@@ -19,6 +27,13 @@ class PartOut(BaseModel):
     color: Optional[str]
     price: int
     stock: int
+    description: Optional[str] = None
+    specifications: list[list[str]] = []
+    warranty_months: Optional[int] = None
+    warranty_provider: Optional[str] = None
+    # Para qué autos es, uno por uno (las listas de arriba no dicen qué
+    # modelo es de qué marca ni de qué años).
+    compatibilities: list[CompatibilityOut] = []
 
 
 class SearchEntities(BaseModel):
@@ -57,6 +72,7 @@ def build_part_out(part: Part) -> PartOut:
     engines = set()
     years_from = []
     years_to = []
+    compatibilities = []
 
     for compatibility in part.compatibilities:
         car_model = compatibility.car_model
@@ -67,6 +83,15 @@ def build_part_out(part: Part) -> PartOut:
         engines.add(car_model.engine_code)
         years_from.append(compatibility.year_from)
         years_to.append(compatibility.year_to)
+        compatibilities.append(
+            CompatibilityOut(
+                brand=car_model.brand,
+                model=car_model.model,
+                engine_code=car_model.engine_code,
+                year_from=compatibility.year_from,
+                year_to=compatibility.year_to,
+            )
+        )
 
     engine_code = engines.pop() if len(engines) == 1 else None
 
@@ -84,4 +109,9 @@ def build_part_out(part: Part) -> PartOut:
         color=part.color,
         price=part.price,
         stock=part.stock,
+        description=part.description,
+        specifications=part.specifications or [],
+        warranty_months=part.warranty_months,
+        warranty_provider=part.warranty_provider,
+        compatibilities=compatibilities,
     )

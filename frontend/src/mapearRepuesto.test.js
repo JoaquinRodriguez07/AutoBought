@@ -17,6 +17,14 @@ describe("mapearRepuesto", () => {
         price: 1299.5,
         stock: 8,
         compatible_brands: ["Chevrolet", "Volkswagen"],
+        description: "Pastillas de freno Brembo, para Chevrolet Onix.",
+        specifications: [["Material", "Cerámico"], ["Espesor", "17 mm"]],
+        warranty_months: 12,
+        warranty_provider: "fabricante",
+        compatibilities: [
+          { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 },
+          { brand: "Volkswagen", model: "Gol", engine_code: "1.6 MSI", year_from: 2020, year_to: 2020 },
+        ],
       })
     ).toEqual({
       id: "42",
@@ -31,7 +39,18 @@ describe("mapearRepuesto", () => {
       marcaPrincipal: "Chevrolet",
       marcas: ["Chevrolet", "Volkswagen"],
       modelos: [],
-      imagen: IMAGEN_PLACEHOLDER,
+      compatibilidades: [
+        { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 },
+        { brand: "Volkswagen", model: "Gol", engine_code: "1.6 MSI", year_from: 2020, year_to: 2020 },
+      ],
+      descripcion: "Pastillas de freno Brembo, para Chevrolet Onix.",
+      especificaciones: [["Material", "Cerámico"], ["Espesor", "17 mm"]],
+      garantia: "12 meses de garantía del fabricante (Brembo), por defectos de fabricación.",
+      garantiaMeses: 12,
+      proveedorGarantia: "fabricante",
+      aplicaciones: ["Chevrolet Onix 1.4 8V (2013–2019)", "Volkswagen Gol 1.6 MSI (2020)"],
+      imagen: "/repuestos/pastillas-freno.webp",
+      imagenesExtra: ["/repuestos/pastillas-freno-vista.webp"],
     });
   });
 
@@ -49,8 +68,22 @@ describe("mapearRepuesto", () => {
       marcaPrincipal: "",
       marcas: [],
       modelos: [],
+      compatibilidades: [],
+      descripcion: "",
+      especificaciones: [],
+      garantia: "",
+      garantiaMeses: null,
+      proveedorGarantia: null,
+      aplicaciones: [],
       imagen: IMAGEN_PLACEHOLDER,
+      imagenesExtra: [],
     });
+  });
+
+  it("says when the warranty is covered by the store instead of the manufacturer", () => {
+    expect(
+      mapearRepuesto({ id: 1, manufacturer: "Fram", warranty_months: 6, warranty_provider: "vendedor" }).garantia
+    ).toBe("6 meses de garantía del vendedor (AutoBought), por defectos de fabricación.");
   });
 });
 
@@ -59,6 +92,7 @@ describe("mapearItemCarrito", () => {
     expect(
       mapearItemCarrito({
         part_id: 17,
+        part_code: "FIL-0017",
         name: "Filtro de aceite",
         price: 750,
         amount: 2,
@@ -69,13 +103,14 @@ describe("mapearItemCarrito", () => {
     ).toEqual({
       id: "17",
       partId: 17,
+      codigo: "FIL-0017",
       nombre: "Filtro de aceite",
       precio: 750,
       cantidad: 2,
       subtotal: 1500,
       stock: 6,
       categoria: "Motor",
-      imagen: IMAGEN_PLACEHOLDER,
+      imagen: "/repuestos/filtro-aceite.webp",
     });
   });
 
@@ -83,6 +118,7 @@ describe("mapearItemCarrito", () => {
     expect(mapearItemCarrito({ part_id: 9 })).toEqual({
       id: "9",
       partId: 9,
+      codigo: "",
       nombre: "",
       precio: 0,
       cantidad: 0,

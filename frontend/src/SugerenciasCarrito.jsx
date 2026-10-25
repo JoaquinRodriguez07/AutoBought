@@ -17,7 +17,7 @@ const MAX_SUGERENCIAS = 3;
 
 const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
 
-export default function SugerenciasCarrito() {
+export default function SugerenciasCarrito({ onDetalle }) {
   const { cart, addToCart } = useCart();
   const [sugerencias, setSugerencias] = useState([]);
   const [agregando, setAgregando] = useState(null);
@@ -80,16 +80,16 @@ export default function SugerenciasCarrito() {
             <img
               src={producto.imagen}
               alt={producto.nombre}
-              className="w-14 h-14 rounded-md object-cover bg-gray-100 shrink-0"
+              className="w-14 h-14 rounded-md object-contain bg-white border border-gray-100 shrink-0"
             />
 
             <div className="flex flex-col min-w-0 flex-1">
               <p className="text-orange-500 text-[10px] uppercase tracking-wide font-black truncate">
-                {producto.fabricante || producto.marcaPrincipal}
+                {producto.fabricante}
               </p>
-              <p className="text-xs font-bold leading-snug line-clamp-2">
+              <button type="button" onClick={() => onDetalle?.(producto)} className="text-left text-xs font-bold leading-snug line-clamp-2 hover:text-orange-500">
                 {producto.nombre}
-              </p>
+              </button>
               <div className="flex items-center justify-between gap-2 mt-auto pt-1">
                 <p className="text-sm font-black">
                   {precio(producto.precio)}

@@ -37,6 +37,14 @@ export default function ConfirmacionAgregarCarrito({
 }) {
   const [pausado, setPausado] = useState(false);
 
+  // Al cerrarse, la pausa se descarta. Si no, al cerrar uno con el mouse
+  // encima (Deshacer, ✕) nunca llega el mouseLeave y el siguiente no se
+  // iría solo. Mientras sigue abierto (por ejemplo, "×3") la pausa se
+  // respeta.
+  if (!aviso && pausado) {
+    setPausado(false);
+  }
+
   // Quien lo usa puede pasar `onCerrar` como función nueva en cada
   // render: se guarda en una ref para que eso no reinicie la cuenta.
   const cerrar = useRef(onCerrar);

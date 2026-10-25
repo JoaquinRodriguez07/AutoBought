@@ -27,6 +27,7 @@ import {
   obtenerAnios,
   obtenerPerfil,
   obtenerRecomendaciones,
+  obtenerRepuesto,
   obtenerRepuestos,
   obtenerAvisosStock,
   agregarAvisoStock,
@@ -69,7 +70,15 @@ const uiPart = {
   marcaPrincipal: "Volkswagen",
   marcas: ["Volkswagen", "Audi"],
   modelos: [],
+  descripcion: "",
+  especificaciones: [],
+  garantia: "",
+  garantiaMeses: null,
+  proveedorGarantia: null,
+  compatibilidades: [],
+  aplicaciones: [],
   imagen: IMAGEN_PLACEHOLDER,
+  imagenesExtra: [],
 };
 
 /**
@@ -510,6 +519,19 @@ describe("cambiarPassword", () => {
 });
 
 describe("catalog API", () => {
+  it("loads one part by its URL ID and maps it like a catalog result", async () => {
+    fetch.mockResolvedValue(response(backendPart));
+
+    await expect(obtenerRepuesto(21)).resolves.toEqual(uiPart);
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/parts/21`);
+  });
+
+  it("preserves the 404 status for a missing part", async () => {
+    fetch.mockResolvedValue(response({ detail: "Repuesto no encontrado." }, { ok: false, status: 404 }));
+
+    await expect(obtenerRepuesto(999999)).rejects.toMatchObject({ status: 404 });
+  });
+
   it("requests all parts or combines and encodes the supported filters", async () => {
     fetch.mockResolvedValue(response({ parts: [backendPart] }));
 
@@ -595,6 +617,7 @@ describe("cart API", () => {
   const backendCart = {
     items: [{
       part_id: 21,
+      part_code: "BRK-0021",
       name: "Disco de freno",
       price: 2450,
       amount: 2,
@@ -608,6 +631,7 @@ describe("cart API", () => {
     items: [{
       id: "21",
       partId: 21,
+      codigo: "BRK-0021",
       nombre: "Disco de freno",
       precio: 2450,
       cantidad: 2,
