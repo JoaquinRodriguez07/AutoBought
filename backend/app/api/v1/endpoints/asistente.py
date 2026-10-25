@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,6 +12,7 @@ from app.models.client import Client
 from app.schemas.asistente import AsistenteOut, AsistenteRequest, build_asistente_out
 
 router = APIRouter(prefix="/asistente", tags=["asistente"])
+logger = logging.getLogger(__name__)
 
 NO_DISPONIBLE = "El asistente no está disponible en este momento. Probá buscando el repuesto en el catálogo."
 CONVERSACION_INVALIDA = "No pudimos seguir esta conversación. Empezá una nueva."
@@ -40,7 +43,10 @@ def consultar_asistente(
 
     try:
         resultado, tokens = recomendar(db, cliente_ia, data.texto, *vehiculo, historial)
-    except IANoDisponible:
+    except IANoDisponible as error:
+        # Al cliente le llega un mensaje genérico; el motivo real queda en el
+        # log del backend (docker logs backend) para poder arreglarlo.
+        logger.warning("Pit no disponible: %s", error)
         registrar_uso(db, client.user_id, "asistente", tokens=0, ok=False)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=NO_DISPONIBLE)
 

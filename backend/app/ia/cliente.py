@@ -105,7 +105,9 @@ class ClienteGemini:
             raise IANoDisponible(f"La IA no respondió: {error.__class__.__name__}.") from error
 
         if respuesta.status_code != 200:
-            raise IANoDisponible(f"La IA respondió con error {respuesta.status_code}.")
+            # El cuerpo del error de Google dice el motivo (clave inválida, sin
+            # crédito, modelo inexistente...). Nunca trae la clave.
+            raise IANoDisponible(f"La IA respondió con error {respuesta.status_code}: {respuesta.text[:300]}")
 
         try:
             cuerpo = respuesta.json()

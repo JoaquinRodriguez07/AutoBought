@@ -189,7 +189,7 @@ def test_devuelve_hasta_3_respuestas_rapidas_cortas_para_la_pregunta(client, db_
 # =====================================================
 
 
-def test_si_la_ia_no_responde_devuelve_503_y_lo_registra(client, db_session, catalogo):
+def test_si_la_ia_no_responde_devuelve_503_y_lo_registra(client, db_session, catalogo, caplog):
     app.dependency_overrides[get_cliente_ia] = ia_caida
     cliente = make_client(db_session)
     try:
@@ -201,6 +201,8 @@ def test_si_la_ia_no_responde_devuelve_503_y_lo_registra(client, db_session, cat
     assert "catálogo" in respuesta.json()["detail"]
     uso = db_session.query(UsoIA).one()
     assert (uso.user_id, uso.ok, uso.tokens) == (cliente.user_id, False, 0)
+    # El motivo real queda en el log del backend.
+    assert "Pit no disponible: La IA no respondió." in caplog.text
 
 
 def test_si_la_ia_responde_cualquier_cosa_devuelve_503(client, db_session, ia, catalogo):
