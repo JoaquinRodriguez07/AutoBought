@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function BusquedaCabecera() {
+export default function BusquedaCabecera({ inputRef, onSearch, onEscape }) {
   const [texto, setTexto] = useState("");
   const navigate = useNavigate();
 
@@ -12,11 +12,14 @@ export default function BusquedaCabecera() {
     if (!textoLimpio) return;
 
     navigate(`/catalogo?q=${encodeURIComponent(textoLimpio)}`);
+    onSearch?.();
   };
 
   const manejarKeyDown = (event) => {
     if (event.key === "Enter") {
       realizarBusqueda();
+    } else if (event.key === "Escape") {
+      onEscape?.();
     }
   };
 
@@ -24,7 +27,9 @@ export default function BusquedaCabecera() {
     <div className="relative">
       <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2 shadow-xs">
         <input
+          ref={inputRef}
           type="text"
+          aria-label="Buscar repuestos"
           value={texto}
           onChange={(event) => setTexto(event.target.value)}
           onKeyDown={manejarKeyDown}

@@ -337,7 +337,7 @@ export default function Carrito({
 
                   {/* Las sugerencias acompañan debajo de la lista, chicas,
                       sin competir con el carrito. */}
-                  <SugerenciasCarrito />
+                  <SugerenciasCarrito onDetalle={onDetalle} />
 
                 </div>
 

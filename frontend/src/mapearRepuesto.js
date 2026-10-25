@@ -106,6 +106,13 @@ export function mapearRepuesto(part) {
     descripcion: part.description ?? "",
     especificaciones: Array.isArray(part.specifications) ? part.specifications : [],
     garantia: textoGarantia(part.warranty_months, part.warranty_provider, part.manufacturer),
+    garantiaMeses: part.warranty_months ?? null,
+    proveedorGarantia: part.warranty_provider ?? null,
+    // Conservar la estructura de API para validar compatibilidad en el
+    // detalle, sin cambiar el formato string que ya usa Aplicaciones.
+    compatibilidades: Array.isArray(part.compatibilities)
+      ? part.compatibilities.map((compatibility) => ({ ...compatibility }))
+      : [],
     aplicaciones: Array.isArray(part.compatibilities) ? part.compatibilities.map(textoAplicacion) : [],
     imagen: imagenDeRepuesto(part.name),
     imagenesExtra: imagenesExtraDeTipo(part.name),

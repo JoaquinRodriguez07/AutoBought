@@ -513,7 +513,6 @@ export default function Catalogo({
         onCerrarSesion={onCerrarSesion}
 
         cantidadFavoritos={cantidadFavoritos}
-        mostrarBusqueda={false}
       />
 
       {/* =================================================
@@ -565,7 +564,6 @@ export default function Catalogo({
 
           {vehiculoActivo && (
             <ActiveVehicleBanner
-              onCambiar={onHome}
               onBorrar={borrarVehiculoYFiltros}
             />
           )}
@@ -586,7 +584,7 @@ export default function Catalogo({
 
             <aside
               aria-label="Filtros"
-              className={`${filtrosAbiertos ? "block" : "hidden"} lg:block`}
+              className={`${filtrosAbiertos ? "block" : "hidden"} self-start lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain`}
             >
 
               <FiltrosCatalogo

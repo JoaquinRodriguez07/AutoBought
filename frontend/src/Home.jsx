@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import ChipFabricante from "./ChipFabricante";
 
 import Navbar from "./Navbar";
-import BrandDropdown from "./BrandDropdown";
-import ModelDropdown from "./ModelDropdown";
-import { obtenerAnios, obtenerCategorias, obtenerMasVendidos } from "./api";
+import VehicleSelector from "./VehicleSelector";
+import { obtenerCategorias, obtenerMasVendidos } from "./api";
 import { useVehicle } from "./context/VehicleContext";
 import repuestos from "./assets/repuestos.jpg";
 import {
@@ -89,126 +88,14 @@ export default function Home({
   const { vehiculoActivo, activarVehiculo, limpiarVehiculo } =
     useVehicle();
 
-  const [selectedBrand, setSelectedBrand] = useState(
-    vehiculoActivo?.brand || ""
-  );
-
-  const [selectedModel, setSelectedModel] = useState(
-    vehiculoActivo?.model || ""
-  );
-
-  const [selectedYear, setSelectedYear] = useState(
-    vehiculoActivo?.year || ""
-  );
-
-  const [years, setYears] = useState([]);
-  const [loadingYears, setLoadingYears] = useState(false);
-
-
-  // ==========================================
-  // SINCRONIZAR CON EL VEHÍCULO ACTIVO
-  // ==========================================
-  // Si el vehículo activo cambia desde afuera (por ejemplo, "Borrar
-  // filtros" en el catálogo), los dropdowns lo reflejan.
-
-  useEffect(() => {
-    setSelectedBrand(vehiculoActivo?.brand || "");
-    setSelectedModel(vehiculoActivo?.model || "");
-    setSelectedYear(vehiculoActivo?.year || "");
-  }, [vehiculoActivo]);
-
-  // ==========================================
-  // CAMBIO DE MARCA
-  // ==========================================
-
-  const handleBrandChange = (brand) => {
-    setSelectedBrand(brand);
-    setSelectedModel("");
-    setSelectedYear("");
-    setYears([]);
-  };
-
-  // ==========================================
-  // CAMBIO DE MODELO
-  // ==========================================
-
-  const handleModelChange = (model) => {
-    setSelectedModel(model);
-    setSelectedYear("");
-  };
-
-  // ==========================================
-  // VALIDACIÓN + BUSCAR / BORRAR
-  // ==========================================
-  // Cascada mínima obligatoria: Marca > Modelo > Año. Mientras falte
-  // alguno, "Buscar Repuestos" queda deshabilitado.
-
-  const puedeBuscar = Boolean(
-    selectedBrand && selectedModel && selectedYear
-  );
-
-  const hayAlgoParaBorrar = Boolean(
-    selectedBrand || selectedModel || selectedYear || vehiculoActivo
-  );
-
-  const buscarRepuestos = () => {
-    if (!puedeBuscar) return;
-
-    const vehiculo = {
-      brand: selectedBrand,
-      model: selectedModel,
-      year: selectedYear,
-    };
-
+  const buscarRepuestos = (vehiculo) => {
     activarVehiculo(vehiculo);
     onCatalogo(null, vehiculo);
   };
 
-  // Vuelve todo al estado inicial (solo Marca habilitado) y quita el
-  // vehículo activo: el catálogo vuelve a la lista completa.
   const borrarFiltros = () => {
-    setSelectedBrand("");
-    setSelectedModel("");
-    setSelectedYear("");
-    setYears([]);
     limpiarVehiculo();
   };
-
-  // ==========================================
-  // CARGAR AÑOS SEGÚN MARCA + MODELO
-  // ==========================================
-
-  useEffect(() => {
-    if (!selectedBrand || !selectedModel) {
-      setYears([]);
-      return;
-    }
-
-    // Si cambia la marca o el modelo antes de que llegue la respuesta,
-    // se descarta para no mostrar años del modelo anterior.
-    let activo = true;
-
-    const cargarAnios = async () => {
-      try {
-        setLoadingYears(true);
-
-        const anios = await obtenerAnios(selectedBrand, selectedModel);
-
-        if (activo) setYears(anios);
-      } catch (error) {
-        console.error("Error cargando años:", error);
-        if (activo) setYears([]);
-      } finally {
-        if (activo) setLoadingYears(false);
-      }
-    };
-
-    cargarAnios();
-
-    return () => {
-      activo = false;
-    };
-  }, [selectedBrand, selectedModel]);
 
   // ==========================================
   // CATEGORÍAS
@@ -377,72 +264,13 @@ export default function Home({
           <div className="mt-10 bg-[#151719]/95 border border-white/10 rounded-xl shadow-2xl p-5 md:p-6">
 
             <p className="text-white text-sm font-black">¿Qué auto tenés?</p>
-
-            <div className="mt-4 flex flex-col md:flex-row md:items-end gap-4">
-
-              <label className="flex-1">
-                <span className="block text-xs text-gray-400 font-bold mb-2">MARCA</span>
-                <BrandDropdown
-                  value={selectedBrand}
-                  onChange={handleBrandChange}
-                  className="w-full bg-white rounded-md px-3 h-11 text-sm outline-hidden"
-                />
-              </label>
-
-              <label className="flex-1">
-                <span className="block text-xs text-gray-400 font-bold mb-2">MODELO</span>
-                <ModelDropdown
-                  brand={selectedBrand}
-                  value={selectedModel}
-                  onChange={handleModelChange}
-                  className="w-full bg-white rounded-md px-3 h-11 text-sm outline-hidden disabled:bg-gray-300 disabled:text-gray-500"
-                />
-              </label>
-
-              <label className="flex-1">
-                <span className="block text-xs text-gray-400 font-bold mb-2">AÑO</span>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  disabled={!selectedModel || loadingYears}
-                  className="w-full bg-white rounded-md px-3 h-11 text-sm outline-hidden disabled:bg-gray-300 disabled:text-gray-500"
-                >
-                  <option value="">
-                    {!selectedModel
-                      ? "Seleccioná un modelo"
-                      : loadingYears
-                      ? "Cargando años..."
-                      : "Seleccioná un año"}
-                  </option>
-
-                  {years.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <button
-                type="button"
-                onClick={buscarRepuestos}
-                disabled={!puedeBuscar}
-                className="h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md px-7 text-xs font-black transition disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
-                BUSCAR REPUESTOS
-              </button>
-
-              {hayAlgoParaBorrar && (
-                <button
-                  type="button"
-                  onClick={borrarFiltros}
-                  className="h-11 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md px-5 text-xs font-black transition"
-                >
-                  BORRAR FILTROS
-                </button>
-              )}
-
-            </div>
+            <VehicleSelector
+              vehicle={vehiculoActivo}
+              onConfirm={buscarRepuestos}
+              onClear={borrarFiltros}
+              showClear
+              variant="home"
+            />
 
           </div>
 
