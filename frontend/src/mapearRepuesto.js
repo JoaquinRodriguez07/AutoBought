@@ -25,7 +25,8 @@
  *   warranty_months +
  *   warranty_provider            →  garantia  (el texto que se muestra)
  *   compatibilities              →  aplicaciones  ("Chevrolet Onix 1.4 8V (2013–2019)")
- *   (no existe)                  →  imagen  (placeholder fijo)
+ *   name                         →  imagen  (la de su tipo de pieza; ver
+ *                                          imagenesRepuestos.js)
  *
  * MARCAS: un repuesto puede ser compatible con varias marcas. Se
  * exponen dos campos distintos a propósito:
@@ -56,10 +57,16 @@
  */
 
 import imagenPlaceholder from "./assets/repuestos.jpg";
+import { imagenDeTipo, imagenesExtraDeTipo } from "./imagenesRepuestos";
 
-// El backend no expone imágenes todavía. Hasta que lo haga, todos los
-// repuestos usan este placeholder para que el <img> nunca quede roto.
+// El backend no guarda fotos de los repuestos: cada uno muestra la imagen
+// de su tipo de pieza. Si el nombre no corresponde a ningún tipo conocido,
+// se usa esta imagen genérica para que el <img> nunca quede roto.
 export const IMAGEN_PLACEHOLDER = imagenPlaceholder;
+
+export function imagenDeRepuesto(nombre) {
+  return imagenDeTipo(nombre) ?? IMAGEN_PLACEHOLDER;
+}
 
 // "12 meses de garantía del fabricante (Bosch), por defectos de
 // fabricación." Sin meses, vacío: la pantalla muestra "Consultar garantía".
@@ -100,7 +107,8 @@ export function mapearRepuesto(part) {
     especificaciones: Array.isArray(part.specifications) ? part.specifications : [],
     garantia: textoGarantia(part.warranty_months, part.warranty_provider, part.manufacturer),
     aplicaciones: Array.isArray(part.compatibilities) ? part.compatibilities.map(textoAplicacion) : [],
-    imagen: IMAGEN_PLACEHOLDER,
+    imagen: imagenDeRepuesto(part.name),
+    imagenesExtra: imagenesExtraDeTipo(part.name),
   };
 }
 
@@ -122,7 +130,7 @@ export function mapearItemCarrito(item) {
     subtotal: item.subtotal ?? 0,
     stock: item.stock ?? 0,
     categoria: item.category ?? "",
-    imagen: IMAGEN_PLACEHOLDER,
+    imagen: imagenDeRepuesto(item.name),
   };
 }
 

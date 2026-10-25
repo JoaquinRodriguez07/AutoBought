@@ -911,6 +911,24 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
 });
 
 describe("DetalleProducto", () => {
+  it("does not repeat the same photo as thumbnails, but shows them when there are several views", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+    const repuesto = mapearRepuesto({ id: 8, name: "Radiador Valeo", manufacturer: "Valeo", category: "Refrigeración", price: 9000, stock: 2 });
+
+    const { unmount } = render(<DetalleProducto {...props} producto={{ ...repuesto, imagenesExtra: [] }} />);
+    expect(screen.getByRole("img", { name: "Radiador Valeo" })).toHaveAttribute("src", "/repuestos/radiador.webp");
+    expect(screen.queryByRole("button", { name: /Ver imagen/ })).not.toBeInTheDocument();
+
+    unmount();
+    render(<DetalleProducto {...props} producto={repuesto} />);
+    expect(screen.getAllByRole("button", { name: /Ver imagen/ })).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: "Ver imagen 2" }));
+    expect(screen.getByRole("img", { name: "Radiador Valeo" })).toHaveAttribute("src", "/repuestos/radiador-vista.webp");
+  });
+
   it("shows the manufacturer above the name, never a compatible car brand, and the new details", async () => {
     const user = userEvent.setup();
     const props = navigationProps();

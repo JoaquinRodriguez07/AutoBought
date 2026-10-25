@@ -43,7 +43,8 @@ describe("mapearRepuesto", () => {
       especificaciones: [["Material", "Cerámico"], ["Espesor", "17 mm"]],
       garantia: "12 meses de garantía del fabricante (Brembo), por defectos de fabricación.",
       aplicaciones: ["Chevrolet Onix 1.4 8V (2013–2019)", "Volkswagen Gol 1.6 MSI (2020)"],
-      imagen: IMAGEN_PLACEHOLDER,
+      imagen: "/repuestos/pastillas-freno.webp",
+      imagenesExtra: ["/repuestos/pastillas-freno-vista.webp"],
     });
   });
 
@@ -66,6 +67,7 @@ describe("mapearRepuesto", () => {
       garantia: "",
       aplicaciones: [],
       imagen: IMAGEN_PLACEHOLDER,
+      imagenesExtra: [],
     });
   });
 
@@ -99,7 +101,7 @@ describe("mapearItemCarrito", () => {
       subtotal: 1500,
       stock: 6,
       categoria: "Motor",
-      imagen: IMAGEN_PLACEHOLDER,
+      imagen: "/repuestos/filtro-aceite.webp",
     });
   });
 
