@@ -49,7 +49,8 @@ describe("mapearRepuesto", () => {
       garantiaMeses: 12,
       proveedorGarantia: "fabricante",
       aplicaciones: ["Chevrolet Onix 1.4 8V (2013–2019)", "Volkswagen Gol 1.6 MSI (2020)"],
-      imagen: IMAGEN_PLACEHOLDER,
+      imagen: "/repuestos/pastillas-freno.webp",
+      imagenesExtra: ["/repuestos/pastillas-freno-vista.webp"],
     });
   });
 
@@ -75,6 +76,7 @@ describe("mapearRepuesto", () => {
       proveedorGarantia: null,
       aplicaciones: [],
       imagen: IMAGEN_PLACEHOLDER,
+      imagenesExtra: [],
     });
   });
 
@@ -108,7 +110,7 @@ describe("mapearItemCarrito", () => {
       subtotal: 1500,
       stock: 6,
       categoria: "Motor",
-      imagen: IMAGEN_PLACEHOLDER,
+      imagen: "/repuestos/filtro-aceite.webp",
     });
   });
 

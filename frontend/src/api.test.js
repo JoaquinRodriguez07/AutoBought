@@ -78,6 +78,7 @@ const uiPart = {
   compatibilidades: [],
   aplicaciones: [],
   imagen: IMAGEN_PLACEHOLDER,
+  imagenesExtra: [],
 };
 
 /**
