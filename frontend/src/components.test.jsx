@@ -296,6 +296,65 @@ afterEach(() => {
 });
 
 describe("Navbar", () => {
+  it("opens the global search with focus and applies its query from another page", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Navbar paginaActual="favoritos" {...navigationProps()} />
+        <RutaActual />
+      </>,
+      { initialEntries: ["/favoritos"] }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    const input = screen.getByPlaceholderText("¿Qué repuesto estás buscando?");
+    expect(input).toHaveFocus();
+    const panel = screen.getByRole("search");
+    expect(panel).toHaveClass("max-w-[330px]", "top-[4.75rem]");
+    expect(input.parentElement).toHaveClass("rounded-full", "border", "shadow-xs");
+    await user.type(input, "kit de distribución");
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+      "/catalogo?q=kit%20de%20distribuci%C3%B3n"
+    );
+    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+  });
+
+  it("closes the global search with Escape, restores focus, and closes on outside click", async () => {
+    const user = userEvent.setup();
+    render(<Navbar paginaActual="home" {...navigationProps()} />);
+
+    const openButton = screen.getByRole("button", { name: "Abrir búsqueda" });
+    await user.click(openButton);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Abrir búsqueda" })).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+  });
+
+  it("runs a global search with the Buscar button", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Navbar paginaActual="detalle" {...navigationProps()} />
+        <RutaActual />
+      </>,
+      { initialEntries: ["/producto/kit-de-freno-3"] }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    await user.type(screen.getByRole("textbox", { name: "Buscar repuestos" }), "filtro aceite");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+      "/catalogo?q=filtro%20aceite"
+    );
+  });
+
   it("calls navigation handlers and displays the cart count", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -574,6 +633,19 @@ describe("ModelDropdown", () => {
 });
 
 describe("Catalogo", () => {
+  it("keeps the desktop filters sticky and scrollable within the viewport", () => {
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+
+    render(<Catalogo {...props} />);
+
+    const filters = screen.getByRole("complementary", { name: "Filtros" });
+    expect(filters).toHaveClass("lg:sticky", "lg:top-24", "lg:overflow-y-auto");
+    expect(filters).toHaveClass("lg:max-h-[calc(100vh-7rem)]", "lg:overscroll-contain");
+  });
+
   it("filters products and adds the selected quantity to the cart", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
