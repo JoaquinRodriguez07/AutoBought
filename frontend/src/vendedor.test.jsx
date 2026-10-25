@@ -271,12 +271,17 @@ describe("Navbar según el perfil", () => {
 describe("App con sesión de vendedor", () => {
   beforeEach(() => guardar(sesionDe("employee")));
 
-  it("greets the seller on the placeholder dashboard", async () => {
+  it("greets the seller and links to the Streamlit dashboard in a new tab", async () => {
     renderApp("/dashboard");
 
     expect(await screen.findByRole("heading", { name: "Portal del vendedor" })).toBeInTheDocument();
     expect(screen.getByText(/vendedor@example\.com/)).toBeInTheDocument();
-    expect(screen.getByText("El dashboard estará disponible pronto.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dashboard de stock y ventas" })).toBeInTheDocument();
+
+    const enlace = screen.getByRole("link", { name: "ABRIR DASHBOARD" });
+    expect(enlace).toHaveAttribute("href", "http://localhost:8501");
+    expect(enlace).toHaveAttribute("target", "_blank");
+    expect(enlace).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("does not request profile, cart or favorites when the app loads", async () => {

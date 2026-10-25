@@ -1,6 +1,11 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
 
-from app.api.deps import get_current_employee
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_employee, get_db
+from app.crud import part as crud_part
+from app.schemas.analytics import AnalyticsBestSellersResponse, StockResponse
 
 # Todas las rutas de este router son solo para vendedores (empleados): la
 # dependencia a nivel de router la heredan los endpoints que se agreguen.
@@ -10,9 +15,72 @@ router = APIRouter(
     dependencies=[Depends(get_current_employee)],
 )
 
+# Con 5 unidades o menos un repuesto se marca como stock bajo. Es el mismo
+# corte que usa scripts.seed_order_history para los repuestos en riesgo.
+STOCK_BAJO = 5
+
 
 @router.get("/ping")
 def ping():
-    # Endpoint mínimo para poder verificar el 401/403 del rol vendedor hasta
-    # que SCRUM-25 agregue los endpoints de analítica reales.
+    # El dashboard lo usa al iniciar sesión para confirmar que el token es
+    # de un vendedor antes de pedir los datos.
     return {"status": "ok"}
+
+
+@router.get("/stock", response_model=StockResponse)
+def stock(
+    low_stock_threshold: int = Query(
+        STOCK_BAJO,
+        ge=0,
+        le=1000,
+        description="Con esta cantidad o menos, el repuesto se marca como stock bajo.",
+    ),
+    db: Session = Depends(get_db),
+):
+    parts = crud_part.list_stock(db)
+    return {
+        "low_stock_threshold": low_stock_threshold,
+        "parts": [
+            {
+                "id": part.id,
+                "part_code": part.part_code,
+                "name": part.name,
+                "manufacturer": part.manufacturer,
+                "category": part.category,
+                "stock": part.stock,
+                "low_stock": part.stock <= low_stock_threshold,
+            }
+            for part in parts
+        ],
+    }
+
+
+@router.get("/best-sellers", response_model=AnalyticsBestSellersResponse)
+def best_sellers(
+    limit: int = Query(10, ge=1, le=100, description="Cantidad de repuestos a devolver."),
+    days: Optional[int] = Query(
+        None,
+        ge=1,
+        le=3650,
+        description="Contar solo las ventas de los últimos N días. Sin valor: todas.",
+    ),
+    db: Session = Depends(get_db),
+):
+    # A diferencia de la tienda, incluye los que hoy no tienen stock: un más
+    # vendido agotado es justo lo que hay que reponer.
+    rows = crud_part.list_best_sellers(db, limit=limit, days=days)
+    return {
+        "days": days,
+        "parts": [
+            {
+                "id": part.id,
+                "part_code": part.part_code,
+                "name": part.name,
+                "manufacturer": part.manufacturer,
+                "category": part.category,
+                "stock": part.stock,
+                "units_sold": units_sold,
+            }
+            for part, units_sold in rows
+        ],
+    }

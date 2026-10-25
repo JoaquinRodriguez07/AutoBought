@@ -1,6 +1,6 @@
 # Integración continua de AutoBought.
 # Corre en cada PR hacia dev o main y en cada push a dev.
-# Los nombres de los jobs ("backend" y "frontend") son los que se eligen
+# Los nombres de los jobs ("backend", "dashboard" y "frontend") son los que se eligen
 # como "status checks" obligatorios en los rulesets de GitHub.
 name: CI
 
@@ -46,6 +46,31 @@ jobs:
 
       - name: Tests + cobertura (mínimo 70%)
         run: uv run pytest --cov-fail-under=70
+
+  dashboard:
+    name: dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: analitica
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: analitica/uv.lock
+
+      - name: Instalar Python 3.14
+        run: uv python install 3.14
+
+      - name: Instalar dependencias (falla si uv.lock no coincide con pyproject.toml)
+        run: uv sync --locked --group dev
+
+      # Sin backend: los tests reemplazan la API (tests/app_test.py).
+      - name: Tests
+        run: uv run pytest
 
   frontend:
     name: frontend
