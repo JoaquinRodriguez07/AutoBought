@@ -4,12 +4,17 @@ import userEvent from "@testing-library/user-event";
 import toast from "react-hot-toast";
 
 import ChatPit from "./ChatPit";
-import { consultarAsistente } from "./api";
+import { consultarAsistente, obtenerAnios, obtenerMarcas, obtenerModelos } from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 import { PitProvider, usePit } from "./context/PitContext";
 
-jest.mock("./api", () => ({ consultarAsistente: jest.fn() }));
+jest.mock("./api", () => ({
+  consultarAsistente: jest.fn(),
+  obtenerMarcas: jest.fn(),
+  obtenerModelos: jest.fn(),
+  obtenerAnios: jest.fn(),
+}));
 jest.mock("./context/CartContext", () => ({ useCart: jest.fn() }));
 jest.mock("./context/VehicleContext", () => ({
   useVehicle: jest.fn(),
@@ -61,15 +66,17 @@ function RutaActual() {
 }
 
 // El chat conectado a la conversación de PitContext, como lo usa PanelPit.
-function ChatConectado({ onHome = jest.fn(), onDetalle = jest.fn() }) {
+function ChatConectado({ onDetalle = jest.fn(), textoInicial }) {
   const navigate = useNavigate();
   const { vehiculo, conversacion } = usePit();
+  const { activarVehiculo } = useVehicle();
   return (
     <ChatPit
       vehiculo={vehiculo}
       conversacion={conversacion}
       onDetalle={onDetalle}
-      onElegirVehiculo={onHome}
+      onActivarVehiculo={activarVehiculo}
+      textoInicial={textoInicial}
       onBuscarEnCatalogo={(consulta) => navigate(`/catalogo?q=${encodeURIComponent(consulta)}`)}
     />
   );
@@ -87,8 +94,10 @@ function arbol(props = {}) {
   );
 }
 
+let activarVehiculo;
+
 function renderAsistente({ vehiculo = ONIX, props = {} } = {}) {
-  useVehicle.mockReturnValue({ vehiculoActivo: vehiculo });
+  useVehicle.mockReturnValue({ vehiculoActivo: vehiculo, activarVehiculo });
   return render(arbol(props));
 }
 
@@ -109,6 +118,10 @@ async function escribir(user, texto) {
 let addToCart;
 
 beforeEach(() => {
+  activarVehiculo = jest.fn();
+  obtenerMarcas.mockResolvedValue([{ brand: "Chevrolet" }, { brand: "Volkswagen" }]);
+  obtenerModelos.mockImplementation(async (marca) => (marca === "Volkswagen" ? ["Gol"] : ["Onix", "Prisma"]));
+  obtenerAnios.mockResolvedValue([2015, 2016]);
   addToCart = jest.fn().mockResolvedValue(true);
   useCart.mockReturnValue({ addToCart, deshacerAgregado: jest.fn() });
   consultarAsistente.mockReset();
@@ -116,14 +129,53 @@ beforeEach(() => {
 });
 
 describe("ChatPit", () => {
-  it("asks to choose the vehicle before chatting", async () => {
-    const onHome = jest.fn();
-    renderAsistente({ vehiculo: null, props: { onHome } });
+  it("lets the client choose the vehicle inside the chat before talking", async () => {
+    const user = userEvent.setup();
+    renderAsistente({ vehiculo: null });
 
-    expect(screen.getByText(/primero elegí cuál es/)).toBeInTheDocument();
+    expect(screen.getByText(/primero decime qué auto tenés/)).toBeInTheDocument();
     expect(campo()).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Elegir vehículo" }));
-    expect(onHome).toHaveBeenCalled();
+    const listo = screen.getByRole("button", { name: "Listo" });
+    expect(listo).toBeDisabled();
+
+    await user.selectOptions(screen.getByLabelText(/^Marca/), await screen.findByRole("option", { name: "Chevrolet" }));
+    await user.selectOptions(screen.getByLabelText(/^Modelo/), await screen.findByRole("option", { name: "Onix" }));
+    await user.selectOptions(screen.getByLabelText(/^Año/), await screen.findByRole("option", { name: "2016" }));
+    await user.click(listo);
+
+    expect(obtenerAnios).toHaveBeenCalledWith("Chevrolet", "Onix");
+    expect(activarVehiculo).toHaveBeenCalledWith({ brand: "Chevrolet", model: "Onix", year: "2016" });
+  });
+
+  it("changes the vehicle from the chat, warning that the conversation starts over", async () => {
+    const user = userEvent.setup();
+    consultarAsistente.mockResolvedValue(respuesta);
+    renderAsistente();
+
+    await escribir(user, "chilla al frenar");
+    await screen.findByText(respuesta.diagnostico);
+    await user.click(screen.getByRole("button", { name: "Cambiar" }));
+
+    expect(screen.getByLabelText(/^Marca/)).toHaveValue("Chevrolet");
+    expect(screen.getByText("Si cambiás de auto, la charla empieza de nuevo.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("form", { name: "Elegir vehículo" })).not.toBeInTheDocument();
+    expect(activarVehiculo).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Cambiar" }));
+    await user.selectOptions(screen.getByLabelText(/^Marca/), await screen.findByRole("option", { name: "Volkswagen" }));
+    await user.selectOptions(screen.getByLabelText(/^Modelo/), await screen.findByRole("option", { name: "Gol" }));
+    await user.selectOptions(screen.getByLabelText(/^Año/), await screen.findByRole("option", { name: "2015" }));
+    await user.click(screen.getByRole("button", { name: "Listo" }));
+
+    expect(activarVehiculo).toHaveBeenCalledWith({ brand: "Volkswagen", model: "Gol", year: "2015" });
+  });
+
+  it("starts with the text it was opened with, ready to send", () => {
+    renderAsistente({ props: { textoInicial: "ruido al frenar" } });
+
+    expect(campo()).toHaveValue("ruido al frenar");
+    expect(screen.getByRole("button", { name: "Enviar" })).toBeEnabled();
   });
 
   it("sends the message with the vehicle and shows the diagnosis, the urgency and the parts", async () => {
@@ -260,7 +312,7 @@ describe("ChatPit", () => {
     await escribir(user, "chilla al frenar");
     await screen.findByText(respuesta.diagnostico);
 
-    useVehicle.mockReturnValue({ vehiculoActivo: GOL });
+    useVehicle.mockReturnValue({ vehiculoActivo: GOL, activarVehiculo });
     rerender(arbol());
 
     expect(screen.getByText("Volkswagen Gol 2015")).toBeInTheDocument();

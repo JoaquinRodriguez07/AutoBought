@@ -75,6 +75,8 @@ import ProtectedRoute from "./ProtectedRoute";
 import { crearToken } from "./testTokens";
 import SearchBar from "./SearchBar";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
+import InvitacionAsistente from "./InvitacionAsistente";
+import PanelPit from "./PanelPit";
 import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
 import { PitProvider } from "./context/PitContext";
@@ -124,6 +126,7 @@ import {
   haySesionActiva,
   obtenerSesion,
   sesionValida,
+  TIPO_VENDEDOR,
 } from "./auth";
 
 const navigationProps = () => ({
@@ -1395,6 +1398,45 @@ describe("App y Pit", () => {
 
     expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
+  });
+});
+
+describe("Accesos a Pit", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const conSesion = () =>
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+
+  it("opens Pit from the menu; without a session it asks to log in", async () => {
+    const user = userEvent.setup();
+    const onLogin = jest.fn();
+    const { unmount } = render(<Navbar usuario={null} onLogin={onLogin} />);
+
+    await user.click(screen.getByRole("button", { name: /Pit IA/ }));
+    expect(onLogin).toHaveBeenCalled();
+    unmount();
+
+    conSesion();
+    render(<><Navbar usuario={{ id: 1, nombre: "Ana" }} onLogin={onLogin} /><PanelPit /></>);
+    await user.click(screen.getByRole("button", { name: /Pit IA/ }));
+    expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
+  });
+
+  it("does not show Pit in the menu to the seller", () => {
+    render(<Navbar usuario={{ id: 1, nombre: "Vendedor", userType: TIPO_VENDEDOR }} onLogin={jest.fn()} />);
+
+    expect(screen.queryByRole("button", { name: /Pit IA/ })).not.toBeInTheDocument();
+  });
+
+  it("suggests Pit when a catalog search finds nothing, with the search already written", async () => {
+    const user = userEvent.setup();
+    conSesion();
+    render(<><InvitacionAsistente variante="sinResultados" termino="ruido al frenar" /><PanelPit /></>);
+
+    expect(screen.getByText("¿Y si se lo contás a Pit?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Preguntarle a Pit" }));
+
+    expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Mensaje para Pit")).toHaveValue("ruido al frenar");
   });
 });
 

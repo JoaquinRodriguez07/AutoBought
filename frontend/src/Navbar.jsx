@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "./context/CartContext";
+import { usePitOpcional } from "./context/PitContext";
 import { esVendedor } from "./auth";
 import BusquedaCabecera from "./BusquedaCabecera";
 import { IconoCorazon } from "./Iconos";
@@ -28,7 +29,12 @@ export default function Navbar({
   const { cantidadCarrito } = useCart();
   const navigate = useNavigate();
   const vendedor = esVendedor(usuario);
+  const pit = usePitOpcional();
   const [menuUsuario, setMenuUsuario] = useState(false);
+
+  // Pit (el asistente con IA) se abre al costado; sin sesión, primero el
+  // login. El vendedor no lo ve.
+  const abrirPit = () => (usuario ? pit.abrir() : onLogin());
 
   const menuRef = useRef(null);
 
@@ -149,6 +155,17 @@ export default function Navbar({
         >
           Repuestos
         </button>
+
+        {pit && !vendedor && (
+          <button
+            type="button"
+            onClick={abrirPit}
+            className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 hover:text-orange-500 transition"
+          >
+            Pit IA
+            <span className="text-[10px] font-black bg-orange-500 text-white rounded-full px-1.5 py-0.5">NUEVO</span>
+          </button>
+        )}
 
       </div>
 

@@ -6,20 +6,45 @@ import { usePit } from "./context/PitContext";
 
 /**
  * Invitación a Pit, el asistente con IA. "banda": franja del inicio;
- * "enlace": línea chica, para el encabezado del catálogo.
+ * "enlace": línea chica, para el encabezado del catálogo; "sinResultados":
+ * cuando una búsqueda del catálogo no encuentra nada, abre Pit con lo que
+ * el cliente buscó (`termino`) ya escrito.
  *
  * Abre el panel de Pit al costado. Sin sesión, lleva a iniciar sesión
  * (cada consulta cuenta para el límite diario del cliente). El vendedor
  * no la ve: Pit es para comprar.
  */
-export default function InvitacionAsistente({ variante = "banda" }) {
+export default function InvitacionAsistente({ variante = "banda", termino = "" }) {
   const navigate = useNavigate();
   const { abrir: abrirPit } = usePit();
 
   const sesion = obtenerSesion();
   if (esVendedor(sesion)) return null;
 
-  const abrir = () => (sesionValida(sesion) ? abrirPit() : navigate("/login"));
+  const abrir = () => (sesionValida(sesion) ? abrirPit(termino) : navigate("/login"));
+
+  if (variante === "sinResultados") {
+    return (
+      <div className="max-w-[460px] mx-auto -mt-10 mb-16 bg-gray-50 border border-gray-200 rounded-2xl p-5 flex items-start gap-4 text-left">
+        <span className="shrink-0 w-11 h-11 rounded-xl bg-orange-500 text-white flex items-center justify-center">
+          <IconoPit className="w-6 h-6" />
+        </span>
+        <div>
+          <p className="text-sm font-black text-gray-900">¿Y si se lo contás a Pit?</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Si buscabas por lo que le pasa al auto, Pit lo entiende y te dice qué repuestos revisar.
+          </p>
+          <button
+            type="button"
+            onClick={abrir}
+            className="mt-3 h-10 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-black transition"
+          >
+            Preguntarle a Pit
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (variante === "enlace") {
     return (

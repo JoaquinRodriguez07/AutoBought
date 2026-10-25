@@ -11,7 +11,9 @@ import { useVehicle } from "./VehicleContext";
  * catálogo, va al detalle de un repuesto y lo vuelve a abrir, la charla
  * sigue ahí. Las invitaciones a Pit (inicio, catálogo) abren el mismo panel.
  *
- * `abierto` es si el panel flotante está a la vista.
+ * `abierto` es si el panel flotante está a la vista. `abrir(texto)` lo abre
+ * con ese texto ya escrito en el chat (por ejemplo, lo que el cliente buscó
+ * en el catálogo sin encontrar nada), listo para mandar.
  */
 const PitContext = createContext(null);
 
@@ -19,8 +21,13 @@ export function PitProvider({ children }) {
   const { vehiculoActivo } = useVehicle();
   const conversacion = useConversacionPit(vehiculoActivo);
   const [abierto, setAbierto] = useState(false);
+  const [borrador, setBorrador] = useState("");
 
-  const abrir = useCallback(() => setAbierto(true), []);
+  // Se usa también directo como onClick: ahí llega el evento, no un texto.
+  const abrir = useCallback((texto) => {
+    setBorrador(typeof texto === "string" ? texto : "");
+    setAbierto(true);
+  }, []);
   const cerrar = useCallback(() => setAbierto(false), []);
 
   // Al cerrar sesión: se cierra el panel y se borra la charla, para que
@@ -31,9 +38,15 @@ export function PitProvider({ children }) {
     reiniciar();
   }, [reiniciar]);
 
-  const value = { vehiculo: vehiculoActivo, conversacion, abierto, abrir, cerrar, olvidar };
+  const value = { vehiculo: vehiculoActivo, conversacion, abierto, borrador, abrir, cerrar, olvidar };
 
   return <PitContext.Provider value={value}>{children}</PitContext.Provider>;
+}
+
+/** Como usePit, pero sin Pit (fuera del proveedor) devuelve null en vez de
+ * fallar: para componentes que se usan en muchas pantallas, como el menú. */
+export function usePitOpcional() {
+  return useContext(PitContext);
 }
 
 export function usePit() {

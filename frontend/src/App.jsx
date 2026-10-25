@@ -839,7 +839,6 @@ function App() {
     {mostrarPit && (
       <PanelPit
         onDetalle={irAlDetalle}
-        onElegirVehiculo={() => navigate("/")}
         onBuscarEnCatalogo={(consulta) => navigate(`/catalogo?q=${encodeURIComponent(consulta)}`)}
         onVerCarrito={irAlCarrito}
       />

@@ -948,10 +948,13 @@ export default function Catalogo({
 
               {!cargando && !error && productosMostrados.length === 0 && (
                 busqueda.trim() ? (
-                  <SinResultadosBusqueda
-                    termino={busqueda.trim()}
-                    onBuscarEnTodo={textoSinBuscar ? () => buscar(textoSinBuscar) : undefined}
-                  />
+                  <>
+                    <SinResultadosBusqueda
+                      termino={busqueda.trim()}
+                      onBuscarEnTodo={textoSinBuscar ? () => buscar(textoSinBuscar) : undefined}
+                    />
+                    <InvitacionAsistente variante="sinResultados" termino={busqueda.trim()} />
+                  </>
                 ) : (
                   <div className="py-20 text-center text-gray-400 text-sm">
                     {productos.length > 0

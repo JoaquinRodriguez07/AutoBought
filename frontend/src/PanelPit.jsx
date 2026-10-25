@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import ChatPit from "./ChatPit";
 import { IconoPit } from "./Iconos";
 import { usePit } from "./context/PitContext";
+import { useVehicle } from "./context/VehicleContext";
 
 /**
  * PanelPit
@@ -18,8 +19,9 @@ import { usePit } from "./context/PitContext";
  */
 const SEGUNDOS_ETIQUETA = 6;
 
-export default function PanelPit({ onDetalle, onElegirVehiculo, onBuscarEnCatalogo, onVerCarrito }) {
-  const { vehiculo, conversacion, abierto, abrir, cerrar } = usePit();
+export default function PanelPit({ onDetalle, onBuscarEnCatalogo, onVerCarrito }) {
+  const { vehiculo, conversacion, abierto, borrador, abrir, cerrar } = usePit();
+  const { activarVehiculo } = useVehicle();
   const boton = useRef(null);
   const estabaAbierto = useRef(abierto);
   const hayCharla = conversacion.mensajes.length > 0;
@@ -116,7 +118,8 @@ export default function PanelPit({ onDetalle, onElegirVehiculo, onBuscarEnCatalo
           autoFocus
           onCerrar={cerrar}
           onDetalle={yCerrar(onDetalle)}
-          onElegirVehiculo={yCerrar(onElegirVehiculo)}
+          onActivarVehiculo={activarVehiculo}
+          textoInicial={borrador}
           onBuscarEnCatalogo={yCerrar(onBuscarEnCatalogo)}
           onVerCarrito={yCerrar(onVerCarrito)}
         />

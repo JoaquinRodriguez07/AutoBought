@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
+import ElegirVehiculoPit from "./ElegirVehiculoPit";
 import { IconoAlerta, IconoCarrito, IconoCerrar, IconoCheck, IconoEnviar, IconoPit } from "./Iconos";
 import { useCart } from "./context/CartContext";
 import { vehiculoCompleto } from "./context/VehicleContext";
@@ -36,21 +37,29 @@ export default function ChatPit({
   vehiculo,
   conversacion,
   onDetalle,
-  onElegirVehiculo,
+  onActivarVehiculo,
   onBuscarEnCatalogo,
   onVerCarrito,
   onCerrar,
   autoFocus = false,
+  textoInicial = "",
 }) {
   const { mensajes, pensando, enviar, reiniciar } = conversacion;
   const { addToCart, deshacerAgregado } = useCart();
-  const [texto, setTexto] = useState("");
+  // Puede venir ya escrito (lo que el cliente buscó en el catálogo).
+  const [texto, setTexto] = useState(textoInicial);
+  const [cambiandoAuto, setCambiandoAuto] = useState(false);
   const [productoAgregado, setProductoAgregado] = useState(null);
   const lista = useRef(null);
 
   const conVehiculo = vehiculoCompleto(vehiculo);
   const nombreVehiculo = conVehiculo ? `${vehiculo.brand} ${vehiculo.model} ${vehiculo.year}` : "";
   const ultimo = mensajes.at(-1);
+
+  const elegirAuto = (nuevo) => {
+    onActivarVehiculo?.(nuevo);
+    setCambiandoAuto(false);
+  };
 
   // Lo nuevo queda a la vista. Una respuesta de Pit se muestra desde su
   // comienzo (urgencia y diagnóstico, lo más importante) aunque sea larga;
@@ -130,12 +139,22 @@ export default function ChatPit({
         )}
       </div>
 
-      {conVehiculo && (
+      {conVehiculo && !cambiandoAuto && (
         <div className="px-5 py-2.5 border-b border-gray-200 bg-white flex items-center justify-between text-sm">
           <span className="font-bold">{nombreVehiculo}</span>
-          <button type="button" onClick={onElegirVehiculo} className="font-bold text-orange-700 hover:underline">
+          <button type="button" onClick={() => setCambiandoAuto(true)} className="font-bold text-orange-700 hover:underline">
             Cambiar
           </button>
+        </div>
+      )}
+      {conVehiculo && cambiandoAuto && (
+        <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+          <ElegirVehiculoPit
+            vehiculo={vehiculo}
+            onListo={elegirAuto}
+            onCancelar={() => setCambiandoAuto(false)}
+            aviso={mensajes.length > 0 ? "Si cambiás de auto, la charla empieza de nuevo." : null}
+          />
         </div>
       )}
 
@@ -143,14 +162,11 @@ export default function ChatPit({
       <div ref={lista} role="log" aria-label="Conversación con Pit" className="relative flex-1 overflow-y-auto p-5 flex flex-col gap-4">
         {!conVehiculo ? (
           <>
-            <BurbujaPit>Para recomendarte solo repuestos que le sirvan a tu auto, primero elegí cuál es.</BurbujaPit>
-            <button
-              type="button"
-              onClick={onElegirVehiculo}
-              className="self-start h-11 px-5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-black"
-            >
-              Elegir vehículo
-            </button>
+            <BurbujaPit>
+              ¡Hola! Soy Pit, tu mecánico con IA, y te acompaño en este pit stop. Para recomendarte solo repuestos
+              que le sirvan, primero decime qué auto tenés.
+            </BurbujaPit>
+            <ElegirVehiculoPit vehiculo={vehiculo} onListo={elegirAuto} />
           </>
         ) : (
           <>
