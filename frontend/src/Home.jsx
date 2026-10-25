@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ChipFabricante from "./ChipFabricante";
 
 import Navbar from "./Navbar";
 import BrandDropdown from "./BrandDropdown";
@@ -559,12 +560,13 @@ export default function Home({
                 className="flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition"
               >
 
-                <div className="h-44 bg-gray-50">
+                <div className="relative h-44 bg-white">
                   <img
                     src={producto.imagen}
                     alt={producto.nombre}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain p-3"
                   />
+                  <ChipFabricante fabricante={producto.fabricante} />
                 </div>
 
                 {/* flex + mt-auto: el botón queda abajo aunque el

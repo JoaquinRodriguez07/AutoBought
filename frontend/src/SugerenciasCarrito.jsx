@@ -78,7 +78,7 @@ export default function SugerenciasCarrito() {
             <img
               src={producto.imagen}
               alt={producto.nombre}
-              className="w-14 h-14 rounded-md object-cover bg-gray-100 shrink-0"
+              className="w-14 h-14 rounded-md object-contain bg-white border border-gray-100 shrink-0"
             />
 
             <div className="flex flex-col min-w-0 flex-1">

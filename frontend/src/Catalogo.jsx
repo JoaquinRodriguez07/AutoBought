@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import BotonAvisoStock from "./BotonAvisoStock";
+import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import SearchBar from "./SearchBar";
@@ -767,7 +768,7 @@ export default function Catalogo({
 
                       {/* IMAGEN */}
 
-                      <div className="relative h-[180px] bg-gray-50">
+                      <div className="relative h-[180px] bg-white">
 
                         {/* Sin filtro, el catálogo completo son más de
                             mil tarjetas: lazy evita decodificar todas
@@ -777,8 +778,10 @@ export default function Catalogo({
                           src={producto.imagen}
                           alt={producto.nombre}
                           loading="lazy"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain p-3"
                         />
+
+                        <ChipFabricante fabricante={producto.fabricante} />
 
                         <button
                           type="button"
