@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
-import { IconoAlerta, IconoCarrito, IconoCheck, IconoEnviar, IconoPit } from "./Iconos";
+import { IconoAlerta, IconoCarrito, IconoCerrar, IconoCheck, IconoEnviar, IconoPit } from "./Iconos";
 import { useCart } from "./context/CartContext";
 import { vehiculoCompleto } from "./context/VehicleContext";
 
@@ -30,9 +30,18 @@ const precio = (valor) => `$${Number(valor || 0).toLocaleString("es-UY")}`;
  * La conversación con Pit, el asistente con IA. Solo dibuja: la lógica
  * (mensajes, historial firmado, errores) está en useConversacionPit, que
  * llega por `conversacion`. Ocupa todo el alto de su contenedor: la página
- * /asistente y, después, el panel flotante.
+ * /asistente y el panel flotante (PanelPit), que le pasa `onCerrar`.
  */
-export default function ChatPit({ vehiculo, conversacion, onDetalle, onElegirVehiculo, onBuscarEnCatalogo, onVerCarrito }) {
+export default function ChatPit({
+  vehiculo,
+  conversacion,
+  onDetalle,
+  onElegirVehiculo,
+  onBuscarEnCatalogo,
+  onVerCarrito,
+  onCerrar,
+  autoFocus = false,
+}) {
   const { mensajes, pensando, enviar, reiniciar } = conversacion;
   const { addToCart, deshacerAgregado } = useCart();
   const [texto, setTexto] = useState("");
@@ -92,7 +101,7 @@ export default function ChatPit({ vehiculo, conversacion, onDetalle, onElegirVeh
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-base font-black leading-tight">Pit</p>
-          <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-0.5">
+          <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden="true" />
             Tu mecánico con IA
           </p>
@@ -101,9 +110,22 @@ export default function ChatPit({ vehiculo, conversacion, onDetalle, onElegirVeh
           <button
             type="button"
             onClick={reiniciar}
-            className="h-11 px-3 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 transition"
+            aria-label="Nueva conversación"
+            className="h-11 px-3 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 transition shrink-0"
           >
-            Nueva conversación
+            {/* En celular, corto para que entre el encabezado. */}
+            <span className="sm:hidden">Nueva</span>
+            <span className="hidden sm:inline">Nueva conversación</span>
+          </button>
+        )}
+        {onCerrar && (
+          <button
+            type="button"
+            onClick={onCerrar}
+            aria-label="Cerrar Pit"
+            className="w-11 h-11 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition shrink-0"
+          >
+            <IconoCerrar className="w-5 h-5" />
           </button>
         )}
       </div>
@@ -190,6 +212,7 @@ export default function ChatPit({ vehiculo, conversacion, onDetalle, onElegirVeh
             onChange={(e) => setTexto(e.target.value)}
             maxLength={500}
             disabled={!conVehiculo}
+            autoFocus={autoFocus && conVehiculo}
             autoComplete="off"
             placeholder={conVehiculo ? "Escribí qué le pasa a tu auto…" : "Primero elegí tu vehículo"}
             className="flex-1 min-w-0 text-base md:text-sm outline-hidden bg-transparent disabled:cursor-not-allowed"

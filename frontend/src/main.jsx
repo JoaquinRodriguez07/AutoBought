@@ -6,14 +6,17 @@ import './index.css'
 import App from './App.jsx'
 import { CartProvider } from './context/CartContext.jsx'
 import { VehicleProvider } from './context/VehicleContext.jsx'
+import { PitProvider } from './context/PitContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <CartProvider>
         <VehicleProvider>
-          <Toaster position="top-right" />
-          <App />
+          <PitProvider>
+            <Toaster position="top-right" />
+            <App />
+          </PitProvider>
         </VehicleProvider>
       </CartProvider>
     </BrowserRouter>

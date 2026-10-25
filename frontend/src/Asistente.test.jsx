@@ -7,6 +7,7 @@ import Asistente from "./Asistente";
 import { consultarAsistente } from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
+import { PitProvider } from "./context/PitContext";
 
 jest.mock("./api", () => ({ consultarAsistente: jest.fn() }));
 jest.mock("./context/CartContext", () => ({ useCart: jest.fn() }));
@@ -62,9 +63,11 @@ function RutaActual() {
 function arbol(props = {}) {
   return (
     <MemoryRouter initialEntries={["/asistente"]}>
-      <Routes>
-        <Route path="*" element={<><Asistente onHome={jest.fn()} onDetalle={jest.fn()} {...props} /><RutaActual /></>} />
-      </Routes>
+      <PitProvider>
+        <Routes>
+          <Route path="*" element={<><Asistente onHome={jest.fn()} onDetalle={jest.fn()} {...props} /><RutaActual /></>} />
+        </Routes>
+      </PitProvider>
     </MemoryRouter>
   );
 }

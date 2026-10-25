@@ -27,6 +27,8 @@ import Marcas from "./Marcas";
 import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
 import Asistente from "./Asistente";
+import PanelPit from "./PanelPit";
+import { usePit } from "./context/PitContext";
 import ProtectedRoute from "./ProtectedRoute";
 import Footer from "./Footer";
 import EmployeeRoute from "./EmployeeRoute";
@@ -59,6 +61,7 @@ function App() {
   }, [pathname]);
   const { cargarCarrito, limpiarCarritoLocal } = useCart();
   const { activarVehiculo } = useVehicle();
+  const { olvidar: olvidarCharlaPit } = usePit();
 
 
   // null = sin filtro de categoría (el catálogo muestra todos los
@@ -366,6 +369,7 @@ function App() {
     sessionStorage.removeItem("autobought-sesion");
 
     limpiarCarritoLocal();
+    olvidarCharlaPit();
     setFavoritos([]);
     setAvisosStock([]);
     navigate("/");
@@ -559,6 +563,11 @@ function App() {
   // por "ocupar lo que sobre" (flex-1) para que la página y el footer
   // juntos llenen la pantalla.
   const conFooter = !RUTAS_SIN_FOOTER.includes(pathname);
+
+  // Pit flota en las páginas de la tienda para los clientes con sesión. No
+  // en /asistente (ya es Pit a pantalla completa), ni en las pantallas de
+  // cuenta sin footer (login, registro...), ni para el vendedor.
+  const mostrarPit = Boolean(usuario) && !vendedor && conFooter && pathname !== "/asistente";
 
   return (
     <>
@@ -840,6 +849,14 @@ function App() {
     {/* Las pantallas de iniciar sesión y registro tienen su propio armado. */}
     {conFooter && <Footer {...propsNavbar} />}
     </div>
+    {mostrarPit && (
+      <PanelPit
+        onDetalle={irAlDetalle}
+        onElegirVehiculo={() => navigate("/")}
+        onBuscarEnCatalogo={(consulta) => navigate(`/catalogo?q=${encodeURIComponent(consulta)}`)}
+        onVerCarrito={irAlCarrito}
+      />
+    )}
     </>
   );
 }

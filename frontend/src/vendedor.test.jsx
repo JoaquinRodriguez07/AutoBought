@@ -51,6 +51,7 @@ import EmployeeRoute from "./EmployeeRoute";
 import Navbar from "./Navbar";
 import { CartProvider, useCart } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
+import { PitProvider } from "./context/PitContext";
 import { crearToken } from "./testTokens";
 import toast from "react-hot-toast";
 import {
@@ -101,8 +102,10 @@ function renderApp(ruta = "/") {
     <MemoryRouter initialEntries={[ruta]}>
       <CartProvider>
         <VehicleProvider>
-          <App />
-          <RutaActual />
+          <PitProvider>
+            <App />
+            <RutaActual />
+          </PitProvider>
         </VehicleProvider>
       </CartProvider>
     </MemoryRouter>

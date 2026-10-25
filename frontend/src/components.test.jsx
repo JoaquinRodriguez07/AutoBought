@@ -77,6 +77,7 @@ import SearchBar from "./SearchBar";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
+import { PitProvider } from "./context/PitContext";
 
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import toast from "react-hot-toast";
@@ -1308,7 +1309,7 @@ describe("App", () => {
     const user = userEvent.setup();
     renderBase(
       <MemoryRouter>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1321,7 +1322,7 @@ describe("App", () => {
     const user = userEvent.setup();
     renderBase(
       <MemoryRouter>
-         <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+         <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1343,7 +1344,7 @@ describe("App", () => {
     });
     renderBase(
       <MemoryRouter>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1357,6 +1358,34 @@ describe("App", () => {
   });
 });
 
+describe("App y Pit", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+
+  const renderEn = (ruta) =>
+    renderBase(
+      <MemoryRouter initialEntries={[ruta]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  it("shows the floating Pit to a client on the store pages", () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+    renderEn("/");
+
+    expect(screen.getByRole("button", { name: "Abrir Pit, el asistente con IA" })).toBeInTheDocument();
+  });
+
+  it("does not show it without a session nor on the Pit page", () => {
+    const { unmount } = renderEn("/");
+    expect(screen.queryByRole("button", { name: /Abrir Pit/ })).not.toBeInTheDocument();
+    unmount();
+
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+    renderEn("/asistente");
+    expect(screen.queryByRole("button", { name: /Abrir Pit/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("App avisos de stock", () => {
   const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
   const agotado = { ...catalogProducts[2], id: "FAR-77", partId: 77, nombre: "Faro Agotado", stock: 0 };
@@ -1366,7 +1395,7 @@ describe("App avisos de stock", () => {
     obtenerRepuestos.mockResolvedValue([catalogProducts[0], agotado]);
     renderBase(
       <MemoryRouter initialEntries={["/catalogo"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
     await screen.findByText("Faro Agotado");
@@ -1445,7 +1474,7 @@ describe("App favoritos", () => {
   const renderApp = () =>
     renderBase(
       <MemoryRouter>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1520,7 +1549,7 @@ describe("App sesión", () => {
 
     renderBase(
       <MemoryRouter initialEntries={["/perfil"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
     await user.click(await screen.findByRole("button", { name: "EDITAR" }));
@@ -1545,7 +1574,7 @@ describe("App verificación del correo", () => {
 
     renderBase(
       <MemoryRouter>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1558,7 +1587,7 @@ describe("App verificación del correo", () => {
 
     renderBase(
       <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1572,7 +1601,7 @@ describe("App verificación del correo", () => {
 
     renderBase(
       <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1585,7 +1614,7 @@ describe("App rutas", () => {
   const renderEn = (ruta) =>
     renderBase(
       <MemoryRouter initialEntries={[ruta]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1623,7 +1652,7 @@ describe("App renovación de sesión", () => {
   const renderApp = () =>
     renderBase(
       <MemoryRouter initialEntries={["/"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
