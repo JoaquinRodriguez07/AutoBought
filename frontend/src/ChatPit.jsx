@@ -110,9 +110,9 @@ export default function ChatPit({
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-base font-black leading-tight">Pit</p>
-          <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-0.5 whitespace-nowrap">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden="true" />
-            Te acompaño en tu pit stop
+          <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-0.5 min-w-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" aria-hidden="true" />
+            <span className="truncate">Te acompaño en tu pit stop</span>
           </p>
         </div>
         {mensajes.length > 0 && (
@@ -122,9 +122,7 @@ export default function ChatPit({
             aria-label="Nueva conversación"
             className="h-11 px-3 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 transition shrink-0"
           >
-            {/* En celular, corto para que entre el encabezado. */}
-            <span className="sm:hidden">Nueva</span>
-            <span className="hidden sm:inline">Nueva conversación</span>
+            Nueva charla
           </button>
         )}
         {onCerrar && (
