@@ -86,7 +86,7 @@ describe("PanelPit", () => {
     jest.useFakeTimers();
     try {
       renderPanel();
-      const etiqueta = screen.getByText("¿Hacemos un pit stop?");
+      const etiqueta = screen.getByText("¿Te puedo ayudar en algo?");
       expect(etiqueta).toHaveClass("md:block");
 
       act(() => jest.advanceTimersByTime(6000));

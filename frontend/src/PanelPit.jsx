@@ -76,7 +76,7 @@ export default function PanelPit({ onDetalle, onElegirVehiculo, onBuscarEnCatalo
           aria-hidden="true"
           className={`hidden ${etiqueta ? "md:block" : "md:group-hover:block md:group-focus-within:block"} bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold shadow-lg hover:border-orange-500 transition motion-safe:animate-aparecer`}
         >
-          {hayCharla ? "Seguir con Pit" : "¿Hacemos un pit stop?"}
+          {hayCharla ? "Seguir con Pit" : "¿Te puedo ayudar en algo?"}
         </button>
         <button
           ref={boton}
