@@ -513,11 +513,14 @@ export default function Catalogo({
             categoria || "Todos",
           ]}
           titulo={categoria || "Todos los repuestos"}
-          fin={
-            <>
+          descripcion="Encontrá el repuesto justo para tu auto."
+        >
 
-              {/* BUSCADOR */}
+          {/* BUSCADOR + PIT: el buscador a lo ancho y, al lado, la tarjeta
+              de Pit a la misma altura. En celular, uno debajo del otro. */}
 
+          <div className="flex flex-col lg:flex-row gap-3">
+            <div className="flex-1 min-w-0">
               {/* La lupa de la barra, en esta página, enfoca este buscador
                   (ver Navbar). */}
               <SearchBar
@@ -526,6 +529,7 @@ export default function Catalogo({
                 onChange={setBusqueda}
                 onSubmit={buscar}
                 placeholder="Buscar repuesto por nombre, código o fabricante..."
+                className="h-14"
               />
 
               {textoSinBuscar && (
@@ -537,20 +541,20 @@ export default function Catalogo({
                   Buscar <span className="font-bold text-white">"{textoSinBuscar}"</span> en todo el catálogo →
                 </button>
               )}
+            </div>
 
-              {!textoSinBuscar && <InvitacionAsistente variante="enlace" />}
-
-            </>
-          }
-        >
+            {!textoSinBuscar && <InvitacionAsistente variante="enlace" />}
+          </div>
 
           {/* VEHÍCULO ACTIVO */}
           {/* Oculto si no hay vehículo activo en VehicleContext. */}
 
           {vehiculoActivo && (
-            <ActiveVehicleBanner
-              onBorrar={borrarVehiculoYFiltros}
-            />
+            <div className="mt-4">
+              <ActiveVehicleBanner
+                onBorrar={borrarVehiculoYFiltros}
+              />
+            </div>
           )}
 
         </EncabezadoPagina>
