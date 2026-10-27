@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import BotonAvisoStock from "./BotonAvisoStock";
+import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
 import InvitacionAsistente from "./InvitacionAsistente";
 import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
@@ -513,7 +514,6 @@ export default function Catalogo({
         onCerrarSesion={onCerrarSesion}
 
         cantidadFavoritos={cantidadFavoritos}
-        mostrarBusqueda={false}
       />
 
       {/* =================================================
@@ -567,7 +567,6 @@ export default function Catalogo({
 
           {vehiculoActivo && (
             <ActiveVehicleBanner
-              onCambiar={onHome}
               onBorrar={borrarVehiculoYFiltros}
             />
           )}
@@ -588,7 +587,7 @@ export default function Catalogo({
 
             <aside
               aria-label="Filtros"
-              className={`${filtrosAbiertos ? "block" : "hidden"} lg:block`}
+              className={`${filtrosAbiertos ? "block" : "hidden"} self-start lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain`}
             >
 
               <FiltrosCatalogo
@@ -770,7 +769,7 @@ export default function Catalogo({
 
                       {/* IMAGEN */}
 
-                      <div className="relative h-[180px] bg-gray-50">
+                      <div className="relative h-[180px] bg-white">
 
                         {/* Sin filtro, el catálogo completo son más de
                             mil tarjetas: lazy evita decodificar todas
@@ -780,8 +779,10 @@ export default function Catalogo({
                           src={producto.imagen}
                           alt={producto.nombre}
                           loading="lazy"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain p-3"
                         />
+
+                        <ChipFabricante fabricante={producto.fabricante} />
 
                         <button
                           type="button"

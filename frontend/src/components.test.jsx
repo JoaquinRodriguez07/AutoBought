@@ -1,6 +1,7 @@
 import { act, fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
+import { useEffect } from "react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 
 jest.mock("./api", () => ({
   buscarTexto: jest.fn(),
@@ -11,6 +12,7 @@ jest.mock("./api", () => ({
   actualizarPerfil: jest.fn(),
   cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
+  obtenerRepuesto: jest.fn(),
   obtenerCategorias: jest.fn(),
   obtenerMasVendidos: jest.fn(),
   obtenerCarrito: jest.fn(),
@@ -52,6 +54,7 @@ jest.mock(
 );
 
 import App from "./App";
+import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import BrandDropdown from "./BrandDropdown";
 import BusquedaCabecera from "./BusquedaCabecera";
 import CambiarPassword from "./CambiarPassword";
@@ -79,6 +82,7 @@ import InvitacionAsistente from "./InvitacionAsistente";
 import PanelPit from "./PanelPit";
 import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
+import { useVehicle } from "./context/VehicleContext";
 import { PitProvider } from "./context/PitContext";
 
 import { filtrarRepuestos } from "./filtrarRepuestos";
@@ -110,6 +114,7 @@ import {
   obtenerModelos,
   obtenerAnios,
   obtenerRepuestos,
+  obtenerRepuesto,
   obtenerPerfil,
   obtenerRecomendaciones,
   quitarFavoritoAPI,
@@ -131,6 +136,7 @@ import {
 
 const navigationProps = () => ({
   onHome: jest.fn(),
+  esFavorito: jest.fn(() => false),
   onCatalogo: jest.fn(),
   onLogin: jest.fn(),
   onMarcas: jest.fn(),
@@ -230,7 +236,27 @@ function RutaActual() {
   );
 }
 
+function ControlesHistorialDetalle() {
+  const navigate = useNavigate();
+  return (
+    <div>
+      <button onClick={() => navigate("/producto/filtro-de-aire-8")}>Abrir otro repuesto</button>
+      <button onClick={() => navigate(-1)}>Volver al repuesto anterior</button>
+      <button onClick={() => navigate(1)}>Avanzar al repuesto siguiente</button>
+    </div>
+  );
+}
+
+function ActivarVehiculo({ vehiculo }) {
+  const { activarVehiculo } = useVehicle();
+  useEffect(() => activarVehiculo(vehiculo), [activarVehiculo]);
+  return null;
+}
+
 beforeEach(() => {
+  obtenerRepuesto.mockImplementation(async (id) =>
+    catalogProducts.find((item) => String(item.partId ?? item.id) === String(id)) ?? null
+  );
   obtenerRepuestos.mockImplementation(({ categoria } = {}) =>
     Promise.resolve(
       categoria
@@ -276,6 +302,65 @@ afterEach(() => {
 });
 
 describe("Navbar", () => {
+  it("opens the global search with focus and applies its query from another page", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Navbar paginaActual="favoritos" {...navigationProps()} />
+        <RutaActual />
+      </>,
+      { initialEntries: ["/favoritos"] }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    const input = screen.getByPlaceholderText("¿Qué repuesto estás buscando?");
+    expect(input).toHaveFocus();
+    const panel = screen.getByRole("search");
+    expect(panel).toHaveClass("max-w-[330px]", "top-[4.75rem]");
+    expect(input.parentElement).toHaveClass("rounded-full", "border", "shadow-xs");
+    await user.type(input, "kit de distribución");
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+      "/catalogo?q=kit%20de%20distribuci%C3%B3n"
+    );
+    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+  });
+
+  it("closes the global search with Escape, restores focus, and closes on outside click", async () => {
+    const user = userEvent.setup();
+    render(<Navbar paginaActual="home" {...navigationProps()} />);
+
+    const openButton = screen.getByRole("button", { name: "Abrir búsqueda" });
+    await user.click(openButton);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Abrir búsqueda" })).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+  });
+
+  it("runs a global search with the Buscar button", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Navbar paginaActual="detalle" {...navigationProps()} />
+        <RutaActual />
+      </>,
+      { initialEntries: ["/producto/kit-de-freno-3"] }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    await user.type(screen.getByRole("textbox", { name: "Buscar repuestos" }), "filtro aceite");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+      "/catalogo?q=filtro%20aceite"
+    );
+  });
+
   it("calls navigation handlers and displays the cart count", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -554,6 +639,19 @@ describe("ModelDropdown", () => {
 });
 
 describe("Catalogo", () => {
+  it("keeps the desktop filters sticky and scrollable within the viewport", () => {
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+
+    render(<Catalogo {...props} />);
+
+    const filters = screen.getByRole("complementary", { name: "Filtros" });
+    expect(filters).toHaveClass("lg:sticky", "lg:top-24", "lg:overflow-y-auto");
+    expect(filters).toHaveClass("lg:max-h-[calc(100vh-7rem)]", "lg:overscroll-contain");
+  });
+
   it("filters products and adds the selected quantity to the cart", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -916,7 +1014,354 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
   });
 });
 
+describe("ActiveVehicleBanner", () => {
+  it("confirms a new vehicle and updates the catalog banner", async () => {
+    const user = userEvent.setup();
+    obtenerMarcas.mockResolvedValue([
+      { brand: "Chevrolet" },
+      { brand: "Volkswagen" },
+    ]);
+    obtenerModelos.mockResolvedValue(["Onix"]);
+    obtenerAnios.mockResolvedValue([2020]);
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <ActiveVehicleBanner />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cambiar vehículo" }));
+    await user.selectOptions(screen.getByLabelText("MARCA"), "Chevrolet");
+    await user.selectOptions(await screen.findByLabelText("MODELO"), "Onix");
+    await screen.findByRole("option", { name: "2020" });
+    await user.selectOptions(screen.getByLabelText("AÑO"), "2020");
+    await user.click(screen.getByRole("button", { name: "Confirmar vehículo" }));
+
+    expect(screen.getByText("Chevrolet Onix 2020")).toBeInTheDocument();
+  });
+
+  it("edits the catalog vehicle locally and keeps the previous vehicle on cancel", async () => {
+    const user = userEvent.setup();
+    obtenerMarcas.mockResolvedValue([
+      { brand: "Chevrolet" },
+      { brand: "Volkswagen" },
+    ]);
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <ActiveVehicleBanner />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cambiar vehículo" }));
+    expect(screen.getByLabelText("MARCA")).toHaveValue("Volkswagen");
+    await user.selectOptions(screen.getByLabelText("MARCA"), "Chevrolet");
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByLabelText("MARCA")).not.toBeInTheDocument();
+    expect(screen.getByText("Volkswagen Gol 2021")).toBeInTheDocument();
+  });
+});
+
 describe("DetalleProducto", () => {
+  const repuestoCompatible = () => mapearRepuesto({
+    id: 7,
+    name: "Filtro compatible",
+    manufacturer: "Bosch",
+    part_code: "FIL-0007",
+    category: "Filtros",
+    price: 790,
+    stock: 3,
+    compatible_brands: ["Chevrolet", "Volkswagen"],
+    compatibilities: [
+      { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 },
+      { brand: "Volkswagen", model: "Gol", engine_code: "1.6 MSI", year_from: 2020, year_to: 2022 },
+    ],
+  });
+
+  it("loads the requested product from the URL and follows back/forward history", async () => {
+    const user = userEvent.setup();
+    const primerRepuesto = repuestoCompatible();
+    const segundoRepuesto = mapearRepuesto({
+      id: 8,
+      name: "Filtro de aire",
+      manufacturer: "Mann-Filter",
+      part_code: "AIR-0008",
+      category: "Filtros",
+      price: 500,
+      stock: 2,
+      compatibilities: [],
+    });
+    obtenerRepuesto.mockImplementation(async (id) => id === "7" ? primerRepuesto : segundoRepuesto);
+    const props = navigationProps();
+
+    render(
+      <Routes>
+        <Route path="/producto/:id" element={<><DetalleProducto {...props} /><ControlesHistorialDetalle /></>} />
+      </Routes>,
+      { initialEntries: ["/producto/filtro-compatible-7"] }
+    );
+
+    expect(screen.getByText("Cargando")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Filtro compatible" })).toBeInTheDocument();
+    expect(obtenerRepuesto).toHaveBeenCalledWith("7");
+
+    await user.click(screen.getByRole("button", { name: "Abrir otro repuesto" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Filtro de aire" })).toBeInTheDocument();
+    expect(obtenerRepuesto).toHaveBeenLastCalledWith("8");
+
+    await user.click(screen.getByRole("button", { name: "Volver al repuesto anterior" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Filtro compatible" })).toBeInTheDocument();
+    expect(obtenerRepuesto).toHaveBeenLastCalledWith("7");
+
+    await user.click(screen.getByRole("button", { name: "Avanzar al repuesto siguiente" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Filtro de aire" })).toBeInTheDocument();
+    expect(obtenerRepuesto).toHaveBeenLastCalledWith("8");
+  });
+
+  it("shows exactly Repuesto no encontrado for a missing URL product", async () => {
+    const error = new Error("Repuesto no encontrado.");
+    error.status = 404;
+    obtenerRepuesto.mockRejectedValue(error);
+
+    render(
+      <Routes>
+        <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+      </Routes>,
+      { initialEntries: ["/producto/repuesto-inexistente-999999"] }
+    );
+
+    expect(await screen.findByText("Repuesto no encontrado", { exact: true })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
+  });
+
+  it("opens the selector in the header when no vehicle is selected", async () => {
+    const user = userEvent.setup();
+    render(<DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />);
+    expect(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Seleccionar vehículo" }))
+      .toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "sin-vehiculo");
+    expect(screen.getByText("Elegí tu vehículo para verificar la compatibilidad")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-selection").lastElementChild).toHaveClass("grid-rows-[0fr]");
+    expect(screen.queryByText("Compatibilidad de vehículo")).not.toBeInTheDocument();
+    expect(screen.getByText("Chevrolet Onix")).toBeInTheDocument();
+    expect(screen.getByText("Volkswagen Gol")).toBeInTheDocument();
+    await user.click(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Seleccionar vehículo" }));
+    expect(within(screen.getByTestId("vehicle-selection")).getByLabelText("MARCA")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("MARCA")).toHaveLength(1);
+    const vehicleCard = screen.getByTestId("vehicle-selection");
+    const selectorPanel = within(vehicleCard).getByRole("group", { name: "Controles del vehículo" });
+    expect(within(vehicleCard).getByText("Seleccioná tu vehículo")).toBeInTheDocument();
+    expect(selectorPanel.querySelector(".sm\\:grid-cols-3")).toBeInTheDocument();
+    expect(vehicleCard).not.toHaveClass("relative", "absolute", "fixed");
+    expect(selectorPanel).toHaveClass("border-t");
+    expect(vehicleCard.lastElementChild).toHaveClass("grid-rows-[1fr]");
+  });
+
+  it("matches normalized brand and model and includes the first and last range years", () => {
+    const repuesto = repuestoCompatible();
+    const props = navigationProps();
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "  CHEVROLET ", model: " Onix  ", year: "2013" }} />
+        <DetalleProducto {...props} producto={repuesto} />
+      </>
+    );
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+    expect(screen.getByText("Compatible con tu vehículo")).toBeInTheDocument();
+    expect(screen.getByText("CHEVROLET Onix 2013")).toBeInTheDocument();
+  });
+
+  it("includes the last year of a compatibility range", () => {
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2019" }} />
+        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+      </>
+    );
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+  });
+
+  it("shows incompatibility when the selected year is outside the inclusive range", () => {
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2020" }} />
+        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+      </>
+    );
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "incompatible");
+    expect(screen.getByText("No es compatible con tu Chevrolet Onix 2020")).toBeInTheDocument();
+  });
+
+  it("accepts a matching brand when no model is selected", () => {
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "chevrolet", model: "", year: "" }} />
+        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+      </>
+    );
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+  });
+
+  it("shows unavailable when no compatibility records exist", () => {
+    const productWithoutCompatibility = mapearRepuesto({
+      id: 18,
+      name: "Filtro sin aplicaciones",
+      compatible_brands: ["Chevrolet"],
+      compatibilities: [],
+    });
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
+        <DetalleProducto {...navigationProps()} producto={productWithoutCompatibility} />
+      </>
+    );
+
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "no-disponible");
+    expect(screen.getByText("La información de compatibilidad no está disponible.")).toBeInTheDocument();
+    expect(screen.queryByText("Compatible con tu vehículo")).not.toBeInTheDocument();
+    expect(screen.queryByText(/No es compatible/)).not.toBeInTheDocument();
+  });
+
+  it("does not claim incompatibility when a matching application lacks the selected vehicle year range", () => {
+    const productWithIncompleteRange = mapearRepuesto({
+      id: 19,
+      name: "Filtro con aplicación incompleta",
+      compatible_brands: ["Chevrolet"],
+      compatibilities: [
+        { brand: "Chevrolet", model: "Onix", engine_code: "1.4", year_from: null, year_to: null },
+      ],
+    });
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
+        <DetalleProducto {...navigationProps()} producto={productWithIncompleteRange} />
+      </>
+    );
+
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "no-verificable");
+    expect(screen.queryByText("Compatible con tu vehículo")).not.toBeInTheDocument();
+    expect(screen.queryByText(/No es compatible/)).not.toBeInTheDocument();
+    expect(screen.getByText("Chevrolet Onix")).toBeInTheDocument();
+  });
+
+  it("keeps the compatibility card focused on applications and opens the existing header selector", async () => {
+    const user = userEvent.setup();
+    render(<DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />);
+
+    const card = within(screen.getByTestId("compatibility-card"));
+    expect(card.getByText("Chevrolet Onix")).toBeInTheDocument();
+    expect(card.getByText("Volkswagen Gol")).toBeInTheDocument();
+    expect(card.queryByRole("button", { name: "Seleccionar vehículo" })).not.toBeInTheDocument();
+    await user.click(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: /Seleccionar veh/ }));
+    expect(within(screen.getByTestId("vehicle-selection")).getByLabelText("MARCA")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("MARCA")).toHaveLength(1);
+  });
+  it("opens the inline selector, confirms a new vehicle, and immediately updates compatibility", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    obtenerMarcas.mockResolvedValue([
+      { brand: "Chevrolet" },
+      { brand: "Volkswagen" },
+    ]);
+    obtenerModelos.mockImplementation((brand) =>
+      Promise.resolve(brand === "Chevrolet" ? ["Onix"] : ["Gol"])
+    );
+    obtenerAnios.mockResolvedValue([2018, 2019, 2020]);
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <DetalleProducto {...props} producto={repuestoCompatible()} />
+      </>
+    );
+
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+    await user.click(screen.getAllByRole("button", { name: "Cambiar" })[0]);
+    const selector = within(screen.getByTestId("vehicle-selection"));
+    expect(selector.getByLabelText("MARCA")).toBeInTheDocument();
+    expect(selector.getByLabelText("MODELO")).toBeInTheDocument();
+    expect(selector.getByLabelText("AÑO")).toBeInTheDocument();
+    const vehicleCard = screen.getByTestId("vehicle-selection");
+    const selectorPanel = selector.getByRole("group", { name: "Controles del vehículo" });
+    expect(selectorPanel).toHaveClass("border-t");
+    expect(vehicleCard.lastElementChild).toHaveClass("grid-rows-[1fr]");
+    expect(selector.getByText("Volkswagen Gol 2021")).toBeInTheDocument();
+    expect(selectorPanel.querySelector(".sm\\:grid-cols-3")).toBeInTheDocument();
+    expect(selectorPanel.className).not.toMatch(/absolute|fixed/);
+    expect(vehicleCard).not.toHaveClass("relative", "absolute", "fixed");
+    expect(vehicleCard.closest("section")).toContainElement(screen.getByRole("heading", { level: 1 }));
+    expect(screen.getAllByLabelText("MARCA")).toHaveLength(1);
+    expect(screen.queryByText("Compatibilidad de vehículo")).not.toBeInTheDocument();
+
+    await user.selectOptions(selector.getByLabelText("MARCA"), "Chevrolet");
+    await user.selectOptions(await selector.findByLabelText("MODELO"), "Onix");
+    await screen.findByRole("option", { name: "2020" });
+    await user.selectOptions(selector.getByLabelText("AÑO"), "2020");
+    await user.click(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Confirmar" }));
+
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "incompatible");
+    expect(screen.getByText("No es compatible con tu Chevrolet Onix 2020")).toBeInTheDocument();
+    expect(screen.getByText("Chevrolet Onix 2020")).toBeInTheDocument();
+    const collapsedControls = screen.getByTestId("vehicle-selection").lastElementChild;
+    expect(collapsedControls).toHaveClass("grid-rows-[0fr]");
+    expect(within(screen.getByTestId("vehicle-selection")).getByLabelText("MARCA")).toBeInTheDocument();
+    fireEvent.transitionEnd(collapsedControls, { propertyName: "grid-template-rows" });
+    expect(within(screen.getByTestId("vehicle-selection")).queryByLabelText("MARCA")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Filtro compatible" }))
+      .toBeInTheDocument();
+  });
+
+  it("cancels vehicle changes without changing the active vehicle", async () => {
+    const user = userEvent.setup();
+    obtenerMarcas.mockResolvedValue([
+      { brand: "Chevrolet" },
+      { brand: "Volkswagen" },
+    ]);
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+      </>
+    );
+
+    expect(screen.getByText("Volkswagen Gol 2021")).toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Cambiar" })[0]);
+    await user.selectOptions(await screen.findByLabelText("MARCA"), "Chevrolet");
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    const collapsedControls = screen.getByTestId("vehicle-selection").lastElementChild;
+    expect(collapsedControls).toHaveClass("grid-rows-[0fr]");
+    expect(within(screen.getByTestId("vehicle-selection")).getByLabelText("MARCA")).toBeInTheDocument();
+    expect(screen.getByText("Volkswagen Gol 2021")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+    fireEvent.transitionEnd(collapsedControls, { propertyName: "grid-template-rows" });
+    expect(within(screen.getByTestId("vehicle-selection")).queryByLabelText("MARCA")).not.toBeInTheDocument();
+  });
+
+  it("lists all structured applications in the compatibility card", () => {
+    render(<DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />);
+
+    const card = within(screen.getByTestId("compatibility-card"));
+    expect(card.getByText("Chevrolet Onix")).toBeInTheDocument();
+    expect(card.getByText("Motor: 1.4 8V \u00b7 A\u00f1os: 2013\u20132019")).toBeInTheDocument();
+    expect(card.getByText("Volkswagen Gol")).toBeInTheDocument();
+    expect(card.getByText("Motor: 1.6 MSI \u00b7 A\u00f1os: 2020\u20132022")).toBeInTheDocument();
+  });
+
+  it("separates vehicle, engine, and years from text applications", () => {
+    const productWithTextApplications = {
+      ...repuestoCompatible(),
+      compatibilidades: [],
+      aplicaciones: ["Volkswagen Gol 2019 Highline 1.6 MSI"],
+    };
+    render(<DetalleProducto {...navigationProps()} producto={productWithTextApplications} />);
+
+    const card = within(screen.getByTestId("compatibility-card"));
+    expect(card.getByText("Volkswagen Gol")).toBeInTheDocument();
+    expect(card.getByText("Motor: 1.6 MSI \u00b7 A\u00f1o: 2019")).toBeInTheDocument();
+    expect(card.queryByText(/Highline/)).not.toBeInTheDocument();
+  });
+
   it("shows the manufacturer above the name, never a compatible car brand, and the new details", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -943,20 +1388,60 @@ describe("DetalleProducto", () => {
 
     render(<DetalleProducto {...props} producto={repuesto} />);
 
-    const titulo = screen.getByRole("heading", { level: 1, name: repuesto.nombre });
-    expect(titulo.previousElementSibling).toHaveTextContent("Mann-Filter");
+    expect(screen.getByRole("heading", { level: 1, name: repuesto.nombre })).toBeInTheDocument();
+    expect(screen.getByText("Mann-Filter", { selector: "p" })).toBeInTheDocument();
     expect(screen.queryByText("Chevrolet", { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText(/Retiene las impurezas/)).toBeInTheDocument();
-    expect(screen.getAllByText("6 meses de garantía del fabricante (Mann-Filter), por defectos de fabricación.").length)
-      .toBeGreaterThan(0);
-
-    await user.click(screen.getByRole("button", { name: "Especificaciones" }));
+    expect(screen.getByRole("heading", { name: "Descripción" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Especificaciones" })).toBeInTheDocument();
     expect(screen.getByText("M20 x 1,5")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Descripción" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Especificaciones" })).not.toBeInTheDocument();
+    expect(screen.getByText("6 meses")).toBeInTheDocument();
+    expect(screen.getByText("Fabricante")).toBeInTheDocument();
+    const specificationsHeading = screen.getByRole("heading", { name: "Especificaciones" });
+    const warrantyHeading = screen.getByRole("heading", { name: "Garantía" });
+    expect(specificationsHeading.compareDocumentPosition(warrantyHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(screen.getByTestId("warranty-details")).getByText("6 meses")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Garantía" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("6 meses")).toHaveLength(1);
 
-    // Los autos van en Aplicaciones, no en la descripción.
-    await user.click(screen.getByRole("button", { name: "Aplicaciones" }));
-    expect(screen.getByText("Chevrolet Onix 1.4 8V (2013–2019)")).toBeInTheDocument();
+    expect(within(screen.getByTestId("compatibility-card")).getByText("Chevrolet Onix")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Opiniones/ })).not.toBeInTheDocument();
+  });
+
+  it("does not invent warranty data when the product has no warranty fields", async () => {
+    const user = userEvent.setup();
+    const repuestoSinGarantia = mapearRepuesto({
+      id: 8,
+      name: "Filtro sin garantía informada",
+      price: 500,
+      stock: 1,
+      compatibilities: [],
+    });
+
+    render(<DetalleProducto {...navigationProps()} producto={repuestoSinGarantia} />);
+    expect(within(screen.getByTestId("warranty-details")).getAllByText("No especificado")).toHaveLength(2);
+    expect(within(screen.getByTestId("warranty-details")).getByText("Proveedor")).toBeInTheDocument();
+    expect(within(screen.getByTestId("warranty-details")).queryByText("Condiciones")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Garantía" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/defectos de fabricación/i)).not.toBeInTheDocument();
+  });
+
+  it("shows warranty conditions only when the product has real condition data", () => {
+    const repuesto = {
+      ...repuestoCompatible(),
+      garantiaMeses: 12,
+      proveedorGarantia: "fabricante",
+      condicionesGarantia: "Presentar comprobante de compra.",
+    };
+
+    render(<DetalleProducto {...navigationProps()} producto={repuesto} />);
+
+    const warranty = screen.getByTestId("warranty-details");
+    expect(within(warranty).getByText("12 meses")).toBeInTheDocument();
+    expect(within(warranty).getByText("Fabricante")).toBeInTheDocument();
+    expect(within(warranty).getByText("Presentar comprobante de compra.")).toBeInTheDocument();
   });
 
   it("shows the add confirmation and supports undo and cart navigation", async () => {
@@ -972,7 +1457,7 @@ describe("DetalleProducto", () => {
     startClientSession();
     render(<DetalleProducto {...props} producto={product} />);
 
-    await user.click(screen.getByRole("button", { name: "+" }));
+    await user.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
 
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 2));
@@ -989,8 +1474,7 @@ describe("DetalleProducto", () => {
     expect(props.onCarrito).toHaveBeenCalled();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Especificaciones" }));
-    expect(screen.getByText("Especificaciones técnicas")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Especificaciones" })).toBeInTheDocument();
     expect(screen.getByText("Semi-metalico")).toBeInTheDocument();
   });
 });
@@ -1525,10 +2009,10 @@ describe("App favoritos", () => {
     return within(imagen.parentElement).getByRole("button");
   };
 
-  const renderApp = () =>
+  const renderApp = (ruta = "/") =>
     renderBase(
-      <MemoryRouter>
-        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      <MemoryRouter initialEntries={[ruta]}>
+        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1548,6 +2032,37 @@ describe("App favoritos", () => {
     await user.click(screen.getByTitle("Favoritos"));
 
     expect(await screen.findByText("Discos de Freno Delanteros")).toBeInTheDocument();
+  });
+
+  it("opens a saved favorite using its backend ID in the URL", async () => {
+    const user = userEvent.setup();
+    const favorite = { ...catalogProducts[1], id: "22", partId: 22 };
+    obtenerFavoritos.mockResolvedValue([favorite]);
+    obtenerRepuesto.mockResolvedValue(favorite);
+    renderApp();
+
+    await user.click(screen.getByTitle("Favoritos"));
+    await user.click(await screen.findByRole("button", { name: favorite.nombre }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: favorite.nombre })).toBeInTheDocument();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/discos-de-freno-delanteros-22");
+    expect(obtenerRepuesto).toHaveBeenCalledWith("22");
+  });
+
+  it("opens a cart suggestion using its backend ID in the URL", async () => {
+    const user = userEvent.setup();
+    const itemCarrito = { ...catalogProducts[0], id: "21", partId: 21, cantidad: 1 };
+    const suggestion = { ...catalogProducts[1], id: "22", partId: 22 };
+    obtenerCarrito.mockResolvedValue({ items: [itemCarrito], total: itemCarrito.precio });
+    obtenerRecomendaciones.mockResolvedValue([suggestion]);
+    obtenerRepuesto.mockResolvedValue(suggestion);
+    renderApp("/carrito");
+
+    await user.click(await screen.findByRole("button", { name: suggestion.nombre }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: suggestion.nombre })).toBeInTheDocument();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/discos-de-freno-delanteros-22");
+    expect(obtenerRepuesto).toHaveBeenCalledWith("22");
   });
 
   it("does not ask the backend for favorites without a session", () => {
@@ -1668,9 +2183,23 @@ describe("App rutas", () => {
   const renderEn = (ruta) =>
     renderBase(
       <MemoryRouter initialEntries={[ruta]}>
-        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
+
+  it("opens the catalog product using its backend ID in the URL", async () => {
+    const user = userEvent.setup();
+    const catalogProduct = { ...catalogProducts[0], id: "21", partId: 21 };
+    obtenerRepuestos.mockResolvedValue([catalogProduct]);
+    obtenerRepuesto.mockResolvedValue(catalogProduct);
+
+    renderEn("/catalogo");
+    await user.click(await screen.findByRole("button", { name: "Ver detalle" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: catalogProduct.nombre })).toBeInTheDocument();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/pastillas-de-freno-delanteras-bosch-21");
+    expect(obtenerRepuesto).toHaveBeenCalledWith("21");
+  });
 
   it.each(["/favoritos", "/perfil", "/direcciones", "/metodos-pago", "/historial"])(
     "sends anonymous users from %s to the login instead of a blank page",

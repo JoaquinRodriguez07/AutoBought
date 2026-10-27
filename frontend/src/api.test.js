@@ -28,6 +28,7 @@ import {
   obtenerAnios,
   obtenerPerfil,
   obtenerRecomendaciones,
+  obtenerRepuesto,
   obtenerRepuestos,
   obtenerAvisosStock,
   agregarAvisoStock,
@@ -73,8 +74,12 @@ const uiPart = {
   descripcion: "",
   especificaciones: [],
   garantia: "",
+  garantiaMeses: null,
+  proveedorGarantia: null,
+  compatibilidades: [],
   aplicaciones: [],
   imagen: IMAGEN_PLACEHOLDER,
+  imagenesExtra: [],
 };
 
 /**
@@ -515,6 +520,19 @@ describe("cambiarPassword", () => {
 });
 
 describe("catalog API", () => {
+  it("loads one part by its URL ID and maps it like a catalog result", async () => {
+    fetch.mockResolvedValue(response(backendPart));
+
+    await expect(obtenerRepuesto(21)).resolves.toEqual(uiPart);
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/parts/21`);
+  });
+
+  it("preserves the 404 status for a missing part", async () => {
+    fetch.mockResolvedValue(response({ detail: "Repuesto no encontrado." }, { ok: false, status: 404 }));
+
+    await expect(obtenerRepuesto(999999)).rejects.toMatchObject({ status: 404 });
+  });
+
   it("requests all parts or combines and encodes the supported filters", async () => {
     fetch.mockResolvedValue(response({ parts: [backendPart] }));
 

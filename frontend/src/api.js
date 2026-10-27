@@ -374,10 +374,12 @@ async function leerJson(response) {
   }
 }
 
-function errorDeRespuesta(data, mensajePorDefecto) {
+function errorDeRespuesta(data, mensajePorDefecto, statusCode) {
   const mensaje =
     typeof data?.detail === "string" ? data.detail : mensajePorDefecto;
-  return new Error(mensaje);
+  const error = new Error(mensaje);
+  error.status = statusCode;
+  return error;
 }
 
 /**
@@ -404,7 +406,7 @@ async function pedirJson(url, mensajeError) {
   const data = await leerJson(response);
 
   if (!response.ok) {
-    throw errorDeRespuesta(data === SIN_JSON ? null : data, mensajeError);
+    throw errorDeRespuesta(data === SIN_JSON ? null : data, mensajeError, response.status);
   }
 
   if (data === SIN_JSON) {
@@ -471,6 +473,21 @@ export async function obtenerRepuestos(filtros) {
   const data = await pedirJson(url, mensajeError);
 
   return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+}
+
+/** GET /api/v1/parts/{id}; devuelve un repuesto con el mismo mapeo que el catálogo. */
+export async function obtenerRepuesto(id) {
+  const mensajeError = "No pudimos cargar el repuesto.";
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/parts/${encodeURIComponent(id)}`,
+    mensajeError
+  );
+
+  if (!data || typeof data !== "object" || Array.isArray(data) || data.id == null) {
+    throw new Error(mensajeError);
+  }
+
+  return mapearRepuesto(data);
 }
 
 /**

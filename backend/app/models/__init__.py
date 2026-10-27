@@ -12,4 +12,5 @@ from app.models.payment_method import PaymentMethod
 from app.models.shipping_address import ShippingAddress
 from app.models.favorite import Favorite
 from app.models.stock_alert import StockAlert
+from app.models.auth_attempt import AuthAttempt
 from app.models.uso_ia import UsoIA

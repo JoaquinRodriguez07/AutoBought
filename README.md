@@ -27,6 +27,26 @@ Cada repuesto trae además una descripción, sus especificaciones técnicas (di�
 
 Sobre una base que ya tiene el catálogo, `scripts.seed` no lo vuelve a cargar: agrega las columnas nuevas de `part` si faltan y actualiza, por código, el nombre, la descripción, las especificaciones y la garantía de los repuestos que ya existen, sin tocar precios, stock, pedidos, carritos ni favoritos. Así, después de bajar cambios del catálogo alcanza con volver a correrlo (también contra la base de la nube). Para ver repuestos **nuevos** (códigos que la base no tiene) sí hay que recrear la base y volver a correr los tres scripts. En local: `docker compose down -v`, `docker compose up -d` y los scripts de arriba.
 
+### Imágenes de los repuestos
+
+Los 1089 repuestos salen de 17 tipos de pieza (bujía, discos de freno, radiador...) y de 2 a 4 fabricantes por tipo. Cada repuesto muestra la imagen de su tipo en la versión de su fabricante: la del fabricante principal es la imagen base, y la de cada uno de los demás se genera a partir de ella cambiando el color o el diseño (46 imágenes en total). La tabla de tipos está en `frontend/src/imagenesRepuestos.js` (el tipo se reconoce por cómo empieza el nombre, y cada tipo tiene la descripción técnica que se le pide al modelo) y las imágenes en `frontend/public/repuestos/`. Son ilustrativas y genéricas, sin marcas, y se generan con Nano Banana Pro (`gemini-3-pro-image`), la API de imágenes de Gemini. Requiere una clave con facturación activa (unos USD 0,13 por imagen).
+
+```bash
+cd frontend
+GEMINI_API_KEY=tu-clave npm run imagenes -- --variantes 3     # 3 opciones por tipo para comparar
+npm run imagenes -- --elegir bujia 2                          # quedarse con la opción 2 de bujía
+GEMINI_API_KEY=tu-clave npm run imagenes -- --solo bujia      # regenerar una o varias (separadas por coma)
+GEMINI_API_KEY=tu-clave npm run imagenes                      # solo las que faltan (primero las bases, después las de fabricante)
+npm run imagenes -- --prueba                                  # ver los prompts sin llamar a la API
+GEMINI_API_KEY=tu-clave npm run imagenes -- --vistas          # segunda vista (otro ángulo) de cada imagen
+```
+
+Con `--vistas`, el script trabaja sobre las segundas vistas (`<imagen>-vista.webp`): la misma pieza desde otro ángulo, generada a partir de su imagen principal, que el detalle del repuesto muestra como miniatura. Acepta las mismas opciones (`--solo bateria-vista`, `--variantes`, `--elegir`).
+
+Con `--variantes`, las opciones quedan en `frontend/imagenes-candidatas/` con un `index.html` para verlas lado a lado. Para más fidelidad, se puede dejar una foto real de la pieza en `frontend/imagenes-referencia/<tipo>.jpg` y el script la manda como referencia (solo fotos propias o con licencia libre). Además, la imagen original en 2K (tal como la devuelve el modelo) se guarda en `frontend/imagenes-originales/<tipo>.jpg`, para usarla más adelante como base de los modelos 3D; con `--variantes`, se guarda la de la variante elegida. Ninguna de esas tres carpetas se sube al repositorio.
+
+La clave se pasa como variable de entorno y nunca se sube al repositorio. Opcionales: `GEMINI_IMAGE_MODEL` (otro modelo) y `GEMINI_IMAGE_SIZE` (`1K`, `2K` o `4K`; por defecto `2K`). Cada imagen se guarda como `.webp` de 600×600 px. Un test falla si algún repuesto del catálogo no tiene tipo o si a algún tipo le falta la imagen.
+
 ### Usuarios de prueba
 
 `scripts.seed_demo_users` crea 3 clientes con direcciones y tarjetas cargadas, y un vendedor:
