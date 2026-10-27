@@ -305,6 +305,23 @@ afterEach(() => {
 });
 
 describe("Navbar", () => {
+  it("bounces the favorites counter only when it goes up", () => {
+    const props = navigationProps();
+    const { rerender } = render(<Navbar paginaActual="home" {...props} cantidadFavoritos={1} />);
+    const contador = () => within(screen.getByTitle("Favoritos")).getByText(/^\d+$/);
+
+    // Al montar (ej. al cambiar de pantalla) no rebota.
+    expect(contador()).not.toHaveClass("motion-safe:animate-rebote");
+
+    rerender(
+      <MemoryRouter><CartProvider><VehicleProvider>
+        <Navbar paginaActual="home" {...props} cantidadFavoritos={2} />
+      </VehicleProvider></CartProvider></MemoryRouter>
+    );
+    expect(contador()).toHaveTextContent("2");
+    expect(contador()).toHaveClass("motion-safe:animate-rebote");
+  });
+
   it("opens the global search with focus and applies its query from another page", async () => {
     const user = userEvent.setup();
     render(
@@ -678,71 +695,159 @@ describe("Catalogo", () => {
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("DB5678", 2));
   });
 
-  it("shows the add confirmation and supports undo, dismissal, and cart navigation", async () => {
+  // Después de agregar, el botón dice "Agregado" por un momento: se
+  // buscan los dos textos para seguir encontrando el mismo botón.
+  const botonesAgregar = () =>
+    screen.getAllByRole("button", { name: /^(agregar|agregado)$/i });
+  const esperarCatalogo = () =>
+    screen.findAllByRole("button", { name: /^agregar$/i });
+  const avisoCarrito = () =>
+    screen.getByText("Agregado al carrito").closest("[aria-live]");
+  const catalogoProps = () => ({
+    ...navigationProps(),
+    onAlternarFavorito: jest.fn(),
+    onDetalle: jest.fn(),
+    esFavorito: jest.fn(() => false),
+  });
+  const carritoConPastillas = (cantidad) => ({
+    items: [{
+      id: "BP1234",
+      partId: "BP1234",
+      nombre: "Pastillas de Freno Delanteras Bosch",
+      precio: 1500,
+      cantidad,
+      stock: 5,
+    }],
+    total: 1500 * cantidad,
+  });
+
+  it("shows a non-blocking notice that merges repeated adds and closes or goes to the cart", async () => {
     const user = userEvent.setup();
-    const props = navigationProps();
-    props.onAlternarFavorito = jest.fn();
-    props.onDetalle = jest.fn();
-    props.esFavorito = jest.fn(() => false);
     startClientSession();
-    agregarItemCarrito.mockResolvedValue({
-      items: [{
-        part_id: "BP1234",
-        name: "Pastillas de Freno Delanteras Bosch",
-        price: 1500,
-        amount: 1,
-        subtotal: 1500,
-        stock: 5,
-        category: "Frenos",
-      }],
-      total: 1500,
-    });
+    agregarItemCarrito
+      .mockResolvedValueOnce(carritoConPastillas(1))
+      .mockResolvedValueOnce(carritoConPastillas(2));
 
-    render(<Catalogo {...props} categoriaInicial="Frenos" />);
-    await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
+    render(<><Catalogo {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
 
-    let dialog = await screen.findByRole("status");
-    expect(within(dialog).getByText("Agregado al carrito")).toBeInTheDocument();
-    expect(within(dialog).getAllByRole("button").map((button) => button.textContent))
-      .toEqual(["✕", "Deshacer", "Ver carrito"]);
+    expect(await screen.findByText("Agregado al carrito")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(botonesAgregar()[0]).toHaveTextContent("Agregado");
+    expect(within(avisoCarrito()).getByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    expect(within(avisoCarrito()).getByText(/×1/)).toBeInTheDocument();
+    expect(within(avisoCarrito()).getByText(/Tu carrito \(1 producto\)/)).toBeInTheDocument();
+    expect(within(screen.getByTitle("Carrito")).getByText("1"))
+      .toHaveClass("motion-safe:animate-rebote");
 
-    await user.click(within(dialog).getByRole("button", { name: "Cerrar aviso" }));
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    // Agregar otra vez el mismo repuesto actualiza el aviso, no apila otro.
+    await user.click(botonesAgregar()[0]);
+    await waitFor(() => expect(within(avisoCarrito()).getByText(/×2/)).toBeInTheDocument());
+    expect(screen.getAllByText("Agregado al carrito")).toHaveLength(1);
+    expect(within(avisoCarrito()).getByText(/Tu carrito \(2 productos\)/)).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
-    dialog = await screen.findByRole("status");
-    await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
+    await user.click(screen.getByRole("button", { name: "Seguir comprando" }));
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+
+    await user.click(botonesAgregar()[0]);
+    await user.click(await screen.findByRole("button", { name: "Cerrar aviso" }));
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+
+    await user.click(botonesAgregar()[0]);
+    await screen.findByText("Agregado al carrito");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+
+    await user.click(botonesAgregar()[0]);
+    await user.click(await screen.findByRole("button", { name: "Ver carrito" }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/carrito");
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+  });
+
+  it("disables the button while adding and shows the result in the same place", async () => {
+    const user = userEvent.setup();
+    startClientSession();
+    let responder;
+    agregarItemCarrito.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+
+    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
+
+    expect(screen.getByRole("button", { name: "Agregando…" })).toBeDisabled();
+
+    responder(carritoConPastillas(1));
+    expect(await screen.findByRole("button", { name: "Agregado" })).toBeEnabled();
+  });
+
+  it("undo removes the line when nothing was in the cart before", async () => {
+    const user = userEvent.setup();
+    startClientSession();
+    agregarItemCarrito.mockResolvedValue(carritoConPastillas(1));
+
+    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
+
+    await user.click(await screen.findByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("BP1234"));
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: /agregar/i })[0]);
-    dialog = await screen.findByRole("status");
-    await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
-    expect(props.onCarrito).toHaveBeenCalled();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
   });
 
   it("undo only removes the quantity that was just added", async () => {
     const user = userEvent.setup();
-    const props = navigationProps();
-    props.onAlternarFavorito = jest.fn();
-    props.onDetalle = jest.fn();
-    props.esFavorito = jest.fn(() => false);
     startClientSession();
     // El carrito ya tenía 2 unidades: después de agregar 1 quedan 3.
-    agregarItemCarrito.mockResolvedValue({
-      items: [{ id: "BP1234", partId: "BP1234", nombre: "Pastillas de Freno Delanteras Bosch", precio: 1500, cantidad: 3 }],
-      total: 4500,
-    });
+    agregarItemCarrito.mockResolvedValue(carritoConPastillas(3));
 
-    render(<Catalogo {...props} categoriaInicial="Frenos" />);
-    await user.click((await screen.findAllByRole("button", { name: /agregar/i }))[0]);
+    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
 
-    const dialog = await screen.findByRole("status");
-    await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
+    await user.click(await screen.findByRole("button", { name: "Deshacer" }));
 
     await waitFor(() => expect(actualizarItemCarrito).toHaveBeenCalledWith("BP1234", 2));
     expect(eliminarItemCarrito).not.toHaveBeenCalled();
+  });
+
+  it("explains a stock conflict with the units already in the cart", async () => {
+    const user = userEvent.setup();
+    startClientSession();
+    obtenerCarrito.mockResolvedValue(carritoConPastillas(4));
+    agregarItemCarrito.mockRejectedValue(
+      Object.assign(new Error("No hay stock suficiente. Disponible: 5 unidades."), { status: 409 })
+    );
+
+    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    await esperarCatalogo();
+    await waitFor(() =>
+      expect(within(screen.getByTitle("Carrito")).getByText("4")).toBeInTheDocument()
+    );
+    await user.click(botonesAgregar()[0]);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Solo quedan 5 unidades y ya tenés 4 en el carrito.")
+    );
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+    expect(botonesAgregar()[0]).toHaveTextContent(/^Agregar$/);
+  });
+
+  it("asks an anonymous visitor to log in with a button instead of only a message", async () => {
+    const user = userEvent.setup();
+
+    render(<><Catalogo {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
+
+    const aviso = screen
+      .getByText("Iniciá sesión para agregar productos al carrito.")
+      .closest("[aria-live]");
+    expect(agregarItemCarrito).not.toHaveBeenCalled();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(/^\/$/);
+
+    await user.click(within(aviso).getByRole("button", { name: "Iniciar sesión" }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/login");
   });
 
   it("filters by the manufacturers of the loaded products and clears them", async () => {
@@ -1447,7 +1552,7 @@ describe("DetalleProducto", () => {
     expect(within(warranty).getByText("Presentar comprobante de compra.")).toBeInTheDocument();
   });
 
-  it("shows the add confirmation and supports undo and cart navigation", async () => {
+  it("shows the add notice with the chosen quantity and supports undo and cart navigation", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
     buscarTexto.mockResolvedValue({
@@ -1458,24 +1563,24 @@ describe("DetalleProducto", () => {
     props.esFavorito = jest.fn(() => false);
 
     startClientSession();
-    render(<DetalleProducto {...props} producto={product} />);
+    render(<><DetalleProducto {...props} producto={product} /><RutaActual /></>);
 
     await user.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
 
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 2));
-    let dialog = await screen.findByRole("status");
-    expect(within(dialog).getByText("Agregado al carrito")).toBeInTheDocument();
+    const aviso = (await screen.findByText("Agregado al carrito")).closest("[aria-live]");
+    expect(within(aviso).getByText("Pastillas de prueba")).toBeInTheDocument();
+    expect(within(aviso).getByText(/×2/)).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: "Deshacer" }));
+    await user.click(within(aviso).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
-    dialog = await screen.findByRole("status");
-    await user.click(within(dialog).getByRole("button", { name: "Ver carrito" }));
-    expect(props.onCarrito).toHaveBeenCalled();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /agregar al carrito|^agregado$/i }));
+    await user.click(await screen.findByRole("button", { name: "Ver carrito" }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/carrito");
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
 
     expect(screen.getByRole("heading", { name: "Especificaciones" })).toBeInTheDocument();
     expect(screen.getByText("Semi-metalico")).toBeInTheDocument();
@@ -1587,11 +1692,11 @@ describe("Favoritos", () => {
 
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
 
-    const aviso = await screen.findByRole("status");
+    const aviso = (await screen.findByText("Agregado al carrito")).closest("[aria-live]");
     expect(within(aviso).getByText(product.nombre)).toBeInTheDocument();
     await user.click(within(aviso).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
   });
 });
 
@@ -1601,20 +1706,23 @@ describe("ConfirmacionAgregarCarrito", () => {
   it("closes by itself after a few seconds, but waits while the mouse is over it", () => {
     jest.useFakeTimers();
     const onCerrar = jest.fn();
-    render(
+    renderBase(
       <ConfirmacionAgregarCarrito
-        producto={product}
+        aviso={{ tipo: "agregado", producto: product, cantidadAgregada: 1 }}
+        cantidadCarrito={1}
+        total={1500}
         onDeshacer={jest.fn()}
         onCerrar={onCerrar}
         onVerCarrito={jest.fn()}
       />
     );
+    const tarjeta = screen.getByText("Agregado al carrito").closest("[aria-live] > div");
 
-    fireEvent.mouseEnter(screen.getByRole("status"));
+    fireEvent.mouseEnter(tarjeta);
     act(() => jest.advanceTimersByTime(DURACION_AVISO_MS + 1000));
     expect(onCerrar).not.toHaveBeenCalled();
 
-    fireEvent.mouseLeave(screen.getByRole("status"));
+    fireEvent.mouseLeave(tarjeta);
     act(() => jest.advanceTimersByTime(DURACION_AVISO_MS - 1));
     expect(onCerrar).not.toHaveBeenCalled();
     act(() => jest.advanceTimersByTime(1));
@@ -1624,13 +1732,14 @@ describe("ConfirmacionAgregarCarrito", () => {
   it("the next notice closes by itself even if the previous one was closed with the mouse over it", () => {
     jest.useFakeTimers();
     const onCerrar = jest.fn();
-    const props = { onDeshacer: jest.fn(), onCerrar, onVerCarrito: jest.fn() };
-    const { rerender } = render(<ConfirmacionAgregarCarrito {...props} producto={product} />);
+    const props = { cantidadCarrito: 1, total: 1500, onDeshacer: jest.fn(), onCerrar, onVerCarrito: jest.fn() };
+    const aviso = () => ({ tipo: "agregado", producto: product, cantidadAgregada: 1 });
+    const { rerender } = renderBase(<ConfirmacionAgregarCarrito {...props} aviso={aviso()} />);
 
     // Se cierra con el mouse encima: el mouseLeave nunca llega.
-    fireEvent.mouseEnter(screen.getByRole("status"));
-    rerender(<ConfirmacionAgregarCarrito {...props} producto={null} />);
-    rerender(<ConfirmacionAgregarCarrito {...props} producto={{ ...product }} />);
+    fireEvent.mouseEnter(screen.getByText("Agregado al carrito").closest("[aria-live] > div"));
+    rerender(<ConfirmacionAgregarCarrito {...props} aviso={null} />);
+    rerender(<ConfirmacionAgregarCarrito {...props} aviso={aviso()} />);
 
     act(() => jest.advanceTimersByTime(DURACION_AVISO_MS));
     expect(onCerrar).toHaveBeenCalledTimes(1);

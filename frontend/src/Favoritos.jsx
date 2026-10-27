@@ -1,8 +1,6 @@
-import { useState } from "react";
 import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
-import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
-import { useCart } from "./context/CartContext";
+import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import { IconoCarrito, IconoCorazon } from "./Iconos";
 import EncabezadoPagina from "./EncabezadoPagina";
 
@@ -12,27 +10,10 @@ export default function Favoritos({
   onDetalle,
   usuario, onPerfil, onDirecciones, onMetodosPago, onHistorial, onCerrarSesion,
 }) {
-  const { addToCart, deshacerAgregado } = useCart();
-  const [productoAgregado, setProductoAgregado] = useState(null);
   const precio = (v) => `$${v.toLocaleString("es-UY")}`;
-
-  const agregarAlCarrito = async (producto) => {
-    if (await addToCart(producto, 1)) {
-      setProductoAgregado({ ...producto, cantidadAgregada: 1 });
-    }
-  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
-      <ConfirmacionAgregarCarrito
-        producto={productoAgregado}
-        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
-        onCerrar={() => setProductoAgregado(null)}
-        onVerCarrito={() => {
-          setProductoAgregado(null);
-          onCarrito();
-        }}
-      />
       <Navbar paginaActual="favoritos" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
         usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
@@ -79,18 +60,11 @@ export default function Favoritos({
                       {producto.nombre}
                     </button>
                     <p className="text-lg font-black mt-3">{precio(producto.precio)}</p>
-                    {producto.stock === 0 ? (
-                      <button disabled
-                        className="w-full mt-4 bg-gray-200 text-gray-400 cursor-not-allowed rounded-md py-2.5 text-xs font-black">
-                        SIN STOCK
-                      </button>
-                    ) : (
-                      <button onClick={() => agregarAlCarrito(producto)}
-                        className="w-full mt-4 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md py-2.5 text-xs font-black">
-                        <IconoCarrito />
-                        AGREGAR AL CARRITO
-                      </button>
-                    )}
+                    <BotonAgregarCarrito producto={producto} textoSinStock="SIN STOCK"
+                      className="w-full mt-4 flex items-center justify-center gap-2 rounded-md py-2.5 text-xs font-black">
+                      <IconoCarrito />
+                      AGREGAR AL CARRITO
+                    </BotonAgregarCarrito>
                   </div>
                 </div>
               ))}

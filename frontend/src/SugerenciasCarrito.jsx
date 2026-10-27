@@ -57,7 +57,9 @@ export default function SugerenciasCarrito({ onDetalle }) {
   const agregar = async (producto) => {
     setAgregando(producto.id);
     try {
-      await addToCart(producto, 1);
+      // Ya estamos en el carrito: el ítem aparece en la lista, no hace
+      // falta el aviso de "agregado".
+      await addToCart(producto, 1, { aviso: false });
     } finally {
       setAgregando(null);
     }

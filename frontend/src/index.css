@@ -78,6 +78,37 @@
 }
 
 /*
+  Aviso de "agregado al carrito": el contador del navbar rebota cuando
+  sube y el aviso entra deslizándose. Se usan con `motion-safe:` para
+  respetar a quien tiene activado "reducir movimiento" en el sistema.
+*/
+@theme {
+  --animate-rebote: rebote 0.4s ease-out;
+  --animate-entrar-aviso: entrar-aviso 0.2s ease-out;
+
+  @keyframes rebote {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.5);
+    }
+  }
+
+  @keyframes entrar-aviso {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/*
   Chat de Pit: cada mensaje entra con un deslizamiento corto. Se usa con
   `motion-safe:`, así no se mueve si el sistema pide reducir el movimiento.
 */
