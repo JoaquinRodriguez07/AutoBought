@@ -4,6 +4,7 @@ import BotonAvisoStock from "./BotonAvisoStock";
 import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";
+import InvitacionAsistente from "./InvitacionAsistente";
 import SearchBar from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import EncabezadoPagina from "./EncabezadoPagina";
@@ -534,6 +535,8 @@ export default function Catalogo({
                 </button>
               )}
 
+              {!textoSinBuscar && <InvitacionAsistente variante="enlace" />}
+
             </>
           }
         >
@@ -915,10 +918,13 @@ export default function Catalogo({
 
               {!cargando && !error && productosMostrados.length === 0 && (
                 busqueda.trim() ? (
-                  <SinResultadosBusqueda
-                    termino={busqueda.trim()}
-                    onBuscarEnTodo={textoSinBuscar ? () => buscar(textoSinBuscar) : undefined}
-                  />
+                  <>
+                    <SinResultadosBusqueda
+                      termino={busqueda.trim()}
+                      onBuscarEnTodo={textoSinBuscar ? () => buscar(textoSinBuscar) : undefined}
+                    />
+                    <InvitacionAsistente variante="sinResultados" termino={busqueda.trim()} />
+                  </>
                 ) : (
                   <div className="py-20 text-center text-gray-400 text-sm">
                     {productos.length > 0

@@ -12,9 +12,7 @@ from typing import Protocol
 
 import httpx
 
-from app.core.config import GEMINI_API_KEY, GEMINI_MODEL, IA_TIMEOUT_SEGUNDOS
-
-URL_INTERACTIONS = "https://generativelanguage.googleapis.com/v1beta/interactions"
+from app.core.config import GEMINI_API_KEY, GEMINI_API_URL, GEMINI_MODEL, IA_TIMEOUT_SEGUNDOS
 
 
 class IANoDisponible(Exception):
@@ -76,10 +74,12 @@ class ClienteGemini:
         modelo: str = GEMINI_MODEL,
         timeout: float = IA_TIMEOUT_SEGUNDOS,
         transport: httpx.BaseTransport | None = None,
+        url: str = GEMINI_API_URL,
     ):
         self.clave = clave
         self.modelo = modelo
         self.timeout = timeout
+        self.url = url
         # Solo para los tests: un transporte falso en vez de la red.
         self.transport = transport
 
@@ -97,7 +97,7 @@ class ClienteGemini:
         try:
             with httpx.Client(timeout=self.timeout, transport=self.transport) as http:
                 respuesta = http.post(
-                    URL_INTERACTIONS,
+                    self.url,
                     json=pedido,
                     headers={"x-goog-api-key": self.clave},
                 )
@@ -105,7 +105,9 @@ class ClienteGemini:
             raise IANoDisponible(f"La IA no respondió: {error.__class__.__name__}.") from error
 
         if respuesta.status_code != 200:
-            raise IANoDisponible(f"La IA respondió con error {respuesta.status_code}.")
+            # El cuerpo del error de Google dice el motivo (clave inválida, sin
+            # crédito, modelo inexistente...). Nunca trae la clave.
+            raise IANoDisponible(f"La IA respondió con error {respuesta.status_code}: {respuesta.text[:300]}")
 
         try:
             cuerpo = respuesta.json()

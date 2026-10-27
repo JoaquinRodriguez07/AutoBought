@@ -79,9 +79,12 @@ import ProtectedRoute from "./ProtectedRoute";
 import { crearToken } from "./testTokens";
 import SearchBar from "./SearchBar";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
+import InvitacionAsistente from "./InvitacionAsistente";
+import PanelPit from "./PanelPit";
 import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
 import { useVehicle } from "./context/VehicleContext";
+import { PitProvider } from "./context/PitContext";
 
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import toast from "react-hot-toast";
@@ -131,6 +134,7 @@ import {
   haySesionActiva,
   obtenerSesion,
   sesionValida,
+  TIPO_VENDEDOR,
 } from "./auth";
 
 const navigationProps = () => ({
@@ -214,7 +218,9 @@ function render(ui, options = {}) {
   return renderBase(
     <MemoryRouter initialEntries={initialEntries}>
       <CartProvider>
-        <VehicleProvider>{ui}</VehicleProvider>
+        <VehicleProvider>
+          <PitProvider>{ui}</PitProvider>
+        </VehicleProvider>
       </CartProvider>
     </MemoryRouter>,
     renderOptions
@@ -308,9 +314,9 @@ describe("Navbar", () => {
     expect(contador()).not.toHaveClass("motion-safe:animate-rebote");
 
     rerender(
-      <MemoryRouter><CartProvider><VehicleProvider>
+      <MemoryRouter><CartProvider><VehicleProvider><PitProvider>
         <Navbar paginaActual="home" {...props} cantidadFavoritos={2} />
-      </VehicleProvider></CartProvider></MemoryRouter>
+      </PitProvider></VehicleProvider></CartProvider></MemoryRouter>
     );
     expect(contador()).toHaveTextContent("2");
     expect(contador()).toHaveClass("motion-safe:animate-rebote");
@@ -1904,7 +1910,7 @@ describe("App", () => {
     const user = userEvent.setup();
     renderBase(
       <MemoryRouter>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1917,7 +1923,7 @@ describe("App", () => {
     const user = userEvent.setup();
     renderBase(
       <MemoryRouter>
-         <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+         <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1939,7 +1945,7 @@ describe("App", () => {
     });
     renderBase(
       <MemoryRouter>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -1953,6 +1959,83 @@ describe("App", () => {
   });
 });
 
+describe("App y Pit", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+
+  const renderEn = (ruta) =>
+    renderBase(
+      <MemoryRouter initialEntries={[ruta]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  it("shows the floating Pit to a client on the store pages", () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+    renderEn("/");
+
+    expect(screen.getByRole("button", { name: "Abrir Pit, el asistente con IA" })).toBeInTheDocument();
+  });
+
+  it("does not show it without a session: the invitation asks to log in", async () => {
+    const user = userEvent.setup();
+    renderEn("/");
+
+    expect(screen.queryByRole("button", { name: /Abrir Pit/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "HABLAR CON PIT" }));
+    expect(screen.getByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
+  });
+
+  it("opens Pit at the side from the home invitation, without a page of its own", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+    renderEn("/");
+
+    await user.click(screen.getByRole("button", { name: "HABLAR CON PIT" }));
+
+    expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
+  });
+});
+
+describe("Accesos a Pit", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const conSesion = () =>
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+
+  it("opens Pit from the menu; without a session it asks to log in", async () => {
+    const user = userEvent.setup();
+    const onLogin = jest.fn();
+    const { unmount } = render(<Navbar usuario={null} onLogin={onLogin} />);
+
+    await user.click(screen.getByRole("button", { name: /Pit IA/ }));
+    expect(onLogin).toHaveBeenCalled();
+    unmount();
+
+    conSesion();
+    render(<><Navbar usuario={{ id: 1, nombre: "Ana" }} onLogin={onLogin} /><PanelPit /></>);
+    await user.click(screen.getByRole("button", { name: /Pit IA/ }));
+    expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
+  });
+
+  it("does not show Pit in the menu to the seller", () => {
+    render(<Navbar usuario={{ id: 1, nombre: "Vendedor", userType: TIPO_VENDEDOR }} onLogin={jest.fn()} />);
+
+    expect(screen.queryByRole("button", { name: /Pit IA/ })).not.toBeInTheDocument();
+  });
+
+  it("suggests Pit when a catalog search finds nothing, with the search already written", async () => {
+    const user = userEvent.setup();
+    conSesion();
+    render(<><InvitacionAsistente variante="sinResultados" termino="ruido al frenar" /><PanelPit /></>);
+
+    expect(screen.getByText("¿Y si se lo contás a Pit?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Preguntarle a Pit" }));
+
+    expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Mensaje para Pit")).toHaveValue("ruido al frenar");
+  });
+});
+
 describe("App avisos de stock", () => {
   const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
   const agotado = { ...catalogProducts[2], id: "FAR-77", partId: 77, nombre: "Faro Agotado", stock: 0 };
@@ -1962,7 +2045,7 @@ describe("App avisos de stock", () => {
     obtenerRepuestos.mockResolvedValue([catalogProducts[0], agotado]);
     renderBase(
       <MemoryRouter initialEntries={["/catalogo"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
     await screen.findByText("Faro Agotado");
@@ -2041,7 +2124,7 @@ describe("App favoritos", () => {
   const renderApp = (ruta = "/") =>
     renderBase(
       <MemoryRouter initialEntries={[ruta]}>
-        <CartProvider><VehicleProvider><><App /><RutaActual /></></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -2147,7 +2230,7 @@ describe("App sesión", () => {
 
     renderBase(
       <MemoryRouter initialEntries={["/perfil"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
     await user.click(await screen.findByRole("button", { name: "EDITAR" }));
@@ -2172,7 +2255,7 @@ describe("App verificación del correo", () => {
 
     renderBase(
       <MemoryRouter>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -2185,7 +2268,7 @@ describe("App verificación del correo", () => {
 
     renderBase(
       <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -2199,7 +2282,7 @@ describe("App verificación del correo", () => {
 
     renderBase(
       <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -2212,7 +2295,7 @@ describe("App rutas", () => {
   const renderEn = (ruta) =>
     renderBase(
       <MemoryRouter initialEntries={[ruta]}>
-        <CartProvider><VehicleProvider><><App /><RutaActual /></></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -2264,7 +2347,7 @@ describe("App renovación de sesión", () => {
   const renderApp = () =>
     renderBase(
       <MemoryRouter initialEntries={["/"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -2338,7 +2421,7 @@ describe("App sesión inválida (401)", () => {
 
     const vista = renderBase(
       <MemoryRouter initialEntries={[ruta]}>
-        <CartProvider><VehicleProvider><App /><RutaActual /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 

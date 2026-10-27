@@ -28,6 +28,8 @@ import DetalleProducto from "./DetalleProducto";
 import Marcas from "./Marcas";
 import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
+import PanelPit from "./PanelPit";
+import { usePit } from "./context/PitContext";
 import ProtectedRoute from "./ProtectedRoute";
 import Footer from "./Footer";
 import EmployeeRoute from "./EmployeeRoute";
@@ -60,6 +62,7 @@ function App() {
   }, [pathname]);
   const { cargarCarrito, limpiarCarritoLocal } = useCart();
   const { activarVehiculo } = useVehicle();
+  const { olvidar: olvidarCharlaPit } = usePit();
 
 
   // null = sin filtro de categoría (el catálogo muestra todos los
@@ -366,6 +369,7 @@ function App() {
     sessionStorage.removeItem("autobought-sesion");
 
     limpiarCarritoLocal();
+    olvidarCharlaPit();
     setFavoritos([]);
     setAvisosStock([]);
     navigate("/");
@@ -589,6 +593,12 @@ function App() {
   // por "ocupar lo que sobre" (flex-1) para que la página y el footer
   // juntos llenen la pantalla.
   const conFooter = !RUTAS_SIN_FOOTER.includes(pathname);
+
+  // Pit (el asistente con IA) flota en las páginas de la tienda para los
+  // clientes con sesión: no en las pantallas de cuenta sin footer (login,
+  // registro...) ni para el vendedor. No tiene página propia: se abre al
+  // costado, sin salir de lo que el cliente estaba mirando.
+  const mostrarPit = Boolean(usuario) && !vendedor && conFooter;
 
   return (
     <>
@@ -857,6 +867,12 @@ function App() {
     {/* Las pantallas de iniciar sesión y registro tienen su propio armado. */}
     {conFooter && <Footer {...propsNavbar} />}
     </div>
+    {mostrarPit && (
+      <PanelPit
+        onDetalle={irAlDetalle}
+        onBuscarEnCatalogo={(consulta) => navigate(`/catalogo?q=${encodeURIComponent(consulta)}`)}
+      />
+    )}
     </>
   );
 }

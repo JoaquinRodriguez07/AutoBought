@@ -5,6 +5,7 @@ jest.mock("./auth", () => ({
 import {
   alSesionInvalida,
   actualizarItemCarrito,
+  consultarAsistente,
   agregarFavoritoAPI,
   actualizarPerfil,
   cambiarPassword,
@@ -1003,3 +1004,54 @@ describe("recommendations API", () => {
     await expect(obtenerRecomendaciones([21])).resolves.toEqual([]);
   });
 });
+
+describe("assistant API", () => {
+  const backendPart = {
+    id: 11, name: "Pastillas de freno delanteras Bosch", manufacturer: "Bosch", part_code: "BRK-0011",
+    category: "Frenos", price: 2800, stock: 5, compatible_brands: ["Chevrolet"], compatible_models: ["Onix"],
+  };
+
+  it("sends the symptom and the vehicle with the session and maps the parts like the catalog", async () => {
+    fetch.mockResolvedValue(response({
+      diagnostico: "Pastillas gastadas.", urgencia: "alta", aviso: "No manejes.", pregunta: null, fuera_de_tema: false,
+      recomendaciones: [{ tipo: "Pastillas de freno", motivo: "Chillido.", repuestos: [backendPart] }],
+    }));
+
+    const resultado = await consultarAsistente({ texto: "chilla", marca: "Chevrolet", modelo: "Onix", anio: "2016" });
+
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/asistente`, expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ texto: "chilla", marca: "Chevrolet", modelo: "Onix", anio: 2016 }),
+      headers: expect.objectContaining({ Authorization: "Bearer jwt-token" }),
+    }));
+    expect(resultado).toMatchObject({ diagnostico: "Pastillas gastadas.", urgencia: "alta", aviso: "No manejes.", fueraDeTema: false });
+    expect(resultado.recomendaciones[0].repuestos[0]).toMatchObject({ id: "11", nombre: backendPart.name, fabricante: "Bosch", precio: 2800 });
+  });
+
+  it("sends the signed history to continue the conversation and returns the new one", async () => {
+    const historial = [{ rol: "cliente", texto: "chilla" }, { rol: "asistente", texto: "Pastillas gastadas." }];
+    fetch.mockResolvedValue(response({
+      diagnostico: "Si es fuerte, revisá los discos.", urgencia: "media", aviso: null, pregunta: "¿Hace cuánto?",
+      opciones: ["Una semana"], fuera_de_tema: false, recomendaciones: [],
+      historial: [...historial, { rol: "cliente", texto: "fuerte" }], firma: "firma-2",
+    }));
+
+    const resultado = await consultarAsistente({
+      texto: "fuerte", marca: "Chevrolet", modelo: "Onix", anio: "2016", historial, firma: "firma-1",
+    });
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      texto: "fuerte", marca: "Chevrolet", modelo: "Onix", anio: 2016, historial, firma: "firma-1",
+    });
+    expect(resultado).toMatchObject({ opciones: ["Una semana"], firma: "firma-2" });
+    expect(resultado.historial).toHaveLength(3);
+  });
+
+  it("keeps the status so the screen can offer the catalog search", async () => {
+    fetch.mockResolvedValue(response({ detail: "El asistente no está disponible." }, { status: 503, ok: false }));
+
+    await expect(consultarAsistente({ texto: "x y z", marca: "A", modelo: "B", anio: 2016 }))
+      .rejects.toMatchObject({ status: 503, message: "El asistente no está disponible." });
+  });
+});
+

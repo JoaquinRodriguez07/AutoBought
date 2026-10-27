@@ -79,9 +79,11 @@ def test_sin_clave_no_esta_disponible():
         ClienteGemini(clave="").generar("x", "y")
 
 
-def test_error_del_proveedor_no_esta_disponible():
+def test_error_del_proveedor_no_esta_disponible_y_dice_el_motivo():
     with pytest.raises(IANoDisponible, match="500"):
         cliente_con(lambda request: httpx.Response(500, json={"error": {"message": "boom"}})).generar("x", "y")
+    with pytest.raises(IANoDisponible, match="API key not valid"):
+        cliente_con(lambda request: httpx.Response(400, json={"error": {"message": "API key not valid."}})).generar("x", "y")
 
 
 def test_tiempo_agotado_no_esta_disponible():

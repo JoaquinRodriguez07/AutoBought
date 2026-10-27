@@ -1170,3 +1170,53 @@ export async function obtenerDetalleCompra(orderId) {
   );
   return mapearPedido(data);
 }
+
+/* =====================================================
+   ASISTENTE DE COMPRA (IA)
+   POST /api/v1/asistente: el cliente cuenta qué le pasa al auto y recibe
+   un diagnóstico y repuestos compatibles con su vehículo. Pide sesión.
+====================================================== */
+
+const MENSAJES_POR_STATUS_ASISTENTE = {
+  400: "No pudimos seguir esta conversación. Empezá una nueva.",
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  403: "El asistente es solo para clientes.",
+  429: "Llegaste al límite de consultas al asistente por hoy. Probá de nuevo mañana.",
+  503: "El asistente no está disponible en este momento. Probá buscando el repuesto en el catálogo.",
+};
+
+/**
+ * Un mensaje a Pit. Para seguir la conversación se mandan el `historial` y
+ * la `firma` que devolvió la respuesta anterior, tal cual: el backend los
+ * firmó y rechaza cualquier cambio (400).
+ */
+export async function consultarAsistente({ texto, marca, modelo, anio, historial = [], firma = null }) {
+  const cuerpo = { texto, marca, modelo, anio: Number(anio) };
+  if (historial.length > 0) {
+    cuerpo.historial = historial;
+    cuerpo.firma = firma;
+  }
+
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/asistente`,
+    { method: "POST", body: JSON.stringify(cuerpo) },
+    MENSAJES_POR_STATUS_ASISTENTE,
+    "No pudimos consultar al asistente."
+  );
+
+  return {
+    diagnostico: data.diagnostico ?? "",
+    urgencia: data.urgencia ?? "baja",
+    aviso: data.aviso ?? null,
+    pregunta: data.pregunta ?? null,
+    opciones: data.opciones ?? [],
+    fueraDeTema: Boolean(data.fuera_de_tema),
+    recomendaciones: (data.recomendaciones || []).map((recomendacion) => ({
+      tipo: recomendacion.tipo,
+      motivo: recomendacion.motivo,
+      repuestos: (recomendacion.repuestos || []).map(mapearRepuesto),
+    })),
+    historial: data.historial ?? [],
+    firma: data.firma ?? null,
+  };
+}

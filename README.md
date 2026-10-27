@@ -138,3 +138,9 @@ npx playwright test --ui          # para verlos paso a paso
 ```
 
 Ojo: en local usan tu base. Cada recorrido deja las cosas como estaban (deshace lo que agrega al carrito y a favoritos), pero la compra vacía el carrito de Ana antes de empezar y queda en su historial, y el registro crea un usuario `e2e-…@autobought.com` nuevo en cada corrida.
+
+## Asistente de compra con IA
+
+**Pit** es el asistente: un botón flotante abajo a la derecha (para clientes con sesión) que abre un chat al costado, sin salir de la página. El cliente cuenta con sus palabras qué le pasa al auto (con un vehículo elegido) y conversa con Pit, que le da un diagnóstico breve, la urgencia y los repuestos que le sirven. La conversación sigue al navegar por la tienda y se borra al cerrar sesión; el historial que se le manda a la IA lo firma el backend (`app/ia/firma.py`), así nadie puede inventar mensajes de Pit. La IA (Gemini, `backend/app/ia/`) solo interpreta el síntoma y elige tipos de repuesto de una lista cerrada; los repuestos concretos los elige el backend entre los que existen, son compatibles con el vehículo y tienen stock.
+
+Para usarlo en local, poné `GEMINI_API_KEY` en el `.env` de la raíz (ver `.env.example`) y reiniciá el backend. Sin clave, el asistente responde "no disponible" y ofrece buscar el mismo texto en el catálogo. Cada cliente tiene un límite de consultas por día (`IA_LIMITE_DIARIO`, 20 por defecto) y cada consulta queda registrada con sus tokens en la tabla `uso_ia`. Los tests usan un cliente de IA falso: el CI nunca llama a la IA real.

@@ -255,3 +255,30 @@ export function IconoResorte(props) {
     </Icono>
   );
 }
+
+// Pit, el asistente con IA: una tuerca.
+export function IconoPit(props) {
+  return (
+    <Icono {...props}>
+      <path d="M12 2.5l8.2 4.75v9.5L12 21.5l-8.2-4.75v-9.5z" />
+      <circle cx="12" cy="12" r="3.4" />
+    </Icono>
+  );
+}
+
+export function IconoEnviar(props) {
+  return (
+    <Icono {...props}>
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </Icono>
+  );
+}
+
+export function IconoAlerta(props) {
+  return (
+    <Icono {...props}>
+      <path d="M12 3l9.5 17h-19z" />
+      <path d="M12 10v4M12 17.5v.5" />
+    </Icono>
+  );
+}

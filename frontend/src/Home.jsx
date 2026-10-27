@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ChipFabricante from "./ChipFabricante";
 
 import Navbar from "./Navbar";
+import InvitacionAsistente from "./InvitacionAsistente";
 import VehicleSelector from "./VehicleSelector";
 import { obtenerCategorias, obtenerMasVendidos } from "./api";
 import { useVehicle } from "./context/VehicleContext";
@@ -310,6 +311,12 @@ export default function Home({
         </div>
 
       </section>
+
+      {/* =====================================================
+          ASISTENTE DE COMPRA (IA)
+      ====================================================== */}
+
+      <InvitacionAsistente />
 
       {/* =====================================================
           CATEGORÍAS
