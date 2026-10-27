@@ -81,6 +81,7 @@ import SearchBar from "./SearchBar";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import InvitacionAsistente from "./InvitacionAsistente";
 import PanelPit from "./PanelPit";
+import Footer from "./Footer";
 import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
 import { useVehicle } from "./context/VehicleContext";
@@ -500,6 +501,18 @@ describe("Navbar", () => {
   });
 });
 
+describe("Footer", () => {
+  it("opens the catalog filtered by a popular brand", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Footer {...props} />);
+    await user.click(screen.getByRole("button", { name: "Chevrolet" }));
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { marca: "Chevrolet" });
+  });
+});
+
 describe("Home", () => {
   it("renders the hero with the vehicle selector as the main action", async () => {
     const user = userEvent.setup();
@@ -555,6 +568,37 @@ describe("Home", () => {
     await user.click(await screen.findByRole("button", { name: /^Motor/ }));
 
     expect(props.onCatalogo).toHaveBeenCalledWith("Motor");
+  });
+
+  it("shows how many parts each category has", async () => {
+    render(<Home {...navigationProps()} />);
+
+    const frenos = await screen.findByRole("button", { name: /^Frenos/ });
+    expect(within(frenos).getByText("2 repuestos")).toBeInTheDocument();
+  });
+
+  it("explains how to buy in three steps", () => {
+    render(<Home {...navigationProps()} />);
+
+    expect(screen.getByRole("heading", { name: "Cómo comprar" })).toBeInTheDocument();
+    ["Elegí tu auto", "Agregá tus repuestos", "Pagá y recibilo"].forEach((paso) =>
+      expect(screen.getByRole("heading", { name: paso })).toBeInTheDocument()
+    );
+  });
+
+  it("asks for 8 best sellers and adds one to the cart without opening its detail", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onDetalle: jest.fn() };
+    obtenerMasVendidos.mockResolvedValue([catalogProducts[0]]);
+    startClientSession();
+
+    render(<Home {...props} />);
+
+    expect(obtenerMasVendidos).toHaveBeenCalledWith({ limite: 8 });
+    await user.click(await screen.findByRole("button", { name: /^agregar$/i }));
+
+    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith(catalogProducts[0].id, 1));
+    expect(props.onDetalle).not.toHaveBeenCalled();
   });
 
   it("keeps the landing page available when categories fail to load", async () => {
