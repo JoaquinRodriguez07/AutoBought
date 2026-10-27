@@ -79,6 +79,51 @@ CAR_MODELS = [
     ("Kia", "Sportage", "2.0 Nu", 2016, 2023, "suv"),
 ]
 
+# Marcas agregadas después del catálogo original. Sus repuestos se generan
+# al final (ver build_parts), para no cambiar los códigos (ni el stock, que
+# se calcula del código) de los que ya existían. Lo nuevo va siempre al final
+# de esta lista, y sin repetir motores de CAR_MODELS (los repuestos de un
+# motor viejo ya tienen sus compatibilidades). Los modelos de Mazda van
+# juntos ("Mazda2"): un modelo "2" chocaría con motores como "2.0" en los
+# nombres de los repuestos (ver check_parts).
+NEW_BRAND_MODELS = [
+    ("Suzuki", "Swift", "1.2 K12M", 2018, 2024, "hatchback"),
+    ("Suzuki", "Celerio", "1.0 K10B", 2015, 2024, "hatchback"),
+    ("Suzuki", "Vitara", "1.6 M16A", 2016, 2024, "suv"),
+    ("Chery", "Tiggo 2", "1.5 Acteco", 2017, 2024, "suv"),
+    ("Chery", "Tiggo 4", "1.5 TGDI", 2020, 2024, "suv"),
+    ("Chery", "Tiggo 7", "1.5 TGDI", 2020, 2024, "suv"),
+    # Híbridos: tienen motor a nafta, así que llevan los mismos repuestos.
+    ("BYD", "Song Pro DM-i", "1.5 Xiaoyun", 2022, 2024, "suv"),
+    ("BYD", "King DM-i", "1.5 Xiaoyun", 2023, 2024, "sedan"),
+    ("GAC", "GS3", "1.5 4A15J1", 2021, 2024, "suv"),
+    ("GAC", "GS4", "1.5 4A15J1", 2020, 2024, "suv"),
+    ("Mercedes-Benz", "Clase A", "1.3 M282", 2019, 2024, "hatchback"),
+    ("Mercedes-Benz", "Clase C", "2.0 M264", 2019, 2024, "sedan"),
+    ("Mercedes-Benz", "Sprinter", "2.2 OM651", 2012, 2023, "van"),
+    ("BMW", "Serie 1", "1.5 B38", 2019, 2024, "hatchback"),
+    ("BMW", "X1", "1.5 B38", 2020, 2024, "suv"),
+    ("BMW", "Serie 3", "2.0 B48", 2019, 2024, "sedan"),
+    ("Audi", "A3", "1.4 TFSI", 2014, 2020, "sedan"),
+    ("Audi", "Q3", "1.4 TFSI", 2015, 2020, "suv"),
+    ("Geely", "Coolray", "1.5 3G15TD", 2020, 2024, "suv"),
+    ("Geely", "Emgrand", "1.5 JL4G15", 2022, 2024, "sedan"),
+    ("Mitsubishi", "L200", "2.4 4N15", 2016, 2024, "pickup"),
+    ("Mitsubishi", "Outlander", "2.0 4B11", 2015, 2021, "suv"),
+    ("Mitsubishi", "ASX", "2.0 4B11", 2013, 2021, "suv"),
+    ("Honda", "Fit", "1.5 L15", 2015, 2020, "hatchback"),
+    ("Honda", "City", "1.5 L15", 2015, 2022, "sedan"),
+    ("Honda", "HR-V", "1.8 R18", 2016, 2022, "suv"),
+    ("Honda", "Civic", "2.0 K20C", 2017, 2021, "sedan"),
+    ("Jeep", "Renegade", "1.8 E.torQ", 2016, 2021, "suv"),
+    ("Jeep", "Compass", "1.3 T270", 2022, 2024, "suv"),
+    ("JAC", "S2", "1.5 HFC4GA3", 2016, 2022, "suv"),
+    ("JAC", "T8", "2.0 HFC4DA", 2019, 2024, "pickup"),
+    ("Mazda", "Mazda2", "1.5 Skyactiv-G", 2015, 2024, "hatchback"),
+    ("Mazda", "Mazda3", "2.0 Skyactiv-G", 2014, 2024, "sedan"),
+    ("Mazda", "CX-5", "2.0 Skyactiv-G", 2017, 2024, "suv"),
+]
+
 SEGMENT_FACTOR = {
     "hatchback": 1.0,
     "sedan": 1.05,
@@ -129,6 +174,7 @@ BODY_PARTS = [
 
 DIESEL_ENGINES = {
     "1.6 HDi", "2.0 Multijet", "2.0 TDI", "2.3 YS23", "2.8 1GD", "2.8 Duramax", "3.2 Duratorq",
+    "2.2 OM651", "2.4 4N15", "2.0 HFC4DA",
 }
 
 # name, price (fijo: ya están separadas por tamaño), qué autos la usan
@@ -252,7 +298,7 @@ def build_car_models():
             "year_to": year_to,
             "segment": segment,
         }
-        for brand, model, engine_code, year_from, year_to, segment in CAR_MODELS
+        for brand, model, engine_code, year_from, year_to, segment in CAR_MODELS + NEW_BRAND_MODELS
     ]
 
 
@@ -521,31 +567,47 @@ def build_parts(car_models):
     def base(name, suffix, category, base_price, color, compatible, group, by_segment=True):
         base_parts.append((name, suffix, category, base_price, color, compatible, group, by_segment))
 
-    for engine_code, models in group_by_engine(car_models).items():
-        for name, category, base_price, color in ENGINE_PARTS:
-            base(name, f" {engine_code}", category, base_price, color, models, engine_code)
+    # Primero los autos del catálogo original y después los de las marcas
+    # nuevas (ver NEW_BRAND_MODELS). Los universales y las baterías son uno
+    # solo para todos los autos: van con el catálogo original.
+    nuevas = {(brand, model) for brand, model, *_ in NEW_BRAND_MODELS}
+    originales = [m for m in car_models if (m["brand"], m["model"]) not in nuevas]
+    agregados = [m for m in car_models if (m["brand"], m["model"]) in nuevas]
+    repetidos = {m["engine_code"] for m in agregados} & {m["engine_code"] for m in originales}
+    if repetidos:
+        raise ValueError(f"Motores de las marcas nuevas que ya estaban: {', '.join(sorted(repetidos))}")
 
-    for car_model in car_models:
-        for name, category, base_price, color in MODEL_PARTS:
-            group = f"{car_model['brand']} {car_model['model']}"
-            base(name, "", category, base_price, color, [car_model], group)
+    def por_motor_y_modelo(models):
+        for engine_code, group in group_by_engine(models).items():
+            for name, category, base_price, color in ENGINE_PARTS:
+                base(name, f" {engine_code}", category, base_price, color, group, engine_code)
+
+        for car_model in models:
+            for name, category, base_price, color in MODEL_PARTS:
+                group = f"{car_model['brand']} {car_model['model']}"
+                base(name, "", category, base_price, color, [car_model], group)
+
+    def agregados_despues(models):
+        for engine_code, group in group_by_engine(models).items():
+            for name, category, base_price, color in EXTRA_ENGINE_PARTS:
+                base(name, f" {engine_code}", category, base_price, color, group, engine_code)
+
+        for car_model in models:
+            for name, category, base_price, color in EXTRA_MODEL_PARTS:
+                group = f"{car_model['brand']} {car_model['model']}"
+                base(name, "", category, base_price, color, [car_model], group)
+
+        for (brand, model), group in group_by_model(models).items():
+            for name, category, base_price, color in BODY_PARTS:
+                base(name, "", category, base_price, color, group, f"{brand} {model}")
+
+    por_motor_y_modelo(originales)
 
     for name, category, base_price, color in UNIVERSAL_PARTS:
         base(name, "", category, base_price, color, car_models, None)
 
     # --- Agregados después: siempre al final (ver EXTRA_ENGINE_PARTS).
-    for engine_code, models in group_by_engine(car_models).items():
-        for name, category, base_price, color in EXTRA_ENGINE_PARTS:
-            base(name, f" {engine_code}", category, base_price, color, models, engine_code)
-
-    for car_model in car_models:
-        for name, category, base_price, color in EXTRA_MODEL_PARTS:
-            group = f"{car_model['brand']} {car_model['model']}"
-            base(name, "", category, base_price, color, [car_model], group)
-
-    for (brand, model), models in group_by_model(car_models).items():
-        for name, category, base_price, color in BODY_PARTS:
-            base(name, "", category, base_price, color, models, f"{brand} {model}")
+    agregados_despues(originales)
 
     for name, price, fits in BATTERIES:
         base(name, "", "Eléctrico", price, None, [m for m in car_models if fits(m)], None, by_segment=False)
@@ -574,14 +636,23 @@ def build_parts(car_models):
 
     # Primero el fabricante principal de cada repuesto, en el orden de
     # siempre, y al final los demás fabricantes.
-    for part in base_parts:
-        manufacturer, factor = manufacturers_of(part[0])[0]
-        add(part, manufacturer, factor)
+    def con_fabricantes(lote):
+        for part in lote:
+            manufacturer, factor = manufacturers_of(part[0])[0]
+            add(part, manufacturer, factor)
 
-    for part in base_parts:
-        for manufacturer, factor in manufacturers_of(part[0])[1:]:
-            if covers(manufacturer, part[6]):
-                add(part, manufacturer, factor)
+        for part in lote:
+            for manufacturer, factor in manufacturers_of(part[0])[1:]:
+                if covers(manufacturer, part[6]):
+                    add(part, manufacturer, factor)
+
+    con_fabricantes(base_parts)
+
+    # --- Marcas nuevas: todos sus repuestos después de los que ya existían.
+    base_parts.clear()
+    por_motor_y_modelo(agregados)
+    agregados_despues(agregados)
+    con_fabricantes(base_parts)
 
     return parts
 

@@ -8,9 +8,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
+from app.models.car_model import CarModel
+from app.models.compatibility import Compatibility
 from app.models.part import Part
 from scripts import seed
-from scripts.generate_dataset import build_car_models, build_parts, check_parts
+from scripts.generate_dataset import NEW_BRAND_MODELS, build_car_models, build_parts, check_parts
 
 PARTS_JSON = Path(__file__).resolve().parents[1] / "backend" / "data" / "parts.json"
 
@@ -28,6 +30,32 @@ def test_parts_json_esta_al_dia_con_el_script(catalogo):
     # (uv run python -m scripts.generate_dataset).
     _, parts = catalogo
     assert json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"] == parts
+
+
+def _originales(car_models):
+    nuevas = {(brand, model) for brand, model, *_ in NEW_BRAND_MODELS}
+    return [m for m in car_models if (m["brand"], m["model"]) not in nuevas]
+
+
+def test_sumar_marcas_no_cambia_los_repuestos_que_ya_existian(catalogo):
+    # Las bases cargadas buscan los repuestos por código: los de antes de las
+    # marcas nuevas tienen que quedar iguales (solo suman compatibilidades).
+    car_models, parts = catalogo
+    antes = build_parts(_originales(car_models))
+    sin_compat = lambda part: {k: v for k, v in part.items() if k != "compatibilities"}
+
+    assert [sin_compat(p) for p in parts[:len(antes)]] == [sin_compat(p) for p in antes]
+
+
+def test_cada_marca_nueva_tiene_sus_repuestos(catalogo):
+    _, parts = catalogo
+    por_marca = {}
+    for part in parts:
+        for compat in part["compatibilities"]:
+            por_marca.setdefault(compat["brand"], set()).add(part["name"].split(" ")[0])
+    for brand, *_ in NEW_BRAND_MODELS:
+        # Los de motor, los de modelo, los universales y la batería.
+        assert {"Filtro", "Bujía", "Pastillas", "Aceite", "Batería"} <= por_marca[brand], brand
 
 
 def test_cada_repuesto_tiene_descripcion_especificaciones_y_garantia(catalogo):
@@ -147,3 +175,36 @@ def test_seed_actualiza_los_detalles_sin_tocar_precio_ni_stock(base_vieja, catal
     assert (part.price, part.stock) == (123, 7)
     # Sin cambios, no actualiza nada.
     assert seed.update_details(db, parts) == 0
+
+
+def test_seed_agrega_las_marcas_nuevas_a_una_base_cargada_sin_tocar_lo_que_estaba(catalogo):
+    car_models, parts = catalogo
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(bind=engine)
+    db = sessionmaker(bind=engine)()
+
+    # Una base cargada antes de las marcas nuevas, con un precio y un stock
+    # que cambiaron desde entonces.
+    originales = _originales(car_models)
+    antes = build_parts(originales)
+    assert seed.add_missing_catalog(db, originales, antes) == (len(originales), len(antes))
+    filtro = db.query(Part).filter_by(part_code="FIL-0001").one()
+    filtro.price, filtro.stock = 123, 7
+    db.commit()
+
+    nuevos = seed.add_missing_catalog(db, car_models, parts)
+
+    assert nuevos == (len(car_models) - len(originales), len(parts) - len(antes))
+    assert db.query(CarModel).count() == len(car_models)
+    assert db.query(Part).count() == len(parts)
+    assert db.query(Compatibility).count() == sum(len(p["compatibilities"]) for p in parts)
+    assert (filtro.price, filtro.stock) == (123, 7)
+    # Un repuesto que ya estaba (el aceite) ahora también le sirve a un auto nuevo.
+    swift = db.query(CarModel).filter_by(brand="Suzuki", model="Swift").one()
+    aceite = next(p for p in parts if p["name"].startswith("Aceite de motor"))
+    aceite_id = db.query(Part.id).filter_by(part_code=aceite["part_code"]).scalar()
+    assert db.get(Compatibility, (aceite_id, swift.id)) is not None
+    # La segunda vez no agrega nada.
+    assert seed.add_missing_catalog(db, car_models, parts) == (0, 0)
