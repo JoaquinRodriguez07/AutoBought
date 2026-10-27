@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import ChipFabricante from "./ChipFabricante";
+import { usarImagenGenerica } from "./mapearRepuesto";
 
 import Navbar from "./Navbar";
 import InvitacionAsistente from "./InvitacionAsistente";
@@ -11,17 +11,21 @@ import repuestos from "./assets/repuestos.jpg";
 import {
   IconoAuto,
   IconoCaja,
+  IconoCambios,
   IconoCamion,
   IconoCarrito,
   IconoChispa,
+  IconoCopoNieve,
   IconoDisco,
   IconoEngranaje,
+  IconoEscape,
   IconoEscobilla,
   IconoFiltro,
   IconoGota,
   IconoRayo,
   IconoResorte,
   IconoTermometro,
+  IconoVolante,
 } from "./Iconos";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
@@ -48,18 +52,21 @@ const FABRICANTES = ["Bosch", "Brembo", "NGK", "Mann-Filter", "Monroe", "Valeo",
 const ICONOS_CATEGORIA = {
   Accesorios: IconoEscobilla,
   Carrocería: IconoAuto,
+  Climatización: IconoCopoNieve,
+  Dirección: IconoVolante,
   Eléctrico: IconoRayo,
   Encendido: IconoChispa,
+  Escape: IconoEscape,
   Filtros: IconoFiltro,
   Frenos: IconoDisco,
   Lubricantes: IconoGota,
   Motor: IconoEngranaje,
   Refrigeración: IconoTermometro,
   Suspensión: IconoResorte,
+  Transmisión: IconoCambios,
 };
 
-// Las que más se buscan van destacadas, más grandes, arriba.
-// Las 4 destacadas van grandes, en una fila; el resto, de a 5 por fila
+// Las que más se buscan van destacadas, más grandes, en una fila; el resto, de a 5 por fila
 // (con las 14 categorías de hoy, 4 + 5 + 5: todas las filas completas).
 const CATEGORIAS_DESTACADAS = ["Frenos", "Filtros", "Motor", "Suspensión"];
 
@@ -488,12 +495,11 @@ export default function Home({
                   aria-label={`Ver ${producto.nombre}`}
                   className="relative h-44 bg-white"
                 >
-                  <img
+                  <img onError={usarImagenGenerica}
                     src={producto.imagen}
                     alt={producto.nombre}
                     className="w-full h-full object-contain p-3"
                   />
-                  <ChipFabricante fabricante={producto.fabricante} />
                 </button>
 
                 {/* flex + mt-auto: el botón queda abajo aunque el

@@ -64,6 +64,19 @@ import { imagenDeTipo, imagenesExtraDeTipo } from "./imagenesRepuestos";
 // se usa esta imagen genérica para que el <img> nunca quede roto.
 export const IMAGEN_PLACEHOLDER = imagenPlaceholder;
 
+/**
+ * onError de las <img> de repuestos: si la imagen no carga (por ejemplo,
+ * la de un tipo de repuesto nuevo que todavía no se generó), muestra la
+ * genérica en vez del ícono de imagen rota. Una sola vez, para no entrar
+ * en un bucle si la genérica también fallara.
+ */
+export function usarImagenGenerica(evento) {
+  const imagen = evento.currentTarget;
+  if (imagen.dataset.generica) return;
+  imagen.dataset.generica = "true";
+  imagen.src = IMAGEN_PLACEHOLDER;
+}
+
 export function imagenDeRepuesto(nombre) {
   return imagenDeTipo(nombre) ?? IMAGEN_PLACEHOLDER;
 }

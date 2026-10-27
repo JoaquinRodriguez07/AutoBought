@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { usarImagenGenerica } from "./mapearRepuesto";
 import { useSearchParams } from "react-router-dom";
 import BotonAvisoStock from "./BotonAvisoStock";
-import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import InvitacionAsistente from "./InvitacionAsistente";
@@ -14,6 +14,9 @@ import { filtrarRepuestos } from "./filtrarRepuestos";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { buscarTexto, obtenerCategorias, obtenerRepuestos } from "./api";
 import { useVehicle } from "./context/VehicleContext";
+
+// Cuántas tarjetas se muestran de entrada, y cuántas más con "Ver más".
+const REPUESTOS_POR_TANDA = 24;
 
 // ==========================================
 // AYUDAS DE LOS FILTROS
@@ -340,6 +343,16 @@ export default function Catalogo({
       }),
     [productos, busqueda, consulta, fabricantes, marcasAuto, precioMin, precioMax, soloConStock, orden]
   );
+
+  // Se muestran de a REPUESTOS_POR_TANDA: con el catálogo completo son
+  // miles de tarjetas y la página se pone lenta. "Ver más" suma otra
+  // tanda. La cantidad se guarda junto con la lista a la que corresponde:
+  // si cambian los filtros (otra lista), vuelve a la primera tanda.
+  const [tanda, setTanda] = useState({ lista: null, cantidad: REPUESTOS_POR_TANDA });
+  const cantidadVisible = tanda.lista === productosMostrados ? tanda.cantidad : REPUESTOS_POR_TANDA;
+  const productosVisibles = productosMostrados.slice(0, cantidadVisible);
+  const verMas = () =>
+    setTanda({ lista: productosMostrados, cantidad: cantidadVisible + REPUESTOS_POR_TANDA });
 
   // Las opciones de fabricante y marca del auto salen de los repuestos
   // cargados (con la categoría y el vehículo ya aplicados), con cuántos
@@ -737,7 +750,7 @@ export default function Catalogo({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
 
-                {productosMostrados.map((producto) => {
+                {productosVisibles.map((producto) => {
 
                   const cantidad =
                     cantidades[producto.id] || 1;
@@ -764,14 +777,12 @@ export default function Catalogo({
                             mil tarjetas: lazy evita decodificar todas
                             las imágenes que están fuera de pantalla. */}
 
-                        <img
+                        <img onError={usarImagenGenerica}
                           src={producto.imagen}
                           alt={producto.nombre}
                           loading="lazy"
                           className="w-full h-full object-contain p-3"
                         />
-
-                        <ChipFabricante fabricante={producto.fabricante} />
 
                         <button
                           type="button"
@@ -918,6 +929,23 @@ export default function Catalogo({
 
               </div>
 
+              )}
+
+              {/* VER MÁS */}
+
+              {!cargando && !error && productosVisibles.length < productosMostrados.length && (
+                <div className="mt-8 flex flex-col items-center gap-3">
+                  <p className="text-xs text-gray-400">
+                    Mostrando {productosVisibles.length} de {productosMostrados.length.toLocaleString("es-UY")} repuestos
+                  </p>
+                  <button
+                    type="button"
+                    onClick={verMas}
+                    className="h-11 px-8 rounded-md border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white text-sm font-black transition"
+                  >
+                    VER MÁS REPUESTOS
+                  </button>
+                </div>
               )}
 
               {/* SIN RESULTADOS */}

@@ -754,6 +754,25 @@ describe("ModelDropdown", () => {
 });
 
 describe("Catalogo", () => {
+  it("shows 24 parts at first and the rest with Ver más", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onAlternarFavorito: jest.fn(), onDetalle: jest.fn(), esFavorito: jest.fn(() => false) };
+    obtenerRepuestos.mockResolvedValue(
+      Array.from({ length: 30 }, (_, i) => ({ ...product, id: `P-${i}`, codigo: `P-${i}`, nombre: `Repuesto número ${i}` }))
+    );
+
+    render(<Catalogo {...props} />);
+
+    expect(await screen.findByText("Repuesto número 23")).toBeInTheDocument();
+    expect(screen.queryByText("Repuesto número 24")).not.toBeInTheDocument();
+    expect(screen.getByText("Mostrando 24 de 30 repuestos")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "VER MÁS REPUESTOS" }));
+
+    expect(screen.getByText("Repuesto número 29")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "VER MÁS REPUESTOS" })).not.toBeInTheDocument();
+  });
+
   it("keeps the desktop filters sticky and scrollable within the viewport", () => {
     const props = navigationProps();
     props.onAlternarFavorito = jest.fn();
@@ -1268,6 +1287,34 @@ describe("ActiveVehicleBanner", () => {
 });
 
 describe("DetalleProducto", () => {
+  it("shows the parts usually bought together and adds one to the cart", async () => {
+    const user = userEvent.setup();
+    const sugerencia = mapearRepuesto({
+      id: 9, name: "Aceite de motor 5W30 4L Castrol", manufacturer: "Castrol", part_code: "LUB-0001",
+      category: "Lubricantes", price: 3900, stock: 10, compatibilities: [],
+    });
+    obtenerRepuesto.mockResolvedValue(mapearRepuesto({
+      id: 7, name: "Filtro compatible", manufacturer: "Bosch", part_code: "FIL-0007",
+      category: "Filtros", price: 790, stock: 3, compatibilities: [],
+    }));
+    obtenerRecomendaciones.mockResolvedValue([sugerencia]);
+    startClientSession();
+
+    render(
+      <Routes>
+        <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+      </Routes>,
+      { initialEntries: ["/producto/filtro-compatible-7"] }
+    );
+
+    const seccion = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
+    expect(obtenerRecomendaciones).toHaveBeenCalledWith([7]);
+    expect(within(seccion).getByText("Aceite de motor 5W30 4L Castrol")).toBeInTheDocument();
+
+    await user.click(within(seccion).getByRole("button", { name: /^agregar$/i }));
+    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith(9, 1));
+  });
+
   const repuestoCompatible = () => mapearRepuesto({
     id: 7,
     name: "Filtro compatible",
