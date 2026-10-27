@@ -269,10 +269,16 @@ def test_id_fuera_de_rango_devuelve_404(client, db_session):
     make_catalog(db_session)
 
     response = client.get(
-        "/api/v1/recommendations", params={"part_ids": "99999999999999999999"}
+        "/api/v1/recommendations", params={"part_ids": "9999999999"}
     )
 
     assert response.status_code == 404
+
+
+def test_id_con_demasiados_digitos_devuelve_422(client):
+    response = client.get("/api/v1/recommendations", params={"part_ids": "9" * 5000})
+
+    assert response.status_code == 422
 
 
 def test_demasiados_part_ids_devuelven_422(client):

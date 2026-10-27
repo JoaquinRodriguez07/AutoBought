@@ -13,6 +13,7 @@ import {
 } from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
+import { slugificarProducto } from "./slugProducto";
 
 import Home from "./Home";
 import Login from "./Login";
@@ -64,9 +65,6 @@ function App() {
   // repuestos). Los nombres de categoría los define el backend
   // (GET /api/v1/parts/categories), no el frontend.
   const [categoriaCatalogo, setCategoriaCatalogo] =
-    useState(null);
-
-  const [productoSeleccionado, setProductoSeleccionado] =
     useState(null);
 
   /* =====================================================
@@ -254,8 +252,10 @@ function App() {
   };
 
   const irAlDetalle = (producto) => {
-    setProductoSeleccionado(producto);
-    navigate("/producto");
+    const partId = producto?.partId ?? producto?.id;
+    const slug = slugificarProducto(producto?.nombre, partId);
+    if (!slug) return;
+    navigate(`/producto/${encodeURIComponent(slug)}`);
   };
 
   const irAlCarrito = () => {
@@ -688,13 +688,12 @@ function App() {
       />
 
       <Route
-        path="/producto"
+        path="/producto/:id"
         element={
           <DetalleProducto
             {...propsNavbar}
             onDetalle={irAlDetalle}
             onCatalogo={irAlCatalogo}
-            producto={productoSeleccionado}
             onAlternarFavorito={alternarFavorito}
             esFavorito={esFavorito}
             onAlternarAvisoStock={alternarAvisoStock}
