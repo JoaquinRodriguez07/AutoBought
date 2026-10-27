@@ -2,9 +2,8 @@ import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import EncabezadoPagina from "./EncabezadoPagina";
 import { useParams } from "react-router-dom";
-import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
+import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import BotonAvisoStock from "./BotonAvisoStock";
-import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 import VehicleSelector from "./VehicleSelector";
 import { IconoAuto } from "./Iconos";
@@ -49,14 +48,12 @@ export default function DetalleProducto({
   onHistorial,
   onCerrarSesion,
 }) {
-  const { addToCart, deshacerAgregado } = useCart();
   const { vehiculoActivo: filtrosVehiculo, activarVehiculo } = useVehicle();
   const { id: slugDesdeUrl } = useParams();
   const idDesdeUrl = extraerIdProducto(slugDesdeUrl);
   const [detalleCargado, setDetalleCargado] = useState({ id: null, estado: "cargando", producto: null });
   const [cantidad, setCantidad] = useState(1);
   const [imagenActiva, setImagenActiva] = useState(0);
-  const [productoAgregado, setProductoAgregado] = useState(null);
   const [editandoVehiculo, setEditandoVehiculo] = useState(false);
   const [selectorVehiculoMontado, setSelectorVehiculoMontado] = useState(false);
 
@@ -211,34 +208,11 @@ export default function DetalleProducto({
       })()
     : null;
 
-  // =====================================================
-  // AGREGAR AL CARRITO
-  // =====================================================
-
+  // El agregado lo hace BotonAgregarCarrito y el aviso, CartContext.
   const sinStock = productoActual.stock === 0;
-
-  const agregar = async () => {
-    if (sinStock) return;
-
-    const cantidadPedida = cantidad;
-    const agregado = await addToCart(productoActual, cantidadPedida);
-    setCantidad(1);
-    if (agregado) {
-      setProductoAgregado({ ...productoActual, cantidadAgregada: cantidadPedida });
-    }
-  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
-      <ConfirmacionAgregarCarrito
-        producto={productoAgregado}
-        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
-        onCerrar={() => setProductoAgregado(null)}
-        onVerCarrito={() => {
-          setProductoAgregado(null);
-          onCarrito();
-        }}
-      />
       {navbar}
 
       <main>
@@ -401,10 +375,15 @@ export default function DetalleProducto({
                     <span className="flex w-8 items-center justify-center text-xs">{sinStock ? 0 : cantidad}</span>
                     <button aria-label="Aumentar cantidad" onClick={() => setCantidad((v) => Math.min(productoActual.stock, v + 1))} disabled={sinStock || cantidad >= productoActual.stock} className="w-9 disabled:opacity-40">+</button>
                   </div>
-                  <button onClick={agregar} disabled={sinStock}
-                    className={`h-10 min-w-0 flex-1 rounded-md px-2 text-[10px] font-black transition ${sinStock ? "cursor-not-allowed bg-gray-200 text-gray-400" : "bg-orange-500 text-white hover:bg-orange-600"}`}>
-                    {sinStock ? "SIN STOCK" : <span className="inline-flex items-center justify-center gap-1.5"><IconoCarrito className="h-3.5 w-3.5" />AGREGAR AL CARRITO</span>}
-                  </button>
+                  <BotonAgregarCarrito
+                    producto={productoActual}
+                    cantidad={cantidad}
+                    textoSinStock="SIN STOCK"
+                    onTerminar={() => setCantidad(1)}
+                    className="h-10 min-w-0 flex-1 inline-flex items-center justify-center gap-1.5 rounded-md px-2 text-[10px] font-black"
+                  >
+                    <IconoCarrito className="h-3.5 w-3.5" />AGREGAR AL CARRITO
+                  </BotonAgregarCarrito>
                 </div>
                 <button onClick={() => onAlternarFavorito(productoActual)}
                   className={`mt-3 h-10 w-full rounded-md border text-[10px] font-bold ${favorito ? "border-orange-500 text-orange-500" : "border-gray-200 text-gray-600"}`}>

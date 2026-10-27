@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import BotonAvisoStock from "./BotonAvisoStock";
 import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
-import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
+import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import SearchBar from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import EncabezadoPagina from "./EncabezadoPagina";
@@ -12,7 +12,6 @@ import { IconoCarrito, IconoCerrar, IconoCorazon, IconoFiltros } from "./Iconos"
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { buscarTexto, obtenerCategorias, obtenerRepuestos } from "./api";
-import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
 
 // ==========================================
@@ -87,8 +86,6 @@ export default function Catalogo({
   onAlternarAvisoStock,
   tieneAvisoStock = () => false,
 }) {
-  const { addToCart, deshacerAgregado } = useCart();
-
   // Vehículo Activo (el que se confirmó con "Buscar Repuestos"). Vive en
   // VehicleContext, así que sobrevive a ir al carrito y volver.
   const { vehiculoActivo, limpiarVehiculo, activarVehiculo } = useVehicle();
@@ -125,7 +122,6 @@ export default function Catalogo({
   // En celular los filtros se esconden detrás de un botón.
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [cantidades, setCantidades] = useState({});
-  const [productoAgregado, setProductoAgregado] = useState(null);
 
 
   // ==========================================
@@ -457,20 +453,13 @@ export default function Catalogo({
   // AGREGAR AL CARRITO
   // ==========================================
 
-  const agregar = async (producto) => {
-    if (producto.stock === 0) return;
-
-    const cantidadPedida = cantidades[producto.id] || 1;
-    const agregado = await addToCart(producto, cantidadPedida);
-
+  // El botón (BotonAgregarCarrito) llama a addToCart y CartContext
+  // muestra el aviso; acá solo se vuelve el selector de cantidad a 1.
+  const reiniciarCantidad = (producto) => {
     setCantidades((actual) => ({
       ...actual,
       [producto.id]: 1,
     }));
-
-    if (agregado) {
-      setProductoAgregado({ ...producto, cantidadAgregada: cantidadPedida });
-    }
   };
 
   // ==========================================
@@ -479,16 +468,6 @@ export default function Catalogo({
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
-      <ConfirmacionAgregarCarrito
-        producto={productoAgregado}
-        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
-        onCerrar={() => setProductoAgregado(null)}
-        onVerCarrito={() => {
-          setProductoAgregado(null);
-          onCarrito();
-        }}
-      />
-
       {/* =================================================
           NAVBAR
       ================================================== */}
@@ -891,27 +870,17 @@ export default function Catalogo({
 
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              agregar(producto)
+                          <BotonAgregarCarrito
+                            producto={producto}
+                            cantidad={cantidad}
+                            onTerminar={() =>
+                              reiniciarCantidad(producto)
                             }
-                            disabled={sinStock}
-                            className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-md text-xs font-bold transition ${
-                              sinStock
-                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                : "bg-orange-500 hover:bg-orange-600 text-white"
-                            }`}
+                            className="flex-1 flex items-center justify-center gap-2 h-9 rounded-md text-xs font-bold"
                           >
-                            {sinStock ? (
-                              "Sin stock"
-                            ) : (
-                              <>
-                                <IconoCarrito />
-                                Agregar
-                              </>
-                            )}
-                          </button>
+                            <IconoCarrito />
+                            Agregar
+                          </BotonAgregarCarrito>
 
                         </div>
 
