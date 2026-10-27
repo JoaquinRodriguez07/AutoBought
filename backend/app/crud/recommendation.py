@@ -19,6 +19,10 @@ COMPLEMENTARY_CATEGORIES = {
     "Suspensión": ["Frenos"],
     "Carrocería": ["Accesorios"],
     "Accesorios": ["Carrocería"],
+    "Dirección": ["Suspensión", "Frenos"],
+    "Transmisión": ["Lubricantes", "Motor"],
+    "Escape": ["Motor"],
+    "Climatización": ["Refrigeración"],
 }
 
 

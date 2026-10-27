@@ -12,7 +12,18 @@ from app.models.car_model import CarModel
 from app.models.compatibility import Compatibility
 from app.models.part import Part
 from scripts import seed
-from scripts.generate_dataset import NEW_BRAND_MODELS, build_car_models, build_parts, check_parts
+from scripts.generate_dataset import (
+    NEW_BRAND_MODELS,
+    NEW_ENGINE_PARTS,
+    NEW_PLATFORM_PARTS,
+    NEW_UNIVERSAL_PARTS,
+    PLATFORMS,
+    REAR_DISC_PARTS,
+    REAR_DRUM_PARTS,
+    build_car_models,
+    build_parts,
+    check_parts,
+)
 
 PARTS_JSON = Path(__file__).resolve().parents[1] / "backend" / "data" / "parts.json"
 
@@ -32,19 +43,47 @@ def test_parts_json_esta_al_dia_con_el_script(catalogo):
     assert json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"] == parts
 
 
+TIPOS_NUEVOS = tuple(
+    name for name, *_ in NEW_ENGINE_PARTS + NEW_PLATFORM_PARTS + REAR_DISC_PARTS
+    + REAR_DRUM_PARTS + NEW_UNIVERSAL_PARTS
+)
+
+
 def _originales(car_models):
     nuevas = {(brand, model) for brand, model, *_ in NEW_BRAND_MODELS}
     return [m for m in car_models if (m["brand"], m["model"]) not in nuevas]
 
 
-def test_sumar_marcas_no_cambia_los_repuestos_que_ya_existian(catalogo):
-    # Las bases cargadas buscan los repuestos por código: los de antes de las
-    # marcas nuevas tienen que quedar iguales (solo suman compatibilidades).
+def _catalogo_original(car_models):
+    """El catálogo de antes de las marcas y los tipos de repuesto nuevos."""
+    return [p for p in build_parts(_originales(car_models)) if not p["name"].startswith(TIPOS_NUEVOS)]
+
+
+def test_sumar_marcas_y_tipos_no_cambia_los_repuestos_que_ya_existian(catalogo):
+    # Las bases cargadas buscan los repuestos por código: los de antes tienen
+    # que quedar iguales (solo suman compatibilidades).
     car_models, parts = catalogo
-    antes = build_parts(_originales(car_models))
+    antes = _catalogo_original(car_models)
     sin_compat = lambda part: {k: v for k, v in part.items() if k != "compatibilities"}
 
     assert [sin_compat(p) for p in parts[:len(antes)]] == [sin_compat(p) for p in antes]
+
+
+def test_cada_modelo_tiene_una_sola_plataforma_y_sus_frenos_traseros(catalogo):
+    car_models, parts = catalogo
+    modelos = [model for _, models in PLATFORMS.values() for model in models]
+    assert len(modelos) == len(set(modelos))
+    assert set(modelos) == {(m["brand"], m["model"]) for m in car_models}
+
+    # Atrás, discos con sus pastillas o campanas: nunca las dos cosas.
+    for brand, model in modelos:
+        traseros = {
+            p["name"].split(" de freno")[0]
+            for p in parts
+            if "traser" in p["name"] and p["category"] == "Frenos"
+            and any((c["brand"], c["model"]) == (brand, model) for c in p["compatibilities"])
+        }
+        assert traseros in ({"Pastillas", "Discos"}, {"Campanas"}), (brand, model, traseros)
 
 
 def test_cada_marca_nueva_tiene_sus_repuestos(catalogo):
@@ -188,7 +227,7 @@ def test_seed_agrega_las_marcas_nuevas_a_una_base_cargada_sin_tocar_lo_que_estab
     # Una base cargada antes de las marcas nuevas, con un precio y un stock
     # que cambiaron desde entonces.
     originales = _originales(car_models)
-    antes = build_parts(originales)
+    antes = _catalogo_original(car_models)
     assert seed.add_missing_catalog(db, originales, antes) == (len(originales), len(antes))
     filtro = db.query(Part).filter_by(part_code="FIL-0001").one()
     filtro.price, filtro.stock = 123, 7
