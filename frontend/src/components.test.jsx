@@ -9,6 +9,7 @@ jest.mock("./api", () => ({
   registrar: jest.fn(),
   obtenerPerfil: jest.fn(),
   renovarToken: jest.fn(),
+  alSesionInvalida: jest.fn(),
   actualizarPerfil: jest.fn(),
   cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
@@ -121,6 +122,7 @@ import {
   registrar,
   vaciarCarritoAPI,
   renovarToken,
+  alSesionInvalida,
   verificarCorreo,
   obtenerAvisosStock,
   agregarAvisoStock,
@@ -128,6 +130,7 @@ import {
 } from "./api";
 import {
   decodeToken,
+  guardarSesion,
   haySesionActiva,
   obtenerSesion,
   sesionValida,
@@ -2287,7 +2290,114 @@ describe("App renovación de sesión", () => {
     renderApp();
 
     await waitFor(() => expect(localStorage.getItem("autobought-sesion")).toBeNull());
-    expect(toast.error).toHaveBeenCalledWith("Tu sesión venció. Iniciá sesión de nuevo.");
+    expect(toast.error).toHaveBeenCalledWith("Tu sesión se cerró. Iniciá sesión de nuevo.");
+  });
+});
+
+describe("App sesión inválida (401)", () => {
+  const MIN = 60 * 1000;
+  const sesion = {
+    id: 1,
+    userId: "1",
+    nombre: "Ana",
+    email: "ana@example.com",
+    token: crearToken(Date.now() + 60 * MIN),
+    tokenType: "bearer",
+  };
+
+  // Captura el manejador que App registra en api.js con alSesionInvalida.
+  const renderApp = (ruta = "/favoritos") => {
+    const desregistrar = jest.fn();
+    alSesionInvalida.mockReturnValue(desregistrar);
+
+    const vista = renderBase(
+      <MemoryRouter initialEntries={[ruta]}>
+        <CartProvider><VehicleProvider><App /><RutaActual /></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    return { ...vista, desregistrar, manejador: alSesionInvalida.mock.calls.at(-1)[0] };
+  };
+
+  it("closes the session, warns once and goes to the login when the handler fires", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    const { manejador } = renderApp();
+
+    act(() => manejador());
+
+    await waitFor(() => expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/login"));
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith("Tu sesión se cerró. Iniciá sesión de nuevo.");
+  });
+
+  it("warns and navigates only once when several requests answer 401 at once", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    const { manejador } = renderApp();
+
+    act(() => {
+      manejador();
+      manejador();
+      manejador();
+    });
+
+    await waitFor(() => expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/login"));
+    expect(toast.error).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing if there is no session left to close", () => {
+    const { manejador } = renderApp("/");
+
+    act(() => manejador());
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/");
+  });
+
+  it("rolls back a favorite without a second toast when the API answers 401", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    agregarFavoritoAPI.mockRejectedValueOnce(Object.assign(new Error("Tu sesión venció."), { status: 401 }));
+    renderApp("/");
+
+    const nombre = "Pastillas de Freno Delanteras Bosch";
+    const corazon = async () =>
+      within((await screen.findByAltText(nombre)).parentElement).getByRole("button");
+    await user.click(screen.getByRole("button", { name: "Repuestos" }));
+    await user.click(await corazon());
+
+    await waitFor(async () => expect(await corazon()).toHaveAttribute("aria-pressed", "false"));
+    expect(agregarFavoritoAPI).toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/catalogo");
+  });
+
+  it("unregisters the handler when App unmounts", () => {
+    const { unmount, desregistrar } = renderApp("/");
+
+    unmount();
+
+    expect(desregistrar).toHaveBeenCalled();
+  });
+
+  it("follows the token saved by another screen, so renewal works on the new token", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    renderApp("/");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(renovarToken).not.toHaveBeenCalled();
+
+    // Cambia la contraseña: CambiarPassword guarda el token nuevo. Si App no
+    // lo siguiera, `usuario` conservaría el viejo (60 min de vida) y no se
+    // programaría nada; con el nuevo (4 min) la renovación corre enseguida.
+    renovarToken.mockResolvedValue({
+      access_token: crearToken(Date.now() + 60 * MIN),
+      token_type: "bearer",
+    });
+    act(() =>
+      guardarSesion({ ...obtenerSesion(), token: crearToken(Date.now() + 4 * MIN) })
+    );
+
+    await waitFor(() => expect(renovarToken).toHaveBeenCalledTimes(1));
   });
 });
 
@@ -2451,6 +2561,59 @@ describe("MetodosPago", () => {
     await waitFor(() => expect(screen.queryByText("Luis")).not.toBeInTheDocument());
     expect(marcarMetodoPagoPrincipal).toHaveBeenCalledWith(2);
     expect(eliminarMetodoPagoAPI).toHaveBeenCalledWith(2);
+  });
+});
+
+describe("Direcciones y MetodosPago ante un 401", () => {
+  // El 401 ya lo maneja alSesionInvalida (cierra la sesión y va a /login):
+  // las pantallas no tienen que sumar un alert propio.
+  const error401 = () => Object.assign(new Error("Tu sesión venció. Iniciá sesión de nuevo."), { status: 401 });
+  const direccion = {
+    id: 1, nombre: "Casa", calle: "Av. Italia", numero: "1234", apartamento: "",
+    ciudad: "Montevideo", departamento: "Montevideo", codigoPostal: "", principal: false,
+  };
+  const tarjeta = {
+    id: 1, tipo: "Visa", titular: "Ana", numero: "1111", vencimiento: "12/99", principal: false, vencida: false,
+  };
+  let alertSpy;
+
+  beforeEach(() => {
+    alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
+  });
+
+  afterEach(() => alertSpy.mockRestore());
+
+  it.each([
+    ["Direcciones", "ELIMINAR", () => eliminarDireccionAPI],
+    ["Direcciones", "MARCAR COMO PRINCIPAL", () => marcarDireccionPrincipal],
+    ["MetodosPago", "ELIMINAR", () => eliminarMetodoPagoAPI],
+    ["MetodosPago", "MARCAR PRINCIPAL", () => marcarMetodoPagoPrincipal],
+  ])("%s: %s does not show an alert on 401", async (pantalla, boton, accion) => {
+    const user = userEvent.setup();
+    if (pantalla === "Direcciones") {
+      obtenerDirecciones.mockResolvedValue([direccion]);
+      render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+    } else {
+      obtenerMetodosPago.mockResolvedValue([tarjeta]);
+      render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
+    }
+    accion().mockRejectedValueOnce(error401());
+
+    await user.click(await screen.findByRole("button", { name: boton }));
+
+    await waitFor(() => expect(accion()).toHaveBeenCalled());
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it("still alerts other errors", async () => {
+    const user = userEvent.setup();
+    obtenerDirecciones.mockResolvedValue([direccion]);
+    eliminarDireccionAPI.mockRejectedValueOnce(new Error("No encontramos esa dirección."));
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: "ELIMINAR" }));
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("No encontramos esa dirección."));
   });
 });
 
@@ -2618,9 +2781,11 @@ describe("CambiarPassword", () => {
     await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
   };
 
+  const respuesta = { access_token: "jwt-nuevo", token_type: "bearer" };
+
   it("changes the password and shows a confirmation", async () => {
     const user = userEvent.setup();
-    cambiarPassword.mockResolvedValue();
+    cambiarPassword.mockResolvedValue(respuesta);
     render(<CambiarPassword />);
 
     await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
@@ -2628,6 +2793,62 @@ describe("CambiarPassword", () => {
     expect(cambiarPassword).toHaveBeenCalledWith("secreto123", "nueva-clave-1");
     expect(await screen.findByText("Tu contraseña se actualizó correctamente.")).toBeInTheDocument();
     expect(screen.queryByLabelText("CONTRASEÑA ACTUAL")).not.toBeInTheDocument();
+  });
+
+  it("saves the new token in the session, keeping the rest of it, before showing the success", async () => {
+    const user = userEvent.setup();
+    const sesion = { id: 1, nombre: "Ana", email: "ana@example.com", token: "jwt-viejo", tokenType: "bearer" };
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    cambiarPassword.mockResolvedValue(respuesta);
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    expect(await screen.findByText("Tu contraseña se actualizó correctamente.")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({
+      ...sesion,
+      token: "jwt-nuevo",
+      tokenType: "bearer",
+    });
+    expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+  });
+
+  it("keeps a non-remembered session in sessionStorage when saving the new token", async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
+    cambiarPassword.mockResolvedValue(respuesta);
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    await screen.findByText("Tu contraseña se actualizó correctamente.");
+    expect(JSON.parse(sessionStorage.getItem("autobought-sesion")).token).toBe("jwt-nuevo");
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+  });
+
+  it("warns that the session is no longer valid when the response has no new token", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
+    cambiarPassword.mockResolvedValue(null);
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/iniciá sesión de nuevo/i);
+    expect(screen.queryByText("Tu contraseña se actualizó correctamente.")).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe("jwt-viejo");
+  });
+
+  it("does not touch the session when the password change fails", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
+    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    await screen.findByText("La contraseña actual es incorrecta.");
+    expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe("jwt-viejo");
   });
 
   it("shows an error under each empty field before calling the API", async () => {

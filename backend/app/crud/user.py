@@ -85,6 +85,9 @@ def update_client(db: Session, client: Client, *, name: str, phone: str | None) 
 
 def update_password(db: Session, user: User, password_hash: str) -> None:
     user.password = password_hash
+    # Misma transacción (incremento en SQL, sin carrera): invalida los tokens
+    # emitidos con la contraseña anterior.
+    user.session_version = User.session_version + 1
     db.commit()
 
 

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { esVendedor, guardarSesion, obtenerSesion, sesionValida } from "./auth";
+import { alGuardarSesion, esVendedor, guardarSesion, obtenerSesion, sesionValida } from "./auth";
 import { useRenovacionSesion } from "./useRenovacionSesion";
 import {
+  alSesionInvalida,
   agregarAvisoStock,
   agregarFavoritoAPI,
   obtenerAvisosStock,
@@ -398,11 +399,46 @@ function App() {
     setUsuario((actual) => (actual ? { ...actual, ...renovada } : actual));
   };
 
+  // Único lugar que reacciona a una sesión inválida: lo disparan el 401 de
+  // cualquier pedido autenticado (ver `alSesionInvalida` en api.js) y la
+  // renovación automática. El mensaje sirve para los dos casos: token
+  // vencido o contraseña cambiada en otro dispositivo.
   const sesionVencida = () => {
     cerrarSesion();
-    toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
+    toast.error("Tu sesión se cerró. Iniciá sesión de nuevo.");
     navigate("/login");
   };
+
+  // El manejador se registra una sola vez y lee la versión más reciente de
+  // `sesionVencida` desde una ref.
+  const sesionVencidaRef = useRef(sesionVencida);
+  useEffect(() => {
+    sesionVencidaRef.current = sesionVencida;
+  });
+
+  // Si varios pedidos dan 401 a la vez, el primero cierra la sesión y los
+  // demás la encuentran ya cerrada: un solo toast y una sola navegación.
+  useEffect(
+    () =>
+      alSesionInvalida(() => {
+        if (!obtenerSesion()) return;
+        sesionVencidaRef.current();
+      }),
+    []
+  );
+
+  // Otras pantallas pueden guardar la sesión sin pasar por App (ej:
+  // CambiarPassword guarda el token nuevo): `usuario` la sigue para que la
+  // renovación automática no intente renovar el token viejo.
+  useEffect(
+    () =>
+      alGuardarSesion(() => {
+        const guardada = obtenerSesion();
+        if (!guardada) return;
+        setUsuario((actual) => (actual ? { ...actual, ...guardada } : actual));
+      }),
+    []
+  );
 
   useRenovacionSesion(usuario?.token, {
     onRenovada: reemplazarToken,
@@ -447,11 +483,9 @@ function App() {
           : actual.filter((item) => item.id !== producto.id)
       );
 
-      if (error.status === 401) {
-        toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
-        navigate("/login");
-        return;
-      }
+      // Un 401 lo maneja `alSesionInvalida` (toast y /login): acá solo se
+      // deshace el cambio optimista, sin un segundo aviso.
+      if (error.status === 401) return;
 
       toast.error(error.message || "No pudimos actualizar tus favoritos.");
     }
@@ -487,11 +521,8 @@ function App() {
         tenia ? [...actual, partId] : actual.filter((id) => id !== partId)
       );
 
-      if (error.status === 401) {
-        toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
-        navigate("/login");
-        return;
-      }
+      // Igual que en favoritos: el 401 lo maneja `alSesionInvalida`.
+      if (error.status === 401) return;
 
       toast.error(error.message || "No pudimos actualizar el aviso.");
     }

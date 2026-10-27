@@ -7,7 +7,14 @@ import pytest
 
 from app.core.config import JWT_ALGORITHM, SECRET_KEY
 from app.core.phone import normalize_uy_phone
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    RECUPERAR_PASSWORD,
+    create_access_token,
+    create_purpose_token,
+    hash_password,
+    huella_password,
+    verify_password,
+)
 from app.crud import user as crud_user
 from app.models.client import Client
 from app.models.user import User
@@ -301,7 +308,7 @@ def test_cambiar_password_permite_login_con_la_nueva_y_no_con_la_vieja(client):
         headers=_headers(client),
     )
 
-    assert response.status_code == 204
+    assert response.status_code == 200
     assert client.post(LOGIN, json={"email": "lucia@example.com", "password": "nueva-clave-1"}).status_code == 200
     assert client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}).status_code == 401
 
@@ -598,3 +605,165 @@ def test_cambiar_password_por_una_debil_devuelve_422(client, nueva):
 
     assert response.status_code == 422
     assert client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}).status_code == 200
+
+
+# =====================================================
+# Cierre de sesiones al cambiar la contraseña (session_version)
+# =====================================================
+
+RESET = "/api/v1/auth/password/reset"
+ANALYTICS_EMPLEADO = "/api/v1/analytics/ping"  # exige get_current_employee
+
+
+def _bearer(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _cambiar_password(client, token):
+    return client.patch(
+        PASSWORD,
+        json={"current_password": "secreto123", "new_password": "nueva-clave-1"},
+        headers=_bearer(token),
+    )
+
+
+def test_los_tokens_de_sesion_llevan_la_version_de_sesion(client, db_session):
+    registro = client.post(REGISTER, json=payload()).json()["access_token"]
+    login = client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}).json()["access_token"]
+    refrescado = client.post(REFRESH, headers=_bearer(login)).json()["access_token"]
+
+    assert _claims(registro)["sv"] == 0
+    assert _claims(login)["sv"] == 0
+    assert _claims(refrescado)["sv"] == 0
+
+
+def test_token_emitido_antes_de_cambiar_la_password_devuelve_401(client):
+    viejo = client.post(REGISTER, json=payload()).json()["access_token"]
+    # Otro dispositivo con su propia sesión (el cambio se hace desde acá).
+    otro_dispositivo = client.post(
+        LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}
+    ).json()["access_token"]
+
+    assert _cambiar_password(client, viejo).status_code == 200
+
+    for token in (viejo, otro_dispositivo):
+        response = client.get(ME, headers=_bearer(token))
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Token inválido o expirado."
+
+
+def test_cambiar_password_devuelve_un_token_que_sigue_sirviendo(client):
+    viejo = client.post(REGISTER, json=payload()).json()["access_token"]
+
+    response = _cambiar_password(client, viejo)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["token_type"] == "bearer"
+    assert body["access_token"]
+    assert _claims(body["access_token"])["sv"] == 1
+    assert client.get(ME, headers=_bearer(body["access_token"])).status_code == 200
+
+
+def test_el_token_nuevo_del_cambio_de_password_se_puede_renovar(client):
+    viejo = client.post(REGISTER, json=payload()).json()["access_token"]
+    nuevo = _cambiar_password(client, viejo).json()["access_token"]
+
+    response = client.post(REFRESH, headers=_bearer(nuevo))
+
+    assert response.status_code == 200
+    assert _claims(response.json()["access_token"])["sv"] == 1
+
+
+def test_un_cambio_de_password_fallido_no_cierra_las_sesiones(client):
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
+
+    response = client.patch(
+        PASSWORD,
+        json={"current_password": "incorrecta1", "new_password": "nueva-clave-1"},
+        headers=_bearer(token),
+    )
+
+    assert response.status_code == 400
+    assert client.get(ME, headers=_bearer(token)).status_code == 200
+
+
+def test_el_login_despues_del_cambio_trae_la_version_nueva(client):
+    viejo = client.post(REGISTER, json=payload()).json()["access_token"]
+    _cambiar_password(client, viejo)
+
+    token = client.post(LOGIN, json={"email": "lucia@example.com", "password": "nueva-clave-1"}).json()["access_token"]
+
+    assert _claims(token)["sv"] == 1
+    assert client.get(ME, headers=_bearer(token)).status_code == 200
+
+
+def test_restablecer_la_password_con_el_enlace_cierra_las_sesiones(client, db_session):
+    viejo = client.post(REGISTER, json=payload()).json()["access_token"]
+    cliente = db_session.scalars(select(Client)).one()
+    enlace = create_purpose_token(
+        str(cliente.user_id),
+        RECUPERAR_PASSWORD,
+        minutos=30,
+        extra_claims={"pwd": huella_password(cliente.password)},
+    )
+
+    response = client.post(RESET, json={"token": enlace, "new_password": "Nueva2026x"})
+
+    assert response.status_code == 204
+    assert client.get(ME, headers=_bearer(viejo)).status_code == 401
+    nuevo = client.post(LOGIN, json={"email": "lucia@example.com", "password": "Nueva2026x"}).json()["access_token"]
+    assert client.get(ME, headers=_bearer(nuevo)).status_code == 200
+
+
+def test_refresh_con_un_token_anterior_al_cambio_de_password_devuelve_401(client):
+    viejo = client.post(REGISTER, json=payload()).json()["access_token"]
+    _cambiar_password(client, viejo)
+
+    response = client.post(REFRESH, headers=_bearer(viejo))
+
+    assert response.status_code == 401
+    assert "access_token" not in response.json()
+
+
+def test_token_sin_claim_sv_vale_mientras_la_version_sea_0(client):
+    user_id = _registrar_y_obtener_id(client)
+    # Emitido antes del deploy: sin el claim `sv`.
+    sin_sv = create_access_token(subject=user_id, extra_claims={"user_type": "client"})
+    assert "sv" not in _claims(sin_sv)
+
+    assert client.get(ME, headers=_bearer(sin_sv)).status_code == 200
+    assert client.post(REFRESH, headers=_bearer(sin_sv)).status_code == 200
+
+
+def test_token_sin_claim_sv_deja_de_valer_despues_de_cambiar_la_password(client):
+    token = client.post(REGISTER, json=payload()).json()["access_token"]
+    sin_sv = create_access_token(subject=_claims(token)["sub"], extra_claims={"user_type": "client"})
+    _cambiar_password(client, token)
+
+    assert client.get(ME, headers=_bearer(sin_sv)).status_code == 401
+
+
+@pytest.mark.parametrize("sv", ["0", 0.5, None, True, [0]])
+def test_token_con_sv_que_no_es_entero_devuelve_401(client, sv):
+    user_id = _registrar_y_obtener_id(client)
+    token = create_access_token(subject=user_id, extra_claims={"user_type": "client", "sv": sv})
+
+    assert client.get(ME, headers=_bearer(token)).status_code == 401
+
+
+def test_token_de_empleado_anterior_al_cambio_de_password_devuelve_401(client, db_session):
+    vendedor = _crear_vendedor(db_session)
+    viejo = create_access_token(
+        subject=str(vendedor.user_id), extra_claims={"user_type": "employee", "sv": 0}
+    )
+    assert client.get(ANALYTICS_EMPLEADO, headers=_bearer(viejo)).status_code == 200
+
+    crud_user.update_password(db_session, vendedor, hash_password("otra-clave-9"))
+
+    assert client.get(ANALYTICS_EMPLEADO, headers=_bearer(viejo)).status_code == 401
+    assert client.post(REFRESH, headers=_bearer(viejo)).status_code == 401
+    nuevo = create_access_token(
+        subject=str(vendedor.user_id), extra_claims={"user_type": "employee", "sv": 1}
+    )
+    assert client.get(ANALYTICS_EMPLEADO, headers=_bearer(nuevo)).status_code == 200

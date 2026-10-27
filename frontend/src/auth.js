@@ -68,6 +68,18 @@ export function guardarSesion(sesion) {
     : sessionStorage;
 
   storage.setItem(SESION_KEY, JSON.stringify(sesion));
+  window.dispatchEvent(new Event(EVENTO_SESION_GUARDADA));
+}
+
+// Aviso dentro de la pestaña de que la sesión guardada cambió. App.jsx lo
+// usa para que su estado `usuario` siga a lo que guardó cualquier pantalla
+// (ej: CambiarPassword guarda el token nuevo sin tener acceso a App).
+const EVENTO_SESION_GUARDADA = "autobought-sesion-guardada";
+
+/** Llama a `fn` cada vez que `guardarSesion` guarda. Devuelve cómo desregistrar. */
+export function alGuardarSesion(fn) {
+  window.addEventListener(EVENTO_SESION_GUARDADA, fn);
+  return () => window.removeEventListener(EVENTO_SESION_GUARDADA, fn);
 }
 
 /**
