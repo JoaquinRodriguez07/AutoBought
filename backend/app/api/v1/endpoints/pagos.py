@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -11,6 +13,7 @@ from app.models.client import Client
 from app.models.payment import PaymentStatus
 
 router = APIRouter(prefix="/pagos", tags=["pagos"])
+logger = logging.getLogger(__name__)
 
 # Los precios de la tienda están en pesos uruguayos.
 MONEDA = "UYU"
@@ -84,7 +87,8 @@ async def recibir_aviso(
 
     try:
         pago = cliente_mp.consultar_pago(pago_id)
-    except MercadoPagoNoDisponible:
+    except MercadoPagoNoDisponible as error:
+        logger.warning("No se pudo consultar el pago %s: %s", pago_id, error)
         # Mercado Pago vuelve a mandar el aviso más tarde.
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="No pudimos consultar el pago.")
 
@@ -115,7 +119,10 @@ def crear_link_pago(
 
     try:
         preference_id, url = cliente_mp.crear_preferencia(_armar_preferencia(payment.order))
-    except MercadoPagoNoDisponible:
+    except MercadoPagoNoDisponible as error:
+        # El cliente ve un mensaje genérico; el motivo real (falta el token,
+        # token inválido, dato rechazado...) queda en el log del backend.
+        logger.warning("No se pudo crear el link de pago del pedido %s: %s", order_id, error)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="No pudimos conectar con Mercado Pago. Probá de nuevo en un rato.",

@@ -116,14 +116,16 @@ def test_un_pedido_pagado_no_da_otro_link(client, db_session, mp, pedido):
     assert response.status_code == 409
 
 
-def test_si_mercado_pago_no_responde_el_link_da_503(client, db_session, mp, pedido):
+def test_si_mercado_pago_no_responde_el_link_da_503_y_lo_registra(client, db_session, mp, pedido, caplog):
     order_id, headers = pedido
-    mp.error = MercadoPagoNoDisponible("caído")
+    mp.error = MercadoPagoNoDisponible("No hay token de Mercado Pago configurado.")
 
     response = client.post(f"/api/v1/pagos/{order_id}", headers=headers)
 
     assert response.status_code == 503
     assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
+    # El motivo real queda en el log del backend.
+    assert f"No se pudo crear el link de pago del pedido {order_id}: No hay token" in caplog.text
 
 
 # =====================================================
@@ -220,12 +222,13 @@ def test_avisos_que_no_son_de_pagos_o_de_otro_pedido_se_ignoran(client, db_sessi
     assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
 
 
-def test_si_mercado_pago_no_responde_el_aviso_da_502_para_que_lo_reintente(client, db_session, mp, pedido):
+def test_si_mercado_pago_no_responde_el_aviso_da_502_para_que_lo_reintente(client, db_session, mp, pedido, caplog):
     order_id, _ = pedido
     mp.error = MercadoPagoNoDisponible("caído")
 
     assert avisar(client).status_code == 502
     assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
+    assert "No se pudo consultar el pago 999: caído" in caplog.text
 
 
 def test_con_clave_secreta_rechaza_avisos_sin_firma_valida(client, db_session, mp, pedido, monkeypatch):
