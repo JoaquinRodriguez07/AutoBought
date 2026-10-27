@@ -5,6 +5,7 @@ requires-python = ">=3.14"
 dependencies = [
     "bcrypt>=5.0.0",
     "fastapi[standard]>=0.143.0",
+    "httpx>=0.28.1",
     "psycopg2-binary>=2.9.13",
     "pyjwt>=2.15.1",
     "python-dotenv>=1.2.4",
