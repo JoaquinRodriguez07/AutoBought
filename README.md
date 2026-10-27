@@ -78,6 +78,27 @@ docker exec backend uv run python -m scripts.seed_order_history --semilla 7 --ha
 
 Si cambia algo del catálogo o de los pedidos y hay que regenerar todo, lo más simple es recrear la base (`docker compose down -v`, que borra todos los datos locales) y volver a correr los tres scripts.
 
+## Dashboard del vendedor
+
+El dashboard interno (stock actual y repuestos más vendidos) es una app de [Streamlit](https://streamlit.io) en `analitica/`. No se conecta a la base: pide los datos a los endpoints `/api/v1/analytics/*` del backend con el token del vendedor, así que solo entran las cuentas de vendedor (a un cliente el backend le responde 403 y el dashboard no lo deja pasar del login).
+
+Con `docker compose up -d` se levanta junto con el resto en http://localhost:8501. Se entra con el vendedor de `scripts.seed_demo_users` (`vendedor@autobought.com`). Desde la tienda, el vendedor llega con el botón «Abrir dashboard» de `/dashboard`, que abre esa dirección (se cambia con `VITE_DASHBOARD_URL`).
+
+- **Stock actual:** todos los repuestos de menos a más stock, con búsqueda por nombre, código o fabricante, filtro por categoría y por estado. Con 5 unidades o menos un repuesto figura como *Stock bajo* (el umbral se cambia en la barra lateral) y con 0, como *Sin stock*.
+- **Más vendidos:** ranking por unidades vendidas en los últimos 30 días, 90 días, 12 meses o en total. No cuentan los pedidos cancelados y sí los repuestos agotados, que son justo los que hay que reponer.
+
+Los datos se piden de nuevo en cada interacción (no hay caché): un cambio de stock o una venta nueva se ve tocando cualquier filtro o «Actualizar datos». Para que los gráficos tengan forma, cargar antes `scripts.seed_order_history`.
+
+Sin Docker, con el backend corriendo en el puerto 8000:
+
+```bash
+cd analitica
+uv sync
+uv run streamlit run app.py                                         # http://localhost:8501
+AUTOBOUGHT_API_URL=http://otro-backend:8000 uv run streamlit run app.py   # contra otro backend
+uv sync --group dev && uv run pytest                                # tests
+```
+
 ## Mails
 
 El backend manda mails para verificar el correo al registrarse, recuperar la contraseña y avisar cuando la contraseña cambia; para confirmar cada compra; para avisar que volvió el stock de un repuesto agotado (botón «Avisame cuando haya»); y recordatorios de carrito abandonado y de mantenimiento. Los mails de pedidos ante un cambio de estado o una cancelación, y el aviso de baja de precio de un favorito, ya están en `app/core/notificaciones.py`: falta que las pantallas del vendedor y la cancelación los llamen.

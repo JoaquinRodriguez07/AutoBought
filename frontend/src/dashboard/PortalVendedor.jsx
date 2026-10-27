@@ -1,7 +1,12 @@
 import Navbar from "../Navbar";
 
-// Placeholder del portal del vendedor. El contenido real (SCRUM-25) vive en
-// esta carpeta; mientras tanto solo muestra el saludo de la sesión.
+// El dashboard es una app de Streamlit aparte (carpeta analitica/ del repo).
+// En local corre en el puerto 8501; en otro entorno se configura con
+// VITE_DASHBOARD_URL.
+export const DASHBOARD_URL =
+  import.meta.env.VITE_DASHBOARD_URL || "http://localhost:8501";
+
+// Portal del vendedor: la entrada al dashboard de stock y ventas.
 export default function PortalVendedor({
   usuario,
   onHome,
@@ -37,12 +42,22 @@ export default function PortalVendedor({
           Hola{nombre ? `, ${nombre}` : ""}.
         </p>
 
-        <div className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-16 text-center">
-          <h2 className="text-xl font-black">Dashboard</h2>
-          <p className="text-[10px] text-gray-400 mt-2">
-            El dashboard estará disponible pronto.
+        <section className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-8 md:p-10">
+          <h2 className="text-xl font-black">Dashboard de stock y ventas</h2>
+          <p className="text-xs text-gray-500 mt-2 max-w-[560px]">
+            Consultá el stock actual de cada repuesto, cuáles tienen stock bajo
+            y cuáles son los más vendidos, con los datos registrados en el
+            sistema. Se ingresa con esta misma cuenta de vendedor.
           </p>
-        </div>
+          <a
+            href={DASHBOARD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center mt-6 h-10 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs font-black transition"
+          >
+            ABRIR DASHBOARD
+          </a>
+        </section>
       </main>
     </div>
   );

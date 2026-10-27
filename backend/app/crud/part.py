@@ -95,6 +95,14 @@ def list_categories(db: Session) -> list[tuple[str, int]]:
     return [(category, count) for category, count in db.execute(query).all()]
 
 
+def list_stock(db: Session) -> list[Part]:
+    # Todo el catálogo para el dashboard del vendedor, de menos a más stock:
+    # lo que hay que reponer queda arriba. Sin compatibilidades: el
+    # dashboard no las muestra.
+    query = select(Part).order_by(Part.stock, Part.part_code, Part.id)
+    return list(db.scalars(query).all())
+
+
 def list_best_sellers(
     db: Session,
     limit: int,

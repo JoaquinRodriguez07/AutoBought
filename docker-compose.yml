@@ -90,6 +90,46 @@ services:
     ports:
       - "8025:8025"
 
+  # Dashboard del vendedor (Streamlit). Pide los datos al backend con el
+  # token del vendedor: no se conecta a la base.
+  dashboard:
+    build: ./analitica
+    container_name: dashboard
+    profiles: ["local"]
+    restart: unless-stopped
+
+    environment:
+      AUTOBOUGHT_API_URL: http://backend:8000
+
+    ports:
+      - "8501:8501"
+
+    depends_on:
+      - backend
+
+    volumes:
+      - ./analitica:/app
+      - /app/.venv
+
+  dashboard-remote:
+    build: ./analitica
+    container_name: dashboard-remote
+    profiles: ["remoto"]
+    restart: unless-stopped
+
+    environment:
+      AUTOBOUGHT_API_URL: http://backend-remote:8000
+
+    ports:
+      - "8502:8501"
+
+    depends_on:
+      - backend-remote
+
+    volumes:
+      - ./analitica:/app
+      - /app/.venv
+
   frontend:
     build: ./frontend
     container_name: frontend
@@ -99,6 +139,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:8000
       VITE_PROXY_TARGET: http://backend:8000
+      VITE_DASHBOARD_URL: http://localhost:8501
 
     ports:
       - "5173:5173"
@@ -119,6 +160,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:8001
       VITE_PROXY_TARGET: http://backend-remote:8000
+      VITE_DASHBOARD_URL: http://localhost:8502
 
     ports:
       - "5174:5173"
