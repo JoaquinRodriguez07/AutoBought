@@ -314,9 +314,9 @@ describe("Navbar", () => {
     expect(contador()).not.toHaveClass("motion-safe:animate-rebote");
 
     rerender(
-      <MemoryRouter><CartProvider><VehicleProvider>
+      <MemoryRouter><CartProvider><VehicleProvider><PitProvider>
         <Navbar paginaActual="home" {...props} cantidadFavoritos={2} />
-      </VehicleProvider></CartProvider></MemoryRouter>
+      </PitProvider></VehicleProvider></CartProvider></MemoryRouter>
     );
     expect(contador()).toHaveTextContent("2");
     expect(contador()).toHaveClass("motion-safe:animate-rebote");
@@ -2421,7 +2421,7 @@ describe("App sesión inválida (401)", () => {
 
     const vista = renderBase(
       <MemoryRouter initialEntries={[ruta]}>
-        <CartProvider><VehicleProvider><App /><RutaActual /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 

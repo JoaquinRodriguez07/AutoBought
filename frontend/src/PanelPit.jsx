@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 import ChatPit from "./ChatPit";
 import { IconoPit } from "./Iconos";
@@ -19,7 +20,7 @@ import { useVehicle } from "./context/VehicleContext";
  */
 const SEGUNDOS_ETIQUETA = 6;
 
-export default function PanelPit({ onDetalle, onBuscarEnCatalogo, onVerCarrito }) {
+export default function PanelPit({ onDetalle, onBuscarEnCatalogo }) {
   const { vehiculo, conversacion, abierto, borrador, abrir, cerrar } = usePit();
   const { activarVehiculo } = useVehicle();
   const boton = useRef(null);
@@ -35,6 +36,16 @@ export default function PanelPit({ onDetalle, onBuscarEnCatalogo, onVerCarrito }
     const timer = setTimeout(() => setEtiqueta(false), SEGUNDOS_ETIQUETA * 1000);
     return () => clearTimeout(timer);
   }, []);
+  // Si se cambia de página con el panel abierto (por ejemplo, "Ver carrito"
+  // en el aviso de agregado), se cierra: la charla queda guardada.
+  const { pathname } = useLocation();
+  const paginaAnterior = useRef(pathname);
+  useEffect(() => {
+    if (paginaAnterior.current === pathname) return;
+    paginaAnterior.current = pathname;
+    cerrar();
+  }, [pathname, cerrar]);
+
   const abrirPanel = () => {
     setSaludar(false);
     abrir();
@@ -121,7 +132,6 @@ export default function PanelPit({ onDetalle, onBuscarEnCatalogo, onVerCarrito }
           onActivarVehiculo={activarVehiculo}
           textoInicial={borrador}
           onBuscarEnCatalogo={yCerrar(onBuscarEnCatalogo)}
-          onVerCarrito={yCerrar(onVerCarrito)}
         />
       </div>
     </div>

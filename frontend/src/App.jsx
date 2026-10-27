@@ -871,7 +871,6 @@ function App() {
       <PanelPit
         onDetalle={irAlDetalle}
         onBuscarEnCatalogo={(consulta) => navigate(`/catalogo?q=${encodeURIComponent(consulta)}`)}
-        onVerCarrito={irAlCarrito}
       />
     )}
     </>

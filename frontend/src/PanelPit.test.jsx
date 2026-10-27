@@ -1,4 +1,4 @@
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -34,12 +34,19 @@ function BotonOlvidar() {
   return <button type="button" onClick={olvidar}>Cerrar sesión</button>;
 }
 
+// Para probar que el panel se cierra si se cambia de página.
+function IrAlCarrito() {
+  const navigate = useNavigate();
+  return <button type="button" onClick={() => navigate("/carrito")}>Ir al carrito</button>;
+}
+
 function renderPanel(props = {}) {
   return render(
     <MemoryRouter>
       <PitProvider>
         <PanelPit {...props} />
         <BotonOlvidar />
+        <IrAlCarrito />
       </PitProvider>
     </MemoryRouter>
   );
@@ -124,6 +131,22 @@ describe("PanelPit", () => {
     await user.click(screen.getByRole("button", { name: "Seguir la conversación con Pit" }));
     expect(screen.getByText("chilla al frenar")).toBeInTheDocument();
     expect(screen.getByText(respuesta.diagnostico)).toBeInTheDocument();
+  });
+
+  it("closes when the page changes, keeping the conversation", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(abrirPit());
+    await user.type(screen.getByLabelText("Mensaje para Pit"), "chilla al frenar");
+    await user.click(screen.getByRole("button", { name: "Enviar" }));
+    await screen.findByText(respuesta.diagnostico);
+
+    // Por ejemplo, "Ver carrito" en el aviso de agregado (está por encima del panel).
+    await user.click(screen.getByRole("button", { name: "Ir al carrito", hidden: true }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Seguir la conversación con Pit" })).toBeInTheDocument();
   });
 
   it("closes the panel before going to a part", async () => {

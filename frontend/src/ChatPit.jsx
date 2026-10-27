@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
-import ConfirmacionAgregarCarrito from "./ConfirmacionAgregarCarrito";
 import ElegirVehiculoPit from "./ElegirVehiculoPit";
 import { IconoAlerta, IconoCarrito, IconoCerrar, IconoCheck, IconoEnviar, IconoPit } from "./Iconos";
 import { useCart } from "./context/CartContext";
@@ -39,17 +38,15 @@ export default function ChatPit({
   onDetalle,
   onActivarVehiculo,
   onBuscarEnCatalogo,
-  onVerCarrito,
   onCerrar,
   autoFocus = false,
   textoInicial = "",
 }) {
   const { mensajes, pensando, enviar, reiniciar } = conversacion;
-  const { addToCart, deshacerAgregado } = useCart();
+  const { addToCart } = useCart();
   // Puede venir ya escrito (lo que el cliente buscó en el catálogo).
   const [texto, setTexto] = useState(textoInicial);
   const [cambiandoAuto, setCambiandoAuto] = useState(false);
-  const [productoAgregado, setProductoAgregado] = useState(null);
   const lista = useRef(null);
 
   const conVehiculo = vehiculoCompleto(vehiculo);
@@ -78,13 +75,16 @@ export default function ChatPit({
   };
 
   const agregar = async (producto) => {
-    if (await addToCart(producto, 1)) setProductoAgregado({ ...producto, cantidadAgregada: 1 });
+    // El aviso de "agregado al carrito" lo muestra CartContext, igual que
+    // en el resto del sitio (aparece por encima del panel).
+    await addToCart(producto, 1);
   };
 
   const agregarTodos = async (productos) => {
     let agregados = 0;
     for (const producto of productos) {
-      if (await addToCart(producto, 1)) agregados += 1;
+      // Sin el aviso de cada uno: al final, uno solo con el total.
+      if (await addToCart(producto, 1, { aviso: false })) agregados += 1;
     }
     if (agregados > 0) {
       toast.success(agregados === 1 ? "Agregamos 1 repuesto al carrito." : `Agregamos ${agregados} repuestos al carrito.`);
@@ -93,15 +93,6 @@ export default function ChatPit({
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      <ConfirmacionAgregarCarrito
-        producto={productoAgregado}
-        onDeshacer={(item) => deshacerAgregado(item.id, item.cantidadAgregada)}
-        onCerrar={() => setProductoAgregado(null)}
-        onVerCarrito={() => {
-          setProductoAgregado(null);
-          onVerCarrito?.();
-        }}
-      />
 
       {/* Encabezado */}
       <div className="bg-[#151719] text-white px-5 py-4 flex items-center gap-3">

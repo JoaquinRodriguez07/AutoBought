@@ -281,8 +281,9 @@ describe("ChatPit", () => {
     await escribir(user, "chilla al frenar");
     await user.click(await screen.findByRole("button", { name: "Agregar los 2 al carrito · $6.040" }));
 
-    expect(addToCart).toHaveBeenNthCalledWith(1, pastillas, 1);
-    expect(addToCart).toHaveBeenNthCalledWith(2, discos, 1);
+    // Sin un aviso por cada uno: al final, uno solo con el total.
+    expect(addToCart).toHaveBeenNthCalledWith(1, pastillas, 1, { aviso: false });
+    expect(addToCart).toHaveBeenNthCalledWith(2, discos, 1, { aviso: false });
     expect(toast.success).toHaveBeenCalledWith("Agregamos 2 repuestos al carrito.");
   });
 
