@@ -279,8 +279,8 @@ export default function Carrito({
                           <li key={producto.id} className="flex items-center gap-4 px-5 py-4">
 
                             <button onClick={() => onDetalle(producto)}
-                              className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                              <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-cover" />
+                              className="w-20 h-20 rounded-lg overflow-hidden bg-white border border-gray-100 shrink-0">
+                              <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-1" />
                             </button>
 
                             <div className="flex-1 min-w-0">
@@ -337,7 +337,7 @@ export default function Carrito({
 
                   {/* Las sugerencias acompañan debajo de la lista, chicas,
                       sin competir con el carrito. */}
-                  <SugerenciasCarrito />
+                  <SugerenciasCarrito onDetalle={onDetalle} />
 
                 </div>
 

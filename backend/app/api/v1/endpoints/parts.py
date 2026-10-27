@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.crud import text_search
@@ -9,6 +9,7 @@ from app.crud import part as crud_part
 from app.schemas.part import (
     BestSellersResponse,
     CategoriesResponse,
+    PartOut,
     PartsResponse,
     build_part_out,
 )
@@ -121,3 +122,14 @@ def list_best_sellers(
             for part, units_sold in best_sellers
         ]
     }
+
+
+@router.get("/{part_id}", response_model=PartOut)
+def get_part(part_id: int, db: Session = Depends(get_db)):
+    part = crud_part.get_part(db, part_id)
+    if part is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Repuesto no encontrado.",
+        )
+    return build_part_out(part)
