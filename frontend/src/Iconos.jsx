@@ -33,6 +33,14 @@ export function IconoLupa(props) {
   );
 }
 
+export function IconoMenu(props) {
+  return (
+    <Icono {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Icono>
+  );
+}
+
 export function IconoCerrar(props) {
   return (
     <Icono {...props}>

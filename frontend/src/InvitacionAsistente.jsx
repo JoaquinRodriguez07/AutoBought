@@ -51,10 +51,15 @@ export default function InvitacionAsistente({ variante = "banda", termino = "" }
       <button
         type="button"
         onClick={abrir}
-        className="mt-2 flex items-center gap-1.5 text-sm text-gray-300 hover:text-orange-400 transition"
+        className="group mt-3 flex items-center gap-3 text-left"
       >
-        <IconoPit className="w-4 h-4 text-orange-500" />
-        ¿No sabés qué repuesto necesitás? <span className="font-bold text-white">Hacé un pit stop con Pit →</span>
+        <span className="shrink-0 w-9 h-9 rounded-full bg-orange-500/15 text-orange-400 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition">
+          <IconoPit className="w-4 h-4" />
+        </span>
+        <span className="text-sm leading-snug">
+          <span className="block text-gray-400">¿No sabés qué repuesto necesitás?</span>
+          <span className="block font-bold text-white group-hover:text-orange-400 transition">Hacé un pit stop con Pit →</span>
+        </span>
       </button>
     );
   }

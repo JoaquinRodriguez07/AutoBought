@@ -5,7 +5,7 @@ import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import InvitacionAsistente from "./InvitacionAsistente";
-import SearchBar from "./SearchBar";
+import SearchBar, { ID_BUSCADOR_CATALOGO } from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import EncabezadoPagina from "./EncabezadoPagina";
 import FiltrosCatalogo from "./FiltrosCatalogo";
@@ -518,7 +518,10 @@ export default function Catalogo({
 
               {/* BUSCADOR */}
 
+              {/* La lupa de la barra, en esta página, enfoca este buscador
+                  (ver Navbar). */}
               <SearchBar
+                inputId={ID_BUSCADOR_CATALOGO}
                 value={busqueda}
                 onChange={setBusqueda}
                 onSubmit={buscar}
@@ -566,7 +569,10 @@ export default function Catalogo({
 
             <aside
               aria-label="Filtros"
-              className={`${filtrosAbiertos ? "block" : "hidden"} self-start lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain`}
+              // -mx-3 px-3: los botones de categoría se estiran 12 px a cada
+              // lado para el resaltado; así entran en la columna con scroll y
+              // no queda nada para arrastrar hacia los costados.
+              className={`${filtrosAbiertos ? "block" : "hidden"} self-start lg:sticky lg:top-24 lg:block lg:-mx-3 lg:px-3 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:overscroll-contain`}
             >
 
               <FiltrosCatalogo

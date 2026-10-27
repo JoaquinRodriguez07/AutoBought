@@ -20,7 +20,12 @@ import { IconoCerrar, IconoLupa } from "./Iconos";
  *  - placeholder (string)   opcional
  *  - autoFocus   (bool)     opcional
  *  - className   (string)   opcional, extiende el contenedor
+ *  - inputId     (string)   opcional, id del input (para enfocarlo desde afuera)
  */
+// El buscador del catálogo: la lupa de la barra lo enfoca en vez de abrir
+// otro buscador encima.
+export const ID_BUSCADOR_CATALOGO = "buscador-catalogo";
+
 export default function SearchBar({
   value,
   onChange,
@@ -28,6 +33,7 @@ export default function SearchBar({
   placeholder = "Buscar repuesto por nombre o código...",
   autoFocus = false,
   className = "",
+  inputId,
 }) {
   // Estado interno para permitir uso "no controlado" si no se pasa `value`.
   const [interno, setInterno] = useState(value ?? "");
@@ -62,9 +68,10 @@ export default function SearchBar({
   return (
     <div
       role="search"
-      className={`flex w-full bg-white rounded-lg shadow-xs overflow-hidden border border-gray-100 ${className}`}
+      className={`flex w-full bg-white rounded-lg shadow-xs overflow-hidden border border-gray-100 focus-within:ring-2 focus-within:ring-orange-500 transition ${className}`}
     >
       <input
+        id={inputId}
         value={interno}
         onChange={(e) => actualizar(e.target.value)}
         onKeyDown={manejarTecla}

@@ -333,18 +333,19 @@ describe("Navbar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
-    const input = screen.getByPlaceholderText("¿Qué repuesto estás buscando?");
+    const input = screen.getByPlaceholderText("Buscar repuesto por nombre, código o fabricante...");
     expect(input).toHaveFocus();
+    // Se despliega debajo de la lupa, dentro de la barra.
     const panel = screen.getByRole("search");
-    expect(panel).toHaveClass("max-w-[330px]", "top-[4.75rem]");
-    expect(input.parentElement).toHaveClass("rounded-full", "border", "shadow-xs");
+    expect(panel).toHaveAttribute("id", "navbar-search-panel");
+    expect(panel.closest("nav")).not.toBeNull();
     await user.type(input, "kit de distribución");
     await user.keyboard("{Enter}");
 
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
       "/catalogo?q=kit%20de%20distribuci%C3%B3n"
     );
-    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Buscar repuesto por nombre, código o fabricante...")).not.toBeInTheDocument();
   });
 
   it("closes the global search with Escape, restores focus, and closes on outside click", async () => {
@@ -354,12 +355,62 @@ describe("Navbar", () => {
     const openButton = screen.getByRole("button", { name: "Abrir búsqueda" });
     await user.click(openButton);
     await user.keyboard("{Escape}");
-    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Buscar repuesto por nombre, código o fabricante...")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Abrir búsqueda" })).toHaveFocus();
 
     await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Buscar repuesto por nombre, código o fabricante...")).not.toBeInTheDocument();
+  });
+
+  it("on a page with its own search box (the catalog), the magnifier focuses it instead of opening another", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Navbar paginaActual="catalogo" {...navigationProps()} />
+        <input id="buscador-catalogo" aria-label="Buscador de la página" />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+
+    expect(screen.getByRole("textbox", { name: "Buscador de la página" })).toHaveFocus();
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
+  });
+
+  it("opens the mobile menu with the main links and closes it after choosing one", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Navbar paginaActual="home" {...props} />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    const menu = document.getElementById("navbar-menu-celular");
+    expect(within(menu).getByRole("button", { name: "Home" })).toHaveClass("text-orange-500");
+
+    await user.click(within(menu).getByRole("button", { name: "Marcas" }));
+
+    expect(props.onMarcas).toHaveBeenCalledTimes(1);
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+    expect(screen.getByRole("button", { name: "Abrir menú" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes the mobile menu on an outside click or when the search opens", async () => {
+    const user = userEvent.setup();
+    render(<Navbar paginaActual="home" {...navigationProps()} />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    fireEvent.mouseDown(document.body);
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+    expect(screen.getByRole("search")).toBeInTheDocument();
+
+    // Y al revés: abrir el menú cierra el buscador.
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
   });
 
   it("runs a global search with the Buscar button", async () => {
@@ -1010,7 +1061,8 @@ it("runs the server search from the catalog bar on Enter and hides the header se
     </>
   );
 
-  expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+  // El buscador de la barra está cerrado: el único es el del catálogo.
+  expect(document.getElementById("navbar-search-panel")).toBeNull();
 
   await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastillas de frenos{Enter}");
 
@@ -3463,7 +3515,7 @@ describe("BusquedaCabecera", () => {
   );
 
   const input = screen.getByPlaceholderText(
-    "¿Qué repuesto estás buscando?"
+    "Buscar repuesto por nombre, código o fabricante..."
   );
 
   await user.type(input, "pastillas de freno onix 2020");
