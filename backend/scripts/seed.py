@@ -9,8 +9,8 @@ Si la base ya tiene el catálogo, no lo vuelve a cargar: actualiza los
 repuestos que ya existen (por su código) con lo que cambió en parts.json
 (nombre, descripción, especificaciones y garantía), sin tocar precios,
 stock, pedidos, carritos ni favoritos. Las columnas que se agregaron
-después de creada la base (descripción, especificaciones, garantía) se
-agregan solas: no hace falta borrar la base.
+después de creada la base (descripción, especificaciones, garantía y la
+versión de sesión del usuario) se agregan solas: no hace falta borrar la base.
 """
 
 import json
@@ -42,13 +42,30 @@ NEW_PART_COLUMNS = {
     "warranty_provider": "VARCHAR(20)",
 }
 
+# Columnas de `user` que no estaban cuando se crearon las primeras bases.
+NEW_USER_COLUMNS = {
+    # Versión de sesión: sube al cambiar la contraseña e invalida los tokens anteriores.
+    "session_version": "INTEGER NOT NULL DEFAULT 0",
+}
+
 DETAIL_FIELDS = ("name", "description", "specifications", "warranty_months", "warranty_provider")
 
 
 def add_missing_columns():
     postgres = engine.dialect.name == "postgresql"
-    existing = {column["name"]: column["type"] for column in inspect(engine).get_columns("part")}
+    inspector = inspect(engine)
+    existing = {column["name"]: column["type"] for column in inspector.get_columns("part")}
+    user_columns = (
+        {column["name"] for column in inspector.get_columns("user")}
+        if inspector.has_table("user")
+        else None
+    )
     with engine.begin() as connection:
+        if user_columns is not None:
+            for name, sql_type in NEW_USER_COLUMNS.items():
+                if name not in user_columns:
+                    connection.execute(text(f'ALTER TABLE "user" ADD COLUMN {name} {sql_type}'))
+                    print(f"Added column user.{name}.")
         for name, sql_type in NEW_PART_COLUMNS.items():
             if postgres and sql_type == "JSON":
                 sql_type = "JSONB"

@@ -355,7 +355,7 @@ def test_cambiar_la_contrasena_desde_el_perfil_manda_el_aviso(client, mails):
         "new_password": PASSWORD_NUEVA,
     })
 
-    assert response.status_code == 204
+    assert response.status_code == 200
     assert len(mails) == 1
     assert mails[0]["To"] == CORREO
     assert "¿No fuiste vos?" in texto(mails[0])

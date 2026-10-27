@@ -67,6 +67,15 @@ def _mandar_aviso_password_cambiada(background_tasks: BackgroundTasks, user: Use
     )
 
 
+def _token_de_sesion(user: User) -> Token:
+    """Token de sesión con el rol y la versión de sesión vigentes del usuario."""
+    access_token = create_access_token(
+        subject=str(user.user_id),
+        extra_claims={"user_type": user.user_type, "sv": user.session_version},
+    )
+    return Token(access_token=access_token)
+
+
 @router.post("/login", response_model=Token)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     if is_blocked(db, credentials.email):
@@ -86,11 +95,7 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
 
     clear_failures(db, user.email)
 
-    access_token = create_access_token(
-        subject=str(user.user_id),
-        extra_claims={"user_type": user.user_type},
-    )
-    return Token(access_token=access_token)
+    return _token_de_sesion(user)
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
@@ -122,11 +127,7 @@ def register(
 
     _mandar_verificacion(background_tasks, client)
 
-    access_token = create_access_token(
-        subject=str(client.user_id),
-        extra_claims={"user_type": client.user_type},
-    )
-    return Token(access_token=access_token)
+    return _token_de_sesion(client)
 
 
 @router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
@@ -236,11 +237,7 @@ def refresh(user: User = Depends(get_current_user)):
     el usuario ya no existe. El token nuevo repite el user_type guardado en la
     base y vuelve a empezar la vigencia completa.
     """
-    access_token = create_access_token(
-        subject=str(user.user_id),
-        extra_claims={"user_type": user.user_type},
-    )
-    return Token(access_token=access_token)
+    return _token_de_sesion(user)
 
 
 @router.get("/me", response_model=ClientOut)
@@ -255,7 +252,7 @@ def update_me(data: ClientUpdate, db: Session = Depends(get_db), client: Client 
     return crud_user.update_client(db, client, name=data.name, phone=phone)
 
 
-@router.patch("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/me/password", response_model=Token)
 def change_password(
     data: PasswordChange,
     background_tasks: BackgroundTasks,
@@ -291,6 +288,9 @@ def change_password(
     crud_user.update_password(db, client, hash_password(data.new_password))
     clear_failures(db, client.email)
     _mandar_aviso_password_cambiada(background_tasks, client)
+    # Las demás sesiones quedaron invalidadas; este dispositivo sigue con un
+    # token de la versión nueva.
+    return _token_de_sesion(client)
 
 
 @router.put("/me/preferences", response_model=ClientOut)
