@@ -1,15 +1,16 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
-import { confirmarCompra, obtenerDirecciones, obtenerMetodosPago } from "./api";
+import { confirmarCompra, crearLinkPago, obtenerDirecciones } from "./api";
 import { useCart } from "./context/CartContext";
 import SugerenciasCarrito from "./SugerenciasCarrito";
 import EncabezadoPagina from "./EncabezadoPagina";
-import { IconoBasura, IconoCandado, IconoCarrito, IconoCheck } from "./Iconos";
+import { IconoBasura, IconoCandado, IconoCarrito } from "./Iconos";
+import { irA } from "./redirigir";
 
 
 export default function Carrito({
   onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
-  cantidadFavoritos, onDetalle, onDirecciones, onMetodosPago,
+  cantidadFavoritos, onDetalle, onDirecciones,
   usuario, onPerfil, onHistorial, onCerrarSesion,
 }) {
   const { cart: productos, updateQuantity, removeFromCart, clearCart, total, cargarCarrito } = useCart();
@@ -26,36 +27,28 @@ export default function Carrito({
   const [pedido, setPedido] = useState(null);
   const [errorCompra, setErrorCompra] = useState("");
   const [direcciones, setDirecciones] = useState([]);
-  const [metodosPago, setMetodosPago] = useState([]);
   const [direccionId, setDireccionId] = useState("");
-  const [metodoPagoId, setMetodoPagoId] = useState("");
   const [cargandoDatos, setCargandoDatos] = useState(false);
 
-  // La principal, o la primera que se pueda usar (las vencidas no).
+  // La principal, o la primera.
   const idPrincipal = (lista) => {
-    const usables = lista.filter((item) => !item.vencida);
-    const principal = usables.find((item) => item.principal) ?? usables[0];
+    const principal = lista.find((item) => item.principal) ?? lista[0];
     return principal ? String(principal.id) : "";
   };
 
-  // Al abrir se traen las direcciones y tarjetas del perfil, con la
-  // principal de cada una preseleccionada.
+  // Al abrir se traen las direcciones del perfil, con la principal
+  // preseleccionada.
   const abrirConfirmacion = async () => {
     setPedido(null);
     setErrorCompra("");
     setConfirmacionAbierta(true);
     setCargandoDatos(true);
     try {
-      const [listaDirecciones, listaMetodos] = await Promise.all([
-        obtenerDirecciones(),
-        obtenerMetodosPago(),
-      ]);
+      const listaDirecciones = await obtenerDirecciones();
       setDirecciones(listaDirecciones);
-      setMetodosPago(listaMetodos);
       setDireccionId(idPrincipal(listaDirecciones));
-      setMetodoPagoId(idPrincipal(listaMetodos));
     } catch (error) {
-      setErrorCompra(error.message || "No pudimos cargar tus datos de envío y pago.");
+      setErrorCompra(error.message || "No pudimos cargar tus direcciones.");
     } finally {
       setCargandoDatos(false);
     }
@@ -63,34 +56,45 @@ export default function Carrito({
 
   const textoDireccion = (d) =>
     `${d.calle} ${d.numero}${d.apartamento ? ` apto ${d.apartamento}` : ""}, ${d.ciudad}`;
-  const textoMetodoPago = (m) =>
-    `${m.tipo} •••• ${m.numero}${m.vencida ? " (vencida)" : ""}`;
-  const hayTarjetaVigente = metodosPago.some((m) => !m.vencida);
-  const puedeConfirmar = !enviando && !cargandoDatos && direccionId !== "" && metodoPagoId !== "";
+  const puedeConfirmar = !enviando && !cargandoDatos && direccionId !== "";
 
   const cerrarConfirmacion = () => {
     if (enviando) return;
     setConfirmacionAbierta(false);
   };
 
-  // Si sale bien se muestra el número de pedido y se recarga el carrito
-  // (queda vacío). Si falla, el mensaje ya viene en español desde el
-  // backend: en el 409 dice qué repuesto no alcanza.
-  const confirmar = async () => {
+  // Lleva al cliente a pagar el pedido en Mercado Pago. Si no se puede
+  // abrir, el pedido ya quedó creado (con el stock reservado): se muestra
+  // el error y se puede reintentar sin volver a confirmar.
+  const irAPagar = async (pedidoAPagar) => {
     setEnviando(true);
     setErrorCompra("");
     try {
-      const nuevoPedido = await confirmarCompra({
-        direccionId: Number(direccionId),
-        metodoPagoId: Number(metodoPagoId),
-      });
-      setPedido(nuevoPedido);
-      await cargarCarrito();
+      irA(await crearLinkPago(pedidoAPagar.id));
     } catch (error) {
-      setErrorCompra(error.message || "No pudimos confirmar la compra.");
-    } finally {
+      setErrorCompra(error.message || "No pudimos abrir Mercado Pago.");
       setEnviando(false);
     }
+  };
+
+  // Se crea el pedido (pendiente de pago) y se va a pagar. Si falla, el
+  // mensaje ya viene en español desde el backend: en el 409 dice qué
+  // repuesto no alcanza.
+  const confirmar = async () => {
+    setEnviando(true);
+    setErrorCompra("");
+    let nuevoPedido;
+    try {
+      nuevoPedido = await confirmarCompra({ direccionId: Number(direccionId) });
+    } catch (error) {
+      setErrorCompra(error.message || "No pudimos confirmar la compra.");
+      setEnviando(false);
+      return;
+    }
+    setPedido(nuevoPedido);
+    // El carrito ya quedó vacío en el backend.
+    cargarCarrito();
+    await irAPagar(nuevoPedido);
   };
 
   const resumen = (
@@ -128,16 +132,23 @@ export default function Carrito({
             className="w-full max-w-[420px] bg-white rounded-xl p-6 shadow-lg">
             {pedido ? (
               <div className="text-center">
-                <span className="mx-auto mb-3 w-14 h-14 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
-                  <IconoCheck className="w-7 h-7" />
-                </span>
-                <h2 id="titulo-confirmar-compra" className="text-lg font-black">¡Compra confirmada!</h2>
-                <p className="text-sm text-gray-500 mt-2">Tu número de pedido es</p>
-                <p className="text-2xl font-black text-orange-500 mt-1">{`#${pedido.id}`}</p>
-                <button onClick={cerrarConfirmacion}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 mt-6 text-sm font-black">
-                  ACEPTAR
-                </button>
+                <h2 id="titulo-confirmar-compra" className="text-lg font-black">{`Pedido #${pedido.id}`}</h2>
+                {errorCompra ? (
+                  <>
+                    <p role="alert" className="text-sm text-red-600 font-bold mt-2">{errorCompra}</p>
+                    <p className="text-sm text-gray-500 mt-2">Tus repuestos quedan reservados mientras pagás.</p>
+                    <button onClick={() => irAPagar(pedido)} disabled={enviando}
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 mt-6 text-sm font-black disabled:opacity-40">
+                      REINTENTAR PAGO
+                    </button>
+                    <button onClick={onHistorial} disabled={enviando}
+                      className="w-full mt-2 py-2 text-sm font-bold text-gray-500 hover:text-orange-500 disabled:opacity-40">
+                      Pagar más tarde desde mis compras
+                    </button>
+                  </>
+                ) : (
+                  <p role="status" className="text-sm text-gray-500 mt-2">Te llevamos a Mercado Pago para pagar...</p>
+                )}
               </div>
             ) : (
               <>
@@ -155,7 +166,7 @@ export default function Carrito({
                   <span className="text-xl font-black text-orange-500">{precio(totalFinal)}</span>
                 </div>
                 {cargandoDatos ? (
-                  <p role="status" className="mt-4 text-sm text-gray-500">Cargando tus datos de envío y pago...</p>
+                  <p role="status" className="mt-4 text-sm text-gray-500">Cargando tus direcciones...</p>
                 ) : (
                   <div className="mt-4 space-y-3">
                     <div>
@@ -176,28 +187,11 @@ export default function Carrito({
                         </p>
                       )}
                     </div>
-                    <div>
-                      <label htmlFor="metodo-pago" className="block text-xs font-black text-gray-500">MÉTODO DE PAGO</label>
-                      {hayTarjetaVigente ? (
-                        <select id="metodo-pago" value={metodoPagoId} onChange={(e) => setMetodoPagoId(e.target.value)}
-                          className="w-full mt-1 border border-gray-200 rounded-md px-3 py-2 text-sm bg-white outline-hidden focus:border-orange-500">
-                          {metodosPago.map((m) => (
-                            <option key={m.id} value={String(m.id)} disabled={m.vencida}>{textoMetodoPago(m)}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <p className="mt-1 text-sm text-gray-500">
-                          {metodosPago.length > 0
-                            ? "Tus tarjetas guardadas están vencidas."
-                            : "No tenés tarjetas guardadas."}{" "}
-                          <button type="button" onClick={onMetodosPago} className="text-orange-500 font-bold hover:underline">
-                            Agregar una tarjeta
-                          </button>
-                        </p>
-                      )}
-                    </div>
                   </div>
                 )}
+                <p className="mt-4 text-xs text-gray-500">
+                  Vas a pagar en Mercado Pago: la tarjeta se carga ahí, no en la tienda.
+                </p>
                 {errorCompra && (
                   <p role="alert" className="mt-4 text-sm text-red-600 font-bold">{errorCompra}</p>
                 )}
@@ -208,7 +202,7 @@ export default function Carrito({
                   </button>
                   <button onClick={confirmar} disabled={!puedeConfirmar}
                     className="flex-1 bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 text-sm font-black disabled:opacity-40">
-                    {enviando ? "CONFIRMANDO..." : "CONFIRMAR COMPRA"}
+                    {enviando ? "CONFIRMANDO..." : "IR A PAGAR"}
                   </button>
                 </div>
               </>
@@ -224,7 +218,7 @@ export default function Carrito({
       <Navbar paginaActual="carrito" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
         usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago} onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
+        onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
         cantidadFavoritos={cantidadFavoritos} />
 
       <main>

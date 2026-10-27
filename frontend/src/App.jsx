@@ -21,8 +21,8 @@ import Login from "./Login";
 import Registro from "./Registro";
 import Perfil from "./Perfil";
 import Direcciones from "./Direcciones";
-import MetodosPago from "./MetodosPago";
 import HistorialCompras from "./HistorialCompras";
+import ResultadoPago from "./ResultadoPago";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
 import Marcas from "./Marcas";
@@ -156,24 +156,6 @@ function App() {
   });
 
   /* =====================================================
-     MÉTODOS DE PAGO
-  ====================================================== */
-
-  const [metodosPago, setMetodosPago] = useState(() => {
-    try {
-      return (
-        JSON.parse(
-          localStorage.getItem(
-            "autobought-metodos-pago"
-          )
-        ) || []
-      );
-    } catch {
-      return [];
-    }
-  });
-
-  /* =====================================================
      HISTORIAL DE COMPRAS
   ====================================================== */
 
@@ -202,17 +184,6 @@ function App() {
       JSON.stringify(direcciones)
     );
   }, [direcciones]);
-
-  /* =====================================================
-     GUARDAR MÉTODOS DE PAGO
-  ====================================================== */
-
-  useEffect(() => {
-    localStorage.setItem(
-      "autobought-metodos-pago",
-      JSON.stringify(metodosPago)
-    );
-  }, [metodosPago]);
 
   /* =====================================================
      GUARDAR HISTORIAL
@@ -568,8 +539,6 @@ function App() {
 
     onDirecciones: () => navigate("/direcciones"),
 
-    onMetodosPago: () => navigate("/metodos-pago"),
-
     onHistorial: () => navigate("/historial"),
 
     onCerrarSesion: cerrarSesion,
@@ -757,7 +726,6 @@ function App() {
               {...propsNavbar}
               onDetalle={irAlDetalle}
               onDirecciones={() => navigate("/direcciones")}
-              onMetodosPago={() => navigate("/metodos-pago")}
             />
           }
         />
@@ -810,16 +778,14 @@ function App() {
           }
         />
 
-        {/* MÉTODOS DE PAGO */}
+        {/* VUELTA DE MERCADO PAGO
+            Mercado Pago devuelve al cliente acá después de pagar (o de
+            fallar el pago), con el número de pedido en la dirección. */}
 
         <Route
-          path="/metodos-pago"
+          path="/pago"
           element={
-            <MetodosPago
-              {...propsNavbar}
-              metodosPago={metodosPago}
-              setMetodosPago={setMetodosPago}
-            />
+            <ResultadoPago {...propsNavbar} />
           }
         />
 

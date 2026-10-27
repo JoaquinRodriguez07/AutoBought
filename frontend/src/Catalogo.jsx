@@ -69,7 +69,6 @@ export default function Catalogo({
   // MENÚ DE USUARIO
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 
@@ -488,7 +487,6 @@ export default function Catalogo({
         // MENÚ DE USUARIO
         onPerfil={onPerfil}
         onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago}
         onHistorial={onHistorial}
         onCerrarSesion={onCerrarSesion}
 

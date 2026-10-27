@@ -11,20 +11,19 @@ import {
   cambiarPassword,
   agregarItemCarrito,
   crearDireccion,
-  crearMetodoPago,
+  confirmarCompra,
+  crearLinkPago,
   eliminarDireccionAPI,
   eliminarItemCarrito,
-  eliminarMetodoPagoAPI,
   login,
   marcarDireccionPrincipal,
-  marcarMetodoPagoPrincipal,
   obtenerCarrito,
   obtenerCategorias,
   obtenerMasVendidos,
   obtenerDirecciones,
   obtenerFavoritos,
   obtenerMarcas,
-  obtenerMetodosPago,
+  obtenerDetalleCompra,
   obtenerModelos,
   obtenerAnios,
   obtenerPerfil,
@@ -574,7 +573,7 @@ describe("alSesionInvalida", () => {
     ["obtenerCarrito", () => obtenerCarrito()],
     ["agregarItemCarrito", () => agregarItemCarrito(1, 1)],
     ["obtenerDirecciones", () => obtenerDirecciones()],
-    ["obtenerMetodosPago", () => obtenerMetodosPago()],
+    ["crearLinkPago", () => crearLinkPago(42)],
     ["obtenerAvisosStock", () => obtenerAvisosStock()],
     ["obtenerPerfil", () => obtenerPerfil("jwt-token")],
     ["actualizarPerfil", () => actualizarPerfil({ nombre: "Ana", apellido: "", telefono: "" })],
@@ -902,84 +901,59 @@ describe("address API", () => {
   });
 });
 
-describe("payment method API", () => {
-  const backendMethod = {
-    payment_method_id: 8,
-    card_type: "Visa",
-    holder: "Ana Pérez",
-    last_four: "4242",
-    expiry: "12/30",
-    is_primary: true,
-    is_expired: false,
-  };
-  const uiMethod = {
-    id: 8,
-    tipo: "Visa",
-    titular: "Ana Pérez",
-    numero: "4242",
-    vencimiento: "12/30",
-    principal: true,
-    vencida: false,
+describe("orders and Mercado Pago API", () => {
+  const backendOrder = {
+    order_id: 42,
+    created_at: "2026-10-27T12:00:00Z",
+    status: "confirmed",
+    shipping_address: null,
+    payment_method: "Mercado Pago",
+    payment_status: "pending",
+    total: 3000,
+    items: [],
   };
 
-  it("maps methods and only submits the final four card digits", async () => {
-    fetch
-      .mockResolvedValueOnce(response([backendMethod]))
-      .mockResolvedValueOnce(response(backendMethod))
-      .mockResolvedValueOnce(response(backendMethod))
-      .mockResolvedValueOnce(response(null, { status: 204 }));
+  it("confirms the purchase with only the chosen address and maps the payment status", async () => {
+    fetch.mockResolvedValue(response(backendOrder));
 
-    await expect(obtenerMetodosPago()).resolves.toEqual([uiMethod]);
-    await expect(crearMetodoPago({
-      tarjeta: { marca: "Visa", ultimosCuatro: "4242", vencimiento: "12/30" },
-      titular: "Ana Pérez",
-      principal: true,
-    })).resolves.toEqual(uiMethod);
-    await expect(marcarMetodoPagoPrincipal(8)).resolves.toEqual(uiMethod);
-    await expect(eliminarMetodoPagoAPI(8)).resolves.toBeUndefined();
+    await expect(confirmarCompra({ direccionId: 3 })).resolves.toMatchObject({
+      id: 42,
+      metodoPago: "Mercado Pago",
+      estadoPago: "pending",
+    });
 
-    expect(fetch).toHaveBeenNthCalledWith(2, `${BASE_URL}/api/v1/payment-methods`, {
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/orders`, {
       method: "POST",
-      body: JSON.stringify({
-        card_type: "Visa",
-        holder: "Ana Pérez",
-        last_four: "4242",
-        expiry: "12/30",
-        is_primary: true,
-      }),
+      body: JSON.stringify({ shipping_address_id: 3 }),
       headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
     });
-    expect(JSON.stringify(fetch.mock.calls[1][1].body)).not.toContain("123");
   });
 
-  it("uses a payment-specific validation error", async () => {
-    fetch.mockResolvedValue(response({}, { ok: false, status: 422 }));
+  it("maps orders from before Mercado Pago without a payment status", async () => {
+    fetch.mockResolvedValue(response({ ...backendOrder, payment_method: "Visa •••• 1234", payment_status: null }));
 
-    await expect(obtenerMetodosPago()).rejects.toMatchObject({
-      message: "Revisá los datos de la tarjeta.",
-      status: 422,
+    await expect(obtenerDetalleCompra(42)).resolves.toMatchObject({ estadoPago: null });
+  });
+
+  it("asks for the Mercado Pago link of an order", async () => {
+    fetch.mockResolvedValue(response({ url: "https://mercadopago.test/pagar" }));
+
+    await expect(crearLinkPago(42)).resolves.toBe("https://mercadopago.test/pagar");
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/pagos/42`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
     });
   });
 
-  it("maps expired cards and 422 field errors", async () => {
+  it("uses the backend detail or a payment-specific message when the link fails", async () => {
     fetch
-      .mockResolvedValueOnce(response([{ ...backendMethod, is_expired: true }]))
-      .mockResolvedValueOnce(response({
-        detail: [
-          { loc: ["body", "holder"], msg: "Value error, El nombre del titular tiene que tener al menos 2 letras." },
-          { loc: ["body", "expiry"], msg: "Value error, La tarjeta está vencida." },
-        ],
-      }, { ok: false, status: 422 }));
+      .mockResolvedValueOnce(response({ detail: "Este pedido ya está pagado." }, { ok: false, status: 409 }))
+      .mockResolvedValueOnce(response({}, { ok: false, status: 503 }));
 
-    await expect(obtenerMetodosPago()).resolves.toEqual([{ ...uiMethod, vencida: true }]);
-    await expect(crearMetodoPago({
-      tarjeta: { marca: "Visa", ultimosCuatro: "4242", vencimiento: "01/20" },
-      titular: "A",
-    })).rejects.toMatchObject({
-      campos: {
-        holder: "El nombre del titular tiene que tener al menos 2 letras.",
-        expiry: "La tarjeta está vencida.",
-      },
+    await expect(crearLinkPago(42)).rejects.toMatchObject({ message: "Este pedido ya está pagado.", status: 409 });
+    await expect(crearLinkPago(42)).rejects.toMatchObject({
+      message: "No pudimos conectar con Mercado Pago. Probá de nuevo en un rato.",
+      status: 503,
     });
   });
 });

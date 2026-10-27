@@ -50,7 +50,6 @@ export default function Marcas({
   cantidadFavoritos,
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 }) {
@@ -87,7 +86,6 @@ export default function Marcas({
         onFavoritos={onFavoritos}
         onPerfil={onPerfil}
         onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago}
         onHistorial={onHistorial}
         onCerrarSesion={onCerrarSesion}
         cantidadCarrito={cantidadCarrito}

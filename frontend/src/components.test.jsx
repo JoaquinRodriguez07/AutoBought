@@ -28,10 +28,6 @@ jest.mock("./api", () => ({
   crearDireccion: jest.fn(),
   marcarDireccionPrincipal: jest.fn(),
   eliminarDireccionAPI: jest.fn(),
-  obtenerMetodosPago: jest.fn(),
-  crearMetodoPago: jest.fn(),
-  marcarMetodoPagoPrincipal: jest.fn(),
-  eliminarMetodoPagoAPI: jest.fn(),
   obtenerRecomendaciones: jest.fn(),
   obtenerFavoritos: jest.fn(),
   obtenerHistorialCompras: jest.fn(),
@@ -68,7 +64,6 @@ import ConfirmacionAgregarCarrito, { DURACION_AVISO_MS } from "./ConfirmacionAgr
 import Home from "./Home";
 import Login from "./Login";
 import Marcas from "./Marcas";
-import MetodosPago from "./MetodosPago";
 import ModelDropdown from "./ModelDropdown";
 import Navbar from "./Navbar";
 import Perfil from "./Perfil";
@@ -96,13 +91,10 @@ import {
   agregarItemCarrito,
   actualizarItemCarrito,
   crearDireccion,
-  crearMetodoPago,
   eliminarDireccionAPI,
   eliminarItemCarrito,
-  eliminarMetodoPagoAPI,
   login,
   marcarDireccionPrincipal,
-  marcarMetodoPagoPrincipal,
   obtenerCarrito,
   obtenerCategorias,
   obtenerMasVendidos,
@@ -111,7 +103,6 @@ import {
   obtenerHistorialCompras,
   obtenerDetalleCompra,
   obtenerMarcas,
-  obtenerMetodosPago,
   obtenerModelos,
   obtenerAnios,
   obtenerRepuestos,
@@ -284,10 +275,6 @@ beforeEach(() => {
   crearDireccion.mockResolvedValue({});
   marcarDireccionPrincipal.mockResolvedValue({});
   eliminarDireccionAPI.mockResolvedValue({});
-  obtenerMetodosPago.mockResolvedValue([]);
-  crearMetodoPago.mockResolvedValue({});
-  marcarMetodoPagoPrincipal.mockResolvedValue({});
-  eliminarMetodoPagoAPI.mockResolvedValue({});
   obtenerRecomendaciones.mockResolvedValue([]);
   obtenerFavoritos.mockResolvedValue([]);
   obtenerAvisosStock.mockResolvedValue([]);
@@ -410,7 +397,6 @@ describe("Navbar", () => {
     const props = navigationProps();
     props.onPerfil = jest.fn();
     props.onDirecciones = jest.fn();
-    props.onMetodosPago = jest.fn();
     props.onHistorial = jest.fn();
     props.onCerrarSesion = jest.fn();
 
@@ -433,9 +419,7 @@ describe("Navbar", () => {
     await user.click(screen.getByTitle("Mi cuenta"));
     await user.click(screen.getByRole("button", { name: "Direcciones" }));
     expect(props.onDirecciones).toHaveBeenCalled();
-    await user.click(screen.getByTitle("Mi cuenta"));
-    await user.click(screen.getByRole("button", { name: "Métodos de pago" }));
-    expect(props.onMetodosPago).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Métodos de pago" })).not.toBeInTheDocument();
     await user.click(screen.getByTitle("Mi cuenta"));
     await user.click(screen.getByRole("button", { name: "Historial de compras" }));
     expect(props.onHistorial).toHaveBeenCalled();
@@ -2313,7 +2297,7 @@ describe("App rutas", () => {
     expect(obtenerRepuesto).toHaveBeenCalledWith("21");
   });
 
-  it.each(["/favoritos", "/perfil", "/direcciones", "/metodos-pago", "/historial"])(
+  it.each(["/favoritos", "/perfil", "/direcciones", "/historial", "/pago?pedido=1"])(
     "sends anonymous users from %s to the login instead of a blank page",
     (ruta) => {
       renderEn(ruta);
@@ -2510,179 +2494,13 @@ describe("App sesión inválida (401)", () => {
   });
 });
 
-describe("MetodosPago", () => {
-  // Vencimientos relativos a hoy, para que los tests no venzan con el tiempo.
-  const anio = (suma) => String((new Date().getFullYear() + suma) % 100).padStart(2, "0");
-  const VIGENTE = `12/${anio(3)}`;
-
-  const abrirFormulario = async (user) => {
-    render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
-    await user.click(await screen.findByRole("button", { name: /agregar tarjeta/i }));
-  };
-
-  const completarTarjeta = async (user, d = {}) => {
-    const datos = { numero: "4111111111111111", titular: "Ana Perez", vencimiento: VIGENTE.replace("/", ""), cvv: "123", ...d };
-    if (datos.numero) await user.type(screen.getByLabelText("NÚMERO DE TARJETA *"), datos.numero);
-    if (datos.titular) await user.type(screen.getByLabelText("TITULAR *"), datos.titular);
-    if (datos.vencimiento) await user.type(screen.getByLabelText("VENCIMIENTO *"), datos.vencimiento);
-    if (datos.cvv) await user.type(screen.getByLabelText("CÓDIGO DE SEGURIDAD *"), datos.cvv);
-  };
-
-  const guardar = (user) => user.click(screen.getByRole("button", { name: /guardar tarjeta/i }));
-
-  it("detects the brand and only sends brand, last four digits and expiry to the API", async () => {
-    const user = userEvent.setup();
-    let savedCards = [];
-    obtenerMetodosPago.mockImplementation(() => Promise.resolve(savedCards));
-    crearMetodoPago.mockImplementation(async ({ tarjeta, titular }) => {
-      savedCards = [{
-        id: 1, tipo: tarjeta.marca, titular, numero: tarjeta.ultimosCuatro,
-        vencimiento: tarjeta.vencimiento, principal: true, vencida: false,
-      }];
-    });
-    await abrirFormulario(user);
-
-    await completarTarjeta(user);
-    expect(screen.getByLabelText("TIPO DE TARJETA")).toHaveValue("Visa");
-    expect(screen.getByLabelText("TIPO DE TARJETA")).toBeDisabled();
-    expect(screen.getByLabelText("NÚMERO DE TARJETA *")).toHaveValue("4111 1111 1111 1111");
-    expect(screen.getByLabelText("VENCIMIENTO *")).toHaveValue(VIGENTE);
-    await guardar(user);
-
-    expect(await screen.findByText("•••• •••• •••• 1111")).toBeInTheDocument();
-    expect(crearMetodoPago).toHaveBeenCalledWith({
-      tarjeta: { marca: "Visa", ultimosCuatro: "1111", vencimiento: VIGENTE },
-      titular: "Ana Perez",
-      principal: false,
-    });
-    // Ni el número completo ni el CVV llegan a la API.
-    expect(JSON.stringify(crearMetodoPago.mock.calls)).not.toMatch(/4111111111111111|"123"/);
-  });
-
-  it("shows an error under each empty field", async () => {
-    const user = userEvent.setup();
-    await abrirFormulario(user);
-
-    await guardar(user);
-
-    expect(screen.getByText("Ingresá el número de la tarjeta.")).toBeInTheDocument();
-    expect(screen.getByText("El nombre del titular no puede estar vacío.")).toBeInTheDocument();
-    expect(screen.getByText("El vencimiento tiene que tener el formato MM/AA.")).toBeInTheDocument();
-    expect(screen.getByText("Ingresá el código de seguridad.")).toBeInTheDocument();
-    expect(screen.getByLabelText("TITULAR *")).toHaveAttribute("aria-invalid", "true");
-    expect(crearMetodoPago).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["an invalid number (Luhn)", { numero: "4111111111111112" }, "El número de tarjeta no es válido. Revisalo."],
-    ["an expired card", { vencimiento: "0120" }, "La tarjeta está vencida."],
-    ["a far away expiry", { vencimiento: `12${anio(30)}` }, "Revisá el vencimiento: es demasiado lejano."],
-    ["a holder with numbers", { titular: "Ana 123" }, "El nombre del titular solo puede tener letras, espacios, apóstrofos y guiones."],
-    ["a short CVV", { cvv: "12" }, "El código de seguridad tiene 3 dígitos."],
-  ])("rejects %s", async (_caso, datos, mensaje) => {
-    const user = userEvent.setup();
-    await abrirFormulario(user);
-
-    await completarTarjeta(user, datos);
-    await guardar(user);
-
-    expect(screen.getByText(mensaje)).toBeInTheDocument();
-    expect(crearMetodoPago).not.toHaveBeenCalled();
-  });
-
-  it("formats American Express 4-6-5 and asks for a 4 digit CVV", async () => {
-    const user = userEvent.setup();
-    await abrirFormulario(user);
-
-    await completarTarjeta(user, { numero: "378282246310005", cvv: "123" });
-    await guardar(user);
-
-    expect(screen.getByLabelText("TIPO DE TARJETA")).toHaveValue("American Express");
-    expect(screen.getByLabelText("NÚMERO DE TARJETA *")).toHaveValue("3782 822463 10005");
-    expect(screen.getByText("El código de seguridad tiene 4 dígitos.")).toBeInTheDocument();
-  });
-
-  it("accepts OCA only when chosen by hand for a number of no other brand", async () => {
-    const user = userEvent.setup();
-    crearMetodoPago.mockResolvedValue({});
-    await abrirFormulario(user);
-
-    await completarTarjeta(user, { numero: "5899123412341234" });
-    await guardar(user);
-    expect(screen.getByText("Ese número no es de una tarjeta Visa.")).toBeInTheDocument();
-
-    await user.selectOptions(screen.getByLabelText("TIPO DE TARJETA"), "OCA");
-    await guardar(user);
-
-    await waitFor(() => expect(crearMetodoPago).toHaveBeenCalledWith(
-      expect.objectContaining({ tarjeta: expect.objectContaining({ marca: "OCA", ultimosCuatro: "1234" }) })
-    ));
-  });
-
-  it("shows backend field errors and conflicts in the form", async () => {
-    const user = userEvent.setup();
-    const errorCampo = Object.assign(new Error("Revisá los datos de la tarjeta."), {
-      campos: { holder: "El nombre del titular tiene que tener al menos 2 letras." },
-    });
-    crearMetodoPago
-      .mockRejectedValueOnce(errorCampo)
-      .mockRejectedValueOnce(Object.assign(new Error("Ya tenés guardada esta tarjeta."), { campos: {} }));
-    await abrirFormulario(user);
-    await completarTarjeta(user);
-
-    await guardar(user);
-    expect(await screen.findByText("El nombre del titular tiene que tener al menos 2 letras.")).toBeInTheDocument();
-
-    await guardar(user);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Ya tenés guardada esta tarjeta.");
-  });
-
-  it("marks expired cards and does not offer them as primary", async () => {
-    obtenerMetodosPago.mockResolvedValue([
-      { id: 1, tipo: "Visa", titular: "Ana", numero: "1111", vencimiento: VIGENTE, principal: true, vencida: false },
-      { id: 2, tipo: "OCA", titular: "Ana", numero: "2222", vencimiento: "01/20", principal: false, vencida: true },
-    ]);
-    render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
-
-    expect(await screen.findByText("VENCIDA")).toBeInTheDocument();
-    expect(screen.getByText("Venció: 01/20")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "MARCAR PRINCIPAL" })).not.toBeInTheDocument();
-  });
-
-  it("marks and deletes saved cards", async () => {
-    const user = userEvent.setup();
-    let savedCards = [
-      { id: 1, tipo: "Visa", titular: "Ana", numero: "1111", vencimiento: VIGENTE, principal: true, vencida: false },
-      { id: 2, tipo: "Mastercard", titular: "Luis", numero: "2222", vencimiento: VIGENTE, principal: false, vencida: false },
-    ];
-    obtenerMetodosPago.mockImplementation(() => Promise.resolve(savedCards));
-    marcarMetodoPagoPrincipal.mockImplementation(async (id) => {
-      savedCards = savedCards.map((card) => ({ ...card, principal: card.id === id }));
-    });
-    eliminarMetodoPagoAPI.mockImplementation(async (id) => {
-      savedCards = savedCards.filter((card) => card.id !== id);
-    });
-    render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
-
-    await user.click(await screen.findByRole("button", { name: "MARCAR PRINCIPAL" }));
-    expect(await screen.findAllByText("PRINCIPAL")).toHaveLength(1);
-    await user.click(screen.getAllByRole("button", { name: "ELIMINAR" })[1]);
-    await waitFor(() => expect(screen.queryByText("Luis")).not.toBeInTheDocument());
-    expect(marcarMetodoPagoPrincipal).toHaveBeenCalledWith(2);
-    expect(eliminarMetodoPagoAPI).toHaveBeenCalledWith(2);
-  });
-});
-
-describe("Direcciones y MetodosPago ante un 401", () => {
+describe("Direcciones ante un 401", () => {
   // El 401 ya lo maneja alSesionInvalida (cierra la sesión y va a /login):
   // las pantallas no tienen que sumar un alert propio.
   const error401 = () => Object.assign(new Error("Tu sesión venció. Iniciá sesión de nuevo."), { status: 401 });
   const direccion = {
     id: 1, nombre: "Casa", calle: "Av. Italia", numero: "1234", apartamento: "",
     ciudad: "Montevideo", departamento: "Montevideo", codigoPostal: "", principal: false,
-  };
-  const tarjeta = {
-    id: 1, tipo: "Visa", titular: "Ana", numero: "1111", vencimiento: "12/99", principal: false, vencida: false,
   };
   let alertSpy;
 
@@ -2693,19 +2511,12 @@ describe("Direcciones y MetodosPago ante un 401", () => {
   afterEach(() => alertSpy.mockRestore());
 
   it.each([
-    ["Direcciones", "ELIMINAR", () => eliminarDireccionAPI],
-    ["Direcciones", "MARCAR COMO PRINCIPAL", () => marcarDireccionPrincipal],
-    ["MetodosPago", "ELIMINAR", () => eliminarMetodoPagoAPI],
-    ["MetodosPago", "MARCAR PRINCIPAL", () => marcarMetodoPagoPrincipal],
-  ])("%s: %s does not show an alert on 401", async (pantalla, boton, accion) => {
+    ["ELIMINAR", () => eliminarDireccionAPI],
+    ["MARCAR COMO PRINCIPAL", () => marcarDireccionPrincipal],
+  ])("%s does not show an alert on 401", async (boton, accion) => {
     const user = userEvent.setup();
-    if (pantalla === "Direcciones") {
-      obtenerDirecciones.mockResolvedValue([direccion]);
-      render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
-    } else {
-      obtenerMetodosPago.mockResolvedValue([tarjeta]);
-      render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
-    }
+    obtenerDirecciones.mockResolvedValue([direccion]);
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
     accion().mockRejectedValueOnce(error401());
 
     await user.click(await screen.findByRole("button", { name: boton }));
@@ -2732,7 +2543,6 @@ describe("Perfil", () => {
     const props = navigationProps();
     props.onActualizarUsuario = jest.fn();
     props.onDirecciones = jest.fn();
-    props.onMetodosPago = jest.fn();
     props.onHistorial = jest.fn();
     props.onCerrarSesion = jest.fn();
     const usuario = {
@@ -2758,7 +2568,6 @@ describe("Perfil", () => {
     await user.type(nameInput, "Ana Maria Perez");
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
     await user.click(screen.getByRole("button", { name: /direcciones/i }));
-    await user.click(screen.getByRole("button", { name: /métodos de pago/i }));
     await user.click(screen.getByRole("button", { name: /historial de compra/i }));
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));
 
@@ -2769,7 +2578,6 @@ describe("Perfil", () => {
       expect.objectContaining({ id: 1, nombre: "Ana Maria Perez" })
     );
     expect(props.onDirecciones).toHaveBeenCalled();
-    expect(props.onMetodosPago).toHaveBeenCalled();
     expect(props.onHistorial).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
   });
@@ -3264,7 +3072,7 @@ describe("Direcciones", () => {
 
   it("shows the account menu with the current section marked and a log out", async () => {
     const user = userEvent.setup();
-    const props = { ...navigationProps(), onMetodosPago: jest.fn(), onCerrarSesion: jest.fn() };
+    const props = { ...navigationProps(), onHistorial: jest.fn(), onCerrarSesion: jest.fn() };
     obtenerDirecciones.mockResolvedValue([]);
 
     render(<Direcciones {...props} usuario={{ nombre: "Ana Pérez" }} />);
@@ -3273,10 +3081,11 @@ describe("Direcciones", () => {
     expect(within(menu).getByRole("button", { name: "Direcciones" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("Hola, Ana")).toBeInTheDocument();
 
-    await user.click(within(menu).getByRole("button", { name: "Métodos de pago" }));
+    expect(within(menu).queryByRole("button", { name: "Métodos de pago" })).not.toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "Historial de compras" }));
     await user.click(within(menu).getByRole("button", { name: "Cerrar sesión" }));
 
-    expect(props.onMetodosPago).toHaveBeenCalled();
+    expect(props.onHistorial).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
   });
 

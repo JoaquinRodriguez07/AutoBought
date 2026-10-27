@@ -26,7 +26,6 @@ jest.mock("./api", () => ({
   crearDireccion: jest.fn(),
   marcarDireccionPrincipal: jest.fn(),
   eliminarDireccionAPI: jest.fn(),
-  obtenerMetodosPago: jest.fn(),
   crearMetodoPago: jest.fn(),
   marcarMetodoPagoPrincipal: jest.fn(),
   eliminarMetodoPagoAPI: jest.fn(),
@@ -67,7 +66,6 @@ import {
   obtenerHistorialCompras,
   obtenerMarcas,
   obtenerMasVendidos,
-  obtenerMetodosPago,
   obtenerAnios,
   obtenerModelos,
   obtenerPerfil,
@@ -125,7 +123,6 @@ beforeEach(() => {
   obtenerAnios.mockResolvedValue([]);
   obtenerMasVendidos.mockResolvedValue([]);
   obtenerDirecciones.mockResolvedValue([]);
-  obtenerMetodosPago.mockResolvedValue([]);
   obtenerRecomendaciones.mockResolvedValue([]);
   obtenerFavoritos.mockResolvedValue([]);
   obtenerAvisosStock.mockResolvedValue([]);
@@ -152,7 +149,6 @@ const pedidosDeCliente = () => [
   obtenerFavoritos,
   obtenerAvisosStock,
   obtenerDirecciones,
-  obtenerMetodosPago,
   obtenerHistorialCompras,
 ];
 
@@ -212,7 +208,6 @@ describe("Navbar según el perfil", () => {
             onFavoritos={jest.fn()}
             onPerfil={jest.fn()}
             onDirecciones={jest.fn()}
-            onMetodosPago={jest.fn()}
             onHistorial={jest.fn()}
             onCerrarSesion={jest.fn()}
           />
@@ -233,7 +228,7 @@ describe("Navbar según el perfil", () => {
     expect(screen.getByRole("button", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
     expect(screen.getByText("vendedor@example.com")).toBeInTheDocument();
-    ["Mi perfil", "Direcciones", "Métodos de pago", "Historial de compras"].forEach((nombre) =>
+    ["Mi perfil", "Direcciones", "Historial de compras"].forEach((nombre) =>
       expect(screen.queryByRole("button", { name: nombre })).not.toBeInTheDocument()
     );
   });
@@ -257,7 +252,7 @@ describe("Navbar según el perfil", () => {
 
     await user.click(screen.getByTitle("Mi cuenta"));
 
-    ["Mi perfil", "Direcciones", "Métodos de pago", "Historial de compras", "Cerrar sesión"].forEach(
+    ["Mi perfil", "Direcciones", "Historial de compras", "Cerrar sesión"].forEach(
       (nombre) => expect(screen.getByRole("button", { name: nombre })).toBeInTheDocument()
     );
     expect(screen.queryByRole("button", { name: "Dashboard" })).not.toBeInTheDocument();
@@ -326,7 +321,7 @@ describe("App con sesión de vendedor", () => {
     "/favoritos",
     "/perfil",
     "/direcciones",
-    "/metodos-pago",
+    "/pago?pedido=1",
     "/historial",
   ])("redirects the client route %s to the dashboard", async (ruta) => {
     renderApp(ruta);

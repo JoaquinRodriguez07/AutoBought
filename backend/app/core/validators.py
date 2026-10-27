@@ -7,7 +7,6 @@ enviar. Lo que vale es lo de acá: el frontend se puede saltear.
 
 import re
 import unicodedata
-from datetime import date
 
 _ESPACIOS = re.compile(r"\s+")
 
@@ -20,9 +19,7 @@ _APARTAMENTO = re.compile(r"^[^\W_][\w .\-/]*$")
 _NUMERO_PUERTA = re.compile(r"^\d{1,5}(?: ?(?:bis|[a-z]))?$", re.IGNORECASE)
 _SIN_NUMERO = {"s/n", "sn", "s/nº", "sin numero"}
 _CODIGO_POSTAL = re.compile(r"^\d{5}$")
-_VENCIMIENTO = re.compile(r"^(0[1-9]|1[0-2])/(\d{2})$")
 
-VENCIMIENTO_MAX_ANIOS = 20
 PASSWORD_MIN = 8
 PASSWORD_MAX_BYTES = 72  # límite de bcrypt
 
@@ -142,29 +139,3 @@ def ciudad_en_departamento(ciudad_: str, departamento: str, departamentos: list[
     for otro in departamentos:
         if otro != departamento and normalizar(otro) == nombre:
             raise ValueError(f"{ciudad_} no está en el departamento de {departamento}.")
-
-
-# ---------------------------------------------------------------- tarjetas
-
-def _fin_de_vencimiento(value: str) -> tuple[int, int]:
-    match = _VENCIMIENTO.match(value)
-    if not match:
-        raise ValueError("El vencimiento tiene que tener el formato MM/AA.")
-    return 2000 + int(match.group(2)), int(match.group(1))
-
-
-def tarjeta_vencida(expiry: str, hoy: date | None = None) -> bool:
-    """La tarjeta vale hasta el último día del mes de vencimiento."""
-    hoy = hoy or date.today()
-    anio, mes = _fin_de_vencimiento(expiry)
-    return (anio, mes) < (hoy.year, hoy.month)
-
-
-def vencimiento(value: str, hoy: date | None = None) -> str:
-    hoy = hoy or date.today()
-    anio, _ = _fin_de_vencimiento(value)
-    if tarjeta_vencida(value, hoy):
-        raise ValueError("La tarjeta está vencida.")
-    if anio > hoy.year + VENCIMIENTO_MAX_ANIOS:
-        raise ValueError("Revisá el vencimiento: es demasiado lejano.")
-    return value
