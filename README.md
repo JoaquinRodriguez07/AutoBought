@@ -117,7 +117,7 @@ Los recordatorios de carrito abandonado (24 horas sin tocarlo) y de mantenimient
 docker exec backend uv run python -m scripts.tareas_diarias
 ```
 
-En producción el backend corre en Vercel, que no tiene cron de servidor: las tareas están expuestas en `GET /api/v1/tareas/diarias` y las llama **Vercel Cron** todos los días a las 10 (hora de Uruguay), según `backend/vercel.json`. El endpoint solo responde si el pedido trae `Authorization: Bearer <CRON_SECRET>`; Vercel lo agrega solo si la variable `CRON_SECRET` está cargada en el proyecto del backend. Se puede correr más de una vez: cada recordatorio sale una sola vez, y si un mail falla, ese recordatorio se reintenta al día siguiente.
+En producción el backend corre en Vercel, que no tiene cron de servidor: las tareas están expuestas en `GET /api/v1/tareas/diarias` y las llama **Vercel Cron** todos los días a las 10 (hora de Uruguay), según el `vercel.json` de la raíz. El endpoint solo responde si el pedido trae `Authorization: Bearer <CRON_SECRET>`; Vercel lo agrega solo si la variable `CRON_SECRET` está cargada en el proyecto de Vercel. Se puede correr más de una vez: cada recordatorio sale una sola vez, y si un mail falla, ese recordatorio se reintenta al día siguiente.
 
 Estos mails, y el de baja de precio, son comerciales: traen el enlace «No quiero recibir estos mails» y se pueden apagar desde el perfil. Los 300 clientes ficticios de `scripts.seed_order_history` ya vienen dados de baja, para que las tareas diarias no les manden nada.
 

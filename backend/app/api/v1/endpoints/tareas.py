@@ -26,6 +26,6 @@ def _verificar_cron(credentials: HTTPAuthorizationCredentials | None = Depends(_
 
 @router.get("/diarias", dependencies=[Depends(_verificar_cron)])
 def correr_tareas_diarias(db: Session = Depends(get_db)) -> dict[str, int]:
-    """Lo llama Vercel Cron una vez por día (ver backend/vercel.json).
+    """Lo llama Vercel Cron una vez por día (ver el vercel.json de la raíz).
     Devuelve cuántos mails mandó cada tarea."""
     return {nombre: tarea(db, None) for nombre, tarea in TAREAS_DIARIAS.items()}

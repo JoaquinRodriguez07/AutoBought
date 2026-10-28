@@ -4,7 +4,7 @@ Usage: python -m scripts.tareas_diarias
        (en Docker: docker exec backend uv run python -m scripts.tareas_diarias)
 
 En producción no se usa este script: Vercel Cron llama a las mismas
-tareas por GET /api/v1/tareas/diarias (ver backend/vercel.json).
+tareas por GET /api/v1/tareas/diarias (ver el vercel.json de la raíz).
 
 Se puede correr más de una vez: cada recordatorio se manda una sola vez
 (ver app/core/notificaciones.py). Solo les llega a los clientes que no
