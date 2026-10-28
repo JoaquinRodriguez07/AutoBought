@@ -602,7 +602,7 @@ function App() {
 
   return (
     <>
-    <AvisoVerificarCorreo usuario={usuario} />
+    <AvisoVerificarCorreo usuario={usuario} onVerificado={marcarCorreoVerificado} />
     <div className={conFooter ? "min-h-screen flex flex-col" : undefined}>
     <div className={conFooter ? "flex-1 flex flex-col *:flex-1 *:min-h-0!" : undefined}>
     <Routes>
