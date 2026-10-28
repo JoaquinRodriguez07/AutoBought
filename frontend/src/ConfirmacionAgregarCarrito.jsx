@@ -75,6 +75,7 @@ export default function ConfirmacionAgregarCarrito({
     >
       {aviso && (
         <div
+          role="status"
           onMouseEnter={() => setPausado(true)}
           onMouseLeave={() => setPausado(false)}
           onFocus={() => setPausado(true)}
