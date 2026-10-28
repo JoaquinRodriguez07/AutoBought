@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Navbar from "./Navbar";
+import CuentaLayout from "./CuentaLayout";
 import {
   obtenerDirecciones,
   crearDireccion,
@@ -22,7 +22,7 @@ const CAMPOS_API = {
 };
 
 const claseInput =
-  "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500";
+  "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-sm outline-hidden focus:border-orange-500";
 
 const FORMULARIO_VACIO = {
   nombre: "",
@@ -35,17 +35,7 @@ const FORMULARIO_VACIO = {
   principal: false,
 };
 
-export default function Direcciones({
-  onHome,
-  onCatalogo,
-  onLogin,
-  onMarcas,
-  onCarrito,
-  onFavoritos,
-  cantidadCarrito = 0,
-  cantidadFavoritos = 0,
-  onPerfil,
-}) {
+export default function Direcciones(navegacion) {
   const [direcciones, setDirecciones] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -113,6 +103,8 @@ export default function Direcciones({
       await eliminarDireccionAPI(id);
       setDirecciones(await obtenerDirecciones());
     } catch (err) {
+      // Un 401 ya lo manejó alSesionInvalida (cerró la sesión y fue a /login).
+      if (err.status === 401) return;
       alert(err.message);
     }
   };
@@ -122,350 +114,299 @@ export default function Direcciones({
       await marcarDireccionPrincipal(id);
       setDirecciones(await obtenerDirecciones());
     } catch (err) {
+      // Un 401 ya lo manejó alSesionInvalida (cerró la sesión y fue a /login).
+      if (err.status === 401) return;
       alert(err.message);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-linear-to-b from-black to-[#492202]">
+    <CuentaLayout
+      {...navegacion}
+      seccion="direcciones"
+      titulo="Mis direcciones"
+      descripcion="Las direcciones donde recibís tus compras."
+      accion={
+        <button
+          type="button"
+          onClick={alternarFormulario}
+          className="h-10 px-5 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs font-black transition"
+        >
+          {mostrarFormulario ? "CANCELAR" : "+ AGREGAR DIRECCIÓN"}
+        </button>
+      }
+    >
 
-      <Navbar
-        paginaActual="perfil"
-        onHome={onHome}
-        onCatalogo={onCatalogo}
-        onLogin={onLogin}
-        onMarcas={onMarcas}
-        onCarrito={onCarrito}
-        onFavoritos={onFavoritos}
-        cantidadCarrito={cantidadCarrito}
-        cantidadFavoritos={cantidadFavoritos}
-      />
 
-      <main className="min-h-screen flex items-center justify-center px-5 pt-24 pb-10">
+      {/* FORMULARIO */}
 
-        <div className="w-full max-w-[950px] bg-white rounded-2xl shadow-2xl overflow-hidden">
+      {mostrarFormulario && (
+        <form
+          onSubmit={agregarDireccion}
+          noValidate
+          className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8"
+        >
 
-          {/* ENCABEZADO */}
+          <h2 className="text-sm font-black uppercase text-gray-900 mb-5">
+            NUEVA DIRECCIÓN
+          </h2>
 
-          <div className="bg-gray-50 border-b border-gray-200 px-8 md:px-12 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-            <button
-              type="button"
-              onClick={onPerfil}
-              className="text-orange-500 text-[9px] font-bold hover:underline mb-4"
-            >
-              ← VOLVER A MI PERFIL
-            </button>
+            <div>
+              <label className="text-xs font-bold text-gray-500">
+                NOMBRE DE LA DIRECCIÓN *
+              </label>
 
-            <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
-              AUTOBOUGHT
-            </p>
-
-            <h1 className="text-3xl font-black italic uppercase mt-2 text-gray-900">
-              MIS DIRECCIONES
-            </h1>
-
-            <p className="text-gray-400 text-[10px] mt-2">
-              Administrá las direcciones donde recibir tus compras.
-            </p>
-
-          </div>
-
-          {/* CONTENIDO */}
-
-          <div className="p-8 md:p-12">
-
-            {/* BOTÓN AGREGAR */}
-
-            <div className="flex justify-end mb-8">
-
-              <button
-                type="button"
-                onClick={alternarFormulario}
-                className="h-10 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[9px] font-black transition"
-              >
-                {mostrarFormulario
-                  ? "CANCELAR"
-                  : "+ AGREGAR DIRECCIÓN"}
-              </button>
-
+              <input
+                name="nombre"
+                value={formulario.nombre}
+                onChange={manejarCambio}
+                placeholder="Ej: Casa"
+                maxLength={50}
+                className={conError(claseInput, errores.nombre)}
+                {...propsError("nombre", errores.nombre)}
+              />
+              <ErrorCampo campo="nombre" mensaje={errores.nombre} />
             </div>
 
-            {/* FORMULARIO */}
+            <div>
+              <label className="text-xs font-bold text-gray-500">
+                CIUDAD *
+              </label>
 
-            {mostrarFormulario && (
-              <form
-                onSubmit={agregarDireccion}
-                noValidate
-                className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8"
+              <input
+                name="ciudad"
+                value={formulario.ciudad}
+                onChange={manejarCambio}
+                placeholder="Ej: Montevideo"
+                maxLength={50}
+                className={conError(claseInput, errores.ciudad)}
+                {...propsError("ciudad", errores.ciudad)}
+              />
+              <ErrorCampo campo="ciudad" mensaje={errores.ciudad} />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-500">
+                CALLE *
+              </label>
+
+              <input
+                name="calle"
+                value={formulario.calle}
+                onChange={manejarCambio}
+                placeholder="Ej: Av. Italia"
+                maxLength={50}
+                className={conError(claseInput, errores.calle)}
+                {...propsError("calle", errores.calle)}
+              />
+              <ErrorCampo campo="calle" mensaje={errores.calle} />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-500">
+                NÚMERO *
+              </label>
+
+              <input
+                name="numero"
+                value={formulario.numero}
+                onChange={manejarCambio}
+                placeholder="Ej: 1234 o S/N"
+                maxLength={10}
+                className={conError(claseInput, errores.numero)}
+                {...propsError("numero", errores.numero)}
+              />
+              <ErrorCampo campo="numero" mensaje={errores.numero} />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-500">
+                APARTAMENTO
+              </label>
+
+              <input
+                name="apartamento"
+                value={formulario.apartamento}
+                onChange={manejarCambio}
+                placeholder="Opcional"
+                maxLength={10}
+                className={conError(claseInput, errores.apartamento)}
+                {...propsError("apartamento", errores.apartamento)}
+              />
+              <ErrorCampo campo="apartamento" mensaje={errores.apartamento} />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-gray-500">
+                DEPARTAMENTO *
+              </label>
+
+              <select
+                name="departamento"
+                value={formulario.departamento}
+                onChange={manejarCambio}
+                className={conError(claseInput, errores.departamento)}
+                {...propsError("departamento", errores.departamento)}
               >
-
-                <h2 className="text-sm font-black uppercase text-gray-900 mb-5">
-                  NUEVA DIRECCIÓN
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      NOMBRE DE LA DIRECCIÓN *
-                    </label>
-
-                    <input
-                      name="nombre"
-                      value={formulario.nombre}
-                      onChange={manejarCambio}
-                      placeholder="Ej: Casa"
-                      maxLength={50}
-                      className={conError(claseInput, errores.nombre)}
-                      {...propsError("nombre", errores.nombre)}
-                    />
-                    <ErrorCampo campo="nombre" mensaje={errores.nombre} />
-                  </div>
-
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      CIUDAD *
-                    </label>
-
-                    <input
-                      name="ciudad"
-                      value={formulario.ciudad}
-                      onChange={manejarCambio}
-                      placeholder="Ej: Montevideo"
-                      maxLength={50}
-                      className={conError(claseInput, errores.ciudad)}
-                      {...propsError("ciudad", errores.ciudad)}
-                    />
-                    <ErrorCampo campo="ciudad" mensaje={errores.ciudad} />
-                  </div>
-
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      CALLE *
-                    </label>
-
-                    <input
-                      name="calle"
-                      value={formulario.calle}
-                      onChange={manejarCambio}
-                      placeholder="Ej: Av. Italia"
-                      maxLength={50}
-                      className={conError(claseInput, errores.calle)}
-                      {...propsError("calle", errores.calle)}
-                    />
-                    <ErrorCampo campo="calle" mensaje={errores.calle} />
-                  </div>
-
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      NÚMERO *
-                    </label>
-
-                    <input
-                      name="numero"
-                      value={formulario.numero}
-                      onChange={manejarCambio}
-                      placeholder="Ej: 1234 o S/N"
-                      maxLength={10}
-                      className={conError(claseInput, errores.numero)}
-                      {...propsError("numero", errores.numero)}
-                    />
-                    <ErrorCampo campo="numero" mensaje={errores.numero} />
-                  </div>
-
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      APARTAMENTO
-                    </label>
-
-                    <input
-                      name="apartamento"
-                      value={formulario.apartamento}
-                      onChange={manejarCambio}
-                      placeholder="Opcional"
-                      maxLength={10}
-                      className={conError(claseInput, errores.apartamento)}
-                      {...propsError("apartamento", errores.apartamento)}
-                    />
-                    <ErrorCampo campo="apartamento" mensaje={errores.apartamento} />
-                  </div>
-
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      DEPARTAMENTO *
-                    </label>
-
-                    <select
-                      name="departamento"
-                      value={formulario.departamento}
-                      onChange={manejarCambio}
-                      className={conError(claseInput, errores.departamento)}
-                      {...propsError("departamento", errores.departamento)}
-                    >
-                      <option value="">Seleccioná un departamento</option>
-                      {DEPARTAMENTOS.map((departamento) => (
-                        <option key={departamento} value={departamento}>
-                          {departamento}
-                        </option>
-                      ))}
-                    </select>
-                    <ErrorCampo campo="departamento" mensaje={errores.departamento} />
-                  </div>
-
-                  <div>
-                    <label className="text-[9px] font-bold text-gray-500">
-                      CÓDIGO POSTAL
-                    </label>
-
-                    <input
-                      name="codigoPostal"
-                      value={formulario.codigoPostal}
-                      onChange={manejarCambio}
-                      placeholder="Opcional (ej: 11300)"
-                      inputMode="numeric"
-                      maxLength={5}
-                      className={conError(claseInput, errores.codigoPostal)}
-                      {...propsError("codigoPostal", errores.codigoPostal)}
-                    />
-                    <ErrorCampo campo="codigoPostal" mensaje={errores.codigoPostal} />
-                  </div>
-
-                </div>
-
-                <label className="flex items-center gap-2 mt-5 text-[9px] font-bold text-gray-500 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="principal"
-                    checked={formulario.principal}
-                    onChange={manejarCambio}
-                    className="accent-orange-500"
-                  />
-                  MARCAR COMO DIRECCIÓN PRINCIPAL
-                </label>
-
-                {errorFormulario && (
-                  <p role="alert" className="text-red-500 text-[10px] mt-5">
-                    {errorFormulario}
-                  </p>
-                )}
-
-                <div className="flex justify-end mt-6">
-
-                  <button
-                    type="submit"
-                    className="h-10 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[9px] font-black"
-                  >
-                    GUARDAR DIRECCIÓN
-                  </button>
-
-                </div>
-
-              </form>
-            )}
-
-            {/* DIRECCIONES */}
-
-            {cargando ? (
-
-              <p className="text-center text-gray-400 text-sm py-16">
-                Cargando…
-              </p>
-
-            ) : error ? (
-
-              <p className="text-center text-red-500 text-sm py-16">
-                {error}
-              </p>
-
-            ) : direcciones.length === 0 ? (
-
-              <div className="text-center py-16">
-
-                <p className="text-gray-400 text-sm">
-                  Todavía no tenés direcciones guardadas.
-                </p>
-
-                <p className="text-gray-300 text-[9px] mt-2">
-                  Agregá una dirección para utilizarla durante tus compras.
-                </p>
-
-              </div>
-
-            ) : (
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                {direcciones.map((direccion) => (
-
-                  <div
-                    key={direccion.id}
-                    className="border border-gray-200 rounded-xl p-6 relative"
-                  >
-
-                    <h3 className="font-black text-gray-900 text-sm uppercase">
-                      {direccion.nombre}
-                      {direccion.principal && (
-                        <span className="ml-2 align-middle text-[8px] leading-5 bg-orange-500 text-white rounded-sm px-2 py-0.5 tracking-wider">
-                          PRINCIPAL
-                        </span>
-                      )}
-                    </h3>
-
-                    <p className="text-[10px] text-gray-600 mt-4">
-                      {direccion.calle} {direccion.numero}
-                      {direccion.apartamento &&
-                        `, Apt. ${direccion.apartamento}`}
-                    </p>
-
-                    <p className="text-[10px] text-gray-500 mt-1">
-                      {direccion.ciudad}, {direccion.departamento}
-                    </p>
-
-                    {direccion.codigoPostal && (
-                      <p className="text-[9px] text-gray-400 mt-1">
-                        CP: {direccion.codigoPostal}
-                      </p>
-                    )}
-
-                    <div className="flex gap-3 mt-6">
-
-                      {!direccion.principal && (
-                        <button
-                          type="button"
-                          onClick={() => marcarPrincipal(direccion.id)}
-                          className="text-[8px] text-orange-500 font-bold hover:underline"
-                        >
-                          MARCAR COMO PRINCIPAL
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          eliminarDireccion(direccion.id)
-                        }
-                        className="text-[8px] text-red-500 font-bold hover:underline"
-                      >
-                        ELIMINAR
-                      </button>
-
-                    </div>
-
-                  </div>
-
+                <option value="">Seleccioná un departamento</option>
+                {DEPARTAMENTOS.map((departamento) => (
+                  <option key={departamento} value={departamento}>
+                    {departamento}
+                  </option>
                 ))}
+              </select>
+              <ErrorCampo campo="departamento" mensaje={errores.departamento} />
+            </div>
 
-              </div>
+            <div>
+              <label className="text-xs font-bold text-gray-500">
+                CÓDIGO POSTAL
+              </label>
 
-            )}
+              <input
+                name="codigoPostal"
+                value={formulario.codigoPostal}
+                onChange={manejarCambio}
+                placeholder="Opcional (ej: 11300)"
+                inputMode="numeric"
+                maxLength={5}
+                className={conError(claseInput, errores.codigoPostal)}
+                {...propsError("codigoPostal", errores.codigoPostal)}
+              />
+              <ErrorCampo campo="codigoPostal" mensaje={errores.codigoPostal} />
+            </div>
 
           </div>
+
+          <label className="flex items-center gap-2 mt-5 text-xs font-bold text-gray-500 cursor-pointer">
+            <input
+              type="checkbox"
+              name="principal"
+              checked={formulario.principal}
+              onChange={manejarCambio}
+              className="accent-orange-500"
+            />
+            MARCAR COMO DIRECCIÓN PRINCIPAL
+          </label>
+
+          {errorFormulario && (
+            <p role="alert" className="text-red-500 text-sm mt-5">
+              {errorFormulario}
+            </p>
+          )}
+
+          <div className="flex justify-end mt-6">
+
+            <button
+              type="submit"
+              className="h-10 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs font-black"
+            >
+              GUARDAR DIRECCIÓN
+            </button>
+
+          </div>
+
+        </form>
+      )}
+
+      {/* DIRECCIONES */}
+
+      {cargando ? (
+
+        <p className="text-center text-gray-400 text-sm py-16">
+          Cargando…
+        </p>
+
+      ) : error ? (
+
+        <p className="text-center text-red-500 text-sm py-16">
+          {error}
+        </p>
+
+      ) : direcciones.length === 0 ? (
+
+        <div className="text-center py-16">
+
+          <p className="text-gray-400 text-sm">
+            Todavía no tenés direcciones guardadas.
+          </p>
+
+          <p className="text-gray-300 text-xs mt-2">
+            Agregá una dirección para utilizarla durante tus compras.
+          </p>
 
         </div>
 
-      </main>
+      ) : (
 
-    </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+          {direcciones.map((direccion) => (
+
+            <div
+              key={direccion.id}
+              className="border border-gray-200 rounded-xl p-6 relative"
+            >
+
+              <h3 className="font-black text-gray-900 text-sm uppercase">
+                {direccion.nombre}
+                {direccion.principal && (
+                  <span className="ml-2 align-middle text-[11px] leading-5 bg-orange-500 text-white rounded-sm px-2 py-0.5 tracking-wider">
+                    PRINCIPAL
+                  </span>
+                )}
+              </h3>
+
+              <p className="text-sm text-gray-600 mt-4">
+                {direccion.calle} {direccion.numero}
+                {direccion.apartamento &&
+                  `, Apt. ${direccion.apartamento}`}
+              </p>
+
+              <p className="text-sm text-gray-500 mt-1">
+                {direccion.ciudad}, {direccion.departamento}
+              </p>
+
+              {direccion.codigoPostal && (
+                <p className="text-xs text-gray-400 mt-1">
+                  CP: {direccion.codigoPostal}
+                </p>
+              )}
+
+              <div className="flex gap-3 mt-6">
+
+                {!direccion.principal && (
+                  <button
+                    type="button"
+                    onClick={() => marcarPrincipal(direccion.id)}
+                    className="text-[11px] text-orange-500 font-bold hover:underline"
+                  >
+                    MARCAR COMO PRINCIPAL
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    eliminarDireccion(direccion.id)
+                  }
+                  className="text-[11px] text-red-500 font-bold hover:underline"
+                >
+                  ELIMINAR
+                </button>
+
+              </div>
+
+            </div>
+
+          ))}
+
+        </div>
+
+      )}
+
+    </CuentaLayout>
   );
 }

@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.config import FRONTEND_URL
 from app.core.email import enviar_mail
 from app.core.security import DARSE_DE_BAJA, create_purpose_token
+from app.crud.payment import is_paid_order
 from app.models.cart import Cart
 from app.models.cart_item import CartItem
 from app.models.client import Client
@@ -29,6 +30,7 @@ from app.models.favorite import Favorite
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
+from app.models.payment import Payment
 from app.models.stock_alert import StockAlert
 
 # El enlace de baja no vence: tiene que seguir sirviendo en un mail viejo.
@@ -278,11 +280,17 @@ def _meses_de(part: Part) -> int | None:
     )
 
 
+def _tipo(part: Part) -> str:
+    """El repuesto sin el fabricante: "Bujía NGK 1.4 8V" y "Bujía Bosch 1.4 8V"
+    son el mismo tipo de repuesto."""
+    return part.name.replace(f" {part.manufacturer}", "", 1)
+
+
 def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
     """Un recordatorio por repuesto comprado cuyo plazo de cambio se cumplió
-    en los últimos 7 días. Pedidos cancelados no cuentan, y si el cliente
-    volvió a comprar el mismo repuesto, el recordatorio es el de la compra
-    nueva."""
+    en los últimos 7 días. Pedidos cancelados o sin pagar no cuentan, y si el cliente
+    volvió a comprar el mismo tipo de repuesto (aunque sea de otro
+    fabricante), el recordatorio es el de la compra nueva."""
     ahora = ahora or datetime.now(timezone.utc)
     mas_viejo = _sumar_meses(ahora, -max(MESES_MANTENIMIENTO.values())) - timedelta(days=DIAS_VENTANA_MANTENIMIENTO)
 
@@ -290,24 +298,28 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
         select(OrderItem)
         .join(Order, Order.order_id == OrderItem.order_id)
         .join(Client, Client.user_id == Order.client_id)
+        .outerjoin(Payment, Payment.order_id == Order.order_id)
         .where(
             OrderItem.reminder_sent_at.is_(None),
             Order.status != OrderStatus.CANCELLED,
+            is_paid_order(),
             Order.created_at >= mas_viejo,
             Client.marketing_emails.is_(True),
         )
         .options(selectinload(OrderItem.part), selectinload(OrderItem.order).selectinload(Order.client))
     ).all()
 
-    ultima_compra = {
-        (client_id, part_id): _como_utc(fecha)
-        for client_id, part_id, fecha in db.execute(
-            select(Order.client_id, OrderItem.part_id, func.max(Order.created_at))
-            .join(OrderItem, OrderItem.order_id == Order.order_id)
-            .where(Order.status != OrderStatus.CANCELLED)
-            .group_by(Order.client_id, OrderItem.part_id)
-        )
-    }
+    ultima_compra: dict[tuple[int, str], datetime] = {}
+    for client_id, part, fecha in db.execute(
+        select(Order.client_id, Part, func.max(Order.created_at))
+        .join(OrderItem, OrderItem.order_id == Order.order_id)
+        .join(Part, Part.id == OrderItem.part_id)
+        .outerjoin(Payment, Payment.order_id == Order.order_id)
+        .where(Order.status != OrderStatus.CANCELLED, is_paid_order())
+        .group_by(Order.client_id, Part.id)
+    ):
+        clave = (client_id, _tipo(part))
+        ultima_compra[clave] = max(ultima_compra.get(clave, _como_utc(fecha)), _como_utc(fecha))
 
     enviados = 0
     for item in items:
@@ -315,7 +327,7 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
         if meses is None:
             continue
         comprado = _como_utc(item.order.created_at)
-        if ultima_compra[(item.order.client_id, item.part_id)] > comprado:
+        if ultima_compra[(item.order.client_id, _tipo(item.part))] > comprado:
             continue
         vence = _sumar_meses(comprado, meses)
         if not ahora - timedelta(days=DIAS_VENTANA_MANTENIMIENTO) <= vence <= ahora:

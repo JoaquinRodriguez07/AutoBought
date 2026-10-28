@@ -2,8 +2,49 @@ import { mapearCategoria, mapearItemCarrito, mapearRepuesto } from "./mapearRepu
 import { obtenerSesion } from "./auth";
 import { formatearTelefonoUY } from "./telefono";
 
+// En Vercel el frontend y el backend comparten dominio: frontend/.env.production
+// deja VITE_API_URL vacía y los pedidos van a /api/v1/... del mismo sitio.
+// En desarrollo (y en Docker) la variable no está o apunta al backend local.
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+
+/* =====================================================
+   SESIÓN INVÁLIDA (401)
+   Cuando el backend rechaza el token de un pedido autenticado
+   (la contraseña se cambió en otro dispositivo, el token venció),
+   la sesión terminó. En vez de que cada pantalla maneje su 401,
+   App.jsx registra UN manejador con `alSesionInvalida` y es el
+   único que cierra la sesión, avisa y lleva a /login.
+====================================================== */
+
+const manejadoresSesionInvalida = new Set();
+
+/**
+ * Registra `fn` para que se llame cuando un pedido que mandó
+ * `Authorization: Bearer` recibe un 401. Devuelve la función que la
+ * desregistra.
+ *
+ * NO se dispara con el 401 de `login` (contraseña incorrecta: no hay
+ * sesión que cerrar) ni con el 400 de «contraseña actual incorrecta» de
+ * `cambiarPassword`. `renovarToken` tampoco: su 401 ya llega a App.jsx por
+ * `useRenovacionSesion`.
+ */
+export function alSesionInvalida(fn) {
+  manejadoresSesionInvalida.add(fn);
+  return () => manejadoresSesionInvalida.delete(fn);
+}
+
+/**
+ * Avisa que el token `tokenEnviado` fue rechazado. Se ignora si la sesión
+ * guardada ya no usa ese token: o ya se cerró (varios pedidos en vuelo
+ * dieron 401 a la vez: solo el primero cierra la sesión) o se renovó (un
+ * pedido viejo, hecho con el token anterior al cambio de contraseña, no
+ * tiene que cerrar la sesión nueva).
+ */
+function avisarSesionInvalida(tokenEnviado) {
+  if (!tokenEnviado || obtenerSesion()?.token !== tokenEnviado) return;
+  [...manejadoresSesionInvalida].forEach((fn) => fn());
+}
 
 export async function login(email, password) {
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
@@ -109,6 +150,15 @@ export async function renovarToken() {
     data = null;
   }
 
+  // La sesión cambió mientras el pedido estaba en vuelo (cambió la contraseña
+  // en este dispositivo y se guardó un token nuevo, o se cerró): la respuesta
+  // es del token viejo, ya revocado. No se usa, ni siquiera su 401: pisaría
+  // o cerraría la sesión nueva. Sin `status`, useRenovacionSesion lo toma
+  // como pasajero y, si la sesión sigue, reprograma con el token vigente.
+  if (obtenerSesion()?.token !== sesion?.token) {
+    throw new Error("La sesión cambió mientras se renovaba.");
+  }
+
   if (!response.ok || !data?.access_token) {
     const error = new Error(
       response.status === 401
@@ -150,6 +200,8 @@ export async function obtenerPerfil(token) {
   } catch {
     data = null;
   }
+
+  if (response.status === 401) avisarSesionInvalida(token);
 
   if (!response.ok || !data) {
     throw new Error("No pudimos cargar tu perfil.");
@@ -196,6 +248,8 @@ export async function actualizarPerfil({ nombre, apellido, telefono }) {
     data = null;
   }
 
+  if (response.status === 401) avisarSesionInvalida(sesion?.token);
+
   if (!response.ok || !data) {
     const mensaje =
       response.status === 401
@@ -204,12 +258,22 @@ export async function actualizarPerfil({ nombre, apellido, telefono }) {
           ? Object.values(camposConError(data?.detail))[0] ||
             "Revisá el nombre y el teléfono (ej: 099 123 456)."
           : "No pudimos guardar tus datos.";
-    throw new Error(mensaje);
+    const error = new Error(mensaje);
+    error.status = response.status;
+    throw error;
   }
 
   return mapearPerfil(data);
 }
 
+/**
+ * PATCH /api/v1/auth/me/password
+ *
+ * Al cambiar la contraseña el backend invalida TODOS los tokens anteriores
+ * (también el de esta sesión) y devuelve uno nuevo, `{ access_token,
+ * token_type }`, el único válido: quien llama tiene que guardarlo para que
+ * este dispositivo siga logueado (ver CambiarPassword.jsx).
+ */
 export async function cambiarPassword(actual, nueva) {
   const sesion = obtenerSesion();
   let response;
@@ -227,14 +291,18 @@ export async function cambiarPassword(actual, nueva) {
     throw new Error("No pudimos conectar con el servidor.");
   }
 
-  if (response.ok) return;
-
   let data = null;
   try {
     data = await response.json();
   } catch {
     data = null;
   }
+
+  if (response.ok) return data;
+
+  // Solo el 401 (token inválido) es sesión inválida: el 400 de «contraseña
+  // actual incorrecta» es un error del formulario.
+  if (response.status === 401) avisarSesionInvalida(sesion?.token);
 
   const mensaje =
     response.status === 401
@@ -245,7 +313,9 @@ export async function cambiarPassword(actual, nueva) {
           ? Object.values(camposConError(data?.detail))[0] ||
             "Revisá la nueva contraseña."
           : "No pudimos cambiar tu contraseña.";
-  throw new Error(mensaje);
+  const error = new Error(mensaje);
+  error.status = response.status;
+  throw error;
 }
 
 /* =====================================================
@@ -300,12 +370,18 @@ export async function verificarCorreo(token) {
 /** POST /api/v1/auth/verify-email/resend — vuelve a mandar el mail. */
 export async function reenviarVerificacion() {
   const sesion = obtenerSesion();
-  await postCuenta(
-    "verify-email/resend",
-    undefined,
-    "No pudimos reenviar el mail.",
-    { Authorization: `Bearer ${sesion?.token}` }
-  );
+
+  try {
+    await postCuenta(
+      "verify-email/resend",
+      undefined,
+      "No pudimos reenviar el mail.",
+      { Authorization: `Bearer ${sesion?.token}` }
+    );
+  } catch (error) {
+    if (error.status === 401) avisarSesionInvalida(sesion?.token);
+    throw error;
+  }
 }
 
 /**
@@ -371,10 +447,12 @@ async function leerJson(response) {
   }
 }
 
-function errorDeRespuesta(data, mensajePorDefecto) {
+function errorDeRespuesta(data, mensajePorDefecto, statusCode) {
   const mensaje =
     typeof data?.detail === "string" ? data.detail : mensajePorDefecto;
-  return new Error(mensaje);
+  const error = new Error(mensaje);
+  error.status = statusCode;
+  return error;
 }
 
 /**
@@ -401,7 +479,7 @@ async function pedirJson(url, mensajeError) {
   const data = await leerJson(response);
 
   if (!response.ok) {
-    throw errorDeRespuesta(data === SIN_JSON ? null : data, mensajeError);
+    throw errorDeRespuesta(data === SIN_JSON ? null : data, mensajeError, response.status);
   }
 
   if (data === SIN_JSON) {
@@ -468,6 +546,21 @@ export async function obtenerRepuestos(filtros) {
   const data = await pedirJson(url, mensajeError);
 
   return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+}
+
+/** GET /api/v1/parts/{id}; devuelve un repuesto con el mismo mapeo que el catálogo. */
+export async function obtenerRepuesto(id) {
+  const mensajeError = "No pudimos cargar el repuesto.";
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/parts/${encodeURIComponent(id)}`,
+    mensajeError
+  );
+
+  if (!data || typeof data !== "object" || Array.isArray(data) || data.id == null) {
+    throw new Error(mensajeError);
+  }
+
+  return mapearRepuesto(data);
 }
 
 /**
@@ -554,7 +647,7 @@ export async function obtenerMasVendidos({ limite = 4, dias = 90 } = {}) {
  * GET/POST/PATCH/DELETE de `/api/v1/cart*` devuelven los mismos
  * códigos que ya maneja `errorDeRespuesta` (401/403/404/409/422), pero
  * acá el mensaje por status importa para que CartContext decida qué
- * hacer (401 → redirigir a login, 409 → avisar el stock disponible).
+ * hacer (401 → lo maneja `alSesionInvalida`, 409 → avisar el stock disponible).
  * Se guarda en `error.status` en vez de parsear el mensaje.
  */
 const MENSAJES_POR_STATUS_CARRITO = {
@@ -585,6 +678,8 @@ async function pedirCarrito(url, options = {}) {
   const data = await leerJson(response);
 
   if (!response.ok) {
+    if (response.status === 401) avisarSesionInvalida(sesion?.token);
+
     const detalle =
       data !== SIN_JSON && typeof data?.detail === "string"
         ? data.detail
@@ -698,28 +793,12 @@ const MENSAJES_POR_STATUS_DIRECCIONES = {
   422: "Revisá los datos de la dirección.",
 };
 
-const MENSAJES_POR_STATUS_METODOS_PAGO = {
-  ...MENSAJES_POR_STATUS_DIRECCIONES,
-  404: "No encontramos ese método de pago.",
-  409: "Ya tenés guardada esa tarjeta.",
-  422: "Revisá los datos de la tarjeta.",
-};
-
 function pedirDirecciones(url, options = {}) {
   return pedirCuentaCliente(
     url,
     options,
     MENSAJES_POR_STATUS_DIRECCIONES,
     "No pudimos actualizar las direcciones."
-  );
-}
-
-function pedirMetodosPago(url, options = {}) {
-  return pedirCuentaCliente(
-    url,
-    options,
-    MENSAJES_POR_STATUS_METODOS_PAGO,
-    "No pudimos actualizar los métodos de pago."
   );
 }
 
@@ -760,6 +839,8 @@ async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGeneri
   const data = response.status === 204 ? null : await leerJson(response);
 
   if (!response.ok) {
+    if (response.status === 401) avisarSesionInvalida(sesion?.token);
+
     const detalle =
       data !== SIN_JSON && typeof data?.detail === "string"
         ? data.detail
@@ -905,64 +986,6 @@ export async function eliminarDireccionAPI(id) {
 
 
 /* =====================================================
-   MÉTODOS DE PAGO
-   Solo se envían los últimos 4 dígitos: el número completo
-   y el CVV nunca salen del navegador.
-====================================================== */
-
-function mapearMetodoPago(m) {
-  return {
-    id: m.payment_method_id,
-    tipo: m.card_type,
-    titular: m.holder,
-    numero: m.last_four,
-    vencimiento: m.expiry,
-    principal: m.is_primary,
-    vencida: Boolean(m.is_expired),
-  };
-}
-
-/** GET /api/v1/payment-methods */
-export async function obtenerMetodosPago() {
-  const data = await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods`);
-  return data.map(mapearMetodoPago);
-}
-
-/**
- * POST /api/v1/payment-methods
- * Recibe la tarjeta ya pasada por tokenizarTarjeta (pasarelaPagos.js):
- * marca, últimos 4 dígitos y vencimiento. Nada más sale hacia la API.
- */
-export async function crearMetodoPago({ tarjeta, titular, principal }) {
-  const data = await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods`, {
-    method: "POST",
-    body: JSON.stringify({
-      card_type: tarjeta.marca,
-      holder: titular,
-      last_four: tarjeta.ultimosCuatro,
-      expiry: tarjeta.vencimiento,
-      is_primary: Boolean(principal),
-    }),
-  });
-  return mapearMetodoPago(data);
-}
-
-/** PATCH /api/v1/payment-methods/{id}/primary */
-export async function marcarMetodoPagoPrincipal(id) {
-  const data = await pedirMetodosPago(
-    `${API_BASE_URL}/api/v1/payment-methods/${id}/primary`,
-    { method: "PATCH" }
-  );
-  return mapearMetodoPago(data);
-}
-
-/** DELETE /api/v1/payment-methods/{id} */
-export async function eliminarMetodoPagoAPI(id) {
-  await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods/${id}`, {
-    method: "DELETE",
-  });
-}
-/* =====================================================
    RECOMENDACIONES (HU 3.2)
    ===================================================== */
 
@@ -1007,7 +1030,7 @@ const MENSAJES_POR_STATUS_ORDENES = {
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "Esta acción requiere una cuenta de cliente.",
   409: "No hay stock suficiente para completar la compra.",
-  422: "Revisá la dirección y el método de pago elegidos.",
+  422: "Revisá la dirección elegida.",
 };
 
 function mapearPedido(p) {
@@ -1017,9 +1040,13 @@ function mapearPedido(p) {
     estado: p.status,
     direccion: p.shipping_address ? mapearDireccion(p.shipping_address) : null,
     metodoPago: p.payment_method ?? "",
+    // "pending" | "approved" | "rejected"; null en los pedidos de antes de
+    // Mercado Pago (ya cobrados).
+    estadoPago: p.payment_status ?? null,
     total: p.total ?? 0,
     items: (p.items || []).map((item) => ({
       partId: item.part_id,
+      codigo: item.part_code ?? "",
       nombre: item.name ?? "",
       cantidad: item.quantity,
       precio: item.frozen_price,
@@ -1029,16 +1056,16 @@ function mapearPedido(p) {
 
 /**
  * POST /api/v1/orders — confirma la compra del carrito del cliente con la
- * dirección y el método de pago elegidos (sin elegir, usa los principales).
+ * dirección elegida (sin elegir, usa la principal). El pedido queda
+ * pendiente de pago: se paga después en Mercado Pago (crearLinkPago).
  */
-export async function confirmarCompra({ direccionId, metodoPagoId } = {}) {
+export async function confirmarCompra({ direccionId } = {}) {
   const data = await pedirCuentaCliente(
     `${API_BASE_URL}/api/v1/orders`,
     {
       method: "POST",
       body: JSON.stringify({
         shipping_address_id: direccionId ?? null,
-        payment_method_id: metodoPagoId ?? null,
       }),
     },
     MENSAJES_POR_STATUS_ORDENES,
@@ -1071,4 +1098,96 @@ export async function obtenerDetalleCompra(orderId) {
     "No pudimos cargar el detalle de la compra."
   );
   return mapearPedido(data);
+}
+
+/* =====================================================
+   PAGO CON MERCADO PAGO
+   La tarjeta se carga en la página de Mercado Pago, nunca en la tienda.
+====================================================== */
+
+const MENSAJES_POR_STATUS_PAGOS = {
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  403: "Esta acción requiere una cuenta de cliente.",
+  404: "No encontramos ese pedido.",
+  409: "Este pedido ya está pagado.",
+  503: "No pudimos conectar con Mercado Pago. Probá de nuevo en un rato.",
+};
+
+/**
+ * POST /api/v1/pagos/{orderId} — link de Mercado Pago para pagar el pedido
+ * (o reintentar un pago rechazado). Devuelve la dirección a la que ir.
+ */
+export async function crearLinkPago(orderId) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/pagos/${orderId}`,
+    { method: "POST" },
+    MENSAJES_POR_STATUS_PAGOS,
+    "No pudimos abrir Mercado Pago."
+  );
+  return data.url;
+}
+
+/**
+ * POST /api/v1/pagos/{orderId}/verificar — al volver de Mercado Pago, le
+ * pide al backend que confirme el pago (paymentId es el `payment_id` que
+ * agrega Mercado Pago a la dirección). Devuelve el estado del pago.
+ */
+export async function verificarPago(orderId, paymentId) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/pagos/${orderId}/verificar`,
+    { method: "POST", body: JSON.stringify({ payment_id: paymentId }) },
+    MENSAJES_POR_STATUS_PAGOS,
+    "No pudimos confirmar el pago."
+  );
+  return data.estado;
+}
+
+/* =====================================================
+   ASISTENTE DE COMPRA (IA)
+   POST /api/v1/asistente: el cliente cuenta qué le pasa al auto y recibe
+   un diagnóstico y repuestos compatibles con su vehículo. Pide sesión.
+====================================================== */
+
+const MENSAJES_POR_STATUS_ASISTENTE = {
+  400: "No pudimos seguir esta conversación. Empezá una nueva.",
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  403: "El asistente es solo para clientes.",
+  429: "Llegaste al límite de consultas al asistente por hoy. Probá de nuevo mañana.",
+  503: "El asistente no está disponible en este momento. Probá buscando el repuesto en el catálogo.",
+};
+
+/**
+ * Un mensaje a Pit. Para seguir la conversación se mandan el `historial` y
+ * la `firma` que devolvió la respuesta anterior, tal cual: el backend los
+ * firmó y rechaza cualquier cambio (400).
+ */
+export async function consultarAsistente({ texto, marca, modelo, anio, historial = [], firma = null }) {
+  const cuerpo = { texto, marca, modelo, anio: Number(anio) };
+  if (historial.length > 0) {
+    cuerpo.historial = historial;
+    cuerpo.firma = firma;
+  }
+
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/asistente`,
+    { method: "POST", body: JSON.stringify(cuerpo) },
+    MENSAJES_POR_STATUS_ASISTENTE,
+    "No pudimos consultar al asistente."
+  );
+
+  return {
+    diagnostico: data.diagnostico ?? "",
+    urgencia: data.urgencia ?? "baja",
+    aviso: data.aviso ?? null,
+    pregunta: data.pregunta ?? null,
+    opciones: data.opciones ?? [],
+    fueraDeTema: Boolean(data.fuera_de_tema),
+    recomendaciones: (data.recomendaciones || []).map((recomendacion) => ({
+      tipo: recomendacion.tipo,
+      motivo: recomendacion.motivo,
+      repuestos: (recomendacion.repuestos || []).map(mapearRepuesto),
+    })),
+    historial: data.historial ?? [],
+    firma: data.firma ?? null,
+  };
 }

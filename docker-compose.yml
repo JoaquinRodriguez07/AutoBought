@@ -40,6 +40,14 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-AutoBought <no-reply@autobought.local>}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      # Asistente de compra con IA: sin clave responde "no disponible".
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      IA_LIMITE_DIARIO: ${IA_LIMITE_DIARIO:-20}
+      # Pago con Mercado Pago: sin token, comprar no puede abrir el pago.
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      BACKEND_URL: ${BACKEND_URL:-}
 
     ports:
       - "8000:8000"
@@ -71,6 +79,14 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       EMAIL_FROM: ${EMAIL_FROM:-AutoBought <no-reply@autobought.local>}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+      # Asistente de compra con IA: sin clave responde "no disponible".
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      IA_LIMITE_DIARIO: ${IA_LIMITE_DIARIO:-20}
+      # Pago con Mercado Pago: sin token, comprar no puede abrir el pago.
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      BACKEND_URL: ${BACKEND_URL:-}
 
     ports:
       - "8001:8000"
@@ -90,6 +106,46 @@ services:
     ports:
       - "8025:8025"
 
+  # Dashboard del vendedor (Streamlit). Pide los datos al backend con el
+  # token del vendedor: no se conecta a la base.
+  dashboard:
+    build: ./analitica
+    container_name: dashboard
+    profiles: ["local"]
+    restart: unless-stopped
+
+    environment:
+      AUTOBOUGHT_API_URL: http://backend:8000
+
+    ports:
+      - "8501:8501"
+
+    depends_on:
+      - backend
+
+    volumes:
+      - ./analitica:/app
+      - /app/.venv
+
+  dashboard-remote:
+    build: ./analitica
+    container_name: dashboard-remote
+    profiles: ["remoto"]
+    restart: unless-stopped
+
+    environment:
+      AUTOBOUGHT_API_URL: http://backend-remote:8000
+
+    ports:
+      - "8502:8501"
+
+    depends_on:
+      - backend-remote
+
+    volumes:
+      - ./analitica:/app
+      - /app/.venv
+
   frontend:
     build: ./frontend
     container_name: frontend
@@ -99,6 +155,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:8000
       VITE_PROXY_TARGET: http://backend:8000
+      VITE_DASHBOARD_URL: http://localhost:8501
 
     ports:
       - "5173:5173"
@@ -119,6 +176,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:8001
       VITE_PROXY_TARGET: http://backend-remote:8000
+      VITE_DASHBOARD_URL: http://localhost:8502
 
     ports:
       - "5174:5173"

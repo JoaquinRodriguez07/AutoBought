@@ -1,10 +1,8 @@
-from datetime import date
 
 import pytest
 
 from app.core import validators
 
-HOY = date(2026, 10, 15)
 DEPARTAMENTOS = ["Artigas", "Montevideo", "San José", "Paysandú"]
 
 
@@ -102,25 +100,3 @@ def test_ciudad_que_se_llama_como_otro_departamento_se_rechaza():
 def test_ciudad_del_mismo_departamento_o_desconocida_se_acepta():
     validators.ciudad_en_departamento("Montevideo", "Montevideo", DEPARTAMENTOS)
     validators.ciudad_en_departamento("Bella Unión", "Artigas", DEPARTAMENTOS)
-
-
-# ---------------------------------------------------------------- tarjetas
-
-def test_la_tarjeta_vale_hasta_el_ultimo_dia_del_mes():
-    assert validators.tarjeta_vencida("10/26", HOY) is False
-    assert validators.tarjeta_vencida("09/26", HOY) is True
-    assert validators.tarjeta_vencida("01/27", HOY) is False
-
-
-def test_vencimiento_valido():
-    assert validators.vencimiento("10/26", HOY) == "10/26"
-    assert validators.vencimiento("12/46", HOY) == "12/46"
-
-
-@pytest.mark.parametrize(
-    "valor, mensaje",
-    [("09/26", "vencida"), ("01/20", "vencida"), ("01/47", "demasiado lejano"), ("13/30", "MM/AA")],
-)
-def test_vencimiento_invalido(valor, mensaje):
-    with pytest.raises(ValueError, match=mensaje):
-        validators.vencimiento(valor, HOY)

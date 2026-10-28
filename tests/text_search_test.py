@@ -8,12 +8,12 @@ def make_catalog(db_session):
     cronos = CarModel(brand="Fiat", model="Cronos", engine_code="1.3 Firefly")
 
     parts = [
-        Part(part_code="BRK-0001", name="Pastillas de freno delanteras Chevrolet Onix",
-             category="Frenos", price=3000, stock=5),
-        Part(part_code="BRK-0002", name="Pastillas de freno delanteras Fiat Cronos",
-             category="Frenos", price=3000, stock=5),
+        Part(part_code="BRK-0001", name="Pastillas de freno delanteras Bosch",
+             manufacturer="Bosch", category="Frenos", price=3000, stock=5),
+        Part(part_code="BRK-0002", name="Pastillas de freno delanteras Bosch",
+             manufacturer="Bosch", category="Frenos", price=3000, stock=5),
         Part(part_code="FIL-0001", name="Filtro de aceite 1.0 Turbo",
-             category="Filtros", price=800, stock=10),
+             manufacturer="Bosch", category="Filtros", price=800, stock=10),
     ]
     parts[0].compatibilities = [Compatibility(car_model=onix, year_from=2020, year_to=2024)]
     parts[1].compatibilities = [Compatibility(car_model=cronos, year_from=2018, year_to=2024)]
@@ -140,6 +140,20 @@ def test_error_de_tipeo(client, db_session):
     assert [p["part_code"] for p in con_error["parts"]] == ["BRK-0001"]
 
 
+def test_error_de_tipeo_en_el_modelo_y_la_marca(client, db_session):
+    # El auto no está en el nombre del repuesto (está en las
+    # compatibilidades): el corrector igual tiene que reconocerlo.
+    make_catalog(db_session)
+
+    response = client.get("/api/v1/parts", params={"q": "pastillas de freno onixx 2020"}).json()
+    assert response["entities"] == ENTIDADES_FRENOS_ONIX
+    assert [p["part_code"] for p in response["parts"]] == ["BRK-0001"]
+
+    response = client.get("/api/v1/parts", params={"q": "pastillas de freno chevrolt"}).json()
+    assert response["entities"]["brand"] == "Chevrolet"
+    assert [p["part_code"] for p in response["parts"]] == ["BRK-0001"]
+
+
 def test_sinonimo(client, db_session):
     make_catalog(db_session)
 
@@ -182,11 +196,11 @@ def make_catalog_combustible(db_session):
     onix = CarModel(brand="Chevrolet", model="Onix", engine_code="1.0 Turbo")
 
     filtro_diesel = Part(part_code="FIL-D", name="Filtro de combustible Hilux",
-                         category="Filtros", price=900, stock=5)
+                         manufacturer="Bosch", category="Filtros", price=900, stock=5)
     filtro_nafta = Part(part_code="FIL-N", name="Filtro de combustible Onix",
-                        category="Filtros", price=900, stock=5)
+                        manufacturer="Bosch", category="Filtros", price=900, stock=5)
     bateria = Part(part_code="BAT-1", name="Batería 60Ah",
-                   category="Eléctrico", price=5000, stock=5)
+                   manufacturer="Bosch", category="Eléctrico", price=5000, stock=5)
     filtro_diesel.compatibilities = [Compatibility(car_model=hilux, year_from=2016, year_to=2024)]
     filtro_nafta.compatibilities = [Compatibility(car_model=onix, year_from=2020, year_to=2024)]
     bateria.compatibilities = [

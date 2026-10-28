@@ -55,6 +55,19 @@ beforeEach(() => {
 });
 
 describe("SugerenciasCarrito (HU 3.2)", () => {
+  test("opens the detail of a suggestion with its real product", async () => {
+    const usuario = userEvent.setup();
+    const onDetalle = jest.fn();
+    conCarrito([pastillas]);
+    obtenerRecomendaciones.mockResolvedValue([discos]);
+
+    render(<SugerenciasCarrito onDetalle={onDetalle} />);
+
+    await usuario.click(await screen.findByRole("button", { name: discos.nombre }));
+
+    expect(onDetalle).toHaveBeenCalledWith(discos);
+  });
+
   test("Ver sugerencias al abrir el carrito: muestra la sección con 1 a 3 repuestos", async () => {
     conCarrito([pastillas]);
     obtenerRecomendaciones.mockResolvedValue([
@@ -87,7 +100,7 @@ describe("SugerenciasCarrito (HU 3.2)", () => {
       })
     );
 
-    expect(addToCart).toHaveBeenCalledWith(discos, 1);
+    expect(addToCart).toHaveBeenCalledWith(discos, 1, { aviso: false });
 
     // El carrito ya trae el repuesto agregado (lo actualiza CartContext).
     conCarrito([pastillas, itemCarrito(discos.partId, discos.nombre)], addToCart);

@@ -1,24 +1,15 @@
-# Secuencia: registro de cliente *(preliminar)*
+# Secuencia: registro de cliente
 
-> **Estado actual:** `Registro.jsx` valida el formulario y guarda el usuario
-> **solo en `localStorage`** (`autobought-usuarios`, con la contraseña en texto
-> plano). No existe endpoint de registro, así que esos usuarios no pueden iniciar
-> sesión contra la API.
+> El formulario pide nombre y apellido por separado, pero el backend guarda un
+> único `name`: el frontend los envía unidos. El registro devuelve el mismo token
+> que el login, así que la sesión queda iniciada.
 >
-> **Ya existe y se reutiliza:** las validaciones del formulario (recuadro amarillo),
-> `hash_password()` y `create_access_token()` en `core/security.py`, el modelo
-> `Client` (herencia de `User`) y el auto-login posterior al registro
-> (`App.jsx · registroExitoso()`).
->
-> **Propuesto (a confirmar con el equipo):**
-> - Endpoint `POST /api/v1/auth/register` con respuesta `201 { access_token }`, para
->   que el registro deje la sesión iniciada como hoy.
-> - `409` si el email ya está registrado (también si dos registros compiten y salta
->   la restricción `UNIQUE`).
-> - **Diferencias de datos a resolver:** el formulario pide `apellido` y `telefono`,
->   que no existen en `User`; y `User.username` es obligatorio y único, pero el
->   formulario no lo pide. Opciones: agregar columnas, guardar `name = nombre +
->   apellido`, y derivar `username` del email o pedirlo en el formulario.
+> Las reglas de validación son las mismas en el frontend (`validaciones.js`, avisa
+> antes de enviar) y en el backend (`core/validators.py`, la que vale):
+> - **Nombre y apellido:** solo letras, espacios, apóstrofos y guiones; al menos 2 letras.
+> - **Teléfono:** obligatorio y uruguayo.
+> - **Contraseña:** al menos 8 caracteres (máximo 72 bytes), con al menos una letra
+>   y un número; no puede ser una contraseña común ni contener el usuario del correo.
 
 ```mermaid
 ---
@@ -45,46 +36,35 @@ sequenceDiagram
 
     C->>P: Completa nombre, apellido, email, teléfono,<br/>contraseña, confirmación y acepta términos
 
-    rect rgb(255,248,220)
-        Note over P: Validaciones del formulario — implementadas en Registro.jsx
-        alt Campos vacíos
-            P-->>C: "Completá todos los campos."
-        else Email sin "@"
-            P-->>C: "Ingresá un correo electrónico válido."
-        else Contraseña de menos de 6 caracteres
-            P-->>C: "La contraseña debe tener al menos 6 caracteres."
-        else Las contraseñas no coinciden
-            P-->>C: "Las contraseñas no coinciden."
-        else No aceptó los términos
-            P-->>C: "Tenés que aceptar los términos y condiciones."
-        end
-    end
+    P->>P: validarRegistro (todos los campos a la vez)
 
-    opt Formulario válido
+    alt Hay errores en el formulario
+        P-->>C: Muestra el error debajo de cada campo<br/>(ej: "La contraseña tiene que tener al menos una letra y un número.")
+    else Formulario válido
         P->>A: registrar({ nombre, apellido, email, telefono, password })
-        A->>R: POST /api/v1/auth/register
-        R->>R: Validar esquema (EmailStr, largo de contraseña)
+        A->>R: POST /api/v1/auth/register<br/>{ name: nombre + apellido, email, phone, password }
+        R->>R: Validar esquema (EmailStr, nombre, teléfono uruguayo,<br/>password_segura: largo, letras y números, común, correo)
 
         alt Datos inválidos
-            R-->>A: 422 Datos inválidos
+            R-->>A: 422 { detail: [errores por campo] }
         else Datos válidos
-            R->>L: ¿Existe un usuario con ese email?
+            R->>L: get_user_by_email(email)
             L->>DB: SELECT user WHERE email
             DB-->>L: usuario o nada
             L-->>R: resultado
 
             alt Email ya registrado
-                R-->>A: 409 "Ya existe una cuenta con ese correo."
+                R-->>A: 409 "El correo ya está en uso."
             else Email disponible
                 R->>Seg: hash_password(password) (bcrypt)
                 Seg-->>R: hash
-                R->>L: Crear cliente
+                R->>L: create_client(name, email, hash, phone)
                 L->>DB: INSERT user (user_type = "client") · INSERT client · COMMIT
                 alt Violación de UNIQUE (registro simultáneo)
-                    DB-->>L: error de integridad
-                    L->>DB: ROLLBACK
-                    L-->>R: email duplicado
-                    R-->>A: 409 "Ya existe una cuenta con ese correo."
+                    DB-->>L: IntegrityError
+                    L-->>R: IntegrityError
+                    R->>DB: ROLLBACK
+                    R-->>A: 409 "El correo ya está en uso."
                 else Insert correcto
                     DB-->>L: cliente creado
                     L-->>R: cliente
@@ -98,15 +78,20 @@ sequenceDiagram
         Note over S,A: Manejo de la respuesta en el frontend
         alt 201
             A-->>P: token
-            P->>S: registroExitoso(sesión)
-            Note over P,S: App.jsx · registroExitoso() (ya existe)
+            P->>S: decodeToken(access_token)
+            S-->>P: userId, userType
+            P->>S: registroExitoso(sesión con nombre, email y teléfono)
+            Note over P,S: App.jsx · registroExitoso()
             S->>S: Guardar sesión en localStorage
             par Carga del carrito (en segundo plano)
                 S->>A: cargarCarrito() → GET /api/v1/cart
             and Navegación
                 P-->>C: Redirige al inicio con la sesión iniciada
             end
-        else 409 / 422 / error de red
+        else 422
+            A-->>P: error con los mensajes por campo
+            P-->>C: Muestra cada error debajo de su campo
+        else 409 / error de red
             A-->>P: error
             P-->>C: Muestra el mensaje de error
         end

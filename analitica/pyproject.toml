@@ -1,0 +1,24 @@
+[project]
+name = "autobought-dashboard"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "altair>=5.5.0",
+    "pandas>=2.3.0",
+    "requests>=2.32.0",
+    "streamlit>=1.50.0",
+    # Zonas horarias en Windows y en la imagen slim, que no las traen.
+    "tzdata>=2025.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

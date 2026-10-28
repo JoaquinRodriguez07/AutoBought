@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
 import { login, obtenerPerfil } from "./api";
-import { decodeToken } from "./auth";
+import { decodeToken, esVendedor } from "./auth";
 import repuestos from "./assets/repuestos.jpg";
 
 export default function Login({
@@ -52,10 +52,14 @@ export default function Login({
 
       // Nombre y teléfono viven en el backend. Si el perfil no carga, el
       // login igual es válido: la sesión queda sin esos datos.
-      try {
-        sesion = { ...sesion, ...(await obtenerPerfil(data.access_token)) };
-      } catch {
-        // se sigue con la sesión mínima
+      // Un vendedor no tiene perfil de cliente (/auth/me le responde 403):
+      // no se pide.
+      if (!esVendedor(sesion)) {
+        try {
+          sesion = { ...sesion, ...(await obtenerPerfil(data.access_token)) };
+        } catch {
+          // se sigue con la sesión mínima
+        }
       }
 
       onIniciarSesion(sesion, remember);

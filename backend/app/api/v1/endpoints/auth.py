@@ -2,8 +2,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_client, get_db
+from app.api.deps import get_current_client, get_current_user, get_db
 from app.core import validators
+from app.core.auth_attempts import clear_failures, is_blocked, register_failure
 from app.core.config import FRONTEND_URL
 from app.core.email import enviar_mail
 from app.core.security import (
@@ -66,21 +67,35 @@ def _mandar_aviso_password_cambiada(background_tasks: BackgroundTasks, user: Use
     )
 
 
+def _token_de_sesion(user: User) -> Token:
+    """Token de sesión con el rol y la versión de sesión vigentes del usuario."""
+    access_token = create_access_token(
+        subject=str(user.user_id),
+        extra_claims={"user_type": user.user_type, "sv": user.session_version},
+    )
+    return Token(access_token=access_token)
+
+
 @router.post("/login", response_model=Token)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
+    if is_blocked(db, credentials.email):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demasiados intentos. Probá de nuevo en unos minutos.",
+        )
+
     user = crud_user.get_user_by_email(db, credentials.email)
 
     if not user or not verify_password(credentials.password, user.password):
+        register_failure(db, credentials.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo electrónico o contraseña incorrectos.",
         )
 
-    access_token = create_access_token(
-        subject=str(user.user_id),
-        extra_claims={"user_type": user.user_type},
-    )
-    return Token(access_token=access_token)
+    clear_failures(db, user.email)
+
+    return _token_de_sesion(user)
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
@@ -112,11 +127,7 @@ def register(
 
     _mandar_verificacion(background_tasks, client)
 
-    access_token = create_access_token(
-        subject=str(client.user_id),
-        extra_claims={"user_type": client.user_type},
-    )
-    return Token(access_token=access_token)
+    return _token_de_sesion(client)
 
 
 @router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
@@ -217,20 +228,16 @@ def _usuario_del_token(db: Session, payload: dict | None) -> User | None:
 
 
 @router.post("/refresh", response_model=Token)
-def refresh(client: Client = Depends(get_current_client)):
+def refresh(user: User = Depends(get_current_user)):
     """Entrega un token nuevo a partir de uno todavía válido.
 
-    El token vigente se valida con la misma dependencia que el resto de los
-    endpoints de cliente: 401 si falta, es inválido o ya venció (un token
-    vencido NO se puede renovar: hay que volver a iniciar sesión), o si el
-    cliente ya no existe. El token nuevo repite los datos del usuario que
-    están guardados en la base y vuelve a empezar la vigencia completa.
+    Sirve para cualquier rol (cliente o vendedor): el token vigente se valida
+    con get_current_user, que da 401 si falta, es inválido o ya venció (un
+    token vencido NO se puede renovar: hay que volver a iniciar sesión), o si
+    el usuario ya no existe. El token nuevo repite el user_type guardado en la
+    base y vuelve a empezar la vigencia completa.
     """
-    access_token = create_access_token(
-        subject=str(client.user_id),
-        extra_claims={"user_type": client.user_type},
-    )
-    return Token(access_token=access_token)
+    return _token_de_sesion(user)
 
 
 @router.get("/me", response_model=ClientOut)
@@ -245,14 +252,21 @@ def update_me(data: ClientUpdate, db: Session = Depends(get_db), client: Client 
     return crud_user.update_client(db, client, name=data.name, phone=phone)
 
 
-@router.patch("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/me/password", response_model=Token)
 def change_password(
     data: PasswordChange,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
 ):
+    if is_blocked(db, client.email):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demasiados intentos. Probá de nuevo en unos minutos.",
+        )
+
     if not verify_password(data.current_password, client.password):
+        register_failure(db, client.email)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La contraseña actual es incorrecta.",
@@ -272,7 +286,11 @@ def change_password(
         ) from None
 
     crud_user.update_password(db, client, hash_password(data.new_password))
+    clear_failures(db, client.email)
     _mandar_aviso_password_cambiada(background_tasks, client)
+    # Las demás sesiones quedaron invalidadas; este dispositivo sigue con un
+    # token de la versión nueva.
+    return _token_de_sesion(client)
 
 
 @router.put("/me/preferences", response_model=ClientOut)

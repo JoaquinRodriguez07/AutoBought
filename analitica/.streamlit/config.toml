@@ -1,0 +1,14 @@
+# Naranja de la tienda (orange-500 de Tailwind). Va por separado en cada
+# tema: un [theme] suelto deja la app siempre en claro.
+[theme.light]
+primaryColor = "#f97316"
+
+[theme.dark]
+primaryColor = "#f97316"
+
+[client]
+# Sin el botón «Deploy» ni las opciones de desarrollo en el menú.
+toolbarMode = "viewer"
+
+[browser]
+gatherUsageStats = false

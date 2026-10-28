@@ -25,7 +25,8 @@ def _base_con_catalogo():
     Base.metadata.create_all(bind=engine)
     db = sessionmaker(bind=engine)()
     for p in json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"]:
-        db.add(Part(part_code=p["part_code"], name=p["name"], category=p["category"],
+        db.add(Part(part_code=p["part_code"], name=p["name"], manufacturer=p["manufacturer"],
+                    category=p["category"],
                     color=p["color"], price=p["price"], stock=p["stock"]))
     db.commit()
     return db
@@ -182,13 +183,37 @@ def test_hay_repuestos_en_riesgo_con_stock_bajo_y_ventas_altas(generada):
     assert all(ultimos_30_dias[codigo] > stock[codigo] for codigo in resumen.en_riesgo)
 
 
-def test_cada_auto_del_catalogo_tiene_una_bateria():
+def test_cada_auto_del_catalogo_tiene_una_bateria_de_cada_fabricante():
     parts = json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"]
     modelos = json.loads((PARTS_JSON.parent / "car_models.json").read_text(encoding="utf-8"))["car_models"]
-    baterias = Counter(
-        (c["brand"], c["model"], c["engine_code"])
-        for p in parts if p["category"] == "Eléctrico"
+    baterias = [p for p in parts if p["category"] == "Eléctrico"]
+    por_fabricante = Counter(
+        (p["manufacturer"], c["brand"], c["model"], c["engine_code"])
+        for p in baterias
         for c in p["compatibilities"]
     )
 
-    assert all(baterias[(m["brand"], m["model"], m["engine_code"])] == 1 for m in modelos)
+    assert all(
+        por_fabricante[(fabricante, m["brand"], m["model"], m["engine_code"])] == 1
+        for fabricante in {p["manufacturer"] for p in baterias}
+        for m in modelos
+    )
+
+
+def test_el_fabricante_principal_cubre_todos_los_autos_y_los_demas_algunos():
+    parts = json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"]
+    modelos = json.loads((PARTS_JSON.parent / "car_models.json").read_text(encoding="utf-8"))["car_models"]
+    pastillas = [p for p in parts if p["name"].startswith("Pastillas de freno")]
+    autos_de = {
+        fabricante: {
+            (c["brand"], c["model"], c["engine_code"])
+            for p in pastillas if p["manufacturer"] == fabricante
+            for c in p["compatibilities"]
+        }
+        for fabricante in ("Bosch", "Brembo", "TRW", "Ferodo")
+    }
+    todos = {(m["brand"], m["model"], m["engine_code"]) for m in modelos}
+
+    assert all(p["manufacturer"] for p in parts)
+    assert autos_de["Bosch"] == todos
+    assert all(0 < len(autos_de[f]) < len(todos) for f in ("Brembo", "TRW", "Ferodo"))

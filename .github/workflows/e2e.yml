@@ -1,0 +1,124 @@
+# Recorridos de punta a punta (Playwright, carpeta e2e/).
+# Corre cuando se mergea a dev o a main, y a mano desde la pestaña Actions.
+# Levanta la app completa con docker compose (base nueva en cada corrida),
+# recorre los flujos principales en un Chrome de verdad y, si algo falla,
+# abre un issue con la etiqueta "e2e" (o comenta el que ya esté abierto).
+name: E2E
+
+on:
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+# Si se mergean dos cosas seguidas, la corrida vieja se cancela.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      # Valores solo para CI: la base vive y muere con la corrida.
+      - name: Crear el .env de prueba
+        run: |
+          {
+            echo "COMPOSE_PROFILES=local"
+            echo "LOCAL_DB_PASSWORD=ci-only-not-a-real-password"
+            echo "SECRET_KEY=ci-only-not-a-real-secret"
+          } > .env
+
+      - name: Levantar la app (postgres, mailpit, backend, frontend)
+        run: docker compose up -d --build
+
+      - name: Esperar al backend
+        run: timeout 180 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
+
+      - name: Cargar repuestos y usuarios de prueba
+        run: |
+          docker compose exec -T backend uv run python -m scripts.seed
+          docker compose exec -T backend uv run python -m scripts.seed_demo_users
+
+      - name: Esperar al frontend
+        run: timeout 180 bash -c 'until curl -sf http://localhost:5173 > /dev/null; do sleep 2; done'
+
+      - name: Instalar Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Instalar Playwright y Chrome
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Recorridos E2E
+        working-directory: e2e
+        run: npx playwright test
+
+      # ==========================================
+      # SI ALGO FALLÓ
+      # ==========================================
+
+      - name: Guardar los logs de la app
+        if: failure()
+        run: docker compose logs --no-color > e2e/logs-app.txt 2>&1 || true
+
+      - name: Subir capturas, videos y logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-fallas
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+            e2e/logs-app.txt
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Abrir o comentar el issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          titulo="E2E falló en ${GITHUB_REF_NAME}"
+          corrida="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          # Qué recorridos fallaron (si la falla fue antes, al levantar la
+          # app, no hay resultados y se dice eso).
+          fallados=$(jq -r '[.suites[] | recurse(.suites[]?) | .specs[]? | select(.ok == false) | "- `\(.file)` › \(.title)"] | unique | .[]' e2e/resultados.json 2>/dev/null || true)
+          if [ -z "$fallados" ]; then
+            fallados="- No llegó a correr ningún recorrido: falló al levantar la app (ver el paso que quedó en rojo)."
+          fi
+
+          cuerpo=$(printf '%s\n' \
+            "Rama: \`${GITHUB_REF_NAME}\`" \
+            "Commit: ${GITHUB_SHA::7}" \
+            "Corrida: ${corrida}" \
+            "" \
+            "Recorridos que fallaron:" \
+            "${fallados}" \
+            "" \
+            "Las capturas, los videos y los logs de la app están en el artefacto \`e2e-fallas\` de la corrida (se guardan 7 días).")
+
+          gh label create e2e --color B60205 --description "Fallas de los recorridos E2E" 2>/dev/null || true
+
+          abierto=$(gh issue list --label e2e --state open --json number,title \
+            --jq "map(select(.title == \"${titulo}\")) | .[0].number // empty")
+
+          if [ -n "$abierto" ]; then
+            gh issue comment "$abierto" --body "$cuerpo"
+          else
+            gh issue create --title "$titulo" --label e2e --body "$cuerpo"
+          fi

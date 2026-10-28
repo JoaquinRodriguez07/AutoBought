@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import { obtenerMarcas } from "./api";
+import EncabezadoPagina from "./EncabezadoPagina";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
 import BMWLogo from "./assets/Logos Vehiculos/BMW.png";
@@ -49,7 +50,6 @@ export default function Marcas({
   cantidadFavoritos,
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 }) {
@@ -71,7 +71,7 @@ export default function Marcas({
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7] text-gray-900 font-sans">
+    <div className="min-h-screen bg-white text-gray-900 font-sans">
 
       {/* NAVBAR */}
 
@@ -86,7 +86,6 @@ export default function Marcas({
         onFavoritos={onFavoritos}
         onPerfil={onPerfil}
         onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago}
         onHistorial={onHistorial}
         onCerrarSesion={onCerrarSesion}
         cantidadCarrito={cantidadCarrito}
@@ -95,34 +94,19 @@ export default function Marcas({
 
       {/* CONTENIDO */}
 
-      <main className="pt-[105px]">
+      <main>
 
-        {/* ENCABEZADO */}
+        {/* ENCABEZADO: el mismo de catálogo, carrito y la cuenta */}
 
-        <section className="bg-white px-6 py-14">
-
-          <div className="max-w-[1100px] mx-auto">
-
-            <p className="text-orange-500 text-[10px] font-black tracking-[4px]">
-              ENCONTRÁ TU VEHÍCULO
-            </p>
-
-            <h1 className="text-4xl md:text-5xl font-black italic uppercase mt-2">
-              MARCAS
-            </h1>
-
-            <p className="text-gray-500 text-sm max-w-[600px] mt-4 leading-relaxed">
-              Seleccioná la marca de tu vehículo para encontrar
-              los repuestos compatibles disponibles en AutoBought.
-            </p>
-
-          </div>
-
-        </section>
+        <EncabezadoPagina
+          migas={[{ texto: "Inicio", ir: onHome }, "Marcas"]}
+          titulo="Marcas"
+          descripcion="Elegí la marca de tu auto y te mostramos los repuestos que le sirven."
+        />
 
         {/* MARCAS */}
 
-        <section className="max-w-[1100px] mx-auto px-6 py-12">
+        <section className="max-w-[1100px] mx-auto px-6 py-12 box-content">
 
           <div className="flex items-center justify-between mb-7">
 
@@ -132,13 +116,13 @@ export default function Marcas({
                 Marcas disponibles
               </h2>
 
-              <p className="text-[10px] text-gray-400 mt-1">
+              <p className="text-sm text-gray-400 mt-1">
                 Trabajamos con las principales marcas de vehículos.
               </p>
 
             </div>
 
-            <span className="text-[10px] text-gray-400">
+            <span className="text-sm text-gray-400">
               {loading ? "Cargando..." : `${marcas.length} marcas`}
             </span>
 
@@ -171,7 +155,7 @@ export default function Marcas({
           {/* MARCAS */}
 
           {!loading && !error && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
 
               {marcas.map((marca) => {
 
@@ -181,17 +165,16 @@ export default function Marcas({
                   <button
                     key={marca.brand}
                     type="button"
-                    onClick={() =>
-                      onCatalogo(null, {
-                        brand: marca.brand,
-                        model: "",
-                        year: "",
-                      })
-                    }
-                    className="group bg-white border border-gray-100 rounded-xl h-[145px] flex flex-col items-center justify-center shadow-xs hover:shadow-lg hover:border-orange-300 hover:-translate-y-1 transition duration-300"
+                    onClick={() => onCatalogo(null, null, { marca: marca.brand })}
+                    // Solo el logo; al pasar el mouse (o con el teclado) el
+                    // logo sube y aparece "Ver repuestos". El nombre, en el
+                    // cartelito del navegador al dejar el mouse encima.
+                    title={marca.brand}
+                    aria-label={`Ver repuestos de ${marca.brand}`}
+                    className="group relative overflow-hidden bg-white border border-gray-100 rounded-xl h-[130px] flex items-center justify-center shadow-xs hover:shadow-lg hover:border-orange-300 focus-visible:border-orange-300 outline-hidden transition duration-300"
                   >
 
-                    <div className="h-16 w-28 flex items-center justify-center">
+                    <div className="h-16 w-28 flex items-center justify-center transition duration-300 group-hover:-translate-y-3 group-hover:scale-90 group-focus-visible:-translate-y-3 group-focus-visible:scale-90">
 
                       {logo ? (
                         <img
@@ -207,13 +190,14 @@ export default function Marcas({
 
                     </div>
 
-                    <p className="text-[11px] font-bold mt-5 group-hover:text-orange-500 transition">
-                      {marca.brand}
-                    </p>
-
-                    <p className="text-[8px] text-gray-400 mt-1">
-                      Ver repuestos →
-                    </p>
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-x-0 bottom-2.5 text-center opacity-0 translate-y-2 transition duration-300 group-hover:opacity-100 group-hover:translate-y-0 group-focus-visible:opacity-100 group-focus-visible:translate-y-0"
+                    >
+                      <p className="text-xs font-bold text-orange-500">
+                        Ver repuestos →
+                      </p>
+                    </div>
 
                   </button>
                 );
@@ -226,13 +210,13 @@ export default function Marcas({
 
         {/* BANNER */}
 
-        <section className="max-w-[1100px] mx-auto px-6 pb-14">
+        <section className="max-w-[1100px] mx-auto px-6 pb-14 box-content">
 
           <div className="bg-[#171b20] rounded-2xl px-7 md:px-10 py-8 flex flex-col md:flex-row items-center justify-between gap-5">
 
             <div>
 
-              <p className="text-orange-500 text-[9px] font-black tracking-[3px]">
+              <p className="text-orange-500 text-xs font-black tracking-[3px]">
                 ¿NO ENCONTRÁS TU MARCA?
               </p>
 
@@ -240,7 +224,7 @@ export default function Marcas({
                 BUSCÁ DIRECTAMENTE TU REPUESTO
               </h2>
 
-              <p className="text-gray-400 text-[10px] mt-2">
+              <p className="text-gray-400 text-sm mt-2">
                 Nuestro catálogo se actualiza constantemente.
               </p>
 
@@ -249,7 +233,7 @@ export default function Marcas({
             <button
               type="button"
               onClick={() => onCatalogo()}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-lg text-[10px] font-black transition whitespace-nowrap"
+              className="bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-lg text-sm font-black transition whitespace-nowrap"
             >
               VER REPUESTOS →
             </button>

@@ -40,6 +40,19 @@ export function sesionValida(sesion) {
   return payload.exp * 1000 > Date.now();
 }
 
+// El JWT del login trae `user_type`: "client" (comprador) o "employee"
+// (vendedor). Login.jsx lo guarda en `sesion.userType`.
+export const TIPO_VENDEDOR = "employee";
+
+/**
+ * true si la sesión es de un vendedor. Los vendedores no tienen perfil de
+ * cliente, carrito ni favoritos: esos endpoints les responden 403, así que
+ * la UI no tiene que pedirlos.
+ */
+export function esVendedor(sesion) {
+  return sesion?.userType === TIPO_VENDEDOR;
+}
+
 export function haySesionActiva() {
   return sesionValida(obtenerSesion());
 }
@@ -55,6 +68,18 @@ export function guardarSesion(sesion) {
     : sessionStorage;
 
   storage.setItem(SESION_KEY, JSON.stringify(sesion));
+  window.dispatchEvent(new Event(EVENTO_SESION_GUARDADA));
+}
+
+// Aviso dentro de la pestaña de que la sesión guardada cambió. App.jsx lo
+// usa para que su estado `usuario` siga a lo que guardó cualquier pantalla
+// (ej: CambiarPassword guarda el token nuevo sin tener acceso a App).
+const EVENTO_SESION_GUARDADA = "autobought-sesion-guardada";
+
+/** Llama a `fn` cada vez que `guardarSesion` guarda. Devuelve cómo desregistrar. */
+export function alGuardarSesion(fn) {
+  window.addEventListener(EVENTO_SESION_GUARDADA, fn);
+  return () => window.removeEventListener(EVENTO_SESION_GUARDADA, fn);
 }
 
 /**
