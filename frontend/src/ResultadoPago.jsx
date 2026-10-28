@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { crearLinkPago, obtenerDetalleCompra } from "./api";
+import { crearLinkPago, obtenerDetalleCompra, verificarPago } from "./api";
 import { irA } from "./redirigir";
 import TarjetaCuenta, { claseBotonCuenta } from "./TarjetaCuenta";
 
@@ -11,7 +11,8 @@ const CONSULTAS = 10;
 
 // Lo que Mercado Pago agrega a la dirección al volver ("null" si el
 // cliente volvió sin pagar). Solo sirve para no hacer esperar a quien ya
-// sabemos que no pagó: el pago aprobado lo confirma siempre el backend.
+// sabemos que no pagó, y para no mostrarle un rechazo viejo a quien volvió
+// aprobado: el pago aprobado lo confirma siempre el backend.
 const SIN_PAGAR = ["rejected", "cancelled", "null"];
 
 /**
@@ -23,6 +24,7 @@ export default function ResultadoPago({ onHistorial, ...propsNavbar }) {
   const [searchParams] = useSearchParams();
   const pedidoId = searchParams.get("pedido") || "";
   const estadoMP = searchParams.get("collection_status") || searchParams.get("status") || "";
+  const pagoMP = searchParams.get("payment_id") || searchParams.get("collection_id") || "";
 
   // "consultando" | "aprobado" | "rechazado" | "en-proceso" | "error"
   const [estado, setEstado] = useState(pedidoId ? "consultando" : "error");
@@ -45,7 +47,7 @@ export default function ResultadoPago({ onHistorial, ...propsNavbar }) {
         const { estadoPago } = await obtenerDetalleCompra(pedidoId);
         if (estadoPago === "approved" || estadoPago === null) {
           setEstado("aprobado");
-        } else if (estadoPago === "rejected" || SIN_PAGAR.includes(estadoMP)) {
+        } else if (estadoMP !== "approved" && (estadoPago === "rejected" || SIN_PAGAR.includes(estadoMP))) {
           setEstado("rechazado");
         } else if (consultas < CONSULTAS) {
           temporizador = setTimeout(consultar, ESPERA_MS);
@@ -57,9 +59,21 @@ export default function ResultadoPago({ onHistorial, ...propsNavbar }) {
         setError(err.message);
       }
     };
-    consultar();
+    const empezar = async () => {
+      // Primero se confirma el pago con el backend, sin esperar el aviso de
+      // Mercado Pago. Si falla, el aviso queda de respaldo y se consulta igual.
+      if (/^\d+$/.test(pagoMP)) {
+        try {
+          await verificarPago(pedidoId, pagoMP);
+        } catch {
+          // Se sigue con la consulta de siempre.
+        }
+      }
+      consultar();
+    };
+    empezar();
     return () => clearTimeout(temporizador);
-  }, [pedidoId, estadoMP]);
+  }, [pedidoId, estadoMP, pagoMP]);
 
   const reintentar = async () => {
     setReintentando(true);

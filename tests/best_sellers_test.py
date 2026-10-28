@@ -7,6 +7,7 @@ from app.models.compatibility import Compatibility
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
+from app.models.payment import Payment, PaymentStatus
 
 
 def make_client(db_session):
@@ -42,8 +43,9 @@ def make_part(db_session, part_code, stock=10):
     return part
 
 
-def make_order(db_session, client, items, days_ago=1, status=OrderStatus.CONFIRMED):
-    """Create an order from (part, quantity) tuples."""
+def make_order(db_session, client, items, days_ago=1, status=OrderStatus.CONFIRMED, payment=None):
+    """Create an order from (part, quantity) tuples. Without `payment` it is
+    an order from before Mercado Pago."""
     order = Order(
         client_id=client.user_id,
         created_at=datetime.now(timezone.utc) - timedelta(days=days_ago),
@@ -58,6 +60,7 @@ def make_order(db_session, client, items, days_ago=1, status=OrderStatus.CONFIRM
             OrderItem(part=part, quantity=quantity, frozen_price=part.price)
             for part, quantity in items
         ],
+        payment=Payment(status=payment) if payment else None,
     )
     db_session.add(order)
     db_session.commit()
@@ -92,6 +95,22 @@ def test_best_sellers_ignore_cancelled_orders(db_session):
     assert codes(list_best_sellers(db_session, limit=4)) == [
         ("BRK-002", 2),
         ("BRK-001", 1),
+    ]
+
+
+def test_best_sellers_only_count_paid_orders(db_session):
+    client = make_client(db_session)
+    pads = make_part(db_session, "BRK-001")
+    discs = make_part(db_session, "BRK-002")
+    filters = make_part(db_session, "BRK-003")
+    make_order(db_session, client, [(pads, 10)], payment=PaymentStatus.PENDING)
+    make_order(db_session, client, [(pads, 10)], payment=PaymentStatus.REJECTED)
+    make_order(db_session, client, [(discs, 2)], payment=PaymentStatus.APPROVED)
+    make_order(db_session, client, [(filters, 1)])  # before Mercado Pago
+
+    assert codes(list_best_sellers(db_session, limit=4)) == [
+        ("BRK-002", 2),
+        ("BRK-003", 1),
     ]
 
 

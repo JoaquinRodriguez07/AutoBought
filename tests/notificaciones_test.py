@@ -13,6 +13,7 @@ from app.models.favorite import Favorite
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
+from app.models.payment import Payment, PaymentStatus
 from app.models.stock_alert import StockAlert
 from scripts import tareas_diarias
 
@@ -319,6 +320,23 @@ def test_pedido_cancelado_cliente_dado_de_baja_o_recompra_no_reciben(db_session,
 
     assert notificaciones.recordar_mantenimientos(db_session, AHORA) == 0
     assert mails == []
+
+
+def test_pedido_sin_pagar_no_recibe_recordatorio_ni_cuenta_como_recompra(db_session, mails):
+    sin_pagar = make_client(db_session)
+    aceite = make_part(db_session)
+    hace_seis_meses = AHORA - timedelta(days=186)
+    pedido = make_order(db_session, sin_pagar, [(aceite, 1)], creado=hace_seis_meses)
+    db_session.add(Payment(order_id=pedido.order_id, status=PaymentStatus.PENDING))
+    # Pagó hace 6 meses y hace poco dejó un pedido sin pagar: le toca igual.
+    pago = make_client(db_session, email="pago@example.com")
+    make_order(db_session, pago, [(aceite, 1)], creado=hace_seis_meses)
+    reciente = make_order(db_session, pago, [(aceite, 1)], creado=AHORA - timedelta(days=30))
+    db_session.add(Payment(order_id=reciente.order_id, status=PaymentStatus.REJECTED))
+    db_session.commit()
+
+    assert notificaciones.recordar_mantenimientos(db_session, AHORA) == 1
+    assert mails[0]["To"] == "pago@example.com"
 
 
 def test_recomprar_el_mismo_repuesto_de_otro_fabricante_cuenta_como_recompra(db_session, mails):

@@ -13,6 +13,7 @@ import {
   crearDireccion,
   confirmarCompra,
   crearLinkPago,
+  verificarPago,
   eliminarDireccionAPI,
   eliminarItemCarrito,
   login,
@@ -941,6 +942,17 @@ describe("orders and Mercado Pago API", () => {
     await expect(crearLinkPago(42)).resolves.toBe("https://mercadopago.test/pagar");
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/pagos/42`, {
       method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("asks the backend to verify the payment Mercado Pago returned with", async () => {
+    fetch.mockResolvedValue(response({ estado: "approved" }));
+
+    await expect(verificarPago(42, "999")).resolves.toBe("approved");
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/pagos/42/verificar`, {
+      method: "POST",
+      body: JSON.stringify({ payment_id: "999" }),
       headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
     });
   });

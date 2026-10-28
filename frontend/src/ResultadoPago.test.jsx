@@ -3,12 +3,13 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import ResultadoPago from "./ResultadoPago";
-import { crearLinkPago, obtenerDetalleCompra } from "./api";
+import { crearLinkPago, obtenerDetalleCompra, verificarPago } from "./api";
 import { irA } from "./redirigir";
 
 jest.mock("./api", () => ({
   crearLinkPago: jest.fn(),
   obtenerDetalleCompra: jest.fn(),
+  verificarPago: jest.fn(),
 }));
 
 // jsdom no navega a otras páginas: se registra adónde se habría ido.
@@ -42,6 +43,59 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     expect(obtenerDetalleCompra).toHaveBeenCalledWith("42");
     await user.click(screen.getByRole("button", { name: "Ver mis compras" }));
     expect(onHistorial).toHaveBeenCalled();
+  });
+
+  test("con payment_id, primero le pide al backend que confirme el pago", async () => {
+    verificarPago.mockResolvedValue("approved");
+    obtenerDetalleCompra.mockResolvedValue(pedido("approved"));
+
+    renderResultado("/pago?pedido=42&collection_status=approved&payment_id=999");
+
+    expect(await screen.findByText(/¡Pago aprobado!/)).toBeInTheDocument();
+    expect(verificarPago).toHaveBeenCalledWith("42", "999");
+    expect(verificarPago.mock.invocationCallOrder[0]).toBeLessThan(obtenerDetalleCompra.mock.invocationCallOrder[0]);
+  });
+
+  test("si la verificación falla, consulta el estado igual", async () => {
+    verificarPago.mockRejectedValue(new Error("No pudimos conectar con Mercado Pago."));
+    obtenerDetalleCompra.mockResolvedValue(pedido("approved"));
+
+    renderResultado("/pago?pedido=42&collection_status=approved&payment_id=999");
+
+    expect(await screen.findByText(/¡Pago aprobado!/)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  test("si volvió sin pagar (payment_id=null), no verifica nada", async () => {
+    obtenerDetalleCompra.mockResolvedValue(pedido("pending"));
+
+    renderResultado("/pago?pedido=42&collection_status=null&payment_id=null");
+
+    expect(await screen.findByRole("button", { name: "REINTENTAR PAGO" })).toBeInTheDocument();
+    expect(verificarPago).not.toHaveBeenCalled();
+  });
+
+  test("si volvió aprobado, no muestra el rechazo del intento anterior", async () => {
+    jest.useFakeTimers();
+    try {
+      // El aviso del pago nuevo todavía no llegó: el backend sigue con el rechazo viejo.
+      obtenerDetalleCompra
+        .mockResolvedValueOnce(pedido("rejected"))
+        .mockResolvedValueOnce(pedido("approved"));
+
+      renderResultado("/pago?pedido=42&collection_status=approved");
+
+      expect(await screen.findByText("Estamos confirmando tu pago...")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "REINTENTAR PAGO" })).not.toBeInTheDocument();
+      await act(async () => {
+        jest.advanceTimersByTime(3000);
+      });
+
+      expect(await screen.findByText(/¡Pago aprobado!/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "REINTENTAR PAGO" })).not.toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test("pago rechazado: deja reintentar con un link nuevo", async () => {

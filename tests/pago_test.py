@@ -61,6 +61,11 @@ def pedido(client, db_session):
     return order_id, headers
 
 
+def verificar(client, order_id, headers, payment_id="999"):
+    """Lo que hace la tienda al volver de Mercado Pago con ?payment_id=..."""
+    return client.post(f"/api/v1/pagos/{order_id}/verificar", headers=headers, json={"payment_id": payment_id})
+
+
 def avisar(client, pago_id="999", tipo="payment"):
     """El aviso (webhook) que manda Mercado Pago cuando cambia un pago."""
     return client.post(
@@ -166,6 +171,18 @@ def test_aviso_de_pago_rechazado_deja_el_pedido_sin_pagar_y_con_stock_reservado(
     assert client.post(f"/api/v1/pagos/{order_id}", headers=headers).status_code == 200
 
 
+def test_un_link_nuevo_despues_de_un_rechazo_deja_el_pago_pendiente(client, db_session, mp, pedido):
+    order_id, headers = pedido
+    mp.pagos["998"] = PagoMP(id="998", estado="rejected", referencia=str(order_id))
+    avisar(client, "998")
+
+    client.post(f"/api/v1/pagos/{order_id}", headers=headers)
+
+    # Si al volver de pagar bien el aviso todavía no llegó, no se muestra el
+    # rechazo viejo (y el cliente no paga dos veces).
+    assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
+
+
 def test_reintentar_despues_de_un_rechazo_y_aprobar(client, db_session, mp, pedido):
     order_id, _ = pedido
     mp.pagos["998"] = PagoMP(id="998", estado="rejected", referencia=str(order_id))
@@ -222,6 +239,14 @@ def test_avisos_que_no_son_de_pagos_o_de_otro_pedido_se_ignoran(client, db_sessi
     assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
 
 
+def test_avisos_con_un_id_de_pago_que_no_es_un_numero_se_ignoran(client, db_session, mp, pedido):
+    order_id, _ = pedido
+
+    # El id va en la dirección de la consulta a Mercado Pago: no se consulta.
+    assert avisar(client, "../users/me").status_code == 200
+    assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
+
+
 def test_si_mercado_pago_no_responde_el_aviso_da_502_para_que_lo_reintente(client, db_session, mp, pedido, caplog):
     order_id, _ = pedido
     mp.error = MercadoPagoNoDisponible("caído")
@@ -251,6 +276,65 @@ def test_con_clave_secreta_rechaza_avisos_sin_firma_valida(client, db_session, m
 # =====================================================
 # Firma de los avisos y cliente HTTP de Mercado Pago
 # =====================================================
+
+
+# =====================================================
+# POST /api/v1/pagos/{order_id}/verificar: confirmar al volver
+# =====================================================
+
+
+def test_verificar_un_pago_aprobado_marca_el_pedido_pagado_sin_esperar_el_aviso(client, db_session, mp, pedido, mails):
+    order_id, headers = pedido
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+
+    response = verificar(client, order_id, headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"estado": "approved"}
+    assert estado_del_pago(db_session, order_id) == PaymentStatus.APPROVED
+    assert len(mails) == 1
+    # Si después llega el aviso, no se manda otro mail.
+    avisar(client)
+    assert len(mails) == 1
+
+
+def test_verificar_con_el_pago_de_otro_pedido_no_cambia_nada(client, db_session, mp, pedido, mails):
+    order_id, headers = pedido
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id + 1))
+
+    response = verificar(client, order_id, headers)
+
+    assert response.status_code == 200
+    assert response.json() == {"estado": "pending"}
+    assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
+    assert mails == []
+
+
+def test_verificar_el_pedido_de_otro_cliente_da_404(client, db_session, mp, pedido):
+    order_id, _ = pedido
+    otro = make_client(db_session, username="beto", email="beto@example.com")
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+
+    assert verificar(client, order_id, auth_headers(otro)).status_code == 404
+    assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
+
+
+def test_verificar_con_mercado_pago_caido_da_503(client, db_session, mp, pedido, caplog):
+    order_id, headers = pedido
+    mp.error = MercadoPagoNoDisponible("caído")
+
+    assert verificar(client, order_id, headers).status_code == 503
+    assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
+    assert f"No se pudo verificar el pago 999 del pedido {order_id}: caído" in caplog.text
+
+
+def test_verificar_con_un_id_que_no_es_un_numero_no_consulta(client, db_session, mp, pedido):
+    order_id, headers = pedido
+    # Si se consultara, el ClienteMPFalso fallaría: no tiene ese pago.
+    response = verificar(client, order_id, headers, payment_id="null")
+
+    assert response.status_code == 200
+    assert response.json() == {"estado": "pending"}
 
 
 def _firmar(secreto, data_id, request_id, ts):

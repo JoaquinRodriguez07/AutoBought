@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.order import Order
@@ -18,8 +18,19 @@ def get_payment_for_client(db: Session, order_id: int, client_id: int) -> Paymen
     return db.scalar(query)
 
 
+def is_paid_order():
+    """Condición para contar un pedido como venta: pago aprobado, o sin pago
+    (los pedidos de antes de Mercado Pago). Pide un outer join con Payment."""
+    return or_(Payment.payment_id.is_(None), Payment.status == PaymentStatus.APPROVED)
+
+
 def set_preference(db: Session, payment: Payment, preference_id: str) -> Payment:
     payment.mp_preference_id = preference_id
+    # Un link nuevo es un intento nuevo: hasta que Mercado Pago diga otra
+    # cosa, el pedido no está rechazado. Si no, al volver de pagar bien se
+    # vería el rechazo del intento anterior y el cliente podría pagar dos veces.
+    if payment.status == PaymentStatus.REJECTED:
+        payment.status = PaymentStatus.PENDING
     db.commit()
     db.refresh(payment)
     return payment

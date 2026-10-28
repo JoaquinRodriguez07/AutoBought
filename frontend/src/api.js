@@ -1127,6 +1127,21 @@ export async function crearLinkPago(orderId) {
   return data.url;
 }
 
+/**
+ * POST /api/v1/pagos/{orderId}/verificar — al volver de Mercado Pago, le
+ * pide al backend que confirme el pago (paymentId es el `payment_id` que
+ * agrega Mercado Pago a la dirección). Devuelve el estado del pago.
+ */
+export async function verificarPago(orderId, paymentId) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/pagos/${orderId}/verificar`,
+    { method: "POST", body: JSON.stringify({ payment_id: paymentId }) },
+    MENSAJES_POR_STATUS_PAGOS,
+    "No pudimos confirmar el pago."
+  );
+  return data.estado;
+}
+
 /* =====================================================
    ASISTENTE DE COMPRA (IA)
    POST /api/v1/asistente: el cliente cuenta qué le pasa al auto y recibe

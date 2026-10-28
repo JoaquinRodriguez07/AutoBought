@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,14 @@ MONEDA = "UYU"
 
 class LinkPagoOut(BaseModel):
     url: str
+
+
+class VerificarPagoIn(BaseModel):
+    payment_id: str
+
+
+class EstadoPagoOut(BaseModel):
+    estado: PaymentStatus
 
 
 def _armar_preferencia(order) -> dict:
@@ -77,6 +86,10 @@ async def recibir_aviso(
     if tipo != "payment" or not pago_id:
         return {"ok": True}
     pago_id = str(pago_id)
+    # Los ids de pago de Mercado Pago son números. Cualquier otra cosa se
+    # descarta antes de armar la dirección de la consulta.
+    if not pago_id.isdigit():
+        return {"ok": True}
 
     if not firma_valida(
         request.headers.get("x-signature"),
@@ -85,20 +98,69 @@ async def recibir_aviso(
     ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Firma inválida.")
 
+    # La consulta a Mercado Pago y la base son bloqueantes: van en un hilo
+    # para no frenar el resto del backend (la función es async por el body).
     try:
-        pago = cliente_mp.consultar_pago(pago_id)
+        pago = await run_in_threadpool(cliente_mp.consultar_pago, pago_id)
     except MercadoPagoNoDisponible as error:
         logger.warning("No se pudo consultar el pago %s: %s", pago_id, error)
         # Mercado Pago vuelve a mandar el aviso más tarde.
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="No pudimos consultar el pago.")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail="No pudimos consultar el pago."
+        ) from error
 
     if not pago.referencia or not pago.referencia.isdigit():
         return {"ok": True}
 
-    payment, recien_aprobado = crud_payment.apply_mp_status(db, int(pago.referencia), pago.id, pago.estado)
+    def aplicar():
+        payment, recien_aprobado = crud_payment.apply_mp_status(db, int(pago.referencia), pago.id, pago.estado)
+        # El pedido se carga acá, en el hilo, para el mail.
+        return payment.order if recien_aprobado else None
+
+    pedido_aprobado = await run_in_threadpool(aplicar)
+    if pedido_aprobado is not None:
+        notificar_compra(pedido_aprobado, background_tasks)
+    return {"ok": True}
+
+
+@router.post("/{order_id}/verificar", response_model=EstadoPagoOut)
+def verificar_pago(
+    order_id: int,
+    datos: VerificarPagoIn,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client),
+    cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
+):
+    """Confirma el pago al volver de Mercado Pago, sin esperar el aviso.
+
+    Mercado Pago agrega `payment_id` a la dirección de vuelta. Igual que con
+    el aviso, no se le cree: se consulta el pago y se usa lo que responde.
+    El aviso queda de respaldo (por ejemplo, si el cliente cierra la página).
+    """
+    payment = crud_payment.get_payment_for_client(db, order_id, client.user_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pedido no encontrado.")
+    if not datos.payment_id.isdigit():
+        return EstadoPagoOut(estado=payment.status)
+
+    try:
+        pago = cliente_mp.consultar_pago(datos.payment_id)
+    except MercadoPagoNoDisponible as error:
+        logger.warning("No se pudo verificar el pago %s del pedido %s: %s", datos.payment_id, order_id, error)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No pudimos conectar con Mercado Pago. Probá de nuevo en un rato.",
+        ) from error
+
+    # Que nadie marque su pedido como pagado con el pago de otro pedido.
+    if pago.referencia != str(order_id):
+        return EstadoPagoOut(estado=payment.status)
+
+    payment, recien_aprobado = crud_payment.apply_mp_status(db, order_id, pago.id, pago.estado)
     if recien_aprobado:
         notificar_compra(payment.order, background_tasks)
-    return {"ok": True}
+    return EstadoPagoOut(estado=payment.status)
 
 
 @router.post("/{order_id}", response_model=LinkPagoOut)
