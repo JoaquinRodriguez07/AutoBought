@@ -44,6 +44,10 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
       IA_LIMITE_DIARIO: ${IA_LIMITE_DIARIO:-20}
+      # Pago con Mercado Pago: sin token, comprar no puede abrir el pago.
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      BACKEND_URL: ${BACKEND_URL:-}
 
     ports:
       - "8000:8000"
@@ -79,6 +83,10 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
       IA_LIMITE_DIARIO: ${IA_LIMITE_DIARIO:-20}
+      # Pago con Mercado Pago: sin token, comprar no puede abrir el pago.
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      BACKEND_URL: ${BACKEND_URL:-}
 
     ports:
       - "8001:8000"

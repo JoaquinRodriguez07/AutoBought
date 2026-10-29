@@ -793,28 +793,12 @@ const MENSAJES_POR_STATUS_DIRECCIONES = {
   422: "Revisá los datos de la dirección.",
 };
 
-const MENSAJES_POR_STATUS_METODOS_PAGO = {
-  ...MENSAJES_POR_STATUS_DIRECCIONES,
-  404: "No encontramos ese método de pago.",
-  409: "Ya tenés guardada esa tarjeta.",
-  422: "Revisá los datos de la tarjeta.",
-};
-
 function pedirDirecciones(url, options = {}) {
   return pedirCuentaCliente(
     url,
     options,
     MENSAJES_POR_STATUS_DIRECCIONES,
     "No pudimos actualizar las direcciones."
-  );
-}
-
-function pedirMetodosPago(url, options = {}) {
-  return pedirCuentaCliente(
-    url,
-    options,
-    MENSAJES_POR_STATUS_METODOS_PAGO,
-    "No pudimos actualizar los métodos de pago."
   );
 }
 
@@ -1002,64 +986,6 @@ export async function eliminarDireccionAPI(id) {
 
 
 /* =====================================================
-   MÉTODOS DE PAGO
-   Solo se envían los últimos 4 dígitos: el número completo
-   y el CVV nunca salen del navegador.
-====================================================== */
-
-function mapearMetodoPago(m) {
-  return {
-    id: m.payment_method_id,
-    tipo: m.card_type,
-    titular: m.holder,
-    numero: m.last_four,
-    vencimiento: m.expiry,
-    principal: m.is_primary,
-    vencida: Boolean(m.is_expired),
-  };
-}
-
-/** GET /api/v1/payment-methods */
-export async function obtenerMetodosPago() {
-  const data = await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods`);
-  return data.map(mapearMetodoPago);
-}
-
-/**
- * POST /api/v1/payment-methods
- * Recibe la tarjeta ya pasada por tokenizarTarjeta (pasarelaPagos.js):
- * marca, últimos 4 dígitos y vencimiento. Nada más sale hacia la API.
- */
-export async function crearMetodoPago({ tarjeta, titular, principal }) {
-  const data = await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods`, {
-    method: "POST",
-    body: JSON.stringify({
-      card_type: tarjeta.marca,
-      holder: titular,
-      last_four: tarjeta.ultimosCuatro,
-      expiry: tarjeta.vencimiento,
-      is_primary: Boolean(principal),
-    }),
-  });
-  return mapearMetodoPago(data);
-}
-
-/** PATCH /api/v1/payment-methods/{id}/primary */
-export async function marcarMetodoPagoPrincipal(id) {
-  const data = await pedirMetodosPago(
-    `${API_BASE_URL}/api/v1/payment-methods/${id}/primary`,
-    { method: "PATCH" }
-  );
-  return mapearMetodoPago(data);
-}
-
-/** DELETE /api/v1/payment-methods/{id} */
-export async function eliminarMetodoPagoAPI(id) {
-  await pedirMetodosPago(`${API_BASE_URL}/api/v1/payment-methods/${id}`, {
-    method: "DELETE",
-  });
-}
-/* =====================================================
    RECOMENDACIONES (HU 3.2)
    ===================================================== */
 
@@ -1104,7 +1030,7 @@ const MENSAJES_POR_STATUS_ORDENES = {
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "Esta acción requiere una cuenta de cliente.",
   409: "No hay stock suficiente para completar la compra.",
-  422: "Revisá la dirección y el método de pago elegidos.",
+  422: "Revisá la dirección elegida.",
 };
 
 function mapearPedido(p) {
@@ -1114,6 +1040,9 @@ function mapearPedido(p) {
     estado: p.status,
     direccion: p.shipping_address ? mapearDireccion(p.shipping_address) : null,
     metodoPago: p.payment_method ?? "",
+    // "pending" | "approved" | "rejected"; null en los pedidos de antes de
+    // Mercado Pago (ya cobrados).
+    estadoPago: p.payment_status ?? null,
     total: p.total ?? 0,
     items: (p.items || []).map((item) => ({
       partId: item.part_id,
@@ -1127,16 +1056,16 @@ function mapearPedido(p) {
 
 /**
  * POST /api/v1/orders — confirma la compra del carrito del cliente con la
- * dirección y el método de pago elegidos (sin elegir, usa los principales).
+ * dirección elegida (sin elegir, usa la principal). El pedido queda
+ * pendiente de pago: se paga después en Mercado Pago (crearLinkPago).
  */
-export async function confirmarCompra({ direccionId, metodoPagoId } = {}) {
+export async function confirmarCompra({ direccionId } = {}) {
   const data = await pedirCuentaCliente(
     `${API_BASE_URL}/api/v1/orders`,
     {
       method: "POST",
       body: JSON.stringify({
         shipping_address_id: direccionId ?? null,
-        payment_method_id: metodoPagoId ?? null,
       }),
     },
     MENSAJES_POR_STATUS_ORDENES,
@@ -1169,6 +1098,48 @@ export async function obtenerDetalleCompra(orderId) {
     "No pudimos cargar el detalle de la compra."
   );
   return mapearPedido(data);
+}
+
+/* =====================================================
+   PAGO CON MERCADO PAGO
+   La tarjeta se carga en la página de Mercado Pago, nunca en la tienda.
+====================================================== */
+
+const MENSAJES_POR_STATUS_PAGOS = {
+  401: "Tu sesión venció. Iniciá sesión de nuevo.",
+  403: "Esta acción requiere una cuenta de cliente.",
+  404: "No encontramos ese pedido.",
+  409: "Este pedido ya está pagado.",
+  503: "No pudimos conectar con Mercado Pago. Probá de nuevo en un rato.",
+};
+
+/**
+ * POST /api/v1/pagos/{orderId} — link de Mercado Pago para pagar el pedido
+ * (o reintentar un pago rechazado). Devuelve la dirección a la que ir.
+ */
+export async function crearLinkPago(orderId) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/pagos/${orderId}`,
+    { method: "POST" },
+    MENSAJES_POR_STATUS_PAGOS,
+    "No pudimos abrir Mercado Pago."
+  );
+  return data.url;
+}
+
+/**
+ * POST /api/v1/pagos/{orderId}/verificar — al volver de Mercado Pago, le
+ * pide al backend que confirme el pago (paymentId es el `payment_id` que
+ * agrega Mercado Pago a la dirección). Devuelve el estado del pago.
+ */
+export async function verificarPago(orderId, paymentId) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/pagos/${orderId}/verificar`,
+    { method: "POST", body: JSON.stringify({ payment_id: paymentId }) },
+    MENSAJES_POR_STATUS_PAGOS,
+    "No pudimos confirmar el pago."
+  );
+  return data.estado;
 }
 
 /* =====================================================

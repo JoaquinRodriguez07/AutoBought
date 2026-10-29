@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { usarImagenGenerica } from "./mapearRepuesto";
 import { useSearchParams } from "react-router-dom";
 import BotonAvisoStock from "./BotonAvisoStock";
-import ChipFabricante from "./ChipFabricante";
 import Navbar from "./Navbar";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import InvitacionAsistente from "./InvitacionAsistente";
-import SearchBar from "./SearchBar";
+import SearchBar, { ID_BUSCADOR_CATALOGO } from "./SearchBar";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import EncabezadoPagina from "./EncabezadoPagina";
 import FiltrosCatalogo from "./FiltrosCatalogo";
@@ -15,6 +15,9 @@ import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { buscarTexto, obtenerCategorias, obtenerRepuestos } from "./api";
 import { useVehicle } from "./context/VehicleContext";
 import { esVendedor } from "./auth";
+
+// Cuántas tarjetas se muestran de entrada, y cuántas más con "Ver más".
+const REPUESTOS_POR_TANDA = 24;
 
 // ==========================================
 // AYUDAS DE LOS FILTROS
@@ -70,7 +73,6 @@ export default function Catalogo({
   // MENÚ DE USUARIO
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 
@@ -344,6 +346,16 @@ export default function Catalogo({
     [productos, busqueda, consulta, fabricantes, marcasAuto, precioMin, precioMax, soloConStock, orden]
   );
 
+  // Se muestran de a REPUESTOS_POR_TANDA: con el catálogo completo son
+  // miles de tarjetas y la página se pone lenta. "Ver más" suma otra
+  // tanda. La cantidad se guarda junto con la lista a la que corresponde:
+  // si cambian los filtros (otra lista), vuelve a la primera tanda.
+  const [tanda, setTanda] = useState({ lista: null, cantidad: REPUESTOS_POR_TANDA });
+  const cantidadVisible = tanda.lista === productosMostrados ? tanda.cantidad : REPUESTOS_POR_TANDA;
+  const productosVisibles = productosMostrados.slice(0, cantidadVisible);
+  const verMas = () =>
+    setTanda({ lista: productosMostrados, cantidad: cantidadVisible + REPUESTOS_POR_TANDA });
+
   // Las opciones de fabricante y marca del auto salen de los repuestos
   // cargados (con la categoría y el vehículo ya aplicados), con cuántos
   // hay de cada una. Las tildadas se muestran aunque ya no tengan
@@ -491,7 +503,6 @@ export default function Catalogo({
         // MENÚ DE USUARIO
         onPerfil={onPerfil}
         onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago}
         onHistorial={onHistorial}
         onCerrarSesion={onCerrarSesion}
 
@@ -516,16 +527,23 @@ export default function Catalogo({
             categoria || "Todos",
           ]}
           titulo={categoria || "Todos los repuestos"}
-          fin={
-            <>
+          descripcion="Encontrá el repuesto justo para tu auto."
+        >
 
-              {/* BUSCADOR */}
+          {/* BUSCADOR + PIT: el buscador a lo ancho y, al lado, la tarjeta
+              de Pit a la misma altura. En celular, uno debajo del otro. */}
 
+          <div className="flex flex-col lg:flex-row gap-3">
+            <div className="flex-1 min-w-0">
+              {/* La lupa de la barra, en esta página, enfoca este buscador
+                  (ver Navbar). */}
               <SearchBar
+                inputId={ID_BUSCADOR_CATALOGO}
                 value={busqueda}
                 onChange={setBusqueda}
                 onSubmit={buscar}
                 placeholder="Buscar repuesto por nombre, código o fabricante..."
+                className="h-14"
               />
 
               {textoSinBuscar && (
@@ -537,20 +555,20 @@ export default function Catalogo({
                   Buscar <span className="font-bold text-white">"{textoSinBuscar}"</span> en todo el catálogo →
                 </button>
               )}
+            </div>
 
-              {!textoSinBuscar && <InvitacionAsistente variante="enlace" />}
-
-            </>
-          }
-        >
+            {!textoSinBuscar && <InvitacionAsistente variante="enlace" />}
+          </div>
 
           {/* VEHÍCULO ACTIVO */}
           {/* Oculto si no hay vehículo activo en VehicleContext. */}
 
           {vehiculoActivo && (
-            <ActiveVehicleBanner
-              onBorrar={borrarVehiculoYFiltros}
-            />
+            <div className="mt-4">
+              <ActiveVehicleBanner
+                onBorrar={borrarVehiculoYFiltros}
+              />
+            </div>
           )}
 
         </EncabezadoPagina>
@@ -569,7 +587,10 @@ export default function Catalogo({
 
             <aside
               aria-label="Filtros"
-              className={`${filtrosAbiertos ? "block" : "hidden"} self-start lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain`}
+              // -mx-3 px-3: los botones de categoría se estiran 12 px a cada
+              // lado para el resaltado; así entran en la columna con scroll y
+              // no queda nada para arrastrar hacia los costados.
+              className={`${filtrosAbiertos ? "block" : "hidden"} self-start lg:sticky lg:top-24 lg:block lg:-mx-3 lg:px-3 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:overscroll-contain`}
             >
 
               <FiltrosCatalogo
@@ -730,7 +751,7 @@ export default function Catalogo({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
 
-                {productosMostrados.map((producto) => {
+                {productosVisibles.map((producto) => {
 
                   const cantidad =
                     cantidades[producto.id] || 1;
@@ -757,14 +778,12 @@ export default function Catalogo({
                             mil tarjetas: lazy evita decodificar todas
                             las imágenes que están fuera de pantalla. */}
 
-                        <img
+                        <img onError={usarImagenGenerica}
                           src={producto.imagen}
                           alt={producto.nombre}
                           loading="lazy"
                           className="w-full h-full object-contain p-3"
                         />
-
-                        <ChipFabricante fabricante={producto.fabricante} />
 
                         {!vendedor && (
                         <button
@@ -915,6 +934,23 @@ export default function Catalogo({
 
               </div>
 
+              )}
+
+              {/* VER MÁS */}
+
+              {!cargando && !error && productosVisibles.length < productosMostrados.length && (
+                <div className="mt-8 flex flex-col items-center gap-3">
+                  <p className="text-xs text-gray-400">
+                    Mostrando {productosVisibles.length} de {productosMostrados.length.toLocaleString("es-UY")} repuestos
+                  </p>
+                  <button
+                    type="button"
+                    onClick={verMas}
+                    className="h-11 px-8 rounded-md border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white text-sm font-black transition"
+                  >
+                    VER MÁS REPUESTOS
+                  </button>
+                </div>
               )}
 
               {/* SIN RESULTADOS */}

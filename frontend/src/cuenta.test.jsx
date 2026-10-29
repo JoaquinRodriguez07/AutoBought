@@ -7,6 +7,7 @@ jest.mock("./api", () => ({
   restablecerPassword: jest.fn(),
   verificarCorreo: jest.fn(),
   reenviarVerificacion: jest.fn(),
+  obtenerPerfil: jest.fn(),
 }));
 // La barra de navegación no es parte de estas pantallas (y necesita el
 // contexto del carrito).
@@ -17,6 +18,7 @@ import RecuperarPassword from "./RecuperarPassword";
 import RestablecerPassword from "./RestablecerPassword";
 import VerificarCorreo from "./VerificarCorreo";
 import {
+  obtenerPerfil,
   pedirRecuperacion,
   reenviarVerificacion,
   restablecerPassword,
@@ -239,5 +241,75 @@ describe("AvisoVerificarCorreo", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "REENVIAR MAIL" })).toBeEnabled()
     );
+  });
+
+  describe("con sesión", () => {
+    const conToken = { ...sinVerificar, token: "tok" };
+
+    beforeEach(() => {
+      sessionStorage.clear();
+    });
+
+    it("al montar pregunta al backend y avisa si ya se verificó en otra pestaña", async () => {
+      const onVerificado = jest.fn();
+      obtenerPerfil.mockResolvedValue({ emailVerificado: true });
+      render(<AvisoVerificarCorreo usuario={conToken} onVerificado={onVerificado} />);
+
+      await waitFor(() => expect(onVerificado).toHaveBeenCalled());
+      expect(obtenerPerfil).toHaveBeenCalledWith("tok");
+    });
+
+    it("vuelve a preguntar al volver a la pestaña", async () => {
+      const onVerificado = jest.fn();
+      obtenerPerfil.mockResolvedValue({ emailVerificado: false });
+      render(<AvisoVerificarCorreo usuario={conToken} onVerificado={onVerificado} />);
+      await waitFor(() => expect(obtenerPerfil).toHaveBeenCalledTimes(1));
+
+      obtenerPerfil.mockResolvedValue({ emailVerificado: true });
+      window.dispatchEvent(new Event("focus"));
+
+      await waitFor(() => expect(onVerificado).toHaveBeenCalled());
+    });
+
+    it("si otra pestaña guarda la sesión verificada, avisa sin ir al backend", async () => {
+      const onVerificado = jest.fn();
+      obtenerPerfil.mockResolvedValue({ emailVerificado: false });
+      render(<AvisoVerificarCorreo usuario={conToken} onVerificado={onVerificado} />);
+      await waitFor(() => expect(obtenerPerfil).toHaveBeenCalledTimes(1));
+
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "autobought-sesion",
+          newValue: JSON.stringify({ ...conToken, emailVerificado: true }),
+        })
+      );
+
+      expect(onVerificado).toHaveBeenCalled();
+      expect(obtenerPerfil).toHaveBeenCalledTimes(1);
+    });
+
+    it("no reenvía si el correo ya está verificado", async () => {
+      const user = userEvent.setup();
+      const onVerificado = jest.fn();
+      obtenerPerfil.mockResolvedValueOnce({ emailVerificado: false });
+      render(<AvisoVerificarCorreo usuario={conToken} onVerificado={onVerificado} />);
+      await waitFor(() => expect(obtenerPerfil).toHaveBeenCalledTimes(1));
+
+      obtenerPerfil.mockResolvedValue({ emailVerificado: true });
+      await user.click(screen.getByRole("button", { name: "REENVIAR MAIL" }));
+
+      await waitFor(() => expect(onVerificado).toHaveBeenCalled());
+      expect(reenviarVerificacion).not.toHaveBeenCalled();
+    });
+
+    it("se puede cerrar", async () => {
+      const user = userEvent.setup();
+      obtenerPerfil.mockResolvedValue({ emailVerificado: false });
+      render(<AvisoVerificarCorreo usuario={conToken} />);
+
+      await user.click(screen.getByRole("button", { name: "Cerrar aviso" }));
+
+      expect(screen.queryByText(/Verificá tu correo/)).not.toBeInTheDocument();
+    });
   });
 });

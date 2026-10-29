@@ -9,6 +9,8 @@ from app.models.compatibility import Compatibility
 from app.models.car_model import CarModel
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
+from app.models.payment import Payment
+from app.crud.payment import is_paid_order
 
 
 def get_part(db: Session, part_id: int) -> Part | None:
@@ -142,7 +144,7 @@ def list_best_sellers(
     search: str | None = None,
 ) -> list[tuple[Part, int]]:
     # Unidades vendidas por repuesto, de mayor a menor. Los pedidos
-    # cancelados no cuentan y los repuestos sin ventas no aparecen (el JOIN
+    # cancelados o sin pagar no cuentan y los repuestos sin ventas no aparecen (el JOIN
     # con order_item los deja afuera). El empate se desempata por id para
     # que el orden sea siempre el mismo.
     #   - days: solo las ventas de los últimos N días (None = todas).
@@ -157,7 +159,8 @@ def list_best_sellers(
         select(Part, units_sold)
         .join(OrderItem, OrderItem.part_id == Part.id)
         .join(Order, Order.order_id == OrderItem.order_id)
-        .where(Order.status != OrderStatus.CANCELLED)
+        .outerjoin(Payment, Payment.order_id == Order.order_id)
+        .where(Order.status != OrderStatus.CANCELLED, is_paid_order())
         .options(
             selectinload(Part.compatibilities).selectinload(
                 Compatibility.car_model

@@ -1,26 +1,31 @@
 import { useEffect, useState } from "react";
-import ChipFabricante from "./ChipFabricante";
+import { usarImagenGenerica } from "./mapearRepuesto";
 
 import Navbar from "./Navbar";
 import InvitacionAsistente from "./InvitacionAsistente";
 import VehicleSelector from "./VehicleSelector";
 import { obtenerCategorias, obtenerMasVendidos } from "./api";
+import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import { useVehicle } from "./context/VehicleContext";
 import repuestos from "./assets/repuestos.jpg";
 import {
   IconoAuto,
   IconoCaja,
+  IconoCambios,
   IconoCamion,
+  IconoCarrito,
   IconoChispa,
+  IconoCopoNieve,
   IconoDisco,
   IconoEngranaje,
+  IconoEscape,
   IconoEscobilla,
-  IconoEscudo,
   IconoFiltro,
   IconoGota,
   IconoRayo,
   IconoResorte,
   IconoTermometro,
+  IconoVolante,
 } from "./Iconos";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
@@ -47,18 +52,30 @@ const FABRICANTES = ["Bosch", "Brembo", "NGK", "Mann-Filter", "Monroe", "Valeo",
 const ICONOS_CATEGORIA = {
   Accesorios: IconoEscobilla,
   Carrocería: IconoAuto,
+  Climatización: IconoCopoNieve,
+  Dirección: IconoVolante,
   Eléctrico: IconoRayo,
   Encendido: IconoChispa,
+  Escape: IconoEscape,
   Filtros: IconoFiltro,
   Frenos: IconoDisco,
   Lubricantes: IconoGota,
   Motor: IconoEngranaje,
   Refrigeración: IconoTermometro,
   Suspensión: IconoResorte,
+  Transmisión: IconoCambios,
 };
 
-// Las que más se buscan van destacadas, más grandes, arriba.
-const CATEGORIAS_DESTACADAS = ["Frenos", "Filtros", "Motor"];
+// Las que más se buscan van destacadas, más grandes, en una fila; el resto, de a 5 por fila
+// (con las 14 categorías de hoy, 4 + 5 + 5: todas las filas completas).
+const CATEGORIAS_DESTACADAS = ["Frenos", "Filtros", "Motor", "Suspensión"];
+
+// Los pasos de "Cómo comprar".
+const PASOS_COMPRA = [
+  [IconoAuto, "Elegí tu auto", "Marca, modelo y año: te mostramos solo los repuestos que le sirven."],
+  [IconoCarrito, "Agregá tus repuestos", "Compará fabricantes y precios, y sumalos al carrito."],
+  [IconoCamion, "Pagá y recibilo", "Pagás de forma segura y te lo enviamos a todo el país."],
+];
 
 export default function Home({
   usuario,
@@ -72,7 +89,6 @@ export default function Home({
 
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 
@@ -135,39 +151,32 @@ export default function Home({
   // MARCAS
   // ==========================================
 
+  // Las marcas del catálogo (los nombres, iguales que en el backend,
+  // filtran el catálogo). Geely y JAC todavía no tienen logo.
+  const simpleIcon = (slug) => `https://cdn.simpleicons.org/${slug}/000000`;
   const marcas = [
-    {
-      nombre: "Volkswagen",
-      logo: VolkswagenLogo,
-    },
-    {
-      nombre: "Chevrolet",
-      logo: ChevroletLogo,
-    },
-    {
-      nombre: "Fiat",
-      logo: FiatLogo,
-    },
-    {
-      nombre: "Renault",
-      logo: RenaultLogo,
-    },
-    {
-      nombre: "Ford",
-      logo: "https://cdn.simpleicons.org/ford/000000",
-    },
-    {
-      nombre: "Toyota",
-      logo: "https://cdn.simpleicons.org/toyota/000000",
-    },
-    {
-      nombre: "Peugeot",
-      logo: PeugeotLogo,
-    },
-    {
-      nombre: "Nissan",
-      logo: "https://cdn.simpleicons.org/nissan/000000",
-    },
+    { nombre: "Volkswagen", logo: VolkswagenLogo },
+    { nombre: "Chevrolet", logo: ChevroletLogo },
+    { nombre: "Fiat", logo: FiatLogo },
+    { nombre: "Renault", logo: RenaultLogo },
+    { nombre: "Ford", logo: simpleIcon("ford") },
+    { nombre: "Toyota", logo: simpleIcon("toyota") },
+    { nombre: "Peugeot", logo: PeugeotLogo },
+    { nombre: "Nissan", logo: simpleIcon("nissan") },
+    { nombre: "Suzuki", logo: SuzukiLogo },
+    { nombre: "Hyundai", logo: HyundaiLogo },
+    { nombre: "Kia", logo: simpleIcon("kia") },
+    { nombre: "Citroen", logo: CitroenLogo },
+    { nombre: "Chery", logo: CheryLogo },
+    { nombre: "BYD", logo: BydLogo },
+    { nombre: "Honda", logo: simpleIcon("honda") },
+    { nombre: "Mitsubishi", logo: simpleIcon("mitsubishi") },
+    { nombre: "Jeep", logo: simpleIcon("jeep") },
+    { nombre: "Mazda", logo: simpleIcon("mazda") },
+    { nombre: "GAC", logo: GacLogo },
+    { nombre: "Mercedes-Benz", logo: MercedesLogo },
+    { nombre: "BMW", logo: BMWLogo },
+    { nombre: "Audi", logo: AudiLogo },
   ];
 
   // ==========================================
@@ -183,7 +192,7 @@ export default function Home({
   useEffect(() => {
     let activo = true;
 
-    obtenerMasVendidos()
+    obtenerMasVendidos({ limite: 8 })
       .then((lista) => {
         if (!activo) return;
         setMasVendidos(lista);
@@ -218,7 +227,6 @@ export default function Home({
         onFavoritos={onFavoritos}
         onPerfil={onPerfil}
         onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago}
         onHistorial={onHistorial}
         onCerrarSesion={onCerrarSesion}
         cantidadCarrito={cantidadCarrito}
@@ -280,43 +288,94 @@ export default function Home({
       </section>
 
       {/* =====================================================
-          BENEFICIOS
-      ====================================================== */}
-
-      <section className="bg-[#151719] border-t border-white/10">
-
-        <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-6 grid grid-cols-1 md:grid-cols-3 gap-5">
-
-          {[
-            [IconoEscudo, "Repuestos de calidad", "De fabricantes reconocidos."],
-            [IconoAuto, "Compatibilidad", "Solo lo que le sirve a tu auto."],
-            [IconoCamion, "Envíos a todo el país", "Recibí tus repuestos donde estés."],
-          ].map(([Icono, titulo, texto]) => (
-
-            <div key={titulo} className="flex items-center gap-3">
-
-              <span className="shrink-0 w-10 h-10 rounded-full bg-orange-500/15 text-orange-500 flex items-center justify-center">
-                <Icono className="w-5 h-5" />
-              </span>
-
-              <div>
-                <h3 className="text-white text-sm font-black">{titulo}</h3>
-                <p className="text-gray-400 text-sm">{texto}</p>
-              </div>
-
-            </div>
-
-          ))}
-
-        </div>
-
-      </section>
-
-      {/* =====================================================
           ASISTENTE DE COMPRA (IA)
       ====================================================== */}
 
       <InvitacionAsistente />
+
+      {/* =====================================================
+          MARCAS Y FABRICANTES
+          Debajo de Pit: confianza y un atajo por marca. Mismo armado que
+          las demás secciones, pero más compacta. Dos
+          cintas que se mueven solas, autos para un lado y fabricantes
+          para el otro (ver .cinta en index.css).
+      ====================================================== */}
+
+      <section className="bg-white border-b border-gray-100">
+        <div className="max-w-[1100px] mx-auto px-6 md:px-10 pt-10 pb-8">
+
+          <div className="flex items-end justify-between gap-4 mb-5">
+            <div>
+              <p className="text-orange-500 text-xs font-black tracking-[4px]">
+                TRABAJAMOS CON
+              </p>
+              <h2 className="text-xl md:text-2xl font-black italic uppercase mt-1">
+                Las mejores marcas
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={onMarcas}
+              className="text-orange-500 text-sm font-bold hover:underline whitespace-nowrap"
+            >
+              Ver todas →
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-3">
+            Repuestos para tu auto
+          </p>
+
+          <Cinta>
+            {(copia) =>
+              marcas.map((marca) => (
+                <button
+                  key={marca.nombre}
+                  type="button"
+                  tabIndex={copia ? -1 : undefined}
+                  onClick={() => onCatalogo(null, null, { marca: marca.nombre })}
+                  title={marca.nombre}
+                  aria-label={`Ver repuestos de ${marca.nombre}`}
+                  className="group shrink-0 w-36 h-14 flex items-center justify-center"
+                >
+                  {marca.logo ? (
+                    <img
+                      src={marca.logo}
+                      alt={`Logo ${marca.nombre}`}
+                      className="max-h-10 max-w-[72px] object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition duration-300"
+                    />
+                  ) : (
+                    <span className="text-sm font-black text-gray-400 group-hover:text-gray-900">
+                      {marca.nombre}
+                    </span>
+                  )}
+                </button>
+              ))
+            }
+          </Cinta>
+
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-wide mt-6 mb-3">
+            Fabricantes de repuestos
+          </p>
+
+          <Cinta reversa>
+            {(copia) =>
+              FABRICANTES.map((fabricante) => (
+                <button
+                  key={fabricante}
+                  type="button"
+                  tabIndex={copia ? -1 : undefined}
+                  onClick={() => onCatalogo(null, null, { fabricante })}
+                  className="shrink-0 w-40 h-12 text-lg font-black italic tracking-tight text-gray-400 hover:text-orange-500 transition"
+                >
+                  {fabricante}
+                </button>
+              ))
+            }
+          </Cinta>
+
+        </div>
+      </section>
 
       {/* =====================================================
           CATEGORÍAS
@@ -337,7 +396,7 @@ export default function Home({
 
         {/* Mosaico: las destacadas grandes arriba y el resto debajo. */}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {(categorias || [])
             .filter((c) => CATEGORIAS_DESTACADAS.includes(c.nombre))
             .sort((a, b) => CATEGORIAS_DESTACADAS.indexOf(a.nombre) - CATEGORIAS_DESTACADAS.indexOf(b.nombre))
@@ -345,24 +404,56 @@ export default function Home({
               <TarjetaCategoria
                 key={categoria.nombre}
                 nombre={categoria.nombre}
+                cantidad={categoria.cantidad}
                 grande
                 onClick={() => onCatalogo(categoria.nombre)}
               />
             ))}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3">
           {(categorias || [])
             .filter((c) => !CATEGORIAS_DESTACADAS.includes(c.nombre))
             .map((categoria) => (
               <TarjetaCategoria
                 key={categoria.nombre}
                 nombre={categoria.nombre}
+                cantidad={categoria.cantidad}
                 onClick={() => onCatalogo(categoria.nombre)}
               />
             ))}
         </div>
 
+      </Seccion>
+
+      {/* =====================================================
+          CÓMO COMPRAR
+      ====================================================== */}
+
+      <Seccion
+        gris
+        etiqueta="ASÍ DE FÁCIL"
+        titulo="Cómo comprar"
+        accion="Empezar"
+        onAccion={() => onCatalogo()}
+      >
+        <ol className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {PASOS_COMPRA.map(([Icono, titulo, texto], i) => (
+            <li
+              key={titulo}
+              className="relative flex items-start gap-4 bg-white border border-gray-100 rounded-xl p-6 shadow-xs"
+            >
+              <span className="shrink-0 w-12 h-12 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                <Icono className="w-6 h-6" />
+              </span>
+              <div>
+                <p className="text-xs font-black text-orange-500 tracking-[3px]">PASO {i + 1}</p>
+                <h3 className="text-base font-black mt-1">{titulo}</h3>
+                <p className="text-sm text-gray-500 mt-1">{texto}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </Seccion>
 
       {/* =====================================================
@@ -373,7 +464,6 @@ export default function Home({
       {masVendidos?.length !== 0 && (
 
         <Seccion
-          gris
           etiqueta="LO MÁS ELEGIDO"
           titulo="Más vendidos"
           accion="Ver más"
@@ -386,23 +476,29 @@ export default function Home({
             </p>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* En celular, un carrusel que se desliza de costado; desde
+              tablet, una grilla (dos filas de 4 en pantallas grandes). */}
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-5">
 
             {(masVendidos ?? []).map((producto) => (
 
               <article
                 key={producto.id}
-                className="flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition"
+                className="shrink-0 w-[75%] snap-start sm:w-auto flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition"
               >
 
-                <div className="relative h-44 bg-white">
-                  <img
+                <button
+                  type="button"
+                  onClick={() => onDetalle(producto)}
+                  aria-label={`Ver ${producto.nombre}`}
+                  className="relative h-44 bg-white"
+                >
+                  <img onError={usarImagenGenerica}
                     src={producto.imagen}
                     alt={producto.nombre}
                     className="w-full h-full object-contain p-3"
                   />
-                  <ChipFabricante fabricante={producto.fabricante} />
-                </div>
+                </button>
 
                 {/* flex + mt-auto: el botón queda abajo aunque el
                     nombre ocupe una o dos líneas. */}
@@ -420,10 +516,18 @@ export default function Home({
                     {precio(producto.precio)}
                   </p>
 
+                  <BotonAgregarCarrito
+                    producto={producto}
+                    className="w-full mt-3 flex items-center justify-center gap-2 h-9 rounded-md text-xs font-bold"
+                  >
+                    <IconoCarrito />
+                    Agregar
+                  </BotonAgregarCarrito>
+
                   <button
                     type="button"
                     onClick={() => onDetalle(producto)}
-                    className="w-full mt-3 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md h-9 text-xs font-bold transition"
+                    className="w-full h-9 mt-2 border border-gray-200 hover:border-orange-500 hover:text-orange-500 rounded-md text-xs font-bold transition"
                   >
                     VER REPUESTO
                   </button>
@@ -440,74 +544,6 @@ export default function Home({
 
       )}
 
-      {/* =====================================================
-          MARCAS Y FABRICANTES
-      ====================================================== */}
-
-      <Seccion
-        gris={masVendidos?.length === 0}
-        etiqueta="TRABAJAMOS CON"
-        titulo="Las mejores marcas"
-        accion="Ver todas"
-        onAccion={onMarcas}
-      >
-
-        {/* Dos cintas que se mueven solas: autos para un lado y
-            fabricantes para el otro (ver .cinta en index.css). */}
-
-        <p className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-3">
-          Repuestos para tu auto
-        </p>
-
-        <Cinta>
-          {(copia) =>
-            marcas.map((marca) => (
-              <button
-                key={marca.nombre}
-                type="button"
-                tabIndex={copia ? -1 : undefined}
-                onClick={() => onCatalogo(null, null, { marca: marca.nombre })}
-                title={marca.nombre}
-                aria-label={`Ver repuestos de ${marca.nombre}`}
-                className="group shrink-0 w-36 h-14 flex items-center justify-center"
-              >
-                {marca.logo ? (
-                  <img
-                    src={marca.logo}
-                    alt={`Logo ${marca.nombre}`}
-                    className="max-h-10 max-w-[72px] object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition duration-300"
-                  />
-                ) : (
-                  <span className="text-sm font-black text-gray-400 group-hover:text-gray-900">
-                    {marca.nombre}
-                  </span>
-                )}
-              </button>
-            ))
-          }
-        </Cinta>
-
-        <p className="text-xs text-gray-400 font-bold uppercase tracking-wide mt-8 mb-3">
-          Fabricantes de repuestos
-        </p>
-
-        <Cinta reversa>
-          {(copia) =>
-            FABRICANTES.map((fabricante) => (
-              <button
-                key={fabricante}
-                type="button"
-                tabIndex={copia ? -1 : undefined}
-                onClick={() => onCatalogo(null, null, { fabricante })}
-                className="shrink-0 w-40 h-12 text-lg font-black italic tracking-tight text-gray-400 hover:text-orange-500 transition"
-              >
-                {fabricante}
-              </button>
-            ))
-          }
-        </Cinta>
-
-      </Seccion>
 
     </div>
   );
@@ -515,7 +551,7 @@ export default function Home({
 
 // Tarjeta oscura de una categoría, con el ícono grande y transparente
 // de fondo. `grande` para las destacadas.
-function TarjetaCategoria({ nombre, grande = false, onClick }) {
+function TarjetaCategoria({ nombre, cantidad, grande = false, onClick }) {
   const Icono = ICONOS_CATEGORIA[nombre] || IconoCaja;
 
   return (
@@ -544,8 +580,16 @@ function TarjetaCategoria({ nombre, grande = false, onClick }) {
         <span className={`block text-white font-black ${grande ? "text-xl" : "text-sm"}`}>
           {nombre}
         </span>
-        <span className="block text-orange-400 text-xs font-bold mt-1 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition duration-300">
-          Ver repuestos →
+        {/* La cantidad y, al pasar el mouse, "Ver repuestos" en su lugar. */}
+        <span className="relative block h-4 mt-1 text-xs font-bold">
+          {cantidad > 0 && (
+            <span className="absolute inset-0 text-gray-400 group-hover:opacity-0 transition duration-300">
+              {cantidad.toLocaleString("es-UY")} repuestos
+            </span>
+          )}
+          <span className="absolute inset-0 text-orange-400 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition duration-300">
+            Ver repuestos →
+          </span>
         </span>
       </span>
     </button>

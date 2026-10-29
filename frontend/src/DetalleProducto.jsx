@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { usarImagenGenerica } from "./mapearRepuesto";
 import Navbar from "./Navbar";
 import EncabezadoPagina from "./EncabezadoPagina";
 import { useParams } from "react-router-dom";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import BotonAvisoStock from "./BotonAvisoStock";
+import SuelenComprarseJuntos from "./SuelenComprarseJuntos";
 import { useVehicle } from "./context/VehicleContext";
 import VehicleSelector from "./VehicleSelector";
 import { IconoAuto } from "./Iconos";
@@ -38,6 +40,7 @@ export default function DetalleProducto({
   onFavoritos,
   cantidadFavoritos,
   producto,
+  onDetalle,
   onAlternarFavorito,
   esFavorito,
   onAlternarAvisoStock,
@@ -45,7 +48,6 @@ export default function DetalleProducto({
   usuario,
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 }) {
@@ -99,7 +101,7 @@ export default function DetalleProducto({
     <Navbar paginaActual="detalle" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
       onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
       usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
-      onMetodosPago={onMetodosPago} onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
+      onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
       cantidadFavoritos={cantidadFavoritos} />
   );
 
@@ -284,7 +286,7 @@ export default function DetalleProducto({
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr_0.7fr] gap-7">
             <div>
               <div className="relative h-[360px] bg-white rounded-xl overflow-hidden border border-gray-100">
-                <img src={imagenes[imagenActiva] ?? imagenes[0]} alt={productoActual.nombre} className="w-full h-full object-contain p-6" />
+                <img onError={usarImagenGenerica} src={imagenes[imagenActiva] ?? imagenes[0]} alt={productoActual.nombre} className="w-full h-full object-contain p-6" />
                 {!vendedor && (
                 <button onClick={() => onAlternarFavorito(productoActual)}
                   className={`absolute top-4 right-4 flex w-10 h-10 items-center justify-center bg-white rounded-full shadow-md ${favorito ? "text-orange-500" : "text-gray-500"}`}>
@@ -299,7 +301,7 @@ export default function DetalleProducto({
                     <button key={imagen} onClick={() => setImagenActiva(index)}
                       aria-label={`Ver imagen ${index + 1}`}
                       className={`w-[70px] h-[58px] rounded-md overflow-hidden border-2 ${imagenActiva === index ? "border-orange-500" : "border-gray-200"}`}>
-                      <img src={imagen} alt="" className="w-full h-full object-contain bg-white p-1" />
+                      <img onError={usarImagenGenerica} src={imagen} alt="" className="w-full h-full object-contain bg-white p-1" />
                     </button>
                   ))}
                 </div>
@@ -458,6 +460,8 @@ export default function DetalleProducto({
           </div>
           </div>
         </section>
+
+        <SuelenComprarseJuntos producto={productoActual} onDetalle={onDetalle} />
 
       </main>
     </div>

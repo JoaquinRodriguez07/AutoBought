@@ -1,4 +1,4 @@
-import ChipFabricante from "./ChipFabricante";
+import { usarImagenGenerica } from "./mapearRepuesto";
 import Navbar from "./Navbar";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import { IconoCarrito, IconoCorazon } from "./Iconos";
@@ -8,7 +8,7 @@ export default function Favoritos({
   onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
   cantidadFavoritos, favoritos, onAlternarFavorito,
   onDetalle,
-  usuario, onPerfil, onDirecciones, onMetodosPago, onHistorial, onCerrarSesion,
+  usuario, onPerfil, onDirecciones, onHistorial, onCerrarSesion,
 }) {
   const precio = (v) => `$${v.toLocaleString("es-UY")}`;
 
@@ -17,7 +17,7 @@ export default function Favoritos({
       <Navbar paginaActual="favoritos" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
         usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago} onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
+        onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
         cantidadFavoritos={cantidadFavoritos} />
 
       <main>
@@ -46,8 +46,7 @@ export default function Favoritos({
               {favoritos.map((producto) => (
                 <div key={producto.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition">
                   <div className="relative h-[190px] bg-white">
-                    <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-3" />
-                    <ChipFabricante fabricante={producto.fabricante} />
+                    <img onError={usarImagenGenerica} src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-3" />
                     <button onClick={() => onAlternarFavorito(producto)}
                       aria-label="Quitar de favoritos"
                       className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white shadow-md text-orange-500 flex items-center justify-center transition hover:scale-105">

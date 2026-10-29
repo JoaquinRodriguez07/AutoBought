@@ -13,7 +13,6 @@ from app.models.employee import Employee
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
-from app.models.payment_method import PaymentMethod
 from app.models.shipping_address import ShippingAddress
 from app.models.user import User
 from app.schemas.part import build_part_out
@@ -106,15 +105,11 @@ def test_parts_endpoint_serializes_compatibilities(client, db_session):
 	]
 
 
-def add_primary_address_and_card(client):
-	"""place_order necesita una dirección y un método de pago principales."""
+def add_primary_address(client):
+	"""place_order necesita una dirección principal."""
 	client.shipping_addresses.append(ShippingAddress(
 		personal_name=client.name, street="Av. Italia", number="1234",
 		city="Montevideo", department="Montevideo", is_primary=True,
-	))
-	client.payment_methods.append(PaymentMethod(
-		method="Visa •••• 1234", card_type="Visa", holder=client.name,
-		last_four="1234", expiry="12/30", is_primary=True,
 	))
 
 
@@ -133,7 +128,7 @@ def test_place_order_decreases_stock_clears_cart_and_freezes_price(db_session):
 		price=3000,
 		stock=4,
 	)
-	add_primary_address_and_card(client)
+	add_primary_address(client)
 	cart = Cart(client=client, items=[CartItem(part=part, amount=2)])
 	db_session.add(cart)
 	db_session.commit()
@@ -165,7 +160,7 @@ def test_place_order_rejects_insufficient_stock(db_session):
 		price=50000,
 		stock=1,
 	)
-	add_primary_address_and_card(client)
+	add_primary_address(client)
 	db_session.add(Cart(client=client, items=[CartItem(part=part, amount=2)]))
 	db_session.commit()
 	client_id = client.user_id

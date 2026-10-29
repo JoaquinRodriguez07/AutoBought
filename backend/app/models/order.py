@@ -7,8 +7,8 @@ from app.db.base import Base
 
 
 class OrderStatus(str, enum.Enum):
-    """Estado logístico del pedido. Si se suma una pasarela de pagos, el
-    estado del cobro va en una entidad aparte, no acá."""
+    """Estado logístico del pedido. El estado del cobro va aparte, en
+    `Payment`."""
 
     CONFIRMED = "confirmed"
     SHIPPED = "shipped"
@@ -38,13 +38,10 @@ class Order(Base):
         Integer,
         ForeignKey("shipping_address.shipping_address_id", ondelete="SET NULL"),
     )
-    payment_method_id = Column(
-        Integer,
-        ForeignKey("payment_method.payment_method_id", ondelete="SET NULL"),
-    )
 
     # Copia al momento de la compra (como frozen_price): el historial no cambia
-    # aunque el cliente edite o borre su dirección o su tarjeta.
+    # aunque el cliente edite o borre su dirección. Los pedidos de antes de
+    # Mercado Pago guardan acá la tarjeta que se usó.
     ship_personal_name = Column(String(50), nullable=False)
     ship_street = Column(String(50), nullable=False)
     ship_number = Column(String(10), nullable=False)
@@ -58,5 +55,12 @@ class Order(Base):
     items = relationship(
         "OrderItem",
         back_populates="order",
+        cascade="all, delete-orphan",
+    )
+    # Los pedidos de antes de Mercado Pago no tienen.
+    payment = relationship(
+        "Payment",
+        back_populates="order",
+        uselist=False,
         cascade="all, delete-orphan",
     )

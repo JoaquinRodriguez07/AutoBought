@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "./context/CartContext";
 import { usePitOpcional } from "./context/PitContext";
 import { esVendedor } from "./auth";
 import BusquedaCabecera from "./BusquedaCabecera";
-import { IconoCorazon, IconoLupa } from "./Iconos";
+import { ID_BUSCADOR_CATALOGO } from "./SearchBar";
+import { IconoCerrar, IconoCorazon, IconoLupa, IconoMenu } from "./Iconos";
 import logo from "./assets/logo.png";
 
 // Los contadores (carrito y favoritos) rebotan cuando SUBEN (se agregó
@@ -33,7 +34,6 @@ export default function Navbar({
   onFavoritos,
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
   cantidadFavoritos = 0,
@@ -45,6 +45,8 @@ export default function Navbar({
   const pit = usePitOpcional();
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [busquedaAbierta, setBusquedaAbierta] = useState(false);
+  // En celular, los links (Home, Marcas...) van en un menú desplegable.
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   const pulsoCarrito = usePulsoAlSubir(cantidadCarrito);
   const pulsoFavoritos = usePulsoAlSubir(cantidadFavoritos);
@@ -55,29 +57,84 @@ export default function Navbar({
 
   const menuRef = useRef(null);
   const navbarRef = useRef(null);
-  const panelBusquedaRef = useRef(null);
   const botonBusquedaRef = useRef(null);
   const inputBusquedaRef = useRef(null);
+  const linksRef = useRef(null);
+  // Dónde va el buscador desplegado en pantallas medianas y grandes: desde
+  // donde empieza el último link (Pit IA) hasta el borde derecho de la
+  // barra, con la flechita debajo de la lupa. En celular (sin links
+  // visibles) ocupa toda la barra.
+  const [posicionBusqueda, setPosicionBusqueda] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!busquedaAbierta) return undefined;
+
+    const medir = () => {
+      const nav = navbarRef.current?.getBoundingClientRect();
+      const ultimoLink = linksRef.current?.lastElementChild?.getBoundingClientRect();
+      const lupa = botonBusquedaRef.current?.getBoundingClientRect();
+      if (!nav || !ultimoLink?.width || !lupa) {
+        setPosicionBusqueda(null);
+        return;
+      }
+      const left = ultimoLink.left - nav.left;
+      setPosicionBusqueda({
+        left,
+        flechita: lupa.left + lupa.width / 2 - nav.left - left - 6,
+      });
+    };
+
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, [busquedaAbierta]);
 
   useEffect(() => {
     if (busquedaAbierta) inputBusquedaRef.current?.focus();
   }, [busquedaAbierta]);
 
+  // El buscador y el menú de celular se despliegan dentro de la barra: un
+  // click fuera de ella los cierra.
   useEffect(() => {
-    if (!busquedaAbierta) return undefined;
+    if (!busquedaAbierta && !menuAbierto) return undefined;
 
     const manejarClickAfuera = (event) => {
-      if (
-        !navbarRef.current?.contains(event.target) &&
-        !panelBusquedaRef.current?.contains(event.target)
-      ) {
+      if (!navbarRef.current?.contains(event.target)) {
         setBusquedaAbierta(false);
+        setMenuAbierto(false);
       }
     };
 
     document.addEventListener("mousedown", manejarClickAfuera);
     return () => document.removeEventListener("mousedown", manejarClickAfuera);
-  }, [busquedaAbierta]);
+  }, [busquedaAbierta, menuAbierto]);
+
+  const alternarBusqueda = () => {
+    setMenuAbierto(false);
+
+    // Si la página ya tiene su buscador (el catálogo), la lupa lleva a ese
+    // en vez de abrir otro encima.
+    const buscadorDePagina = document.getElementById(ID_BUSCADOR_CATALOGO);
+    if (buscadorDePagina) {
+      setBusquedaAbierta(false);
+      buscadorDePagina.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      buscadorDePagina.focus({ preventScroll: true });
+      return;
+    }
+
+    setBusquedaAbierta((abierta) => !abierta);
+  };
+
+  const alternarMenu = () => {
+    setBusquedaAbierta(false);
+    setMenuAbierto((abierto) => !abierto);
+  };
+
+  // Una opción del menú de celular: navega y cierra el menú.
+  const irDesdeMenu = (accion) => {
+    setMenuAbierto(false);
+    accion();
+  };
 
   const cerrarBusqueda = ({ devolverFoco = false } = {}) => {
     setBusquedaAbierta(false);
@@ -164,7 +221,7 @@ export default function Navbar({
           NAVEGACIÓN
       ================================================== */}
 
-      <div className="hidden md:flex items-center gap-9 ml-8">
+      <div ref={linksRef} className="hidden md:flex items-center gap-6 lg:gap-9 ml-4 lg:ml-8">
 
         <button
           type="button"
@@ -220,19 +277,45 @@ export default function Navbar({
           ICONOS DERECHA
       ================================================== */}
 
-      <div className="flex items-center gap-5 text-gray-700">
+      <div className="flex items-center gap-4 md:gap-5 text-gray-700">
 
-        <button
-          ref={botonBusquedaRef}
-          type="button"
-          aria-label={busquedaAbierta ? "Cerrar búsqueda" : "Abrir búsqueda"}
-          aria-expanded={busquedaAbierta}
-          aria-controls="navbar-search-panel"
-          onClick={() => setBusquedaAbierta((abierta) => !abierta)}
-          className={`transition ${busquedaAbierta ? "text-orange-500" : "hover:text-orange-500"}`}
-        >
-          <IconoLupa className="h-5 w-5" />
-        </button>
+        {/* El buscador se despliega debajo de la barra (ver posicionBusqueda). */}
+        <div className="flex">
+          <button
+            ref={botonBusquedaRef}
+            type="button"
+            aria-label={busquedaAbierta ? "Cerrar búsqueda" : "Abrir búsqueda"}
+            aria-expanded={busquedaAbierta}
+            aria-controls="navbar-search-panel"
+            onClick={alternarBusqueda}
+            className={`transition ${busquedaAbierta ? "text-orange-500" : "hover:text-orange-500"}`}
+          >
+            <IconoLupa className="h-5 w-5" />
+          </button>
+
+          {busquedaAbierta && (
+            <div
+              id="navbar-search-panel"
+              role="search"
+              className="absolute left-0 right-0 top-[calc(100%+8px)] rounded-lg shadow-2xl"
+              style={posicionBusqueda ? { left: posicionBusqueda.left } : undefined}
+            >
+              {/* Flechita que apunta a la lupa. */}
+              {posicionBusqueda && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-1.5 w-3 h-3 rotate-45 bg-white border-l border-t border-gray-100"
+                  style={{ left: posicionBusqueda.flechita }}
+                />
+              )}
+              <BusquedaCabecera
+                inputRef={inputBusquedaRef}
+                onSearch={() => cerrarBusqueda()}
+                onEscape={() => cerrarBusqueda({ devolverFoco: true })}
+              />
+            </div>
+          )}
+        </div>
 
         {/* =================================================
             USUARIO
@@ -370,16 +453,6 @@ export default function Navbar({
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(onMetodosPago)
-                    }
-                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
-                  >
-                    Métodos de pago
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
                       ejecutarAccion(onHistorial)
                     }
                     className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
@@ -493,23 +566,62 @@ export default function Navbar({
         </button>
         )}
 
+        {/* =================================================
+            MENÚ DE CELULAR
+        ================================================== */}
+
+        <button
+          type="button"
+          aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={menuAbierto}
+          aria-controls="navbar-menu-celular"
+          onClick={alternarMenu}
+          className={`md:hidden transition ${menuAbierto ? "text-orange-500" : "hover:text-orange-500"}`}
+        >
+          {menuAbierto ? <IconoCerrar className="h-5 w-5" /> : <IconoMenu className="h-5 w-5" />}
+        </button>
+
       </div>
 
+      {menuAbierto && (
+        <div
+          id="navbar-menu-celular"
+          className="md:hidden absolute left-0 right-0 top-[calc(100%+8px)] bg-white rounded-xl shadow-2xl border border-gray-100 p-2"
+        >
+          {[
+            { texto: "Home", activo: paginaActual === "home", ir: onHome },
+            { texto: "Marcas", activo: paginaActual === "marcas", ir: onMarcas },
+            {
+              texto: "Repuestos",
+              activo: paginaActual === "catalogo" || paginaActual === "detalle",
+              ir: () => onCatalogo(),
+            },
+          ].map((opcion) => (
+            <button
+              key={opcion.texto}
+              type="button"
+              onClick={() => irDesdeMenu(opcion.ir)}
+              className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold transition ${
+                opcion.activo ? "text-orange-500 bg-orange-50" : "text-gray-800 hover:bg-gray-50"
+              }`}
+            >
+              {opcion.texto}
+            </button>
+          ))}
+          {pit && !vendedor && (
+            <button
+              type="button"
+              onClick={() => irDesdeMenu(abrirPit)}
+              className="w-full flex items-center gap-1.5 text-left px-4 py-3 rounded-lg text-sm font-semibold text-gray-800 hover:bg-gray-50 transition"
+            >
+              Pit IA
+              <span className="text-[10px] font-black bg-orange-500 text-white rounded-full px-1.5 py-0.5">NUEVO</span>
+            </button>
+          )}
+        </div>
+      )}
+
     </nav>
-    {busquedaAbierta && (
-      <div
-        ref={panelBusquedaRef}
-        id="navbar-search-panel"
-        role="search"
-        className="fixed left-1/2 top-[4.75rem] z-40 w-[calc(100%-32px)] max-w-[330px] -translate-x-1/2"
-      >
-        <BusquedaCabecera
-          inputRef={inputBusquedaRef}
-          onSearch={() => cerrarBusqueda()}
-          onEscape={() => cerrarBusqueda({ devolverFoco: true })}
-        />
-      </div>
-    )}
     </>
   );
 }

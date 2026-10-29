@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { usarImagenGenerica } from "./mapearRepuesto";
 import { useCart } from "./context/CartContext";
 import { obtenerRecomendaciones } from "./api";
 
@@ -77,7 +78,7 @@ export default function SugerenciasCarrito({ onDetalle }) {
             key={producto.id}
             className="bg-white border border-gray-200 rounded-lg p-3 flex gap-3"
           >
-            <img
+            <img onError={usarImagenGenerica}
               src={producto.imagen}
               alt={producto.nombre}
               className="w-14 h-14 rounded-md object-contain bg-white border border-gray-100 shrink-0"

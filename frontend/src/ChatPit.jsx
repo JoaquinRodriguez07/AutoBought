@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { usarImagenGenerica } from "./mapearRepuesto";
 import toast from "react-hot-toast";
 
 import ElegirVehiculoPit from "./ElegirVehiculoPit";
@@ -375,7 +376,7 @@ function TarjetaRepuesto({ producto, onAgregar, onDetalle }) {
   return (
     <article className="snap-start shrink-0 w-[176px] border border-gray-200 rounded-xl overflow-hidden bg-white flex flex-col">
       <button type="button" onClick={() => onDetalle?.(producto)} className="h-24 bg-white" aria-label={`Ver detalle de ${producto.nombre}`}>
-        <img src={producto.imagen} alt="" className="w-full h-full object-contain p-2" />
+        <img onError={usarImagenGenerica} src={producto.imagen} alt="" className="w-full h-full object-contain p-2" />
       </button>
       <div className="p-3 flex flex-col flex-1">
         <p className="text-[11px] font-black uppercase text-orange-700">{producto.fabricante}</p>

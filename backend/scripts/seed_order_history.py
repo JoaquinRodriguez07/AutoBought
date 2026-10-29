@@ -9,7 +9,8 @@ que se calcula sobre pedidos pasados. Correr scripts.seed antes: usa el
 catálogo cargado.
 
 Crea clientes ficticios (cliente001@historico.autobought.com, ...) con su
-dirección y su tarjeta, y pedidos guardados igual que los reales. Nadie
+dirección, y pedidos guardados igual que los reales (pagados con
+Mercado Pago). Nadie
 puede iniciar sesión con esos clientes: su contraseña es aleatoria y no
 se guarda.
 
@@ -45,8 +46,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
-from app.crud import payment_method as crud_payment
 from app.crud import shipping_address as crud_address
+from app.crud import order as crud_order
 from app.crud import user as crud_user
 from app.db.base import Base
 from app.db.session import SessionLocal, engine
@@ -54,7 +55,7 @@ from app.models.client import Client
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
-from app.schemas.payment_method import PaymentMethodCreate
+from app.models.payment import Payment, PaymentStatus
 from app.schemas.shipping_address import ShippingAddressCreate
 import app.models
 
@@ -72,6 +73,7 @@ PEDIDOS_ULTIMO_MES = 650
 DEMANDA_CATEGORIA = {
     "Lubricantes": 15, "Accesorios": 8, "Filtros": 4, "Frenos": 3, "Encendido": 3,
     "Eléctrico": 2, "Suspensión": 1.2, "Motor": 1, "Refrigeración": 1, "Carrocería": 0.6,
+    "Dirección": 1, "Transmisión": 0.8, "Escape": 0.6, "Climatización": 0.5,
 }
 # Dentro de cada categoría, a cada repuesto le toca un puesto al azar: unos
 # pocos se venden mucho más que el resto (Zipf: el puesto n pesa 1 / n^0.7).
@@ -106,6 +108,8 @@ ESTACIONALIDAD_CATEGORIA = {
     "Accesorios": {4: 1.5, 5: 1.8, 6: 2.0, 7: 2.0, 8: 1.6, 12: 0.6, 1: 0.5, 2: 0.6},
     # El frío es lo que más baterías mata.
     "Eléctrico": {5: 1.4, 6: 2.2, 7: 2.5, 8: 2.0, 9: 1.3, 12: 0.6, 1: 0.5, 2: 0.6},
+    # El aire acondicionado se arregla antes y durante el verano.
+    "Climatización": {10: 1.4, 11: 1.9, 12: 2.4, 1: 2.5, 2: 1.8, 5: 0.5, 6: 0.4, 7: 0.4, 8: 0.5},
 }
 
 # Igual, pero para repuestos sueltos (por cómo empieza el nombre), cuando
@@ -136,7 +140,6 @@ LOCALIDADES = [
     ("Rivera", "Rivera", ["Av. Sarandí", "Calle Agraciada"]),
     ("Colonia del Sacramento", "Colonia", ["Av. General Flores", "Calle Rivera"]),
 ]
-MARCAS = [("Visa", 45), ("Mastercard", 30), ("OCA", 20), ("American Express", 5)]
 
 
 @dataclass
@@ -167,10 +170,9 @@ def _meses(hasta: date) -> list[tuple[date, date]]:
     return list(reversed(meses))
 
 
-def _crear_clientes(db: Session, rng: random.Random, hasta: date) -> list[dict]:
+def _crear_clientes(db: Session, rng: random.Random) -> list[dict]:
     # Un solo hash (bcrypt es lento a propósito) de una contraseña que no se guarda.
     password_hash = hash_password(secrets.token_urlsafe(32))
-    vencimiento = f"12/{(hasta.year + 3) % 100:02d}"
     clientes = []
 
     for n in range(1, CANTIDAD_CLIENTES + 1):
@@ -192,14 +194,7 @@ def _crear_clientes(db: Session, rng: random.Random, hasta: date) -> list[dict]:
             city=ciudad,
             department=departamento,
         ))
-        marca = rng.choices([m for m, _ in MARCAS], [p for _, p in MARCAS])[0]
-        tarjeta = crud_payment.create_payment_method(db, client.user_id, PaymentMethodCreate(
-            card_type=marca,
-            holder=nombre,
-            last_four=f"{rng.randrange(10000):04d}",
-            expiry=vencimiento,
-        ))
-        clientes.append({"id": client.user_id, "direccion": direccion, "tarjeta": tarjeta})
+        clientes.append({"id": client.user_id, "direccion": direccion})
 
     return clientes
 
@@ -285,7 +280,7 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
         raise RuntimeError("No hay repuestos cargados: correr antes scripts.seed.")
 
     rng = random.Random(semilla)
-    clientes = _crear_clientes(db, rng, hasta)
+    clientes = _crear_clientes(db, rng)
     peso_base, en_riesgo = _popularidad(parts, rng)
 
     total_pedidos = total_unidades = 0
@@ -309,7 +304,7 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
             dia = inicio + timedelta(days=rng.randrange((fin - inicio).days + 1))
             hora = time(rng.randrange(8, 23), rng.randrange(60), rng.randrange(60))
             cliente = rng.choice(clientes)
-            direccion, tarjeta = cliente["direccion"], cliente["tarjeta"]
+            direccion = cliente["direccion"]
 
             elegidos: list[Part] = []
             for _ in range(rng.choices(*ITEMS_POR_PEDIDO)[0]):
@@ -322,7 +317,6 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
                 created_at=datetime.combine(dia, hora, tzinfo=URUGUAY),
                 status=_estado(dia, hasta, rng),
                 shipping_address_id=direccion.shipping_address_id,
-                payment_method_id=tarjeta.payment_method_id,
                 ship_personal_name=direccion.personal_name,
                 ship_street=direccion.street,
                 ship_number=direccion.number,
@@ -330,7 +324,8 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
                 ship_city=direccion.city,
                 ship_department=direccion.department,
                 ship_postal_code=direccion.postal_code,
-                payment_method_label=tarjeta.method,
+                payment_method_label=crud_order.PAYMENT_LABEL,
+                payment=Payment(status=PaymentStatus.APPROVED),
             )
             # Se insertan directo, sin place_order: no tienen que descontar stock.
             for part in elegidos:

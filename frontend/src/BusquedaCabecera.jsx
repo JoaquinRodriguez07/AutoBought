@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { IconoLupa } from "./Iconos";
 
 export default function BusquedaCabecera({ inputRef, onSearch, onEscape }) {
   const [texto, setTexto] = useState("");
@@ -24,27 +25,27 @@ export default function BusquedaCabecera({ inputRef, onSearch, onEscape }) {
   };
 
   return (
-    <div className="relative">
-      <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-full px-4 py-2 shadow-xs">
-        <input
-          ref={inputRef}
-          type="text"
-          aria-label="Buscar repuestos"
-          value={texto}
-          onChange={(event) => setTexto(event.target.value)}
-          onKeyDown={manejarKeyDown}
-          placeholder="¿Qué repuesto estás buscando?"
-          className="w-full outline-hidden text-[11px] text-gray-800 placeholder:text-gray-400"
-        />
+    // Mismo estilo que el buscador del catálogo (SearchBar).
+    <div className="flex w-full bg-white rounded-lg overflow-hidden border border-gray-100">
+      <input
+        ref={inputRef}
+        type="text"
+        aria-label="Buscar repuestos"
+        value={texto}
+        onChange={(event) => setTexto(event.target.value)}
+        onKeyDown={manejarKeyDown}
+        placeholder="Buscar repuesto por nombre, código o fabricante..."
+        className="flex-1 min-w-0 px-4 py-3 text-sm text-gray-800 outline-hidden placeholder:text-gray-400"
+      />
 
-        <button
-          type="button"
-          onClick={realizarBusqueda}
-          className="shrink-0 text-[10px] font-bold text-orange-500 hover:text-orange-600 transition"
-        >
-          Buscar
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={realizarBusqueda}
+        aria-label="Buscar"
+        className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition"
+      >
+        <IconoLupa className="w-5 h-5" />
+      </button>
     </div>
   );
 }

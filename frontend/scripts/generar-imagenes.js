@@ -31,7 +31,8 @@
 // referencia de la pieza real. Usar fotos propias o con licencia libre;
 // esa carpeta tampoco se sube.
 //
-// La clave nunca va en el repositorio: se pasa como variable de entorno.
+// La clave nunca va en el repositorio. Si no está en GEMINI_API_KEY, el
+// script la pide al arrancar, sin mostrarla en pantalla.
 // Opcionales: GEMINI_IMAGE_MODEL (otro modelo) y GEMINI_IMAGE_SIZE (1K/2K/4K).
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -67,6 +68,55 @@ const salirConError = (mensaje) => {
   console.error(mensaje);
   process.exit(1);
 };
+
+/**
+ * Pide la clave en la terminal sin mostrarla: no se ve al escribirla ni al
+ * pegarla, y no queda en el historial de comandos (como sí pasa con
+ * `GEMINI_API_KEY=... npm run imagenes`).
+ *
+ * La terminal pasa a "modo crudo": cada tecla llega acá en vez de
+ * escribirse en pantalla. Enter termina, Ctrl+C cancela y Retroceso borra.
+ * Sin terminal (por ejemplo, en el CI) devuelve una clave vacía.
+ */
+function pedirClaveOculta(pregunta) {
+  const { stdin, stdout } = process;
+  if (!stdin.isTTY) return Promise.resolve("");
+
+  return new Promise((resolver) => {
+    let escrito = "";
+    const alEscribir = (texto) => {
+      // Algunas terminales envuelven lo pegado entre \x1b[200~ y \x1b[201~.
+      // Se sacan antes de mirar las teclas: si no, un Retroceso después de
+      // pegar borraría un pedazo del marcador en vez de la última letra.
+      // oxlint-disable-next-line no-control-regex
+      for (const caracter of texto.replace(/\u001b\[[0-9;]*~/g, "")) {
+        if (caracter === "\r" || caracter === "\n") return terminar();
+        if (caracter === "\u0003") {
+          stdin.setRawMode(false);
+          stdout.write("\n");
+          process.exit(130);
+        }
+        if (caracter === "\u007f" || caracter === "\b") escrito = escrito.slice(0, -1);
+        else escrito += caracter;
+      }
+    };
+    const terminar = () => {
+      stdin.off("data", alEscribir);
+      stdin.setRawMode(false);
+      stdin.pause();
+      stdout.write("\n");
+      // Ningún otro carácter de control es parte de la clave.
+      // oxlint-disable-next-line no-control-regex
+      resolver(escrito.replace(/[\u0000-\u001f\u007f]/g, "").trim());
+    };
+
+    stdout.write(pregunta);
+    stdin.setEncoding("utf8");
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on("data", alEscribir);
+  });
+}
 
 function buscarImagen(carpeta, archivo) {
   for (const [extension, mimeType] of Object.entries(TIPOS_MIME)) {
@@ -152,7 +202,7 @@ function elegir({ archivo, numero }) {
 
 async function main() {
   const opciones = leerOpciones(process.argv.slice(2));
-  const clave = process.env.GEMINI_API_KEY;
+  let clave = process.env.GEMINI_API_KEY;
   const modelo = process.env.GEMINI_IMAGE_MODEL || MODELO_POR_DEFECTO;
   const tamanio = process.env.GEMINI_IMAGE_SIZE || TAMANIO_POR_DEFECTO;
 
@@ -169,7 +219,10 @@ async function main() {
   if (opciones.elegir) return elegir(opciones.elegir);
 
   if (!opciones.prueba && !clave) {
-    salirConError("Falta GEMINI_API_KEY. Ejemplo: GEMINI_API_KEY=tu-clave npm run imagenes");
+    clave = await pedirClaveOculta("Clave de Gemini (no se ve mientras la pegás; Enter para seguir): ");
+    if (!clave) {
+      salirConError("Falta la clave de Gemini: pegala cuando la pida, o pasala en GEMINI_API_KEY.");
+    }
   }
 
   const conVariantes = opciones.variantes > 1;

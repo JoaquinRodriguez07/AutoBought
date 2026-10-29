@@ -3,7 +3,6 @@ import EncabezadoPagina from "./EncabezadoPagina";
 import {
   IconoCaja,
   IconoSalir,
-  IconoTarjeta,
   IconoUbicacion,
   IconoUsuario,
 } from "./Iconos";
@@ -17,7 +16,7 @@ import {
  * pone su título y su contenido.
  *
  * Props:
- *  - seccion     ("perfil" | "direcciones" | "metodos-pago" | "historial")
+ *  - seccion     ("perfil" | "direcciones" | "historial")
  *  - titulo      título de la sección
  *  - descripcion texto corto debajo del título (opcional)
  *  - accion      botón a la derecha del título, ej. "Agregar" (opcional)
@@ -40,14 +39,12 @@ export default function CuentaLayout({
   onFavoritos,
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 }) {
   const secciones = [
     { clave: "perfil", texto: "Información personal", Icono: IconoUsuario, ir: onPerfil },
     { clave: "direcciones", texto: "Direcciones", Icono: IconoUbicacion, ir: onDirecciones },
-    { clave: "metodos-pago", texto: "Métodos de pago", Icono: IconoTarjeta, ir: onMetodosPago },
     { clave: "historial", texto: "Historial de compras", Icono: IconoCaja, ir: onHistorial },
   ];
 
@@ -66,7 +63,6 @@ export default function CuentaLayout({
         onFavoritos={onFavoritos}
         onPerfil={onPerfil}
         onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago}
         onHistorial={onHistorial}
         onCerrarSesion={onCerrarSesion}
       />

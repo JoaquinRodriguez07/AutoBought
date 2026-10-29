@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 
-import { obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
+import { crearLinkPago, obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
 import CuentaLayout from "./CuentaLayout";
+import { irA } from "./redirigir";
 
 const ESTADOS_PEDIDO = {
   confirmed: { texto: "Confirmado", clase: "bg-blue-50 text-blue-700" },
   shipped: { texto: "Enviado", clase: "bg-orange-50 text-orange-700" },
   delivered: { texto: "Entregado", clase: "bg-green-50 text-green-700" },
   cancelled: { texto: "Cancelado", clase: "bg-gray-100 text-gray-500" },
+};
+
+// Pedidos con Mercado Pago que todavía no se pagaron.
+const PAGO_SIN_COMPLETAR = {
+  pending: "pendiente",
+  rejected: "rechazado",
 };
 
 function textoDireccion(d) {
@@ -34,6 +41,7 @@ export default function HistorialCompras(navegacion) {
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [error, setError] = useState("");
   const [errorDetalle, setErrorDetalle] = useState("");
+  const [abriendoPago, setAbriendoPago] = useState(false);
 
 
   useEffect(() => {
@@ -92,6 +100,17 @@ export default function HistorialCompras(navegacion) {
     }
   };
 
+  const pagar = async (compra) => {
+    setAbriendoPago(true);
+    setErrorDetalle("");
+    try {
+      irA(await crearLinkPago(compra.id));
+    } catch (errorPago) {
+      setErrorDetalle(errorPago.message || "No pudimos abrir Mercado Pago.");
+      setAbriendoPago(false);
+    }
+  };
+
   return (
     <CuentaLayout
       {...navegacion}
@@ -141,7 +160,19 @@ export default function HistorialCompras(navegacion) {
           {compraSeleccionada.metodoPago && (
             <p className="text-gray-600 mb-2">
               Pago: {compraSeleccionada.metodoPago}
+              {PAGO_SIN_COMPLETAR[compraSeleccionada.estadoPago] &&
+                ` (${PAGO_SIN_COMPLETAR[compraSeleccionada.estadoPago]})`}
             </p>
+          )}
+          {PAGO_SIN_COMPLETAR[compraSeleccionada.estadoPago] && (
+            <button
+              type="button"
+              onClick={() => pagar(compraSeleccionada)}
+              disabled={abriendoPago}
+              className="bg-orange-500 hover:bg-orange-600 text-white rounded-md px-5 py-2.5 mb-4 text-sm font-black disabled:opacity-40"
+            >
+              {abriendoPago ? "ABRIENDO MERCADO PAGO..." : "PAGAR CON MERCADO PAGO"}
+            </button>
           )}
           <p className="text-gray-900 font-black mb-6">
             Total: {formatearPrecio(compraSeleccionada.total)}

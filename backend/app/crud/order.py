@@ -10,7 +10,7 @@ from app.models.employee import Employee
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.part import Part
-from app.models.payment_method import PaymentMethod
+from app.models.payment import Payment, PaymentStatus
 from app.models.shipping_address import ShippingAddress
 
 
@@ -24,16 +24,21 @@ def _get_owned_or_primary(db: Session, model, pk_column, client_id: int, chosen_
     return db.scalar(query)
 
 
+# Lo que muestra el historial como medio de pago de los pedidos nuevos.
+PAYMENT_LABEL = "Mercado Pago"
+
+
 def place_order(
     db: Session,
     client_id: int,
     shipping_address_id: int | None = None,
-    payment_method_id: int | None = None,
 ) -> Order:
     """Place an order from a client's cart in a single transaction.
 
-    Without an explicit shipping address or payment method, the client's
-    primary ones are used. Either one must belong to the client.
+    Without an explicit shipping address, the client's primary one is used;
+    it must belong to the client. The order starts with a pending payment:
+    the client pays it afterwards on Mercado Pago. The stock is taken now,
+    so it stays reserved while the client pays (or retries a rejected payment).
     """
     with db.begin():
         cart = db.scalar(
@@ -55,18 +60,6 @@ def place_order(
             if shipping_address_id is None:
                 raise ValueError("Client has no shipping address")
             raise ValueError("Shipping address not found")
-
-        payment_method = _get_owned_or_primary(
-            db, PaymentMethod, PaymentMethod.payment_method_id,
-            client_id, payment_method_id,
-        )
-        if payment_method is None:
-            if payment_method_id is None:
-                raise ValueError("Client has no payment method")
-            raise ValueError("Payment method not found")
-        # Una tarjeta válida al guardarla puede vencer después.
-        if payment_method.is_expired:
-            raise ValueError("Payment method expired")
 
         part_ids = [item.part_id for item in cart.items]
         parts = db.scalars(
@@ -91,7 +84,6 @@ def place_order(
         order = Order(
             client_id=client_id,
             shipping_address_id=address.shipping_address_id,
-            payment_method_id=payment_method.payment_method_id,
             ship_personal_name=address.personal_name,
             ship_street=address.street,
             ship_number=address.number,
@@ -99,7 +91,8 @@ def place_order(
             ship_city=address.city,
             ship_department=address.department,
             ship_postal_code=address.postal_code,
-            payment_method_label=payment_method.method,
+            payment_method_label=PAYMENT_LABEL,
+            payment=Payment(status=PaymentStatus.PENDING),
         )
         db.add(order)
         db.flush()
@@ -123,7 +116,7 @@ def list_order_by_client(db: Session, client_id: int) -> list[Order]:
     query = (
         select(Order)
         .where(Order.client_id == client_id)
-        .options(selectinload(Order.items).selectinload(OrderItem.part))
+        .options(selectinload(Order.items).selectinload(OrderItem.part), selectinload(Order.payment))
         .order_by(Order.created_at.desc())
     )
     return list(db.scalars(query).all())
@@ -135,6 +128,6 @@ def get_order_for_client(
     query = (
         select(Order)
         .where(Order.order_id == order_id, Order.client_id == client_id)
-        .options(selectinload(Order.items).selectinload(OrderItem.part))
+        .options(selectinload(Order.items).selectinload(OrderItem.part), selectinload(Order.payment))
     )
     return db.scalar(query)

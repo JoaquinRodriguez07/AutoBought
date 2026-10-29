@@ -10,6 +10,11 @@
 
 const ANIO = new Date().getFullYear();
 
+// Las marcas más buscadas: llevan al catálogo filtrado por esa marca (el
+// nombre es el mismo que en el backend). Cuatro, como los accesos de
+// "Mi cuenta", para que las columnas queden parejas.
+const MARCAS_POPULARES = ["Volkswagen", "Chevrolet", "Fiat", "Renault"];
+
 function Columna({ titulo, children }) {
   return (
     <div>
@@ -44,7 +49,7 @@ export default function Footer({
 }) {
   return (
     <footer className="bg-[#151719] text-white">
-      <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-8 grid grid-cols-2 md:grid-cols-[1.6fr_1fr_1fr_1fr] gap-8">
+      <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12 grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_1fr_1.2fr] gap-8">
 
         <div className="col-span-2 md:col-span-1">
           <p className="text-lg font-black italic">
@@ -54,13 +59,21 @@ export default function Footer({
             Repuestos para tu auto, de las mejores marcas, con envío a todo Uruguay.
           </p>
           <p className="text-xs text-gray-500 mt-4">
-            © {ANIO} AutoBought
+            © {ANIO} AutoBought · Hecho en Uruguay
           </p>
         </div>
 
         <Columna titulo="Comprar">
           <Enlace onClick={() => onCatalogo?.()}>Catálogo de repuestos</Enlace>
-          <Enlace onClick={onMarcas}>Marcas de auto</Enlace>
+          <Enlace onClick={onMarcas}>Todas las marcas</Enlace>
+        </Columna>
+
+        <Columna titulo="Marcas populares">
+          {MARCAS_POPULARES.map((marca) => (
+            <Enlace key={marca} onClick={() => onCatalogo?.(null, null, { marca })}>
+              {marca}
+            </Enlace>
+          ))}
         </Columna>
 
         <Columna titulo="Mi cuenta">
@@ -80,7 +93,8 @@ export default function Footer({
               Escribinos por mail
             </a>
           </li>
-          <li>Envíos de lunes a viernes</li>
+          <li>Envíos a todo el país</li>
+          <li>Despachamos de lunes a viernes</li>
         </Columna>
 
       </div>

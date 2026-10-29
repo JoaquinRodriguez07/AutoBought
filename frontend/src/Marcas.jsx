@@ -10,9 +10,12 @@ import CheryLogo from "./assets/Logos Vehiculos/Chery.webp";
 import ChevroletLogo from "./assets/Logos Vehiculos/Chevrolet.png";
 import CitroenLogo from "./assets/Logos Vehiculos/Citroen.png";
 import FiatLogo from "./assets/Logos Vehiculos/Fiat.png";
+import GacLogo from "./assets/Logos Vehiculos/Gac.png";
 import HyundaiLogo from "./assets/Logos Vehiculos/Hyundai.webp";
+import MercedesLogo from "./assets/Logos Vehiculos/Mercedes.png";
 import PeugeotLogo from "./assets/Logos Vehiculos/Peugeot.webp";
 import RenaultLogo from "./assets/Logos Vehiculos/Renault.png";
+import SuzukiLogo from "./assets/Logos Vehiculos/Suzuki.png";
 
 const logoMap = {
   Volkswagen: "https://cdn.simpleicons.org/volkswagen/000000",
@@ -27,15 +30,18 @@ const logoMap = {
   Nissan: "https://cdn.simpleicons.org/nissan/000000",
   Hyundai: HyundaiLogo,
   Kia: "https://cdn.simpleicons.org/kia/000000",
-  Suzuki: "https://cdn.simpleicons.org/suzuki/000000",
+  Suzuki: SuzukiLogo,
   Honda: "https://cdn.simpleicons.org/honda/000000",
   BMW: BMWLogo,
-  "Mercedes-Benz": "https://cdn.simpleicons.org/mercedes/000000",
+  "Mercedes-Benz": MercedesLogo,
   Audi: AudiLogo,
   Jeep: "https://cdn.simpleicons.org/jeep/000000",
   Mitsubishi: "https://cdn.simpleicons.org/mitsubishi/000000",
   Chery: CheryLogo,
   BYD: BYDLogo,
+  GAC: GacLogo,
+  Mazda: "https://cdn.simpleicons.org/mazda/000000",
+  // Geely y JAC todavía no tienen logo: se muestra el nombre.
 };
 
 export default function Marcas({
@@ -50,7 +56,6 @@ export default function Marcas({
   cantidadFavoritos,
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 }) {
@@ -87,7 +92,6 @@ export default function Marcas({
         onFavoritos={onFavoritos}
         onPerfil={onPerfil}
         onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago}
         onHistorial={onHistorial}
         onCerrarSesion={onCerrarSesion}
         cantidadCarrito={cantidadCarrito}

@@ -33,6 +33,14 @@ export function IconoLupa(props) {
   );
 }
 
+export function IconoMenu(props) {
+  return (
+    <Icono {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Icono>
+  );
+}
+
 export function IconoCerrar(props) {
   return (
     <Icono {...props}>
@@ -270,6 +278,51 @@ export function IconoEnviar(props) {
   return (
     <Icono {...props}>
       <path d="M5 12h14M13 6l6 6-6 6" />
+    </Icono>
+  );
+}
+
+// Íconos de las categorías agregadas después (ver Home).
+
+export function IconoCopoNieve(props) {
+  return (
+    <Icono {...props}>
+      <path d="M12 2v20M4.9 7l14.2 10M4.9 17 19.1 7" />
+      <path d="m9.5 3.5 2.5 2 2.5-2M9.5 20.5l2.5-2 2.5 2" />
+    </Icono>
+  );
+}
+
+export function IconoVolante(props) {
+  return (
+    <Icono {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M3.5 10.5h6M14.5 10.5h6M12 14.5V21" />
+    </Icono>
+  );
+}
+
+export function IconoEscape(props) {
+  return (
+    <Icono {...props}>
+      <path d="M2 9h7v6H2" />
+      <rect x="9" y="7" width="9" height="10" rx="2" />
+      <path d="M18 12h3" />
+      <path d="M21.5 9.5c.5.8.5 1.7 0 2.5M21.5 12c.5.8.5 1.7 0 2.5" />
+    </Icono>
+  );
+}
+
+export function IconoCambios(props) {
+  return (
+    <Icono {...props}>
+      <circle cx="5" cy="5" r="1.5" />
+      <circle cx="12" cy="5" r="1.5" />
+      <circle cx="19" cy="5" r="1.5" />
+      <circle cx="5" cy="19" r="1.5" />
+      <circle cx="12" cy="19" r="1.5" />
+      <path d="M5 6.5v11M12 6.5v11M19 6.5V12H5" />
     </Icono>
   );
 }
