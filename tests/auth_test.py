@@ -63,6 +63,14 @@ def test_se_puede_iniciar_sesion_despues_de_registrarse(client):
     assert response.json()["access_token"]
 
 
+def test_el_token_de_sesion_trae_el_nombre_del_usuario(client):
+    client.post(REGISTER, json=payload())
+    response = client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"})
+
+    claims = jwt.decode(response.json()["access_token"], SECRET_KEY, algorithms=[JWT_ALGORITHM])
+    assert claims["name"] == "Lucía Gómez"
+
+
 def test_login_no_distingue_mayusculas_en_el_correo(client):
     client.post(REGISTER, json=payload(email="Lucia@Example.com"))
 

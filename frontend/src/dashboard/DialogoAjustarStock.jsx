@@ -37,11 +37,11 @@ function ContenidoAjuste({ repuesto, onGuardado }) {
           className="h-10"
         />
       </Campo>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Hoy tiene {repuesto.stock}. Si estaba agotado, se avisa por mail a quienes pidieron que les avisemos.
       </p>
-      <Button type="submit" disabled={guardando} className="h-10 px-6 self-end text-xs font-black hover:bg-orange-600">
-        {guardando ? "Guardando…" : "GUARDAR STOCK"}
+      <Button type="submit" disabled={guardando} className="h-10 px-6 self-end hover:bg-orange-600">
+        {guardando ? "Guardando…" : "Guardar stock"}
       </Button>
     </form>
   );

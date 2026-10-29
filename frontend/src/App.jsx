@@ -607,7 +607,9 @@ function App() {
   // debajo. Cada página trae su propio `min-h-screen`; acá se reemplaza
   // por "ocupar lo que sobre" (flex-1) para que la página y el footer
   // juntos llenen la pantalla.
-  const conFooter = !RUTAS_SIN_FOOTER.includes(pathname);
+  // El portal del vendedor (/dashboard y el detalle de un repuesto) tiene
+  // su propio marco, sin el footer de la tienda.
+  const conFooter = !RUTAS_SIN_FOOTER.includes(pathname) && !pathname.startsWith("/dashboard");
 
   // Pit (el asistente con IA) flota en las páginas de la tienda para los
   // clientes con sesión: no en las pantallas de cuenta sin footer (login,

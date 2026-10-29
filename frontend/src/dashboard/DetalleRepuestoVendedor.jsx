@@ -1,18 +1,19 @@
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import Navbar from "../Navbar";
+import { ArrowLeftIcon, PackagePlusIcon, PencilIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DialogoAjustarStock from "./DialogoAjustarStock";
 import FormularioRepuesto from "./FormularioRepuesto";
 import GraficoVentas from "./GraficoVentas";
+import LayoutVendedor from "./LayoutVendedor";
 import { obtenerDetalleRepuesto } from "./apiDashboard";
 import { formatearDias, formatearMes, formatearNumero, formatearPesos } from "./formato";
-import { EstadoConsulta, Indicador, InsigniaRiesgo, InsigniaStock, SinDatos } from "./piezas";
+import { EstadoConsulta, Indicador, InsigniaRiesgo, InsigniaStock, Panel, SinDatos } from "./piezas";
 import { useConsulta } from "./useConsulta";
 
 // Detalle de un repuesto para el vendedor (HU 5.8): stock, ventas,
 // evolución, proyección y riesgo. Desde acá se edita y se repone (HU 5.10).
-export default function DetalleRepuestoVendedor({ usuario, onHome, onCatalogo, onLogin, onMarcas, onCerrarSesion }) {
+export default function DetalleRepuestoVendedor({ usuario, onHome, onCerrarSesion }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,47 +27,54 @@ export default function DetalleRepuestoVendedor({ usuario, onHome, onCatalogo, o
     consulta.recargar();
   };
 
+  const repuesto = consulta.datos;
+
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans">
-      <Navbar
-        paginaActual="dashboard"
-        usuario={usuario}
-        onHome={onHome}
-        onCatalogo={onCatalogo}
-        onLogin={onLogin}
-        onMarcas={onMarcas}
-        onCerrarSesion={onCerrarSesion}
-      />
-
-      <main className="pt-[105px] max-w-[1100px] mx-auto px-4 sm:px-5 pb-14">
-        <Button variant="ghost" size="sm" onClick={volver} className="-ml-2 text-xs font-black text-muted-foreground">
-          ← Volver al dashboard
+    <LayoutVendedor
+      usuario={usuario}
+      vista={null}
+      onVista={(valor) => navigate(valor === "resumen" ? "/dashboard" : `/dashboard?vista=${valor}`)}
+      onTienda={onHome}
+      onCerrarSesion={onCerrarSesion}
+      antesDelTitulo={
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={volver}
+          className="-ml-2 mb-3 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeftIcon />
+          Volver al dashboard
         </Button>
-
+      }
+      titulo={repuesto?.nombre ?? "Repuesto"}
+      descripcion={
+        repuesto && `${repuesto.codigo} · ${repuesto.categoria} · ${repuesto.fabricante} · ${formatearPesos(repuesto.precio)}`
+      }
+      acciones={
+        repuesto && (
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setDialogo("editar")}
+              className="h-9 px-4"
+            >
+              <PencilIcon />
+              Editar
+            </Button>
+            <Button onClick={() => setDialogo("stock")} className="h-9 px-4 hover:bg-orange-600">
+              <PackagePlusIcon />
+              Ajustar stock
+            </Button>
+          </>
+        )
+      }
+    >
+      <div>
         <EstadoConsulta consulta={consulta}>
           {(repuesto) => (
             <>
-              <div className="flex flex-wrap items-end justify-between gap-4 mt-4">
-                <div>
-                  <p className="text-orange-500 text-[9px] font-black tracking-[4px] uppercase">
-                    {repuesto.categoria} · {repuesto.codigo}
-                  </p>
-                  <h1 className="text-2xl md:text-3xl font-black mt-1">{repuesto.nombre}</h1>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {repuesto.fabricante} · {formatearPesos(repuesto.precio)}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => setDialogo("stock")} className="h-10 px-4 text-xs font-black hover:bg-orange-600">
-                    AJUSTAR STOCK
-                  </Button>
-                  <Button variant="outline" onClick={() => setDialogo("editar")} className="h-10 px-4 text-xs font-black">
-                    EDITAR
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                 <Indicador
                   titulo="Stock actual"
                   valor={formatearNumero(repuesto.stock)}
@@ -85,22 +93,17 @@ export default function DetalleRepuestoVendedor({ usuario, onHome, onCatalogo, o
                 />
               </div>
 
-              <section className="mt-10">
-                <h2 className="text-lg font-black">Ventas de los últimos 12 meses y proyección</h2>
+              <Panel titulo="Ventas de los últimos 12 meses y proyección" id="titulo-ventas-repuesto" className="mt-6">
                 {repuesto.unidadesVendidas === 0 ? (
-                  <div className="mt-3">
-                    <SinDatos>Este repuesto todavía no registra ventas</SinDatos>
-                  </div>
+                  <SinDatos>Este repuesto todavía no registra ventas</SinDatos>
                 ) : (
-                  <div className="mt-4">
-                    <GraficoVentas
-                      meses={repuesto.meses}
-                      proyeccion={repuesto.proyeccion}
-                      titulo={`Ventas reales y demanda proyectada de ${repuesto.nombre}`}
-                    />
-                  </div>
+                  <GraficoVentas
+                    meses={repuesto.meses}
+                    proyeccion={repuesto.proyeccion}
+                    titulo={`Ventas reales y demanda proyectada de ${repuesto.nombre}`}
+                  />
                 )}
-              </section>
+              </Panel>
 
               <DialogoAjustarStock
                 abierto={dialogo === "stock"}
@@ -117,7 +120,7 @@ export default function DetalleRepuestoVendedor({ usuario, onHome, onCatalogo, o
             </>
           )}
         </EstadoConsulta>
-      </main>
-    </div>
+      </div>
+    </LayoutVendedor>
   );
 }

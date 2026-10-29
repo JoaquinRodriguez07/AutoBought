@@ -1,8 +1,15 @@
-import { CircleAlertIcon, CircleCheckIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  ArrowDownRightIcon,
+  ArrowUpRightIcon,
+  ChevronRightIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  MinusIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { Alert, AlertAction, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -40,54 +47,140 @@ export function EstadoConsulta({ consulta, children }) {
 // Estado vacío de una sección ("No hay repuestos que requieran reposición").
 export function SinDatos({ children }) {
   return (
-    <Empty className="border border-dashed bg-muted py-6 md:py-6">
+    <Empty className="border border-dashed bg-muted/40 py-8 md:py-8">
       <EmptyHeader>
-        <EmptyDescription className="text-foreground">{children}</EmptyDescription>
+        <EmptyDescription className="text-muted-foreground">{children}</EmptyDescription>
       </EmptyHeader>
     </Empty>
   );
 }
 
-// El nivel va escrito y con ícono: el color solo lo refuerza.
-const ESTILO_RIESGO = {
-  high: "border-red-200 bg-red-50 text-red-800",
-  medium: "border-amber-200 bg-amber-50 text-amber-900",
-  low: "border-border bg-muted text-muted-foreground",
+// Colores de estado sobre fondo oscuro: rojo = urgente, ámbar = atención,
+// verde = bien. El estado siempre va escrito; el color solo lo refuerza.
+export const TONOS = {
+  rojo: "border-red-200 bg-red-50 text-red-700",
+  ambar: "border-amber-200 bg-amber-50 text-amber-800",
+  verde: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  neutro: "border-border bg-muted text-muted-foreground",
 };
+
+const TONO_RIESGO = { high: TONOS.rojo, medium: TONOS.ambar, low: TONOS.neutro };
 
 export function InsigniaRiesgo({ riesgo }) {
   return (
-    <Badge variant="outline" className={ESTILO_RIESGO[riesgo]}>
+    <Badge variant="outline" className={cn("font-medium", TONO_RIESGO[riesgo])}>
       {riesgo === "low" ? <CircleCheckIcon /> : <TriangleAlertIcon />}
       {RIESGOS[riesgo].etiqueta}
     </Badge>
   );
 }
 
-const ESTILO_STOCK = {
-  "Sin stock": "border-red-200 bg-red-50 text-red-800",
-  "Stock bajo": "border-amber-200 bg-amber-50 text-amber-900",
-  Normal: "border-border bg-muted text-muted-foreground",
-};
+const TONO_STOCK = { "Sin stock": TONOS.rojo, "Stock bajo": TONOS.ambar, Normal: TONOS.neutro };
 
 export function InsigniaStock({ stock, stockBajo }) {
   const estado = estadoStock(stock, stockBajo);
   return (
-    <Badge variant="outline" className={ESTILO_STOCK[estado]}>
+    <Badge variant="outline" className={cn("font-medium", TONO_STOCK[estado])}>
       {estado}
     </Badge>
   );
 }
 
-export function Indicador({ titulo, valor, detalle }) {
+// Para lo que todavía no está hecho en el backend (HU 6.3 y 6.4).
+export function EnDesarrollo() {
   return (
-    <Card size="sm" className="gap-1">
-      <CardContent>
-        <p className="text-[10px] font-black tracking-[2px] text-muted-foreground uppercase">{titulo}</p>
-        <p className="text-2xl font-black mt-1 tabular-nums">{valor}</p>
-        {detalle && <div className="text-[11px] text-muted-foreground mt-1">{detalle}</div>}
-      </CardContent>
-    </Card>
+    <Badge variant="outline" className={cn("font-medium", TONOS.ambar)}>
+      En desarrollo
+    </Badge>
+  );
+}
+
+// Subió o bajó contra el período anterior. `mejor`: si subir es bueno
+// (ventas) o malo; define el verde o el rojo.
+export function Cambio({ porcentaje, texto, mejor = "subir" }) {
+  if (porcentaje === null || porcentaje === undefined) return null;
+  const sube = porcentaje > 0;
+  const igual = porcentaje === 0;
+  const bueno = igual ? null : sube === (mejor === "subir");
+  const Flecha = igual ? MinusIcon : sube ? ArrowUpRightIcon : ArrowDownRightIcon;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-medium tabular-nums",
+        bueno === null ? "bg-muted text-muted-foreground" : bueno ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+      )}
+    >
+      <Flecha className="size-3.5" aria-hidden="true" />
+      {sube ? "+" : igual ? "" : "−"}
+      {Math.abs(porcentaje)} %
+      {texto && <span className="font-normal text-muted-foreground"> {texto}</span>}
+    </span>
+  );
+}
+
+
+// Un número clave. `cambio` va debajo del número (por ejemplo, <Cambio />).
+// Con `onClick`, toda la tarjeta es un botón (por ejemplo, para ver la
+// lista de lo que cuenta) y lo dice con `accion`.
+export function Indicador({ titulo, valor, detalle, cambio, Icono, onClick, accion }) {
+  const contenido = (
+    <div
+      className={cn(
+        "flex h-full flex-col rounded-xl border bg-card p-4 sm:p-5 shadow-xs transition",
+        onClick && "group-hover:border-gray-300 group-hover:shadow-md"
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{titulo}</p>
+        {Icono && (
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-600">
+            <Icono className="size-4" aria-hidden="true" />
+          </span>
+        )}
+      </div>
+      <p className="text-[28px] leading-tight font-semibold tabular-nums tracking-tight mt-1">{valor}</p>
+      {(cambio || detalle) && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          {cambio}
+          {detalle && <span>{detalle}</span>}
+        </div>
+      )}
+      {onClick && accion && (
+        <span className="mt-auto pt-3 inline-flex items-center gap-1 text-xs font-medium text-orange-600 group-hover:text-orange-700">
+          {accion}
+          <ChevronRightIcon className="size-3.5 transition group-hover:translate-x-0.5" aria-hidden="true" />
+        </span>
+      )}
+    </div>
+  );
+
+  if (!onClick) return contenido;
+  return (
+    <button type="button" onClick={onClick} className="group block h-full w-full text-left rounded-xl focus-visible:outline-2 focus-visible:outline-orange-500">
+      {contenido}
+    </button>
+  );
+}
+
+// Tarjeta con título de cada bloque del dashboard. `accion` va a la
+// derecha del título (por ejemplo, "Ver todas").
+export function Panel({ titulo, id, detalle, accion, Icono, className, children }) {
+  return (
+    <section aria-labelledby={id} className={cn("rounded-xl border bg-card p-4 sm:p-5 shadow-xs", className)}>
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-start gap-3 min-w-0">
+          {Icono}
+          <div className="min-w-0">
+            <h2 id={id} className="text-[15px] font-semibold">
+              {titulo}
+            </h2>
+            {detalle && <p className="text-xs text-muted-foreground mt-0.5">{detalle}</p>}
+          </div>
+        </div>
+        {accion && <div className="shrink-0">{accion}</div>}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -99,12 +192,12 @@ export function NombreRepuesto({ repuesto, onDetalle, conCodigo = false }) {
       <button
         type="button"
         onClick={() => onDetalle(repuesto.id)}
-        className="text-left font-semibold whitespace-normal hover:text-orange-600"
+        className="text-left font-medium whitespace-normal hover:text-orange-600 hover:underline underline-offset-2"
       >
         {repuesto.nombre}
       </button>
       {conCodigo && (
-        <span className="block text-[11px] text-muted-foreground">
+        <span className="block text-xs text-muted-foreground">
           {repuesto.codigo} · {repuesto.categoria}
         </span>
       )}
@@ -122,13 +215,13 @@ export function Opciones({ etiqueta, valor, onCambiar, opciones }) {
       spacing={0}
       value={[valor]}
       onValueChange={(elegidos) => elegidos.length && onCambiar(elegidos[0])}
-      className="flex-wrap bg-background"
+      className="flex-wrap rounded-lg bg-white"
     >
       {opciones.map(([opcion, texto]) => (
         <ToggleGroupItem
           key={opcion}
           value={opcion}
-          className="px-3 text-xs font-bold aria-pressed:bg-gray-900 aria-pressed:text-white hover:aria-pressed:bg-gray-900"
+          className="px-3 text-xs font-medium text-muted-foreground aria-pressed:bg-gray-900 aria-pressed:text-white hover:aria-pressed:bg-gray-900"
         >
           {texto}
         </ToggleGroupItem>
@@ -139,9 +232,9 @@ export function Opciones({ etiqueta, valor, onCambiar, opciones }) {
 
 export function TituloSeccion({ children, detalle }) {
   return (
-    <div className="mb-4">
-      <h2 className="text-lg font-black">{children}</h2>
-      {detalle && <p className="text-xs text-muted-foreground mt-1">{detalle}</p>}
+    <div className="mb-4 max-w-2xl">
+      <h2 className="text-[15px] font-semibold">{children}</h2>
+      {detalle && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{detalle}</p>}
     </div>
   );
 }
@@ -153,7 +246,7 @@ export function Dialogo({ abierto, onCambiar, titulo, descripcion, ancho = "sm:m
     <Dialog open={abierto} onOpenChange={onCambiar}>
       <DialogContent className={cn("max-h-[90vh] overflow-y-auto p-6", ancho)}>
         <DialogHeader>
-          <DialogTitle className="text-lg font-black">{titulo}</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">{titulo}</DialogTitle>
           {descripcion && <DialogDescription className="text-xs">{descripcion}</DialogDescription>}
         </DialogHeader>
         {children}

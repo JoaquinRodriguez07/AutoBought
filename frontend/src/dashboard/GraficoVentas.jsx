@@ -1,4 +1,5 @@
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { useId } from "react";
+import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatearMes, formatearNumero, formatearPesos, variacion } from "./formato";
@@ -35,7 +36,7 @@ function Globo({ active, payload, metrica }) {
 
   return (
     <div className="grid gap-1 rounded-lg border bg-background px-3 py-2 text-xs shadow-xl">
-      <p className="font-black first-letter:uppercase">{formatearMes(punto.mes, { largo: true })}</p>
+      <p className="font-semibold first-letter:uppercase">{formatearMes(punto.mes, { largo: true })}</p>
       {punto.esProyeccion ? (
         <p className="text-muted-foreground">
           Proyección: <strong className="text-foreground">{formatearNumero(punto.proyectada)}</strong> unidades
@@ -92,12 +93,20 @@ export default function GraficoVentas({ meses, proyeccion, metrica = "unidades",
   }
 
   const config = { serie: { label: nombre, color: "var(--chart-1)" } };
+  // Un id por gráfico para el degradado (sin los ":" de useId, que rompen url(#...)).
+  const idRelleno = `relleno-${useId().replace(/:/g, "")}`;
 
   return (
     <figure aria-label={titulo || nombre}>
       <ChartContainer config={config} className="aspect-auto h-[280px] w-full">
-        <LineChart data={datos} margin={{ top: 20, right: 24, bottom: 0, left: 4 }}>
-          <CartesianGrid vertical={false} stroke="var(--border)" />
+        <ComposedChart data={datos} margin={{ top: 20, right: 24, bottom: 0, left: 4 }}>
+          <defs>
+            <linearGradient id={idRelleno} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={COLOR_SERIE} stopOpacity={0.18} />
+              <stop offset="100%" stopColor={COLOR_SERIE} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
           <XAxis
             dataKey="mes"
             tickFormatter={(mes) => formatearMes(mes)}
@@ -116,11 +125,21 @@ export default function GraficoVentas({ meses, proyeccion, metrica = "unidades",
             allowDecimals={false}
           />
           <ChartTooltip content={<Globo metrica={metrica} />} cursor={{ stroke: "var(--muted-foreground)", strokeWidth: 1 }} />
+          {/* Solo el relleno debajo de la línea real: los datos los dibuja la Line. */}
+          <Area
+            type="linear"
+            dataKey="real"
+            stroke="none"
+            fill={`url(#${idRelleno})`}
+            tooltipType="none"
+            activeDot={false}
+            isAnimationActive={false}
+          />
           <Line
             type="linear"
             dataKey="real"
             stroke={COLOR_SERIE}
-            strokeWidth={2}
+            strokeWidth={2.5}
             // El mes en curso va hueco: sus ventas son hasta hoy, no una caída.
             dot={(props) =>
               props.value == null ? (
@@ -160,10 +179,10 @@ export default function GraficoVentas({ meses, proyeccion, metrica = "unidades",
               isAnimationActive={false}
             />
           )}
-        </LineChart>
+        </ComposedChart>
       </ChartContainer>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-muted-foreground mt-2">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground mt-2">
         <Clave simbolo={<line x1="0" y1="5" x2="20" y2="5" stroke="var(--chart-1)" strokeWidth="2" />}>{nombre}</Clave>
         {conProyeccion && (
           <Clave

@@ -51,7 +51,7 @@
   --secondary: #f3f4f6; /* gray-100 */
   --secondary-foreground: #111827;
   --muted: #f9fafb; /* gray-50 */
-  --muted-foreground: #6b7280; /* gray-500 */
+  --muted-foreground: #4b5563; /* gray-600: el 500 se leía muy claro en textos chicos */
   --accent: #fff7ed; /* orange-50 */
   --accent-foreground: #9a3412; /* orange-800 */
   --destructive: #dc2626; /* red-600 */

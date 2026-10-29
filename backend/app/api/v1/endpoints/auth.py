@@ -68,10 +68,12 @@ def _mandar_aviso_password_cambiada(background_tasks: BackgroundTasks, user: Use
 
 
 def _token_de_sesion(user: User) -> Token:
-    """Token de sesión con el rol y la versión de sesión vigentes del usuario."""
+    """Token de sesión con el rol, la versión de sesión vigentes y el nombre
+    del usuario (el portal del vendedor saluda con él: el vendedor no tiene
+    perfil propio como el cliente en /me)."""
     access_token = create_access_token(
         subject=str(user.user_id),
-        extra_claims={"user_type": user.user_type, "sv": user.session_version},
+        extra_claims={"user_type": user.user_type, "sv": user.session_version, "name": user.name},
     )
     return Token(access_token=access_token)
 

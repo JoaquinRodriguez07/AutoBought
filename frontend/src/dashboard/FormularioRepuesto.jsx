@@ -86,7 +86,7 @@ function AgregarVehiculo({ vehiculos, elegidos, onAgregar }) {
         <Campo id="vehiculo-hasta" etiqueta="Hasta">
           <Input id="vehiculo-hasta" inputMode="numeric" value={hasta} onChange={(e) => setHasta(e.target.value)} className="h-10" />
         </Campo>
-        <Button type="button" onClick={agregar} className="h-10 px-3 bg-gray-900 text-white text-xs font-black hover:bg-black">
+        <Button type="button" onClick={agregar} variant="secondary" className="h-10 px-3 text-xs">
           Agregar
         </Button>
       </div>
@@ -242,8 +242,8 @@ function ContenidoFormulario({ repuestoId, categorias, onGuardado }) {
         </Alert>
       )}
 
-      <Button type="submit" disabled={guardando} className="h-10 px-6 self-end text-xs font-black hover:bg-orange-600">
-        {guardando ? "Guardando…" : esAlta ? "DAR DE ALTA" : "GUARDAR CAMBIOS"}
+      <Button type="submit" disabled={guardando} className="h-10 px-6 self-end hover:bg-orange-600">
+        {guardando ? "Guardando…" : esAlta ? "Dar de alta" : "Guardar cambios"}
       </Button>
     </form>
   );

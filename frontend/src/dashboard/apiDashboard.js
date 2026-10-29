@@ -245,3 +245,51 @@ export async function ajustarStock(id, stock) {
   });
   return mapearRepuesto(part);
 }
+
+/* =====================================================
+   DASHBOARD CON IA (HU 6.3 y 6.4)
+   El backend todavía no tiene estas rutas: las pantallas ya
+   están listas y, mientras tanto, dicen "En desarrollo".
+   El contrato propuesto está en cada función.
+====================================================== */
+
+/** true si la ruta todavía no existe en el backend. */
+export const funcionSinPublicar = (error) => error?.status === 404 || error?.status === 501;
+
+const mapearResumen = (data) => ({ puntos: data.points, generado: data.generated_at });
+
+/**
+ * GET /analytics/summary (HU 6.3): el resumen guardado del día.
+ * Respuesta: { points: string[] (3 a 5), generated_at: fecha ISO }
+ */
+export async function obtenerResumenIA() {
+  const data = await pedir("/analytics/summary", { mensajeError: "No pudimos cargar el resumen." });
+  return mapearResumen(data);
+}
+
+/** POST /analytics/summary (HU 6.3): genera uno nuevo con los datos del momento. */
+export async function actualizarResumenIA() {
+  const data = await pedir("/analytics/summary", {
+    method: "POST",
+    mensajeError: "No pudimos generar el resumen.",
+  });
+  return mapearResumen(data);
+}
+
+/**
+ * POST /analytics/preguntar (HU 6.4)
+ * Cuerpo: { question }
+ * Respuesta: { answer, data: { columns: string[], rows: any[][] } | null }
+ * `data` son los datos que se usaron para responder, para verificarlos.
+ */
+export async function preguntarAlDashboard(pregunta) {
+  const data = await pedir("/analytics/preguntar", {
+    method: "POST",
+    body: JSON.stringify({ question: pregunta }),
+    mensajeError: "No pudimos responder la pregunta. Probá de nuevo en un rato.",
+  });
+  return {
+    respuesta: data.answer,
+    datos: data.data ? { columnas: data.data.columns, filas: data.data.rows } : null,
+  };
+}

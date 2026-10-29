@@ -29,5 +29,5 @@ test("vendedor: inicia sesión y entra al dashboard", async ({ page }) => {
   await iniciarSesion(page, VENDEDOR);
   await page.goto("/dashboard");
 
-  await expect(page.getByRole("heading", { name: "Dashboard del vendedor" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Resumen" })).toBeVisible();
 });

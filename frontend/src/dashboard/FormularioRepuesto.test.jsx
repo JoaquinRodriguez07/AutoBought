@@ -52,7 +52,7 @@ it("creates a part with its data, stock and compatible vehicles", async () => {
   await user.click(screen.getByRole("button", { name: "Agregar" }));
   expect(within(screen.getByRole("list", { name: "Vehículos elegidos" })).getByText("Volkswagen Gol 1.6 (2015–2022)")).toBeInTheDocument();
 
-  await user.click(screen.getByRole("button", { name: "DAR DE ALTA" }));
+  await user.click(screen.getByRole("button", { name: "Dar de alta" }));
 
   expect(crearRepuesto).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -72,7 +72,7 @@ it("asks for the required data and at least one vehicle before sending", async (
   const user = userEvent.setup();
   renderFormulario();
 
-  await user.click(await screen.findByRole("button", { name: "DAR DE ALTA" }));
+  await user.click(await screen.findByRole("button", { name: "Dar de alta" }));
 
   expect(screen.getByText("Ingresá el código.")).toBeInTheDocument();
   expect(screen.getByText("Ingresá el nombre.")).toBeInTheDocument();
@@ -103,7 +103,7 @@ it("shows the API error, for example a repeated code", async () => {
   await completar(user, { Código: "FRE-001", Nombre: "X", Fabricante: "Y", Categoría: "Frenos", "Precio ($)": "10" });
   await user.selectOptions(screen.getByLabelText("Vehículo"), "Chevrolet Onix 1.4 8V");
   await user.click(screen.getByRole("button", { name: "Agregar" }));
-  await user.click(screen.getByRole("button", { name: "DAR DE ALTA" }));
+  await user.click(screen.getByRole("button", { name: "Dar de alta" }));
 
   expect(await screen.findByRole("alert")).toHaveTextContent("Ya existe un repuesto con ese código.");
   expect(onGuardado).not.toHaveBeenCalled();
@@ -133,7 +133,7 @@ it("loads the part to edit it, matching its vehicles, without a stock field", as
   expect(screen.getByText("Chevrolet Onix 1.4 8V (2013–2019)")).toBeInTheDocument();
 
   await completar(user, { "Precio ($)": "2000" });
-  await user.click(screen.getByRole("button", { name: "GUARDAR CAMBIOS" }));
+  await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
   expect(editarRepuesto).toHaveBeenCalledWith(
     7,

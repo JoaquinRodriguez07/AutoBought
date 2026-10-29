@@ -52,6 +52,9 @@ jest.mock("./dashboard/apiDashboard", () => ({
   obtenerEvolucionVentas: jest.fn(() =>
     Promise.resolve({ meses: [], proyeccion: { mes: "2026-11", unidades: 0 } })
   ),
+  obtenerMasVendidos: jest.fn(() => Promise.resolve([])),
+  obtenerResumenIA: jest.fn(() => Promise.reject(Object.assign(new Error("No encontrado"), { status: 404 }))),
+  funcionSinPublicar: (error) => error?.status === 404,
 }));
 jest.mock(
   "react-hot-toast",
@@ -194,7 +197,7 @@ describe("login según el tipo de usuario", () => {
   it("sends a seller to the dashboard without asking for the client profile, cart or favorites", async () => {
     await iniciarSesion("employee");
 
-    expect(await screen.findByRole("heading", { name: "Dashboard del vendedor" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
     expect(rutaActual()).toBe("/dashboard");
     expectSinPedidosDeCliente();
 
@@ -211,7 +214,7 @@ describe("login según el tipo de usuario", () => {
 
     await iniciarSesion("employee");
 
-    expect(await screen.findByRole("heading", { name: "Dashboard del vendedor" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
     expect(rutaActual()).toBe("/dashboard");
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
   });
@@ -224,7 +227,7 @@ describe("login según el tipo de usuario", () => {
     expect(obtenerCarrito).toHaveBeenCalled();
     await waitFor(() => expect(obtenerFavoritos).toHaveBeenCalled());
     await waitFor(() => expect(obtenerAvisosStock).toHaveBeenCalled());
-    expect(screen.queryByRole("heading", { name: "Dashboard del vendedor" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Resumen" })).not.toBeInTheDocument();
   });
 });
 
@@ -307,14 +310,18 @@ describe("Navbar según el perfil", () => {
 describe("App con sesión de vendedor", () => {
   beforeEach(() => guardar(sesionDe("employee")));
 
-  it("greets the seller in the dashboard, inside the store, with the data from the API", async () => {
+  it("greets the seller in the dashboard, in its own portal, with the data from the API", async () => {
     renderApp("/dashboard");
 
-    expect(await screen.findByRole("heading", { name: "Dashboard del vendedor" })).toBeInTheDocument();
-    expect(screen.getByText(/Hola, vendedor@example\.com/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
+    expect(screen.getByText(/Hola, vendedor\./)).toBeInTheDocument();
     expect(await screen.findByText("No hay repuestos que requieran reposición")).toBeInTheDocument();
     expect(obtenerStock).toHaveBeenCalled();
     expect(screen.queryByRole("link", { name: "ABRIR DASHBOARD" })).not.toBeInTheDocument();
+    // Su propio marco: sin el menú ni el footer de la tienda.
+    expect(screen.getByRole("navigation", { name: "Secciones del dashboard" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Marcas" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Mi carrito")).not.toBeInTheDocument();
   });
 
   it("does not request profile, cart or favorites when the app loads", async () => {
@@ -331,6 +338,8 @@ describe("App con sesión de vendedor", () => {
     obtenerRepuestos.mockResolvedValue([]);
     renderApp("/dashboard");
 
+    await user.click(await screen.findByRole("button", { name: "Ver la tienda" }));
+    await waitFor(() => expect(rutaActual()).toBe("/"));
     await user.click(await screen.findByRole("button", { name: "Repuestos" }));
     await waitFor(() => expect(rutaActual()).toBe("/catalogo"));
 
@@ -341,8 +350,7 @@ describe("App con sesión de vendedor", () => {
     const user = userEvent.setup();
     renderApp("/dashboard");
 
-    await user.click(await screen.findByTitle("Mi cuenta"));
-    await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
+    await user.click(await screen.findByRole("button", { name: "Cerrar sesión" }));
 
     // Igual que cerrar sesión en /carrito: el guard ve que ya no hay sesión
     // y manda al login antes de que se aplique la navegación a "/".
@@ -360,7 +368,7 @@ describe("App con sesión de vendedor", () => {
   ])("redirects the client route %s to the dashboard", async (ruta) => {
     renderApp(ruta);
 
-    expect(await screen.findByRole("heading", { name: "Dashboard del vendedor" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
     expect(rutaActual()).toBe("/dashboard");
     expectSinPedidosDeCliente();
   });
@@ -418,7 +426,7 @@ describe("App con sesión de cliente o anónima", () => {
     renderApp("/dashboard");
 
     await waitFor(() => expect(rutaActual()).toBe("/"));
-    expect(screen.queryByRole("heading", { name: "Dashboard del vendedor" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1, name: "Resumen" })).not.toBeInTheDocument();
     expect(obtenerStock).not.toHaveBeenCalled();
   });
 

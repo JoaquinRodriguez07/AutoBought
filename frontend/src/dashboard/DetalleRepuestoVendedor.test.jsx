@@ -3,9 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 jest.mock("./apiDashboard");
-jest.mock("../Navbar", () => function NavbarFalso() {
-  return <nav />;
-});
 
 import DetalleRepuestoVendedor from "./DetalleRepuestoVendedor";
 import { ajustarStock, obtenerDetalleRepuesto } from "./apiDashboard";
@@ -64,7 +61,8 @@ function renderDetalle(estado) {
 }
 
 // El título de un indicador también aparece en la leyenda y la tabla del gráfico.
-const indicador = (titulo) => screen.getByText(titulo, { selector: "p" }).parentElement;
+// La tarjeta entera del indicador: título, número y detalle.
+const indicador = (titulo) => screen.getByText(titulo, { selector: "p" }).parentElement.parentElement;
 
 it("shows the stock, the units sold and the sales history of the part", async () => {
   const { container } = renderDetalle();
@@ -115,7 +113,7 @@ it("adjusts the stock from 38 to 50 and reloads the part", async () => {
   ajustarStock.mockResolvedValue({ id: 7, stock: 50 });
   renderDetalle();
 
-  await user.click(await screen.findByRole("button", { name: "AJUSTAR STOCK" }));
+  await user.click(await screen.findByRole("button", { name: "Ajustar stock" }));
   const dialogo = await screen.findByRole("dialog", { name: "Ajustar stock" });
   const campo = within(dialogo).getByLabelText("Unidades disponibles");
   expect(campo).toHaveValue("38");
@@ -123,7 +121,7 @@ it("adjusts the stock from 38 to 50 and reloads the part", async () => {
   obtenerDetalleRepuesto.mockResolvedValue(detalle({ stock: 50 }));
   await user.clear(campo);
   await user.type(campo, "50");
-  await user.click(within(dialogo).getByRole("button", { name: "GUARDAR STOCK" }));
+  await user.click(within(dialogo).getByRole("button", { name: "Guardar stock" }));
 
   expect(ajustarStock).toHaveBeenCalledWith(7, "50");
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -134,11 +132,11 @@ it("does not send a stock that is not a whole number", async () => {
   const user = userEvent.setup();
   renderDetalle();
 
-  await user.click(await screen.findByRole("button", { name: "AJUSTAR STOCK" }));
+  await user.click(await screen.findByRole("button", { name: "Ajustar stock" }));
   const campo = screen.getByLabelText("Unidades disponibles");
   await user.clear(campo);
   await user.type(campo, "-3");
-  await user.click(screen.getByRole("button", { name: "GUARDAR STOCK" }));
+  await user.click(screen.getByRole("button", { name: "Guardar stock" }));
 
   expect(screen.getByText("El stock es un número entero, 0 o más.")).toBeInTheDocument();
   expect(ajustarStock).not.toHaveBeenCalled();
@@ -148,7 +146,7 @@ it("goes back to the dashboard keeping the filters", async () => {
   const user = userEvent.setup();
   renderDetalle({ desde: "?categoria=Frenos&periodo=3" });
 
-  await user.click(await screen.findByRole("button", { name: "← Volver al dashboard" }));
+  await user.click(await screen.findByRole("button", { name: "Volver al dashboard" }));
 
   expect(screen.getByTestId("ruta")).toHaveTextContent("/dashboard?categoria=Frenos&periodo=3");
 });
