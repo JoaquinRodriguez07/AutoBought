@@ -11,6 +11,7 @@ import VehicleSelector from "./VehicleSelector";
 import { IconoAuto } from "./Iconos";
 import { obtenerRepuesto } from "./api";
 import { extraerIdProducto } from "./slugProducto";
+import { esVendedor } from "./auth";
 
 function IconoCarrito({ className = "h-4 w-4" }) {
   return (
@@ -51,6 +52,8 @@ export default function DetalleProducto({
   onCerrarSesion,
 }) {
   const { vehiculoActivo: filtrosVehiculo, activarVehiculo } = useVehicle();
+  // El vendedor no compra: no ve carrito, favoritos ni avisos de stock.
+  const vendedor = esVendedor(usuario);
   const { id: slugDesdeUrl } = useParams();
   const idDesdeUrl = extraerIdProducto(slugDesdeUrl);
   const [detalleCargado, setDetalleCargado] = useState({ id: null, estado: "cargando", producto: null });
@@ -284,10 +287,12 @@ export default function DetalleProducto({
             <div>
               <div className="relative h-[360px] bg-white rounded-xl overflow-hidden border border-gray-100">
                 <img onError={usarImagenGenerica} src={imagenes[imagenActiva] ?? imagenes[0]} alt={productoActual.nombre} className="w-full h-full object-contain p-6" />
+                {!vendedor && (
                 <button onClick={() => onAlternarFavorito(productoActual)}
                   className={`absolute top-4 right-4 flex w-10 h-10 items-center justify-center bg-white rounded-full shadow-md ${favorito ? "text-orange-500" : "text-gray-500"}`}>
                   <IconoCorazon className="h-5 w-5" relleno={favorito} />
                 </button>
+                )}
               </div>
               <p className="text-[10px] text-gray-400 mt-2">Imagen ilustrativa.</p>
               {imagenes.length > 1 && (
@@ -366,11 +371,15 @@ export default function DetalleProducto({
                 {sinStock ? (
                   <p className="mt-2 text-xs">
                     <span className="font-bold text-red-500">Sin stock</span>
-                    <BotonAvisoStock producto={productoActual} tieneAviso={tieneAvisoStock(productoActual.partId)} onAlternarAviso={onAlternarAvisoStock} className="ml-3 text-[10px]" />
+                    {!vendedor && (
+                      <BotonAvisoStock producto={productoActual} tieneAviso={tieneAvisoStock(productoActual.partId)} onAlternarAviso={onAlternarAvisoStock} className="ml-3 text-[10px]" />
+                    )}
                   </p>
                 ) : (
                   <p className="mt-2 text-xs"><span className="font-bold text-green-600">En stock</span><span className="ml-2 text-gray-400">({productoActual.stock} unidades)</span></p>
                 )}
+                {!vendedor && (
+                <>
                 <div className="mt-5 flex flex-col gap-2 xl:flex-row">
                   <div className="flex h-10 shrink-0 items-center rounded-md border border-gray-200">
                     <button aria-label="Disminuir cantidad" onClick={() => setCantidad((v) => Math.max(1, v - 1))} disabled={sinStock} className="w-9 disabled:opacity-40">−</button>
@@ -391,6 +400,8 @@ export default function DetalleProducto({
                   className={`mt-3 h-10 w-full rounded-md border text-[10px] font-bold ${favorito ? "border-orange-500 text-orange-500" : "border-gray-200 text-gray-600"}`}>
                   <span className="inline-flex items-center justify-center gap-1.5"><IconoCorazon className="h-3.5 w-3.5" relleno={favorito} />{favorito ? "Agregado a favoritos" : "Agregar a favoritos"}</span>
                 </button>
+                </>
+                )}
               </div>
               <div data-testid="compatibility-card" className="mt-3 min-w-0 rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
                 <h2 className="text-sm font-black text-gray-900">Compatibilidad</h2>

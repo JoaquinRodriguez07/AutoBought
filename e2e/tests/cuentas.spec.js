@@ -25,9 +25,9 @@ test("registro: crear una cuenta y verificar el correo con el enlace del mail", 
   await expect(page.getByText("Tu correo quedó verificado")).toBeVisible();
 });
 
-test("vendedor: inicia sesión y entra al portal del vendedor", async ({ page }) => {
+test("vendedor: inicia sesión y entra al dashboard", async ({ page }) => {
   await iniciarSesion(page, VENDEDOR);
   await page.goto("/dashboard");
 
-  await expect(page.getByRole("heading", { name: "Portal del vendedor" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Resumen" })).toBeVisible();
 });

@@ -14,6 +14,7 @@ import { filtrarRepuestos } from "./filtrarRepuestos";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import { buscarTexto, obtenerCategorias, obtenerRepuestos } from "./api";
 import { useVehicle } from "./context/VehicleContext";
+import { esVendedor } from "./auth";
 
 // Cuántas tarjetas se muestran de entrada, y cuántas más con "Ver más".
 const REPUESTOS_POR_TANDA = 24;
@@ -125,6 +126,8 @@ export default function Catalogo({
   // En celular los filtros se esconden detrás de un botón.
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
   const [cantidades, setCantidades] = useState({});
+  // El vendedor no compra: no ve carrito, favoritos ni avisos de stock.
+  const vendedor = esVendedor(usuario);
 
 
   // ==========================================
@@ -782,6 +785,7 @@ export default function Catalogo({
                           className="w-full h-full object-contain p-3"
                         />
 
+                        {!vendedor && (
                         <button
                           type="button"
                           onClick={() =>
@@ -797,6 +801,7 @@ export default function Catalogo({
                         >
                           <IconoCorazon lleno={favorito} className="w-5 h-5" />
                         </button>
+                        )}
 
                       </div>
 
@@ -840,7 +845,7 @@ export default function Catalogo({
 
                         </div>
 
-                        {sinStock && (
+                        {sinStock && !vendedor && (
                           <BotonAvisoStock
                             producto={producto}
                             tieneAviso={tieneAvisoStock(producto.partId)}
@@ -851,6 +856,7 @@ export default function Catalogo({
 
                         {/* CANTIDAD + AGREGAR */}
 
+                        {!vendedor && (
                         <div className="flex items-center gap-2 mt-4">
 
                           <div className="flex border border-gray-200 rounded-md">
@@ -905,6 +911,7 @@ export default function Catalogo({
                           </BotonAgregarCarrito>
 
                         </div>
+                        )}
 
                         {/* DETALLE */}
 

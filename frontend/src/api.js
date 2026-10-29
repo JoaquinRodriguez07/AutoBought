@@ -5,7 +5,7 @@ import { formatearTelefonoUY } from "./telefono";
 // En Vercel el frontend y el backend comparten dominio: frontend/.env.production
 // deja VITE_API_URL vacía y los pedidos van a /api/v1/... del mismo sitio.
 // En desarrollo (y en Docker) la variable no está o apunta al backend local.
-const API_BASE_URL =
+export const API_BASE_URL =
   import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
 /* =====================================================
@@ -41,7 +41,7 @@ export function alSesionInvalida(fn) {
  * pedido viejo, hecho con el token anterior al cambio de contraseña, no
  * tiene que cerrar la sesión nueva).
  */
-function avisarSesionInvalida(tokenEnviado) {
+export function avisarSesionInvalida(tokenEnviado) {
   if (!tokenEnviado || obtenerSesion()?.token !== tokenEnviado) return;
   [...manejadoresSesionInvalida].forEach((fn) => fn());
 }

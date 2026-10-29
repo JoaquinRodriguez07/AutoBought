@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { alGuardarSesion, esVendedor, guardarSesion, obtenerSesion, sesionValida } from "./auth";
@@ -33,13 +33,21 @@ import { usePit } from "./context/PitContext";
 import ProtectedRoute from "./ProtectedRoute";
 import Footer from "./Footer";
 import EmployeeRoute from "./EmployeeRoute";
-import PortalVendedor from "./dashboard/PortalVendedor";
 import PaginaNoEncontrada from "./PaginaNoEncontrada";
 import RecuperarPassword from "./RecuperarPassword";
 import RestablecerPassword from "./RestablecerPassword";
 import VerificarCorreo from "./VerificarCorreo";
 import AvisoVerificarCorreo from "./AvisoVerificarCorreo";
 import DarseDeBaja from "./DarseDeBaja";
+
+// El dashboard (con Recharts y Base UI) se descarga recién cuando entra un
+// vendedor: un cliente nunca baja ese código.
+const Dashboard = lazy(() => import("./dashboard/Dashboard"));
+const DetalleRepuestoVendedor = lazy(() => import("./dashboard/DetalleRepuestoVendedor"));
+
+const cargandoDashboard = (
+  <p className="pt-[140px] text-center text-sm text-gray-400">Cargando dashboard…</p>
+);
 
 const RUTAS_SIN_FOOTER = [
   "/login",
@@ -260,6 +268,13 @@ function App() {
     recordar
   ) => {
     setUsuario(usuarioLogueado);
+
+    // Se borra cualquier sesión anterior (por ejemplo, una vencida de
+    // «Recordarme»): obtenerSesion lee primero localStorage, así que si
+    // quedara ahí taparía a la nueva y /dashboard mandaría al vendedor de
+    // vuelta al login.
+    localStorage.removeItem("autobought-sesion");
+    sessionStorage.removeItem("autobought-sesion");
 
     if (recordar) {
       localStorage.setItem(
@@ -561,7 +576,9 @@ function App() {
   // debajo. Cada página trae su propio `min-h-screen`; acá se reemplaza
   // por "ocupar lo que sobre" (flex-1) para que la página y el footer
   // juntos llenen la pantalla.
-  const conFooter = !RUTAS_SIN_FOOTER.includes(pathname);
+  // El portal del vendedor (/dashboard y el detalle de un repuesto) tiene
+  // su propio marco, sin el footer de la tienda.
+  const conFooter = !RUTAS_SIN_FOOTER.includes(pathname) && !pathname.startsWith("/dashboard");
 
   // Pit (el asistente con IA) flota en las páginas de la tienda para los
   // clientes con sesión: no en las pantallas de cuenta sin footer (login,
@@ -803,7 +820,7 @@ function App() {
       </Route>
 
       {/* =================================================
-          PORTAL DEL VENDEDOR
+          DASHBOARD DEL VENDEDOR
           (solo sesiones de vendedor)
       ================================================== */}
 
@@ -811,10 +828,17 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <PortalVendedor
-              {...propsNavbar}
-              usuario={usuario}
-            />
+            <Suspense fallback={cargandoDashboard}>
+              <Dashboard {...propsNavbar} usuario={usuario} />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/dashboard/repuestos/:id"
+          element={
+            <Suspense fallback={cargandoDashboard}>
+              <DetalleRepuestoVendedor {...propsNavbar} usuario={usuario} />
+            </Suspense>
           }
         />
       </Route>
