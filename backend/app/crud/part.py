@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.part import Part
@@ -95,11 +95,40 @@ def list_categories(db: Session) -> list[tuple[str, int]]:
     return [(category, count) for category, count in db.execute(query).all()]
 
 
-def list_stock(db: Session) -> list[Part]:
+def filtrar_repuestos(
+    query,
+    category: str | None = None,
+    search: str | None = None,
+    part_id: int | None = None,
+):
+    # Filtros del dashboard del vendedor (HU 5.9), los mismos en todas sus
+    # vistas: categoría exacta y búsqueda parcial por nombre o código, sin
+    # distinguir mayúsculas, igual que en el catálogo.
+    categoria_term = (category or "").strip()
+    if categoria_term:
+        query = query.where(func.lower(Part.category) == categoria_term.lower())
+
+    term = (search or "").strip()
+    if term:
+        pattern = f"%{term}%"
+        query = query.where(or_(Part.name.ilike(pattern), Part.part_code.ilike(pattern)))
+
+    if part_id is not None:
+        query = query.where(Part.id == part_id)
+
+    return query
+
+
+def list_stock(
+    db: Session,
+    category: str | None = None,
+    search: str | None = None,
+) -> list[Part]:
     # Todo el catálogo para el dashboard del vendedor, de menos a más stock:
     # lo que hay que reponer queda arriba. Sin compatibilidades: el
     # dashboard no las muestra.
     query = select(Part).order_by(Part.stock, Part.part_code, Part.id)
+    query = filtrar_repuestos(query, category=category, search=search)
     return list(db.scalars(query).all())
 
 
@@ -108,6 +137,9 @@ def list_best_sellers(
     limit: int,
     days: int | None = None,
     in_stock: bool = False,
+    since: datetime | None = None,
+    category: str | None = None,
+    search: str | None = None,
 ) -> list[tuple[Part, int]]:
     # Unidades vendidas por repuesto, de mayor a menor. Los pedidos
     # cancelados no cuentan y los repuestos sin ventas no aparecen (el JOIN
@@ -117,6 +149,9 @@ def list_best_sellers(
     #   - in_stock: saltea los que hoy no tienen stock. La tienda lo usa
     #     para no ofrecer algo que no se puede comprar; el dashboard no,
     #     porque un más vendido sin stock es justo lo que hay que reponer.
+    #   - since: solo las ventas desde ese momento. El dashboard lo usa
+    #     para contar meses calendario enteros en vez de N días.
+    #   - category / search: los filtros del dashboard (filtrar_repuestos).
     units_sold = func.sum(OrderItem.quantity).label("units_sold")
     query = (
         select(Part, units_sold)
@@ -137,7 +172,68 @@ def list_best_sellers(
         since = datetime.now(timezone.utc) - timedelta(days=days)
         query = query.where(Order.created_at >= since)
 
+    if since is not None:
+        query = query.where(Order.created_at >= since)
+
     if in_stock:
         query = query.where(Part.stock > 0)
 
+    query = filtrar_repuestos(query, category=category, search=search)
+
     return [(part, int(units)) for part, units in db.execute(query).all()]
+
+
+# --- Alta y edición desde el dashboard del vendedor (HU 5.10) ---
+
+
+def part_code_in_use(db: Session, part_code: str, exclude_id: int | None = None) -> bool:
+    # El código identifica al repuesto ante el vendedor: no se repite,
+    # aunque la base no lo exija (sin distinguir mayúsculas).
+    query = select(Part.id).where(func.lower(Part.part_code) == part_code.lower())
+    if exclude_id is not None:
+        query = query.where(Part.id != exclude_id)
+    return db.scalar(query.limit(1)) is not None
+
+
+def missing_car_models(db: Session, car_model_ids: list[int]) -> list[int]:
+    existentes = set(db.scalars(select(CarModel.id).where(CarModel.id.in_(car_model_ids))))
+    return [car_model_id for car_model_id in car_model_ids if car_model_id not in existentes]
+
+
+def _set_data(db: Session, part: Part, data) -> None:
+    campos = data.model_dump(exclude={"compatibilities", "stock"})
+    for campo, valor in campos.items():
+        setattr(part, campo, valor)
+
+    # Se reemplazan todas: el formulario manda la lista completa.
+    if part.id is not None:
+        db.execute(delete(Compatibility).where(Compatibility.part_id == part.id))
+        db.expire(part, ["compatibilities"])
+    part.compatibilities = [
+        Compatibility(car_model_id=c.car_model_id, year_from=c.year_from, year_to=c.year_to)
+        for c in data.compatibilities
+    ]
+
+
+def create_part(db: Session, data) -> Part:
+    part = Part(stock=data.stock)
+    db.add(part)
+    _set_data(db, part, data)
+    db.commit()
+    db.refresh(part)
+    return part
+
+
+def update_part(db: Session, part: Part, data) -> Part:
+    # El stock no cambia acá: se ajusta con set_stock.
+    _set_data(db, part, data)
+    db.commit()
+    db.refresh(part)
+    return part
+
+
+def set_stock(db: Session, part: Part, stock: int) -> Part:
+    part.stock = stock
+    db.commit()
+    db.refresh(part)
+    return part

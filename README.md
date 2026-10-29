@@ -80,28 +80,28 @@ Si cambia algo del catálogo o de los pedidos y hay que regenerar todo, lo más 
 
 ## Dashboard del vendedor
 
-El dashboard interno (stock actual y repuestos más vendidos) es una app de [Streamlit](https://streamlit.io) en `analitica/`. No se conecta a la base: pide los datos a los endpoints `/api/v1/analytics/*` del backend con el token del vendedor, así que solo entran las cuentas de vendedor (a un cliente el backend le responde 403 y el dashboard no lo deja pasar del login).
+El dashboard es parte de la tienda en React, en la ruta `/dashboard`: al iniciar sesión, el vendedor (`vendedor@autobought.com` de `scripts.seed_demo_users`) entra directo ahí. Solo lo ven las sesiones de vendedor, y su código (con [Recharts](https://recharts.org) para los gráficos y [Base UI](https://base-ui.com) para los controles) se descarga recién cuando entra un vendedor. Los componentes están en `frontend/src/dashboard/`.
 
-Con `docker compose up -d` se levanta junto con el resto en http://localhost:8501. Se entra con el vendedor de `scripts.seed_demo_users` (`vendedor@autobought.com`). Desde la tienda, el vendedor llega con el botón «Abrir dashboard» de `/dashboard`, que abre esa dirección (se cambia con `VITE_DASHBOARD_URL`).
+Los cálculos son del backend, en `/api/v1/analytics/*` (endpoints en `app/api/v1/endpoints/analytics.py`, cálculos puros en `app/core/analitica.py`). Responden 401 sin sesión y 403 a una cuenta de cliente. Para que los gráficos tengan forma, cargar antes `scripts.seed_order_history`.
 
-- **Stock actual:** todos los repuestos de menos a más stock, con búsqueda por nombre, código o fabricante, filtro por categoría y por estado. Con 5 unidades o menos un repuesto figura como *Stock bajo* (el umbral se cambia en la barra lateral) y con 0, como *Sin stock*.
-- **Más vendidos:** ranking por unidades vendidas en los últimos 30 días, 90 días, 12 meses o en total. No cuentan los pedidos cancelados y sí los repuestos agotados, que son justo los que hay que reponer.
+| Sección | Endpoint | Qué muestra |
+|---|---|---|
+| Alertas de reposición | `stockout-risk?at_risk_only=true` | Arriba de todo: los repuestos con riesgo alto (destacados) o medio, con stock, demanda proyectada y días de cobertura. |
+| Evolución de ventas | `sales-by-month` | Unidades o facturación de cada mes, con la proyección del mes que viene punteada. El último mes es el actual, hasta hoy. |
+| Más vendidos | `best-sellers` | Ranking por unidades vendidas en el período. No cuentan los pedidos cancelados; sí los repuestos agotados. |
+| Stock actual | `stock` | Todos los repuestos de menos a más stock, con su estado escrito: *Sin stock*, *Stock bajo* (5 unidades o menos) o *Normal*. |
+| Proyección | `demand-forecast` | Demanda proyectada del mes que viene por repuesto. |
+| Riesgo de agotamiento | `stockout-risk` | Días de cobertura y nivel de riesgo, del más urgente al menos urgente. |
+| Detalle de un repuesto | `parts/{id}` | Stock, unidades vendidas, ventas de 12 meses con la proyección, cobertura y riesgo. Desde ahí se edita el repuesto y se ajusta el stock. |
 
-Los datos se piden de nuevo en cada interacción (no hay caché): un cambio de stock o una venta nueva se ve tocando cualquier filtro o «Actualizar datos». Para que los gráficos tengan forma, cargar antes `scripts.seed_order_history`.
-
-Sin Docker, con el backend corriendo en el puerto 8000:
-
-```bash
-cd analitica
-uv sync
-uv run streamlit run app.py                                         # http://localhost:8501
-AUTOBOUGHT_API_URL=http://otro-backend:8000 uv run streamlit run app.py   # contra otro backend
-uv sync --group dev && uv run pytest                                # tests
-```
+- **Filtros:** categoría, repuesto (nombre o código) y período (3, 6 o 12 meses calendario, el actual incluido) en todas las secciones; van en la URL, así que al volver del detalle quedan como estaban. El período aplica a las ventas; la proyección siempre mira 12 meses.
+- **Proyección:** regresión lineal (numpy) sobre las unidades de los últimos 12 meses, evaluada en el mes siguiente. El mes en curso se lleva a mes completo al ritmo que lleva (el día 15 de un mes de 30 cuenta el doble), si no siempre parecería una caída. Nunca da menos de 0 y no modifica ventas ni stock.
+- **Riesgo:** días de cobertura = stock / (demanda proyectada / días del mes proyectado). Alto con menos de 15 días, medio de 15 a 30, bajo con más de 30 o sin demanda proyectada. Los umbrales están en `app/core/analitica.py`.
+- **Alta, edición y stock:** `POST /api/v1/parts`, `PUT /api/v1/parts/{id}` y `PATCH /api/v1/parts/{id}/stock`, solo para vendedores. Un repuesto necesita al menos un vehículo compatible para aparecer en el catálogo. Reponer un agotado manda el aviso de «Avisame cuando haya», y bajar el precio, el de baja de precio a quienes lo tienen en favoritos.
 
 ## Mails
 
-El backend manda mails para verificar el correo al registrarse, recuperar la contraseña y avisar cuando la contraseña cambia; para confirmar cada compra; para avisar que volvió el stock de un repuesto agotado (botón «Avisame cuando haya»); y recordatorios de carrito abandonado y de mantenimiento. Los mails de pedidos ante un cambio de estado o una cancelación, y el aviso de baja de precio de un favorito, ya están en `app/core/notificaciones.py`: falta que las pantallas del vendedor y la cancelación los llamen.
+El backend manda mails para verificar el correo al registrarse, recuperar la contraseña y avisar cuando la contraseña cambia; para confirmar cada compra; para avisar que volvió el stock de un repuesto agotado (botón «Avisame cuando haya»); y recordatorios de carrito abandonado y de mantenimiento. El vendedor dispara desde el dashboard el aviso de vuelta de stock (al reponer un agotado) y el de baja de precio de un favorito. Los mails de pedidos ante un cambio de estado o una cancelación ya están en `app/core/notificaciones.py`: falta que la gestión de pedidos y la cancelación los llamen.
 
 **En local** no hace falta configurar nada: `docker compose up -d` levanta **Mailpit**, un servidor de mail falso. Todos los mails que manda el backend, a cualquier dirección, se ven en http://localhost:8025 y no llega nada a ningún correo real.
 

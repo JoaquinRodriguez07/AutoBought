@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.part import Part
 
@@ -115,3 +115,54 @@ def build_part_out(part: Part) -> PartOut:
         warranty_provider=part.warranty_provider,
         compatibilities=compatibilities,
     )
+
+
+# --- Alta y edición de repuestos desde el dashboard (HU 5.10) ---
+
+
+class CompatibilityIn(BaseModel):
+    car_model_id: int = Field(ge=1)
+    year_from: int = Field(ge=1950, le=2100)
+    year_to: int = Field(ge=1950, le=2100)
+
+    @model_validator(mode="after")
+    def anios_en_orden(self):
+        if self.year_to < self.year_from:
+            raise ValueError("El año hasta no puede ser anterior al año desde.")
+        return self
+
+
+class PartData(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    part_code: str = Field(min_length=1, max_length=50)
+    name: str = Field(min_length=1, max_length=120)
+    manufacturer: str = Field(min_length=1, max_length=60)
+    category: str = Field(min_length=1, max_length=60)
+    price: int = Field(gt=0, le=100_000_000)
+    color: Optional[str] = Field(default=None, max_length=40)
+    description: Optional[str] = Field(default=None, max_length=5000)
+    warranty_months: Optional[int] = Field(default=None, ge=0, le=240)
+    # Sin compatibilidades el repuesto no aparece en el catálogo, que se
+    # arma desde los vehículos.
+    compatibilities: list[CompatibilityIn] = Field(min_length=1, max_length=200)
+
+    @field_validator("compatibilities")
+    @classmethod
+    def sin_vehiculos_repetidos(cls, value: list[CompatibilityIn]) -> list[CompatibilityIn]:
+        ids = [c.car_model_id for c in value]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Un vehículo figura más de una vez.")
+        return value
+
+
+class PartCreate(PartData):
+    stock: int = Field(ge=0, le=1_000_000)
+
+
+class PartUpdate(PartData):
+    pass
+
+
+class StockUpdate(BaseModel):
+    stock: int = Field(ge=0, le=1_000_000)
