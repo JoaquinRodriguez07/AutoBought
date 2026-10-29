@@ -21,6 +21,21 @@ MAS_VENDIDOS = {
     ],
 }
 
+EVOLUCION = {
+    "months": 12,
+    "category": None,
+    "points": [
+        {"month": "2026-08", "units_sold": 10, "revenue": 10000, "partial": False},
+        {"month": "2026-09", "units_sold": 15, "revenue": 15000, "partial": False},
+        {"month": "2026-10", "units_sold": 4, "revenue": 4000, "partial": True},
+    ],
+}
+SIN_VENTAS = {
+    "months": 12,
+    "category": None,
+    "points": [{"month": "2026-10", "units_sold": 0, "revenue": 0, "partial": True}],
+}
+
 
 @pytest.fixture
 def backend(monkeypatch):
@@ -40,6 +55,15 @@ def backend(monkeypatch):
     monkeypatch.setattr(api, "verificar_vendedor", verificar_vendedor)
     monkeypatch.setattr(api, "stock", lambda token, umbral: STOCK)
     monkeypatch.setattr(api, "mas_vendidos", lambda token, limite, dias: MAS_VENDIDOS)
+    # Anota con qué filtros se pidió la evolución: (meses, categoría).
+    pedidos = []
+
+    def evolucion_ventas(token, meses, categoria):
+        pedidos.append((meses, categoria))
+        return EVOLUCION
+
+    monkeypatch.setattr(api, "evolucion_ventas", evolucion_ventas)
+    return pedidos
 
 
 def _ingresar(email, password="secreto"):
@@ -68,7 +92,7 @@ def test_un_vendedor_entra_al_dashboard(backend):
     assert app.title[0].value == "Dashboard"
     assert [m.label for m in app.metric] == ["Repuestos en el catálogo", "Unidades en stock", "Con stock bajo", "Sin stock"]
     assert [m.value for m in app.metric] == ["2", "40", "0", "1"]
-    assert [t.label for t in app.tabs] == ["Stock actual", "Más vendidos"]
+    assert [t.label for t in app.tabs] == ["Stock actual", "Más vendidos", "Evolución de ventas"]
 
 
 def test_un_cliente_no_entra_al_dashboard(backend):
@@ -107,3 +131,63 @@ def test_cerrar_sesion(backend):
 
     assert "token" not in app.session_state
     assert app.title[0].value == "Dashboard del vendedor"
+
+
+# --- Evolución de ventas ---
+
+
+def _grafico_de_evolucion(app):
+    # El gráfico de líneas es el único con una capa de puntos con forma.
+    return [g for g in app.get("vega_lite_chart") if "triangle-up" in g.proto.spec]
+
+
+def test_la_evolucion_muestra_el_grafico_de_los_ultimos_12_meses_de_toda_la_tienda(backend):
+    app = _ingresar("vendedor@autobought.com")
+
+    assert not app.exception
+    assert app.selectbox(key="evolucion_periodo").value == "Últimos 12 meses"
+    assert app.selectbox(key="evolucion_categoria").value == "Todas las categorías"
+    assert backend[-1] == (12, None)
+    assert len(_grafico_de_evolucion(app)) == 1
+    assert "Unidades vendidas por mes · toda la tienda" in _textos(app.subheader)
+
+
+def test_el_selector_de_categoria_ofrece_las_categorias_del_catalogo(backend):
+    app = _ingresar("vendedor@autobought.com")
+
+    assert app.selectbox(key="evolucion_categoria").options == ["Todas las categorías", "Frenos", "Motor"]
+
+
+def test_filtrar_la_evolucion_por_categoria_pide_solo_esa_categoria(backend):
+    app = _ingresar("vendedor@autobought.com")
+
+    app.selectbox(key="evolucion_categoria").select("Frenos").run()
+
+    assert backend[-1] == (12, "Frenos")
+    assert "Unidades vendidas por mes · categoría Frenos" in _textos(app.subheader)
+
+
+def test_cambiar_el_periodo_pide_esa_cantidad_de_meses(backend):
+    app = _ingresar("vendedor@autobought.com")
+
+    app.selectbox(key="evolucion_periodo").select("Últimos 6 meses").run()
+
+    assert backend[-1] == (6, None)
+
+
+def test_la_evolucion_se_puede_ver_en_facturacion(backend):
+    app = _ingresar("vendedor@autobought.com")
+
+    app.radio(key="evolucion_metrica").set_value("Facturación").run()
+
+    assert not app.exception
+    assert "Facturación por mes · toda la tienda" in _textos(app.subheader)
+
+
+def test_sin_ventas_en_el_periodo_avisa_en_vez_de_graficar(backend, monkeypatch):
+    monkeypatch.setattr(api, "evolucion_ventas", lambda token, meses, categoria: SIN_VENTAS)
+
+    app = _ingresar("vendedor@autobought.com")
+
+    assert "No hay ventas registradas en este período (toda la tienda)." in _textos(app.info)
+    assert not _grafico_de_evolucion(app)

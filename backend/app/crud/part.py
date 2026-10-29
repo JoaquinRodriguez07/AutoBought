@@ -144,3 +144,74 @@ def list_best_sellers(
         query = query.where(Part.stock > 0)
 
     return [(part, int(units)) for part, units in db.execute(query).all()]
+
+
+# Los meses se cortan en hora de Uruguay (UTC-3, sin horario de verano desde
+# 2015), la misma en que scripts.seed_order_history guarda los pedidos: con
+# el corte en UTC, una venta del 31 a la noche caería en el mes siguiente. Es
+# un offset fijo y no ZoneInfo porque la imagen slim del backend no trae tzdata.
+URUGUAY = timezone(timedelta(hours=-3))
+
+
+def category_exists(db: Session, category: str) -> bool:
+    # Igual que list_categories: el valor tal cual está guardado.
+    return db.scalar(select(Part.id).where(Part.category == category).limit(1)) is not None
+
+
+def list_monthly_sales(
+    db: Session,
+    months: int,
+    category: str | None = None,
+    now: datetime | None = None,
+) -> list[dict]:
+    """Unidades y facturación por mes, del más viejo al más nuevo.
+
+    Devuelve siempre `months` filas, terminando en el mes actual: un mes sin
+    ventas aparece con ceros, así el gráfico no se saltea meses. El mes actual
+    viene marcado como parcial porque todavía no terminó.
+
+    Cuenta lo mismo que los más vendidos: no entran los pedidos cancelados ni
+    los sin pagar. La facturación es cantidad × precio al momento de la venta
+    (`frozen_price`), no el precio de hoy. Con `category`, solo los repuestos
+    de esa categoría.
+    """
+    now_uy = (now or datetime.now(timezone.utc)).astimezone(URUGUAY)
+    current = now_uy.year * 12 + now_uy.month - 1
+    keys = [current - offset for offset in range(months - 1, -1, -1)]
+    totals = {key: [0, 0] for key in keys}  # [unidades, facturación]
+
+    first_month = datetime(keys[0] // 12, keys[0] % 12 + 1, 1, tzinfo=URUGUAY)
+    query = (
+        select(Order.created_at, OrderItem.quantity, OrderItem.frozen_price)
+        .join(OrderItem, OrderItem.order_id == Order.order_id)
+        .outerjoin(Payment, Payment.order_id == Order.order_id)
+        .where(
+            Order.status != OrderStatus.CANCELLED,
+            is_paid_order(),
+            # Con un día de margen: SQLite guarda las fechas sin zona y el
+            # corte exacto se hace abajo, ya en hora de Uruguay.
+            Order.created_at >= first_month - timedelta(days=1),
+        )
+    )
+    if category is not None:
+        query = query.join(Part, Part.id == OrderItem.part_id).where(Part.category == category)
+
+    for created_at, quantity, frozen_price in db.execute(query):
+        if created_at.tzinfo is None:
+            # SQLite no guarda la zona; la app escribe siempre en UTC.
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        local = created_at.astimezone(URUGUAY)
+        total = totals.get(local.year * 12 + local.month - 1)
+        if total is not None:
+            total[0] += quantity
+            total[1] += quantity * frozen_price
+
+    return [
+        {
+            "month": f"{key // 12}-{key % 12 + 1:02d}",
+            "units_sold": totals[key][0],
+            "revenue": totals[key][1],
+            "partial": key == current,
+        }
+        for key in keys
+    ]

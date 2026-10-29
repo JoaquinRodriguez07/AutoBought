@@ -90,3 +90,10 @@ def mas_vendidos(token: str, limite: int, dias: int | None) -> dict:
     if dias is not None:
         params["days"] = dias
     return _get("/best-sellers", token, params)
+
+
+def evolucion_ventas(token: str, meses: int, categoria: str | None) -> dict:
+    params = {"months": meses}
+    if categoria is not None:
+        params["category"] = categoria
+    return _get("/sales-evolution", token, params)

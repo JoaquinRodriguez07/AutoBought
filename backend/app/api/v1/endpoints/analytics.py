@@ -1,11 +1,15 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_employee, get_db
 from app.crud import part as crud_part
-from app.schemas.analytics import AnalyticsBestSellersResponse, StockResponse
+from app.schemas.analytics import (
+    AnalyticsBestSellersResponse,
+    SalesEvolutionResponse,
+    StockResponse,
+)
 
 # Todas las rutas de este router son solo para vendedores (empleados): la
 # dependencia a nivel de router la heredan los endpoints que se agreguen.
@@ -83,4 +87,29 @@ def best_sellers(
             }
             for part, units_sold in rows
         ],
+    }
+
+
+@router.get("/sales-evolution", response_model=SalesEvolutionResponse)
+def sales_evolution(
+    months: int = Query(
+        12,
+        ge=1,
+        le=36,
+        description="Cantidad de meses a devolver, terminando en el mes actual.",
+    ),
+    category: Optional[str] = Query(
+        None,
+        description="Solo las ventas de esta categoría. Sin valor: toda la tienda.",
+    ),
+    db: Session = Depends(get_db),
+):
+    # Un nombre que no existe no es "una categoría sin ventas": casi seguro es
+    # un error de tipeo, y devolver ceros lo taparía.
+    if category is not None and not crud_part.category_exists(db, category):
+        raise HTTPException(status_code=404, detail="La categoría no existe.")
+    return {
+        "months": months,
+        "category": category,
+        "points": crud_part.list_monthly_sales(db, months=months, category=category),
     }

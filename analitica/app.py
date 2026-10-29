@@ -27,8 +27,28 @@ PERIODOS = {
     "Todas las ventas": None,
 }
 
+PERIODOS_EVOLUCION = {
+    "Últimos 6 meses": 6,
+    "Últimos 12 meses": 12,
+    "Últimos 24 meses": 24,
+}
+TODAS_LAS_CATEGORIAS = "Todas las categorías"
+METRICAS_EVOLUCION = {
+    "Unidades vendidas": "units_sold",
+    "Facturación": "revenue",
+}
+
 # Una sola serie: un solo color, el primero de la paleta de gráficos.
 COLOR_BARRAS = "#2a78d6"
+# Marcas de la evolución de ventas. Además del color, cada una tiene su forma
+# y está escrita en el tooltip y en la tabla: el color no es la única pista.
+MARCAS_TENDENCIA = {
+    datos.SUBE: ("#2e9e5b", "triangle-up"),
+    datos.BAJA: ("#d6402e", "triangle-down"),
+    datos.IGUAL: ("#8b8a85", "circle"),
+    datos.SIN_ANTERIOR: ("#8b8a85", "circle"),
+    datos.EN_CURSO: ("#eda100", "diamond"),
+}
 # Streamlit no le da color de tema al texto de Altair: un gris medio se lee
 # sobre el fondo claro y sobre el oscuro.
 COLOR_ETIQUETAS = "#8b8a85"
@@ -251,6 +271,102 @@ def seccion_mas_vendidos(token: str, umbral: int) -> None:
     )
 
 
+def grafico_evolucion(tabla, titulo_eje: str) -> alt.Chart:
+    base = alt.Chart(tabla).encode(
+        # Ordinal con el orden de la API (cronológico): no se saltea ni
+        # reordena meses.
+        x=alt.X("etiqueta:N", sort=list(tabla["etiqueta"]), title=None, axis=alt.Axis(labelAngle=-45)),
+        y=alt.Y("valor:Q", title=titulo_eje, scale=alt.Scale(zero=True),
+            # Puntos de miles, como en el resto del dashboard (1.400, no 1,400).
+            axis=alt.Axis(tickCount=5, labelExpr="replace(format(datum.value, ','), /,/g, '.')"),
+        ),
+    )
+    linea = base.mark_line(color=COLOR_BARRAS)
+    marcas = base.mark_point(filled=True, size=110, opacity=1).encode(
+        color=alt.Color(
+            "tendencia:N",
+            title="Frente al mes anterior",
+            scale=alt.Scale(
+                domain=list(MARCAS_TENDENCIA), range=[color for color, _ in MARCAS_TENDENCIA.values()]
+            ),
+        ),
+        shape=alt.Shape(
+            "tendencia:N",
+            title="Frente al mes anterior",
+            scale=alt.Scale(
+                domain=list(MARCAS_TENDENCIA), range=[forma for _, forma in MARCAS_TENDENCIA.values()]
+            ),
+        ),
+        tooltip=[
+            alt.Tooltip("etiqueta:N", title="Mes"),
+            alt.Tooltip("valor_texto:N", title=titulo_eje),
+            alt.Tooltip("variacion_texto:N", title="Frente al mes anterior"),
+            alt.Tooltip("tendencia:N", title="Estado"),
+        ],
+    )
+    capas = linea + marcas
+    # Con pocos meses, el valor va escrito junto a cada punto. Con más se
+    # amontonan: queda el tooltip y la tabla. Si el mes bajó, la línea llega
+    # desde arriba: el valor va debajo, donde no pasa.
+    if len(tabla) <= 12:
+        etiqueta = dict(color=COLOR_ETIQUETAS, fontSize=11)
+        capas += (
+            base.mark_text(dy=-14, **etiqueta)
+            .encode(text="valor_corto:N")
+            .transform_filter("!(datum.variacion < 0)")
+        )
+        capas += (
+            base.mark_text(dy=16, **etiqueta)
+            .encode(text="valor_corto:N")
+            .transform_filter("datum.variacion < 0")
+        )
+    return capas.properties(height=380)
+
+
+def seccion_evolucion(token: str, categorias: list[str]) -> None:
+    filtros = st.columns([2, 2, 2])
+    periodo = filtros[0].selectbox(
+        "Período", list(PERIODOS_EVOLUCION), index=1, key="evolucion_periodo"
+    )
+    categoria = filtros[1].selectbox(
+        "Categoría", [TODAS_LAS_CATEGORIAS, *categorias], key="evolucion_categoria"
+    )
+    titulo_metrica = filtros[2].radio(
+        "Ver", list(METRICAS_EVOLUCION), horizontal=True, key="evolucion_metrica"
+    )
+
+    todas = categoria == TODAS_LAS_CATEGORIAS
+    respuesta = pedir(
+        api.evolucion_ventas, token, PERIODOS_EVOLUCION[periodo], None if todas else categoria
+    )
+    tabla = datos.tabla_evolucion(respuesta["points"], METRICAS_EVOLUCION[titulo_metrica])
+
+    alcance = "toda la tienda" if todas else f"categoría {categoria}"
+    if not tabla[["units_sold", "revenue"]].to_numpy().any():
+        st.info(f"No hay ventas registradas en este período ({alcance}).")
+        return
+
+    st.subheader(f"{titulo_metrica} por mes · {alcance}")
+    st.caption(
+        "No cuentan los pedidos cancelados ni los sin pagar. Cada marca muestra si el mes "
+        "subió ▲, bajó ▼ o quedó igual ● frente al anterior; el mes en curso ◆ todavía no terminó, "
+        "así que no se lo compara. Pasá el mouse por un punto para ver la diferencia exacta."
+    )
+    st.altair_chart(grafico_evolucion(tabla, titulo_metrica), width="stretch")
+
+    st.dataframe(
+        tabla[["etiqueta", "units_sold", "revenue", "variacion_texto", "tendencia"]],
+        hide_index=True,
+        column_config={
+            "etiqueta": st.column_config.TextColumn("Mes"),
+            "units_sold": st.column_config.NumberColumn("Unidades vendidas", format="%d"),
+            "revenue": st.column_config.NumberColumn("Facturación", format="$%d"),
+            "variacion_texto": st.column_config.TextColumn(f"Variación ({titulo_metrica.lower()})"),
+            "tendencia": st.column_config.TextColumn("Frente al mes anterior"),
+        },
+    )
+
+
 def dashboard() -> None:
     token = st.session_state["token"]
     umbral = barra_lateral()
@@ -264,11 +380,15 @@ def dashboard() -> None:
 
     seccion_resumen(tabla_stock, umbral)
 
-    pestana_stock, pestana_vendidos = st.tabs(["Stock actual", "Más vendidos"])
+    pestana_stock, pestana_vendidos, pestana_evolucion = st.tabs(
+        ["Stock actual", "Más vendidos", "Evolución de ventas"]
+    )
     with pestana_stock:
         seccion_stock(tabla_stock)
     with pestana_vendidos:
         seccion_mas_vendidos(token, umbral)
+    with pestana_evolucion:
+        seccion_evolucion(token, sorted(tabla_stock["category"].unique()))
 
 
 if "token" in st.session_state:

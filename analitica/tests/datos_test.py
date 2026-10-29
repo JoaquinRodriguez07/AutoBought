@@ -83,3 +83,75 @@ def test_tabla_mas_vendidos_numera_y_marca_el_stock():
     # Mismo nombre, distinto repuesto: el gráfico los separa por el código.
     assert list(tabla["repuesto"]) == ["Pastillas · FRE-001", "Pastillas · FRE-002"]
     assert list(tabla["estado"]) == ["Sin stock", "Normal"]
+
+
+# --- Evolución de ventas ---
+
+
+def _meses(unidades, parcial_el_ultimo=False):
+    """Un punto por mes desde 2026-01, con 1.000 pesos por unidad."""
+    return [
+        {
+            "month": f"2026-{numero:02d}",
+            "units_sold": cantidad,
+            "revenue": cantidad * 1000,
+            "partial": parcial_el_ultimo and numero == len(unidades),
+        }
+        for numero, cantidad in enumerate(unidades, start=1)
+    ]
+
+
+def test_etiqueta_mes_en_espanol():
+    assert datos.etiqueta_mes("2026-03") == "mar 2026"
+    assert datos.etiqueta_mes("2025-12") == "dic 2025"
+
+
+def test_evolucion_marca_si_cada_mes_sube_baja_o_queda_igual():
+    tabla = datos.tabla_evolucion(_meses([10, 15, 15, 9]))
+
+    assert list(tabla["tendencia"]) == ["Sin mes anterior", "Sube", "Igual", "Baja"]
+    assert list(tabla["variacion"][1:]) == [5, 0, -6]
+    assert list(tabla["etiqueta"]) == ["ene 2026", "feb 2026", "mar 2026", "abr 2026"]
+
+
+def test_evolucion_dice_cuanto_aumento_entre_dos_meses():
+    tabla = datos.tabla_evolucion(_meses([10, 15, 15, 9]))
+
+    assert list(tabla["variacion_texto"]) == ["—", "+5 (+50,0 %)", "Sin cambios", "-6 (-40,0 %)"]
+
+
+def test_evolucion_con_el_mes_anterior_sin_ventas_no_divide_por_cero():
+    tabla = datos.tabla_evolucion(_meses([0, 8]))
+
+    assert tabla["variacion_texto"][1] == "+8 (el mes anterior no tuvo ventas)"
+    assert tabla["tendencia"][1] == "Sube"
+
+
+def test_el_mes_en_curso_no_se_compara_con_uno_completo():
+    tabla = datos.tabla_evolucion(_meses([10, 15, 3], parcial_el_ultimo=True))
+
+    # Va con su variación, pero sin decir que "bajó": todavía no terminó.
+    assert tabla["tendencia"][2] == "Mes en curso"
+    assert tabla["variacion_texto"][2] == "-12 (-80,0 %)"
+
+
+def test_evolucion_en_facturacion_usa_pesos_y_separa_los_miles():
+    tabla = datos.tabla_evolucion(_meses([1000, 1500]), metrica="revenue")
+
+    assert list(tabla["valor"]) == [1_000_000, 1_500_000]
+    assert list(tabla["valor_texto"]) == ["$1.000.000", "$1.500.000"]
+    assert tabla["variacion_texto"][1] == "+$500.000 (+50,0 %)"
+    # Sobre el gráfico va en millones, para no pisar la línea.
+    assert list(tabla["valor_corto"]) == ["$1,0 M", "$1,5 M"]
+
+
+def test_valor_corto_deja_completos_las_unidades_y_los_montos_chicos():
+    assert datos.tabla_evolucion(_meses([1234]))["valor_corto"][0] == "1.234"
+    assert datos.tabla_evolucion(_meses([5]), metrica="revenue")["valor_corto"][0] == "$5.000"
+
+
+def test_evolucion_sin_meses_devuelve_la_tabla_vacia():
+    tabla = datos.tabla_evolucion([])
+
+    assert tabla.empty
+    assert {"etiqueta", "valor", "variacion_texto", "tendencia"} <= set(tabla.columns)
