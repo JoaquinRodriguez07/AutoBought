@@ -371,6 +371,59 @@ def test_el_script_corre_las_dos_tareas(db_session, mails, monkeypatch, capsys):
     assert len(mails) == 2
 
 
+
+def smtp_caido(monkeypatch):
+    def fallar(mensaje):
+        raise OSError("SMTP caído")
+    monkeypatch.setattr("app.core.email._enviar_smtp", fallar)
+
+
+def test_si_falla_el_mail_del_carrito_se_reintenta_al_otro_dia(db_session, mails, monkeypatch):
+    cliente = make_client(db_session)
+    make_cart(db_session, cliente, [(make_part(db_session), 1)], actualizado=AHORA - timedelta(hours=25))
+    smtp_caido(monkeypatch)
+
+    assert notificaciones.recordar_carritos_abandonados(db_session, AHORA) == 0
+    monkeypatch.setattr("app.core.email._enviar_smtp", mails.append)
+    assert notificaciones.recordar_carritos_abandonados(db_session, AHORA + timedelta(days=1)) == 1
+    assert len(mails) == 1
+
+
+def test_si_falla_el_mail_de_mantenimiento_se_reintenta_al_otro_dia(db_session, mails, monkeypatch):
+    cliente = make_client(db_session)
+    make_order(db_session, cliente, [(make_part(db_session), 1)], creado=AHORA - timedelta(days=186))
+    smtp_caido(monkeypatch)
+
+    assert notificaciones.recordar_mantenimientos(db_session, AHORA) == 0
+    monkeypatch.setattr("app.core.email._enviar_smtp", mails.append)
+    assert notificaciones.recordar_mantenimientos(db_session, AHORA + timedelta(days=1)) == 1
+    assert len(mails) == 1
+
+
+TAREAS = "/api/v1/tareas/diarias"
+
+
+def test_vercel_cron_corre_las_tareas_con_el_secreto(client, db_session, mails, monkeypatch):
+    monkeypatch.setattr("app.api.v1.endpoints.tareas.CRON_SECRET", "secreto")
+    cliente = make_client(db_session)
+    make_cart(db_session, cliente, [(make_part(db_session), 1)], actualizado=datetime.now(timezone.utc) - timedelta(days=2))
+
+    respuesta = client.get(TAREAS, headers={"Authorization": "Bearer secreto"})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {"Carritos abandonados": 1, "Recordatorios de mantenimiento": 0}
+    assert len(mails) == 1
+
+
+def test_tareas_diarias_sin_el_secreto_no_corren(client, db_session, mails, monkeypatch):
+    monkeypatch.setattr("app.api.v1.endpoints.tareas.CRON_SECRET", "secreto")
+    assert client.get(TAREAS).status_code == 401
+    assert client.get(TAREAS, headers={"Authorization": "Bearer otro"}).status_code == 401
+
+    monkeypatch.setattr("app.api.v1.endpoints.tareas.CRON_SECRET", "")
+    assert client.get(TAREAS, headers={"Authorization": "Bearer "}).status_code == 401
+    assert mails == []
+
 # =====================================================
 # Darse de baja y preferencias
 # =====================================================
