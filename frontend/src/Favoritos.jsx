@@ -8,7 +8,7 @@ export default function Favoritos({
   onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
   cantidadFavoritos, favoritos, onAlternarFavorito,
   onDetalle,
-  usuario, onPerfil, onDirecciones, onMetodosPago, onHistorial, onCerrarSesion,
+  usuario, onPerfil, onDirecciones, onHistorial, onCerrarSesion,
 }) {
   const precio = (v) => `$${v.toLocaleString("es-UY")}`;
 
@@ -17,7 +17,7 @@ export default function Favoritos({
       <Navbar paginaActual="favoritos" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
         usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago} onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
+        onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
         cantidadFavoritos={cantidadFavoritos} />
 
       <main>

@@ -2,6 +2,7 @@ from app.core.security import verify_password
 from app.crud import user as crud_user
 from app.models.order import Order
 from app.models.part import Part
+from app.models.payment import PaymentStatus
 from app.models.employee import Employee
 from scripts.seed_demo_users import USUARIOS, VENDEDORES, crear_usuario, crear_vendedor
 
@@ -23,11 +24,9 @@ def test_los_usuarios_de_prueba_cumplen_las_validaciones_y_se_crean_completos(db
         cliente = crud_user.get_user_by_email(db_session, datos["cuenta"]["email"])
         assert verify_password(datos["cuenta"]["password"], cliente.password)
         assert len(cliente.shipping_addresses) == len(datos["direcciones"])
-        vigentes = [m for m in cliente.payment_methods if not m.is_expired]
-        assert len(vigentes) == len(datos["tarjetas"])
-        assert sum(m.is_primary for m in cliente.payment_methods) == 1
-        assert not any(m.is_primary and m.is_expired for m in cliente.payment_methods)
-    assert db_session.query(Order).count() == 1
+    # La compra de ejemplo queda pagada.
+    compra = db_session.query(Order).one()
+    assert compra.payment.status == PaymentStatus.APPROVED
 
 
 def test_correr_el_script_dos_veces_no_duplica_nada(db_session):

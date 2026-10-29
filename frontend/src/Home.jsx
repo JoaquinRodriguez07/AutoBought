@@ -72,7 +72,6 @@ export default function Home({
 
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 
@@ -218,7 +217,6 @@ export default function Home({
         onFavoritos={onFavoritos}
         onPerfil={onPerfil}
         onDirecciones={onDirecciones}
-        onMetodosPago={onMetodosPago}
         onHistorial={onHistorial}
         onCerrarSesion={onCerrarSesion}
         cantidadCarrito={cantidadCarrito}

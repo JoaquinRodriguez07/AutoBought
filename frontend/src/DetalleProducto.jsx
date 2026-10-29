@@ -44,7 +44,6 @@ export default function DetalleProducto({
   usuario,
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
 }) {
@@ -96,7 +95,7 @@ export default function DetalleProducto({
     <Navbar paginaActual="detalle" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
       onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
       usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
-      onMetodosPago={onMetodosPago} onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
+      onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
       cantidadFavoritos={cantidadFavoritos} />
   );
 

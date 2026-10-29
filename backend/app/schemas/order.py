@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.order import Order, OrderStatus
+from app.models.payment import PaymentStatus
 
 
 class OrderItemCreate(BaseModel):
@@ -23,10 +24,9 @@ class OrderCreate(BaseModel):
 
 
 class OrderConfirm(BaseModel):
-    """Body opcional de POST /orders; lo que no se envía usa el principal."""
+    """Body opcional de POST /orders; sin dirección, usa la principal."""
 
     shipping_address_id: int | None = None
-    payment_method_id: int | None = None
 
 
 class OrderOut(BaseModel):
@@ -59,6 +59,8 @@ class OrderDetailOut(BaseModel):
     status: OrderStatus
     shipping_address: OrderShippingAddressOut
     payment_method: str
+    # None en los pedidos de antes de Mercado Pago (ya cobrados con tarjeta).
+    payment_status: PaymentStatus | None
     total: int
     items: list[OrderItemDetailOut]
 
@@ -97,6 +99,7 @@ def build_order_detail_out(order: Order) -> OrderDetailOut:
             postal_code=order.ship_postal_code,
         ),
         payment_method=order.payment_method_label,
+        payment_status=order.payment.status if order.payment else None,
         total=total,
         items=items,
     )

@@ -1,10 +1,9 @@
 import re
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_client, get_db
-from app.core.notificaciones import notificar_compra
 from app.crud import order as crud_order
 from app.crud import part as crud_part
 from app.models.client import Client
@@ -17,28 +16,16 @@ from app.schemas.order import (
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
-# Errores de place_order sobre la dirección y el método de pago. Una id
-# inexistente o de otro cliente da el mismo 422, sin revelar cuál de las dos.
+# Errores de place_order sobre la dirección. Una id inexistente o de otro
+# cliente da el mismo 422.
 _ERRORES_DATOS_COMPRA = {
     "Client has no shipping address": (
         status.HTTP_400_BAD_REQUEST,
         "Agregá una dirección de envío para confirmar la compra.",
     ),
-    "Client has no payment method": (
-        status.HTTP_400_BAD_REQUEST,
-        "Agregá un método de pago para confirmar la compra.",
-    ),
     "Shipping address not found": (
         status.HTTP_422_UNPROCESSABLE_CONTENT,
         "La dirección de envío elegida no es válida.",
-    ),
-    "Payment method not found": (
-        status.HTTP_422_UNPROCESSABLE_CONTENT,
-        "El método de pago elegido no es válido.",
-    ),
-    "Payment method expired": (
-        status.HTTP_422_UNPROCESSABLE_CONTENT,
-        "La tarjeta elegida está vencida. Elegí otra o agregá una nueva.",
     ),
 }
 
@@ -63,7 +50,6 @@ def _detalle_sin_stock(db: Session, mensaje: str) -> str:
 
 @router.post("", response_model=OrderDetailOut, status_code=status.HTTP_201_CREATED)
 def confirm_order(
-    background_tasks: BackgroundTasks,
     body: OrderConfirm | None = None,
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
@@ -87,7 +73,6 @@ def confirm_order(
             db,
             client_id,
             shipping_address_id=body.shipping_address_id,
-            payment_method_id=body.payment_method_id,
         )
     except ValueError as error:
         mensaje = str(error)
@@ -113,7 +98,7 @@ def confirm_order(
             detail="Tu carrito está vacío.",
         )
 
-    notificar_compra(order, background_tasks)
+    # El mail de la compra sale cuando Mercado Pago aprueba el pago (ver pagos.py).
     return build_order_detail_out(order)
 
 

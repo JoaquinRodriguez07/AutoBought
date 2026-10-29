@@ -1,7 +1,6 @@
 // Reglas de validación de los formularios. Mismas reglas y mensajes que
 // backend/app/core/validators.py: el backend es el que decide, esto es
-// para avisar antes de enviar. Lo de la tarjeta completa (marca, Luhn,
-// CVV) solo se puede validar acá, porque el número nunca sale del navegador.
+// para avisar antes de enviar.
 
 import { MENSAJE_TELEFONO, normalizarTelefonoUY } from "./telefono";
 
@@ -35,11 +34,9 @@ const APARTAMENTO = /^[\p{L}\d][\p{L}\d .\-/]*$/u;
 const NUMERO_PUERTA = /^\d{1,5}(?: ?(?:bis|[a-z]))?$/i;
 const SIN_NUMERO = new Set(["s/n", "sn", "s/nº", "sin numero"]);
 const CODIGO_POSTAL = /^\d{5}$/;
-const VENCIMIENTO = /^(0[1-9]|1[0-2])\/(\d{2})$/;
 // Mismo criterio mínimo que EmailStr del backend: algo@dominio.tld
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const VENCIMIENTO_MAX_ANIOS = 20;
 export const PASSWORD_MIN = 8;
 const PASSWORD_MAX_BYTES = 72; // límite de bcrypt
 export const NOMBRE_MAX = 50;
@@ -198,116 +195,5 @@ export function validarDireccion(f) {
     codigoPostal: !codigoPostal || CODIGO_POSTAL.test(codigoPostal)
       ? null
       : "El código postal tiene que tener 5 dígitos.",
-  });
-}
-
-/* ----------------------------------------------------------- tarjetas */
-
-// OCA no tiene un prefijo que identifique sus tarjetas propias, así que no
-// se detecta: se elige a mano y no se le aplica Luhn.
-export const MARCAS_TARJETA = {
-  Visa: { prefijo: /^4/, largos: [13, 16, 19], cvv: 3, luhn: true },
-  Mastercard: {
-    prefijo: /^(5[1-5]|222[1-9]|22[3-9]\d|2[3-6]\d{2}|27[01]\d|2720)/,
-    largos: [16],
-    cvv: 3,
-    luhn: true,
-  },
-  "American Express": { prefijo: /^3[47]/, largos: [15], cvv: 4, luhn: true },
-  OCA: { prefijo: null, largos: [14, 15, 16], cvv: 3, luhn: false },
-};
-
-export function soloDigitos(valor) {
-  return String(valor ?? "").replace(/\D/g, "");
-}
-
-/** Marca según los primeros dígitos, o null si no es Visa/Mastercard/Amex. */
-export function detectarMarca(numero) {
-  const digitos = soloDigitos(numero);
-  const marca = Object.entries(MARCAS_TARJETA).find(
-    ([, regla]) => regla.prefijo && regla.prefijo.test(digitos)
-  );
-  return marca ? marca[0] : null;
-}
-
-/** Algoritmo de Luhn: el dígito verificador de las tarjetas. */
-export function pasaLuhn(numero) {
-  const digitos = soloDigitos(numero);
-  let suma = 0;
-  for (let i = 0; i < digitos.length; i++) {
-    let d = Number(digitos[digitos.length - 1 - i]);
-    if (i % 2 === 1) {
-      d *= 2;
-      if (d > 9) d -= 9;
-    }
-    suma += d;
-  }
-  return digitos.length > 0 && suma % 10 === 0;
-}
-
-/** "4111111111111111" → "4111 1111 1111 1111"; Amex va 4-6-5. */
-export function formatearNumeroTarjeta(numero, marca) {
-  const digitos = soloDigitos(numero);
-  if (marca === "American Express") {
-    return [digitos.slice(0, 4), digitos.slice(4, 10), digitos.slice(10, 15)]
-      .filter(Boolean)
-      .join(" ");
-  }
-  return digitos.replace(/(.{4})/g, "$1 ").trim();
-}
-
-/** La tarjeta vale hasta el último día del mes de vencimiento. */
-export function tarjetaVencida(vencimiento, hoy = new Date()) {
-  const match = VENCIMIENTO.exec(vencimiento);
-  if (!match) return false;
-  const anio = 2000 + Number(match[2]);
-  const mes = Number(match[1]);
-  return anio < hoy.getFullYear() || (anio === hoy.getFullYear() && mes < hoy.getMonth() + 1);
-}
-
-export function validarVencimiento(valor, hoy = new Date()) {
-  const match = VENCIMIENTO.exec(valor);
-  if (!match) return "El vencimiento tiene que tener el formato MM/AA.";
-  if (tarjetaVencida(valor, hoy)) return "La tarjeta está vencida.";
-  if (2000 + Number(match[2]) > hoy.getFullYear() + VENCIMIENTO_MAX_ANIOS) {
-    return "Revisá el vencimiento: es demasiado lejano.";
-  }
-  return null;
-}
-
-function validarNumeroTarjeta(numero, tipo) {
-  const digitos = soloDigitos(numero);
-  if (!digitos) return "Ingresá el número de la tarjeta.";
-
-  const detectada = detectarMarca(digitos);
-  if (detectada && detectada !== tipo) {
-    return `Ese número es de una tarjeta ${detectada}, no ${tipo}.`;
-  }
-  if (!detectada && tipo !== "OCA") return `Ese número no es de una tarjeta ${tipo}.`;
-
-  const regla = MARCAS_TARJETA[tipo];
-  if (!regla.largos.includes(digitos.length)) {
-    const largos = regla.largos.join(", ").replace(/, (\d+)$/, " o $1");
-    return `Una tarjeta ${tipo} tiene ${largos} dígitos.`;
-  }
-  if (regla.luhn && !pasaLuhn(digitos)) return "El número de tarjeta no es válido. Revisalo.";
-  return null;
-}
-
-function validarCvv(cvv, tipo) {
-  const largo = MARCAS_TARJETA[tipo]?.cvv ?? 3;
-  if (!cvv) return "Ingresá el código de seguridad.";
-  if (!new RegExp(`^\\d{${largo}}$`).test(cvv)) {
-    return `El código de seguridad tiene ${largo} dígitos.`;
-  }
-  return null;
-}
-
-export function validarTarjeta(f, hoy = new Date()) {
-  return soloErrores({
-    titular: validarNombrePersona(f.titular, "El nombre del titular"),
-    numero: validarNumeroTarjeta(f.numero, f.tipo),
-    vencimiento: validarVencimiento(f.vencimiento, hoy),
-    cvv: validarCvv(f.cvv, f.tipo),
   });
 }

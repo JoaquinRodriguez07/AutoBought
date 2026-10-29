@@ -14,11 +14,6 @@ class Client(User):
     # Mails comerciales (carrito abandonado, mantenimiento, baja de precio).
     # Los de la cuenta y los pedidos se mandan siempre.
     marketing_emails = Column(Boolean, nullable=False, default=True, server_default=true())
-    payment_methods = relationship(
-        "PaymentMethod",
-        back_populates="client",
-        cascade="all, delete-orphan",
-    )
     shipping_addresses = relationship(
         "ShippingAddress",
         back_populates="client",

@@ -8,7 +8,7 @@ Con el stack levantado (`docker compose up -d`), los scripts se corren dentro de
 # 1. Catálogo: modelos de autos y repuestos (backend/data/*.json)
 docker exec backend uv run python -m scripts.seed
 
-# 2. Clientes de prueba con direcciones y tarjetas, y un vendedor (opcional)
+# 2. Clientes de prueba con direcciones, y un vendedor (opcional)
 docker exec backend uv run python -m scripts.seed_demo_users
 
 # 3. Historial de pedidos de los últimos 12 meses, para el dashboard del vendedor
@@ -49,13 +49,13 @@ La clave se pasa como variable de entorno y nunca se sube al repositorio. Opcion
 
 ### Usuarios de prueba
 
-`scripts.seed_demo_users` crea 3 clientes con direcciones y tarjetas cargadas, y un vendedor:
+`scripts.seed_demo_users` crea 3 clientes con direcciones cargadas, y un vendedor:
 
 | Correo | Contraseña | Para probar |
 |---|---|---|
-| `ana.perez@autobought.com` | `Repuestos2026` | 2 direcciones, Visa y Mastercard, una compra en el historial |
-| `martin.rodriguez@autobought.com` | `Motor2026x` | American Express, OCA y una tarjeta vencida |
-| `lucia.fernandez@autobought.com` | `Frenos2026x` | Dirección en el interior con apartamento y S/N, OCA |
+| `ana.perez@autobought.com` | `Repuestos2026` | 2 direcciones, una compra pagada en el historial |
+| `martin.rodriguez@autobought.com` | `Motor2026x` | Dirección en Maldonado |
+| `lucia.fernandez@autobought.com` | `Frenos2026x` | Dirección en el interior con apartamento y S/N |
 | `vendedor@autobought.com` | `Ventas2026x` | Vendedor: con el mismo login entra a `/dashboard` en vez de a la tienda |
 
 ### Historial de pedidos

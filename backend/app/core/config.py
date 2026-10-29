@@ -30,3 +30,15 @@ GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googlea
 IA_TIMEOUT_SEGUNDOS = float(os.getenv("IA_TIMEOUT_SEGUNDOS", "30"))
 # Consultas a la IA por usuario en las últimas 24 horas (controla el costo).
 IA_LIMITE_DIARIO = int(os.getenv("IA_LIMITE_DIARIO", "20"))
+
+# Mercado Pago. Con la cuenta de prueba, el token es el "Access Token" de
+# las credenciales de prueba. Sin token, comprar responde "pago no disponible".
+MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+# Clave secreta de los webhooks (panel de Mercado Pago > Webhooks). Si está,
+# se rechazan los avisos que no vienen firmados por Mercado Pago.
+MERCADOPAGO_WEBHOOK_SECRET = os.getenv("MERCADOPAGO_WEBHOOK_SECRET", "")
+MERCADOPAGO_API_URL = os.getenv("MERCADOPAGO_API_URL", "https://api.mercadopago.com").rstrip("/")
+MERCADOPAGO_TIMEOUT_SEGUNDOS = float(os.getenv("MERCADOPAGO_TIMEOUT_SEGUNDOS", "15"))
+# Dirección pública del backend, a la que Mercado Pago manda los avisos de
+# pago. Sin ella (en local), no hay avisos y el pedido queda pendiente.
+BACKEND_URL = os.getenv("BACKEND_URL", "").rstrip("/")

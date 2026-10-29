@@ -33,7 +33,6 @@ export default function Navbar({
   onFavoritos,
   onPerfil,
   onDirecciones,
-  onMetodosPago,
   onHistorial,
   onCerrarSesion,
   cantidadFavoritos = 0,
@@ -365,16 +364,6 @@ export default function Navbar({
                     className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
                     Direcciones
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      ejecutarAccion(onMetodosPago)
-                    }
-                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
-                  >
-                    Métodos de pago
                   </button>
 
                   <button
