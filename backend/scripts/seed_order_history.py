@@ -42,7 +42,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from itertools import accumulate
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
@@ -194,7 +194,18 @@ def _crear_clientes(db: Session, rng: random.Random) -> list[dict]:
             city=ciudad,
             department=departamento,
         ))
-        clientes.append({"id": client.user_id, "direccion": direccion})
+        # Copia de lo que necesitan los pedidos: así, después de cada commit,
+        # no hay que volver a leer la dirección de la base.
+        clientes.append({"id": client.user_id, "direccion": {
+            "id": direccion.shipping_address_id,
+            "personal_name": direccion.personal_name,
+            "street": direccion.street,
+            "number": direccion.number,
+            "apartment": direccion.apartment,
+            "city": direccion.city,
+            "department": direccion.department,
+            "postal_code": direccion.postal_code,
+        }})
 
     return clientes
 
@@ -281,6 +292,11 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
 
     rng = random.Random(semilla)
     clientes = _crear_clientes(db, rng)
+    # Crear los clientes hace commits, que vencen los repuestos cargados. Se
+    # vuelven a leer y se separan de la sesión: así los commits de cada mes
+    # no obligan a releer los 4000 repuestos uno por uno.
+    parts = list(db.scalars(select(Part).order_by(Part.part_code)))
+    db.expunge_all()
     peso_base, en_riesgo = _popularidad(parts, rng)
 
     total_pedidos = total_unidades = 0
@@ -299,7 +315,12 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
             peso_base[p.id] * _estacionalidad(p, inicio.month) for p in parts
         ))
 
+        # Se insertan directo, sin place_order (no tienen que descontar stock),
+        # y en tandas: un INSERT de muchas filas por tabla y por mes. De a
+        # un pedido son decenas de miles de viajes a la base, y contra una
+        # base remota el script tarda horas.
         pedidos_del_mes = []
+        items_del_mes = []
         for _ in range(cantidad):
             dia = inicio + timedelta(days=rng.randrange((fin - inicio).days + 1))
             hora = time(rng.randrange(8, 23), rng.randrange(60), rng.randrange(60))
@@ -312,29 +333,44 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
                 if part not in elegidos:
                     elegidos.append(part)
 
-            pedido = Order(
-                client_id=cliente["id"],
-                created_at=datetime.combine(dia, hora, tzinfo=URUGUAY),
-                status=_estado(dia, hasta, rng),
-                shipping_address_id=direccion.shipping_address_id,
-                ship_personal_name=direccion.personal_name,
-                ship_street=direccion.street,
-                ship_number=direccion.number,
-                ship_apartment=direccion.apartment,
-                ship_city=direccion.city,
-                ship_department=direccion.department,
-                ship_postal_code=direccion.postal_code,
-                payment_method_label=crud_order.PAYMENT_LABEL,
-                payment=Payment(status=PaymentStatus.APPROVED),
-            )
-            # Se insertan directo, sin place_order: no tienen que descontar stock.
+            pedidos_del_mes.append({
+                "client_id": cliente["id"],
+                "created_at": datetime.combine(dia, hora, tzinfo=URUGUAY),
+                "status": _estado(dia, hasta, rng),
+                "shipping_address_id": direccion["id"],
+                "ship_personal_name": direccion["personal_name"],
+                "ship_street": direccion["street"],
+                "ship_number": direccion["number"],
+                "ship_apartment": direccion["apartment"],
+                "ship_city": direccion["city"],
+                "ship_department": direccion["department"],
+                "ship_postal_code": direccion["postal_code"],
+                "payment_method_label": crud_order.PAYMENT_LABEL,
+            })
+            items = []
             for part in elegidos:
                 unidades = _cantidad(part, rng)
-                pedido.items.append(OrderItem(part_id=part.id, quantity=unidades, frozen_price=part.price))
+                items.append({"part_id": part.id, "quantity": unidades, "frozen_price": part.price})
                 total_unidades += unidades
-            pedidos_del_mes.append(pedido)
+            items_del_mes.append(items)
 
-        db.add_all(pedidos_del_mes)
+        if pedidos_del_mes:
+            ids = db.scalars(
+                insert(Order).returning(Order.order_id, sort_by_parameter_order=True),
+                pedidos_del_mes,
+            ).all()
+            db.execute(
+                insert(Payment),
+                [{"order_id": order_id, "status": PaymentStatus.APPROVED} for order_id in ids],
+            )
+            db.execute(
+                insert(OrderItem),
+                [
+                    {**item, "order_id": order_id}
+                    for order_id, items in zip(ids, items_del_mes)
+                    for item in items
+                ],
+            )
         db.commit()
         total_pedidos += len(pedidos_del_mes)
 

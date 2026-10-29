@@ -8,6 +8,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from app.core.config import (
     EMAIL_FROM,
     FRONTEND_URL,
+    MAILS_EN_SEGUNDO_PLANO,
     SMTP_HOST,
     SMTP_PASSWORD,
     SMTP_PORT,
@@ -58,13 +59,34 @@ def _enviar_smtp(mensaje: EmailMessage) -> None:
 def enviar_mail(
     destino: str, asunto: str, plantilla: str, datos: dict, enlace_baja: str | None = None
 ) -> bool:
-    """Se llama con BackgroundTasks, después de responder: si el envío
-    falla, la acción del usuario ya se hizo, así que solo se registra.
+    """Se llama con programar_mail: si el envío falla, la acción del
+    usuario ya se hizo, así que solo se registra.
     Devuelve si salió, para las tareas diarias."""
     mensaje = armar_mensaje(destino, asunto, plantilla, datos, enlace_baja)
+    if not SMTP_HOST:
+        logger.error("No se mandó el mail '%s': falta SMTP_HOST.", asunto)
+        return False
     try:
         _enviar_smtp(mensaje)
     except (OSError, smtplib.SMTPException):
-        logger.exception("No se pudo enviar el mail '%s' a %s", asunto, destino)
+        logger.exception("No se pudo enviar el mail '%s' a %s", asunto, _ocultar(destino))
         return False
+    # Queda en el log que salió, para distinguir "no se mandó" de "no llegó".
+    logger.warning("Mail enviado: '%s' a %s por %s", asunto, _ocultar(destino), SMTP_HOST)
     return True
+
+
+def _ocultar(correo: str) -> str:
+    """"ana.perez@gmail.com" -> "a***@gmail.com": el log no guarda el correo entero."""
+    usuario, _, dominio = correo.partition("@")
+    return f"{usuario[:1]}***@{dominio}"
+
+
+def programar_mail(background_tasks, *args, **kwargs) -> None:
+    """Manda el mail en segundo plano (después de responder) o ya mismo,
+    según MAILS_EN_SEGUNDO_PLANO (ver config.py). Sin background_tasks,
+    sale ya mismo."""
+    if background_tasks is None or not MAILS_EN_SEGUNDO_PLANO:
+        enviar_mail(*args, **kwargs)
+    else:
+        background_tasks.add_task(enviar_mail, *args, **kwargs)

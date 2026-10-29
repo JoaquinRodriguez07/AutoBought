@@ -1,6 +1,7 @@
 import re
 import smtplib
 
+from fastapi import BackgroundTasks
 from sqlalchemy import select
 
 from app.core import email as email_module
@@ -145,6 +146,32 @@ def test_sin_usuario_smtp_manda_directo_como_mailpit(monkeypatch):
     _ENVIAR_SMTP_REAL(mensaje)
 
     assert SMTPFalso.ultimo.llamadas == [("conectar", "mailpit", 1025), ("enviar", "ana@example.com")]
+
+
+def test_en_vercel_el_mail_sale_antes_de_responder(monkeypatch, mails):
+    # En Vercel la función se congela al responder: una tarea en segundo
+    # plano puede no correr nunca, así que el mail sale en el momento.
+    monkeypatch.setattr("app.core.email.MAILS_EN_SEGUNDO_PLANO", False)
+    tareas = BackgroundTasks()
+
+    email_module.programar_mail(tareas, CORREO, "Hola", "verificar_correo", {"nombre": "Lucía", "enlace": "x"})
+
+    assert len(mails) == 1
+    assert tareas.tasks == []
+
+
+def test_fuera_de_vercel_el_mail_sale_en_segundo_plano(monkeypatch, mails):
+    monkeypatch.setattr("app.core.email.MAILS_EN_SEGUNDO_PLANO", True)
+    tareas = BackgroundTasks()
+
+    email_module.programar_mail(tareas, CORREO, "Hola", "verificar_correo", {"nombre": "Lucía", "enlace": "x"})
+
+    assert mails == []
+    assert len(tareas.tasks) == 1
+
+
+def test_el_log_no_guarda_el_correo_entero():
+    assert email_module._ocultar("ana.perez@gmail.com") == "a***@gmail.com"
 
 
 # =====================================================

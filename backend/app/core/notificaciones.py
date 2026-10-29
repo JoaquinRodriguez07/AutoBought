@@ -20,7 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import FRONTEND_URL
-from app.core.email import enviar_mail
+from app.core.email import enviar_mail, programar_mail
 from app.core.security import DARSE_DE_BAJA, create_purpose_token
 from app.crud.payment import is_paid_order
 from app.models.cart import Cart
@@ -79,10 +79,7 @@ def _enlace_repuesto(part: Part) -> str:
 
 
 def _programar(background_tasks: BackgroundTasks | None, *args, **kwargs) -> None:
-    if background_tasks is None:
-        enviar_mail(*args, **kwargs)
-    else:
-        background_tasks.add_task(enviar_mail, *args, **kwargs)
+    programar_mail(background_tasks, *args, **kwargs)
 
 
 def _como_utc(fecha: datetime) -> datetime:
