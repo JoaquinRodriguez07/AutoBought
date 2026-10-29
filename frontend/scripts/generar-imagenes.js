@@ -85,7 +85,11 @@ function pedirClaveOculta(pregunta) {
   return new Promise((resolver) => {
     let escrito = "";
     const alEscribir = (texto) => {
-      for (const caracter of texto) {
+      // Algunas terminales envuelven lo pegado entre \x1b[200~ y \x1b[201~.
+      // Se sacan antes de mirar las teclas: si no, un Retroceso después de
+      // pegar borraría un pedazo del marcador en vez de la última letra.
+      // oxlint-disable-next-line no-control-regex
+      for (const caracter of texto.replace(/\u001b\[[0-9;]*~/g, "")) {
         if (caracter === "\r" || caracter === "\n") return terminar();
         if (caracter === "\u0003") {
           stdin.setRawMode(false);
@@ -101,10 +105,9 @@ function pedirClaveOculta(pregunta) {
       stdin.setRawMode(false);
       stdin.pause();
       stdout.write("\n");
-      // Algunas terminales envuelven lo pegado entre \x1b[200~ y \x1b[201~;
-      // eso y cualquier otro carácter de control no son parte de la clave.
+      // Ningún otro carácter de control es parte de la clave.
       // oxlint-disable-next-line no-control-regex
-      resolver(escrito.replace(/\u001b\[[0-9;]*~/g, "").replace(/[\u0000-\u001f\u007f]/g, "").trim());
+      resolver(escrito.replace(/[\u0000-\u001f\u007f]/g, "").trim());
     };
 
     stdout.write(pregunta);
