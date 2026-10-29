@@ -41,7 +41,10 @@ HORAS_CARRITO_ABANDONADO = 24
 # Cada cuántos meses se suele cambiar cada repuesto, según cómo empieza su
 # nombre en el catálogo. Lo que no está acá no genera recordatorio.
 MESES_MANTENIMIENTO = {
+    # Antes que "Aceite": el de caja dura mucho más que el de motor.
+    "Aceite de caja": 48,
     "Aceite": 6,
+    "Líquido de frenos": 24,
     "Filtro": 6,
     "Bujía": 12,
     "Escobilla": 12,

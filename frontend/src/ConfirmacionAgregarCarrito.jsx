@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { usarImagenGenerica } from "./mapearRepuesto";
 import { IconoCerrar, IconoCheck } from "./Iconos";
 
 // Cuánto queda a la vista el aviso antes de irse solo.
@@ -136,7 +137,7 @@ function ContenidoAgregado({
       </div>
 
       <div className="mt-3 flex gap-3">
-        <img
+        <img onError={usarImagenGenerica}
           src={producto.imagen}
           alt=""
           className="w-14 h-14 shrink-0 rounded-md object-cover bg-white/10"

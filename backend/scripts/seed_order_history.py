@@ -73,6 +73,7 @@ PEDIDOS_ULTIMO_MES = 650
 DEMANDA_CATEGORIA = {
     "Lubricantes": 15, "Accesorios": 8, "Filtros": 4, "Frenos": 3, "Encendido": 3,
     "Eléctrico": 2, "Suspensión": 1.2, "Motor": 1, "Refrigeración": 1, "Carrocería": 0.6,
+    "Dirección": 1, "Transmisión": 0.8, "Escape": 0.6, "Climatización": 0.5,
 }
 # Dentro de cada categoría, a cada repuesto le toca un puesto al azar: unos
 # pocos se venden mucho más que el resto (Zipf: el puesto n pesa 1 / n^0.7).
@@ -107,6 +108,8 @@ ESTACIONALIDAD_CATEGORIA = {
     "Accesorios": {4: 1.5, 5: 1.8, 6: 2.0, 7: 2.0, 8: 1.6, 12: 0.6, 1: 0.5, 2: 0.6},
     # El frío es lo que más baterías mata.
     "Eléctrico": {5: 1.4, 6: 2.2, 7: 2.5, 8: 2.0, 9: 1.3, 12: 0.6, 1: 0.5, 2: 0.6},
+    # El aire acondicionado se arregla antes y durante el verano.
+    "Climatización": {10: 1.4, 11: 1.9, 12: 2.4, 1: 2.5, 2: 1.8, 5: 0.5, 6: 0.4, 7: 0.4, 8: 0.5},
 }
 
 # Igual, pero para repuestos sueltos (por cómo empieza el nombre), cuando

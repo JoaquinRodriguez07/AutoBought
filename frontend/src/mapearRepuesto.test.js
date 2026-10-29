@@ -3,6 +3,7 @@ import {
   mapearCategoria,
   mapearItemCarrito,
   mapearRepuesto,
+  usarImagenGenerica,
 } from "./mapearRepuesto";
 
 describe("mapearRepuesto", () => {
@@ -140,5 +141,19 @@ describe("mapearCategoria", () => {
 
   it("defaults missing category values", () => {
     expect(mapearCategoria({})).toEqual({ nombre: "", cantidad: 0 });
+  });
+});
+
+describe("usarImagenGenerica", () => {
+  it("swaps a broken image for the generic one, only once", () => {
+    const imagen = document.createElement("img");
+    imagen.src = "/repuestos/no-existe.webp";
+
+    usarImagenGenerica({ currentTarget: imagen });
+    expect(imagen.getAttribute("src")).toBe(IMAGEN_PLACEHOLDER);
+
+    imagen.src = "/otra.webp";
+    usarImagenGenerica({ currentTarget: imagen });
+    expect(imagen.getAttribute("src")).toBe("/otra.webp");
   });
 });

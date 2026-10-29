@@ -5,12 +5,14 @@ Usage: python -m scripts.seed
 Reads data/car_models.json and data/parts.json and inserts them. Run
 scripts/generate_dataset.py first if those files don't exist yet.
 
-Si la base ya tiene el catálogo, no lo vuelve a cargar: actualiza los
-repuestos que ya existen (por su código) con lo que cambió en parts.json
-(nombre, descripción, especificaciones y garantía), sin tocar precios,
-stock, pedidos, carritos ni favoritos. Las columnas que se agregaron
-después de creada la base (descripción, especificaciones, garantía y la
-versión de sesión del usuario) se agregan solas: no hace falta borrar la base.
+Si la base ya tiene el catálogo, no lo vuelve a cargar: agrega solo lo
+que falta (modelos de auto, repuestos y compatibilidades nuevas, por
+ejemplo de una marca agregada) y actualiza los repuestos que ya existen
+(por su código) con lo que cambió en parts.json (nombre, descripción,
+especificaciones y garantía), sin tocar precios, stock, pedidos, carritos
+ni favoritos. Las columnas que se agregaron después de creada la base
+(descripción, especificaciones, garantía y la versión de sesión del
+usuario) se agregan solas: no hace falta borrar la base.
 """
 
 import json
@@ -97,20 +99,21 @@ def update_details(db, parts_data):
     return updated
 
 
-def main():
-    Base.metadata.create_all(bind=engine)
-    add_missing_columns()
-    db = SessionLocal()
+def add_missing_catalog(db, car_models_data, parts_data):
+    """Carga lo que la base no tiene: modelos de auto (por marca, modelo y
+    motor), repuestos (por código) y compatibilidades. Lo que ya está no se
+    toca. Sobre una base vacía, carga el catálogo entero.
 
-    if db.query(CarModel).count() > 0:
-        updated = update_details(db, load_json("parts.json", "parts"))
-        print(f"Data already loaded: updated the details of {updated} parts.")
-        db.close()
-        return
-
-    car_models_data = load_json("car_models.json", "car_models")
-    index = {}
+    Devuelve cuántos modelos y cuántos repuestos agregó."""
+    index = {
+        (car_model.brand, car_model.model, car_model.engine_code): car_model.id
+        for car_model in db.query(CarModel)
+    }
+    new_models = 0
     for data in car_models_data:
+        key = (data["brand"], data["model"], data["engine_code"])
+        if key in index:
+            continue
         car_model = CarModel(
             brand=data["brand"],
             model=data["model"],
@@ -118,40 +121,66 @@ def main():
         )
         db.add(car_model)
         db.flush()
-        key = (data["brand"], data["model"], data["engine_code"])
         index[key] = car_model.id
+        new_models += 1
 
-    parts_data = load_json("parts.json", "parts")
+    part_ids = dict(db.query(Part.part_code, Part.id))
+    compatibilities = set(db.query(Compatibility.part_id, Compatibility.car_model_id))
+    new_parts = 0
     for data in parts_data:
-        part = Part(
-            part_code=data["part_code"],
-            name=data["name"],
-            manufacturer=data["manufacturer"],
-            category=data["category"],
-            color=data["color"],
-            price=data["price"],
-            stock=data["stock"],
-            description=data["description"],
-            specifications=data["specifications"],
-            warranty_months=data["warranty_months"],
-            warranty_provider=data["warranty_provider"],
-        )
-        db.add(part)
-        db.flush()
+        part_id = part_ids.get(data["part_code"])
+        if part_id is None:
+            part = Part(
+                part_code=data["part_code"],
+                name=data["name"],
+                manufacturer=data["manufacturer"],
+                category=data["category"],
+                color=data["color"],
+                price=data["price"],
+                stock=data["stock"],
+                description=data["description"],
+                specifications=data["specifications"],
+                warranty_months=data["warranty_months"],
+                warranty_provider=data["warranty_provider"],
+            )
+            db.add(part)
+            db.flush()
+            part_id = part.id
+            new_parts += 1
 
+        # Un repuesto que ya estaba puede servirle a un auto nuevo (el aceite,
+        # las baterías...).
         for compat in data["compatibilities"]:
-            key = (compat["brand"], compat["model"], compat["engine_code"])
+            car_model_id = index[(compat["brand"], compat["model"], compat["engine_code"])]
+            if (part_id, car_model_id) in compatibilities:
+                continue
             db.add(
                 Compatibility(
-                    part_id=part.id,
-                    car_model_id=index[key],
+                    part_id=part_id,
+                    car_model_id=car_model_id,
                     year_from=compat["year_from"],
                     year_to=compat["year_to"],
                 )
             )
+            compatibilities.add((part_id, car_model_id))
 
     db.commit()
-    print(f"Loaded {len(car_models_data)} car models and {len(parts_data)} parts.")
+    return new_models, new_parts
+
+
+def main():
+    Base.metadata.create_all(bind=engine)
+    add_missing_columns()
+    db = SessionLocal()
+
+    car_models_data = load_json("car_models.json", "car_models")
+    parts_data = load_json("parts.json", "parts")
+    new_models, new_parts = add_missing_catalog(db, car_models_data, parts_data)
+    updated = update_details(db, parts_data)
+    print(
+        f"Added {new_models} car models and {new_parts} parts; "
+        f"updated the details of {updated} parts."
+    )
     db.close()
 
 

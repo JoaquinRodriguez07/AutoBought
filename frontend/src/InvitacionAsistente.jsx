@@ -6,7 +6,7 @@ import { usePit } from "./context/PitContext";
 
 /**
  * Invitación a Pit, el asistente con IA. "banda": franja del inicio;
- * "enlace": línea chica, para el encabezado del catálogo; "sinResultados":
+ * "enlace": tarjeta chica al lado del buscador del catálogo; "sinResultados":
  * cuando una búsqueda del catálogo no encuentra nada, abre Pit con lo que
  * el cliente buscó (`termino`) ya escrito.
  *
@@ -51,10 +51,15 @@ export default function InvitacionAsistente({ variante = "banda", termino = "" }
       <button
         type="button"
         onClick={abrir}
-        className="mt-2 flex items-center gap-1.5 text-sm text-gray-300 hover:text-orange-400 transition"
+        className="group shrink-0 h-14 flex items-center gap-3 rounded-lg border border-white/15 bg-white/5 px-4 text-left backdrop-blur-sm hover:border-orange-500/70 hover:bg-white/10 transition"
       >
-        <IconoPit className="w-4 h-4 text-orange-500" />
-        ¿No sabés qué repuesto necesitás? <span className="font-bold text-white">Hacé un pit stop con Pit →</span>
+        <span className="shrink-0 w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center">
+          <IconoPit className="w-4 h-4" />
+        </span>
+        <span className="leading-tight">
+          <span className="block text-xs text-gray-400">¿No sabés qué repuesto necesitás?</span>
+          <span className="block text-sm font-bold text-white group-hover:text-orange-400 transition">Hacé un pit stop con Pit →</span>
+        </span>
       </button>
     );
   }

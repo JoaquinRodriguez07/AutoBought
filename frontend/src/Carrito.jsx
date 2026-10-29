@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usarImagenGenerica } from "./mapearRepuesto";
 import Navbar from "./Navbar";
 import { confirmarCompra, crearLinkPago, obtenerDirecciones } from "./api";
 import { useCart } from "./context/CartContext";
@@ -274,7 +275,7 @@ export default function Carrito({
 
                             <button onClick={() => onDetalle(producto)}
                               className="w-20 h-20 rounded-lg overflow-hidden bg-white border border-gray-100 shrink-0">
-                              <img src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-1" />
+                              <img onError={usarImagenGenerica} src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-1" />
                             </button>
 
                             <div className="flex-1 min-w-0">

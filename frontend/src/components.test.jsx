@@ -76,6 +76,7 @@ import SearchBar from "./SearchBar";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
 import InvitacionAsistente from "./InvitacionAsistente";
 import PanelPit from "./PanelPit";
+import Footer from "./Footer";
 import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
 import { useVehicle } from "./context/VehicleContext";
@@ -320,18 +321,19 @@ describe("Navbar", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
-    const input = screen.getByPlaceholderText("¿Qué repuesto estás buscando?");
+    const input = screen.getByPlaceholderText("Buscar repuesto por nombre, código o fabricante...");
     expect(input).toHaveFocus();
+    // Se despliega debajo de la lupa, dentro de la barra.
     const panel = screen.getByRole("search");
-    expect(panel).toHaveClass("max-w-[330px]", "top-[4.75rem]");
-    expect(input.parentElement).toHaveClass("rounded-full", "border", "shadow-xs");
+    expect(panel).toHaveAttribute("id", "navbar-search-panel");
+    expect(panel.closest("nav")).not.toBeNull();
     await user.type(input, "kit de distribución");
     await user.keyboard("{Enter}");
 
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
       "/catalogo?q=kit%20de%20distribuci%C3%B3n"
     );
-    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Buscar repuesto por nombre, código o fabricante...")).not.toBeInTheDocument();
   });
 
   it("closes the global search with Escape, restores focus, and closes on outside click", async () => {
@@ -341,12 +343,62 @@ describe("Navbar", () => {
     const openButton = screen.getByRole("button", { name: "Abrir búsqueda" });
     await user.click(openButton);
     await user.keyboard("{Escape}");
-    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Buscar repuesto por nombre, código o fabricante...")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Abrir búsqueda" })).toHaveFocus();
 
     await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Buscar repuesto por nombre, código o fabricante...")).not.toBeInTheDocument();
+  });
+
+  it("on a page with its own search box (the catalog), the magnifier focuses it instead of opening another", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Navbar paginaActual="catalogo" {...navigationProps()} />
+        <input id="buscador-catalogo" aria-label="Buscador de la página" />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+
+    expect(screen.getByRole("textbox", { name: "Buscador de la página" })).toHaveFocus();
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
+  });
+
+  it("opens the mobile menu with the main links and closes it after choosing one", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Navbar paginaActual="home" {...props} />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    const menu = document.getElementById("navbar-menu-celular");
+    expect(within(menu).getByRole("button", { name: "Home" })).toHaveClass("text-orange-500");
+
+    await user.click(within(menu).getByRole("button", { name: "Marcas" }));
+
+    expect(props.onMarcas).toHaveBeenCalledTimes(1);
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+    expect(screen.getByRole("button", { name: "Abrir menú" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes the mobile menu on an outside click or when the search opens", async () => {
+    const user = userEvent.setup();
+    render(<Navbar paginaActual="home" {...navigationProps()} />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    fireEvent.mouseDown(document.body);
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+    expect(screen.getByRole("search")).toBeInTheDocument();
+
+    // Y al revés: abrir el menú cierra el buscador.
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
   });
 
   it("runs a global search with the Buscar button", async () => {
@@ -433,6 +485,18 @@ describe("Navbar", () => {
   });
 });
 
+describe("Footer", () => {
+  it("opens the catalog filtered by a popular brand", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Footer {...props} />);
+    await user.click(screen.getByRole("button", { name: "Chevrolet" }));
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { marca: "Chevrolet" });
+  });
+});
+
 describe("Home", () => {
   it("renders the hero with the vehicle selector as the main action", async () => {
     const user = userEvent.setup();
@@ -488,6 +552,37 @@ describe("Home", () => {
     await user.click(await screen.findByRole("button", { name: /^Motor/ }));
 
     expect(props.onCatalogo).toHaveBeenCalledWith("Motor");
+  });
+
+  it("shows how many parts each category has", async () => {
+    render(<Home {...navigationProps()} />);
+
+    const frenos = await screen.findByRole("button", { name: /^Frenos/ });
+    expect(within(frenos).getByText("2 repuestos")).toBeInTheDocument();
+  });
+
+  it("explains how to buy in three steps", () => {
+    render(<Home {...navigationProps()} />);
+
+    expect(screen.getByRole("heading", { name: "Cómo comprar" })).toBeInTheDocument();
+    ["Elegí tu auto", "Agregá tus repuestos", "Pagá y recibilo"].forEach((paso) =>
+      expect(screen.getByRole("heading", { name: paso })).toBeInTheDocument()
+    );
+  });
+
+  it("asks for 8 best sellers and adds one to the cart without opening its detail", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onDetalle: jest.fn() };
+    obtenerMasVendidos.mockResolvedValue([catalogProducts[0]]);
+    startClientSession();
+
+    render(<Home {...props} />);
+
+    expect(obtenerMasVendidos).toHaveBeenCalledWith({ limite: 8 });
+    await user.click(await screen.findByRole("button", { name: /^agregar$/i }));
+
+    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith(catalogProducts[0].id, 1));
+    expect(props.onDetalle).not.toHaveBeenCalled();
   });
 
   it("keeps the landing page available when categories fail to load", async () => {
@@ -643,6 +738,25 @@ describe("ModelDropdown", () => {
 });
 
 describe("Catalogo", () => {
+  it("shows 24 parts at first and the rest with Ver más", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onAlternarFavorito: jest.fn(), onDetalle: jest.fn(), esFavorito: jest.fn(() => false) };
+    obtenerRepuestos.mockResolvedValue(
+      Array.from({ length: 30 }, (_, i) => ({ ...product, id: `P-${i}`, codigo: `P-${i}`, nombre: `Repuesto número ${i}` }))
+    );
+
+    render(<Catalogo {...props} />);
+
+    expect(await screen.findByText("Repuesto número 23")).toBeInTheDocument();
+    expect(screen.queryByText("Repuesto número 24")).not.toBeInTheDocument();
+    expect(screen.getByText("Mostrando 24 de 30 repuestos")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "VER MÁS REPUESTOS" }));
+
+    expect(screen.getByText("Repuesto número 29")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "VER MÁS REPUESTOS" })).not.toBeInTheDocument();
+  });
+
   it("keeps the desktop filters sticky and scrollable within the viewport", () => {
     const props = navigationProps();
     props.onAlternarFavorito = jest.fn();
@@ -994,7 +1108,8 @@ it("runs the server search from the catalog bar on Enter and hides the header se
     </>
   );
 
-  expect(screen.queryByPlaceholderText("¿Qué repuesto estás buscando?")).not.toBeInTheDocument();
+  // El buscador de la barra está cerrado: el único es el del catálogo.
+  expect(document.getElementById("navbar-search-panel")).toBeNull();
 
   await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastillas de frenos{Enter}");
 
@@ -1156,6 +1271,34 @@ describe("ActiveVehicleBanner", () => {
 });
 
 describe("DetalleProducto", () => {
+  it("shows the parts usually bought together and adds one to the cart", async () => {
+    const user = userEvent.setup();
+    const sugerencia = mapearRepuesto({
+      id: 9, name: "Aceite de motor 5W30 4L Castrol", manufacturer: "Castrol", part_code: "LUB-0001",
+      category: "Lubricantes", price: 3900, stock: 10, compatibilities: [],
+    });
+    obtenerRepuesto.mockResolvedValue(mapearRepuesto({
+      id: 7, name: "Filtro compatible", manufacturer: "Bosch", part_code: "FIL-0007",
+      category: "Filtros", price: 790, stock: 3, compatibilities: [],
+    }));
+    obtenerRecomendaciones.mockResolvedValue([sugerencia]);
+    startClientSession();
+
+    render(
+      <Routes>
+        <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+      </Routes>,
+      { initialEntries: ["/producto/filtro-compatible-7"] }
+    );
+
+    const seccion = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
+    expect(obtenerRecomendaciones).toHaveBeenCalledWith([7]);
+    expect(within(seccion).getByText("Aceite de motor 5W30 4L Castrol")).toBeInTheDocument();
+
+    await user.click(within(seccion).getByRole("button", { name: /^agregar$/i }));
+    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith(9, 1));
+  });
+
   const repuestoCompatible = () => mapearRepuesto({
     id: 7,
     name: "Filtro compatible",
@@ -3272,7 +3415,7 @@ describe("BusquedaCabecera", () => {
   );
 
   const input = screen.getByPlaceholderText(
-    "¿Qué repuesto estás buscando?"
+    "Buscar repuesto por nombre, código o fabricante..."
   );
 
   await user.type(input, "pastillas de freno onix 2020");

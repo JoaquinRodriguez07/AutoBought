@@ -186,7 +186,7 @@ def test_hay_repuestos_en_riesgo_con_stock_bajo_y_ventas_altas(generada):
 def test_cada_auto_del_catalogo_tiene_una_bateria_de_cada_fabricante():
     parts = json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"]
     modelos = json.loads((PARTS_JSON.parent / "car_models.json").read_text(encoding="utf-8"))["car_models"]
-    baterias = [p for p in parts if p["category"] == "Eléctrico"]
+    baterias = [p for p in parts if p["name"].startswith("Batería")]
     por_fabricante = Counter(
         (p["manufacturer"], c["brand"], c["model"], c["engine_code"])
         for p in baterias
