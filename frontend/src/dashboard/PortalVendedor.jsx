@@ -45,9 +45,10 @@ export default function PortalVendedor({
         <section className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-8 md:p-10">
           <h2 className="text-xl font-black">Dashboard de stock y ventas</h2>
           <p className="text-xs text-gray-500 mt-2 max-w-[560px]">
-            Consultá el stock actual de cada repuesto, cuáles tienen stock bajo
-            y cuáles son los más vendidos, con los datos registrados en el
-            sistema. Se ingresa con esta misma cuenta de vendedor.
+            Consultá el stock actual de cada repuesto, cuáles tienen stock bajo,
+            cuáles son los más vendidos y cómo evolucionan las ventas mes a mes,
+            con los datos registrados en el sistema. Se ingresa con esta misma
+            cuenta de vendedor.
           </p>
           <a
             href={DASHBOARD_URL}
