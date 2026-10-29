@@ -399,6 +399,278 @@
       "year_from": 2016,
       "year_to": 2023,
       "segment": "suv"
+    },
+    {
+      "brand": "Suzuki",
+      "model": "Swift",
+      "engine_code": "1.2 K12M",
+      "year_from": 2018,
+      "year_to": 2024,
+      "segment": "hatchback"
+    },
+    {
+      "brand": "Suzuki",
+      "model": "Celerio",
+      "engine_code": "1.0 K10B",
+      "year_from": 2015,
+      "year_to": 2024,
+      "segment": "hatchback"
+    },
+    {
+      "brand": "Suzuki",
+      "model": "Vitara",
+      "engine_code": "1.6 M16A",
+      "year_from": 2016,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "Chery",
+      "model": "Tiggo 2",
+      "engine_code": "1.5 Acteco",
+      "year_from": 2017,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "Chery",
+      "model": "Tiggo 4",
+      "engine_code": "1.5 TGDI",
+      "year_from": 2020,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "Chery",
+      "model": "Tiggo 7",
+      "engine_code": "1.5 TGDI",
+      "year_from": 2020,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "BYD",
+      "model": "Song Pro DM-i",
+      "engine_code": "1.5 Xiaoyun",
+      "year_from": 2022,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "BYD",
+      "model": "King DM-i",
+      "engine_code": "1.5 Xiaoyun",
+      "year_from": 2023,
+      "year_to": 2024,
+      "segment": "sedan"
+    },
+    {
+      "brand": "GAC",
+      "model": "GS3",
+      "engine_code": "1.5 4A15J1",
+      "year_from": 2021,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "GAC",
+      "model": "GS4",
+      "engine_code": "1.5 4A15J1",
+      "year_from": 2020,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "Clase A",
+      "engine_code": "1.3 M282",
+      "year_from": 2019,
+      "year_to": 2024,
+      "segment": "hatchback"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "Clase C",
+      "engine_code": "2.0 M264",
+      "year_from": 2019,
+      "year_to": 2024,
+      "segment": "sedan"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "Sprinter",
+      "engine_code": "2.2 OM651",
+      "year_from": 2012,
+      "year_to": 2023,
+      "segment": "van"
+    },
+    {
+      "brand": "BMW",
+      "model": "Serie 1",
+      "engine_code": "1.5 B38",
+      "year_from": 2019,
+      "year_to": 2024,
+      "segment": "hatchback"
+    },
+    {
+      "brand": "BMW",
+      "model": "X1",
+      "engine_code": "1.5 B38",
+      "year_from": 2020,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "BMW",
+      "model": "Serie 3",
+      "engine_code": "2.0 B48",
+      "year_from": 2019,
+      "year_to": 2024,
+      "segment": "sedan"
+    },
+    {
+      "brand": "Audi",
+      "model": "A3",
+      "engine_code": "1.4 TFSI",
+      "year_from": 2014,
+      "year_to": 2020,
+      "segment": "sedan"
+    },
+    {
+      "brand": "Audi",
+      "model": "Q3",
+      "engine_code": "1.4 TFSI",
+      "year_from": 2015,
+      "year_to": 2020,
+      "segment": "suv"
+    },
+    {
+      "brand": "Geely",
+      "model": "Coolray",
+      "engine_code": "1.5 3G15TD",
+      "year_from": 2020,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "Geely",
+      "model": "Emgrand",
+      "engine_code": "1.5 JL4G15",
+      "year_from": 2022,
+      "year_to": 2024,
+      "segment": "sedan"
+    },
+    {
+      "brand": "Mitsubishi",
+      "model": "L200",
+      "engine_code": "2.4 4N15",
+      "year_from": 2016,
+      "year_to": 2024,
+      "segment": "pickup"
+    },
+    {
+      "brand": "Mitsubishi",
+      "model": "Outlander",
+      "engine_code": "2.0 4B11",
+      "year_from": 2015,
+      "year_to": 2021,
+      "segment": "suv"
+    },
+    {
+      "brand": "Mitsubishi",
+      "model": "ASX",
+      "engine_code": "2.0 4B11",
+      "year_from": 2013,
+      "year_to": 2021,
+      "segment": "suv"
+    },
+    {
+      "brand": "Honda",
+      "model": "Fit",
+      "engine_code": "1.5 L15",
+      "year_from": 2015,
+      "year_to": 2020,
+      "segment": "hatchback"
+    },
+    {
+      "brand": "Honda",
+      "model": "City",
+      "engine_code": "1.5 L15",
+      "year_from": 2015,
+      "year_to": 2022,
+      "segment": "sedan"
+    },
+    {
+      "brand": "Honda",
+      "model": "HR-V",
+      "engine_code": "1.8 R18",
+      "year_from": 2016,
+      "year_to": 2022,
+      "segment": "suv"
+    },
+    {
+      "brand": "Honda",
+      "model": "Civic",
+      "engine_code": "2.0 K20C",
+      "year_from": 2017,
+      "year_to": 2021,
+      "segment": "sedan"
+    },
+    {
+      "brand": "Jeep",
+      "model": "Renegade",
+      "engine_code": "1.8 E.torQ",
+      "year_from": 2016,
+      "year_to": 2021,
+      "segment": "suv"
+    },
+    {
+      "brand": "Jeep",
+      "model": "Compass",
+      "engine_code": "1.3 T270",
+      "year_from": 2022,
+      "year_to": 2024,
+      "segment": "suv"
+    },
+    {
+      "brand": "JAC",
+      "model": "S2",
+      "engine_code": "1.5 HFC4GA3",
+      "year_from": 2016,
+      "year_to": 2022,
+      "segment": "suv"
+    },
+    {
+      "brand": "JAC",
+      "model": "T8",
+      "engine_code": "2.0 HFC4DA",
+      "year_from": 2019,
+      "year_to": 2024,
+      "segment": "pickup"
+    },
+    {
+      "brand": "Mazda",
+      "model": "Mazda2",
+      "engine_code": "1.5 Skyactiv-G",
+      "year_from": 2015,
+      "year_to": 2024,
+      "segment": "hatchback"
+    },
+    {
+      "brand": "Mazda",
+      "model": "Mazda3",
+      "engine_code": "2.0 Skyactiv-G",
+      "year_from": 2014,
+      "year_to": 2024,
+      "segment": "sedan"
+    },
+    {
+      "brand": "Mazda",
+      "model": "CX-5",
+      "engine_code": "2.0 Skyactiv-G",
+      "year_from": 2017,
+      "year_to": 2024,
+      "segment": "suv"
     }
   ]
 }

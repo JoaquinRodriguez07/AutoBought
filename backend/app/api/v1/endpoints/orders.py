@@ -8,12 +8,26 @@ from app.crud import order as crud_order
 from app.crud import part as crud_part
 from app.models.client import Client
 from app.schemas.order import (
+    OrderConfirm,
     OrderDetailOut,
     OrderListOut,
     build_order_detail_out,
 )
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+# Errores de place_order sobre la dirección. Una id inexistente o de otro
+# cliente da el mismo 422.
+_ERRORES_DATOS_COMPRA = {
+    "Client has no shipping address": (
+        status.HTTP_400_BAD_REQUEST,
+        "Agregá una dirección de envío para confirmar la compra.",
+    ),
+    "Shipping address not found": (
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "La dirección de envío elegida no es válida.",
+    ),
+}
 
 
 def _detalle_sin_stock(db: Session, mensaje: str) -> str:
@@ -36,10 +50,18 @@ def _detalle_sin_stock(db: Session, mensaje: str) -> str:
 
 @router.post("", response_model=OrderDetailOut, status_code=status.HTTP_201_CREATED)
 def confirm_order(
+    body: OrderConfirm | None = None,
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
 ):
+    if not client.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Verificá tu correo para confirmar la compra. Te mandamos un enlace al registrarte.",
+        )
+
     client_id = client.user_id
+    body = body or OrderConfirm()
 
     # place_order abre su propia transacción con `db.begin()`, y la
     # autenticación ya dejó una abierta al leer el cliente. Solo hubo
@@ -47,7 +69,11 @@ def confirm_order(
     db.rollback()
 
     try:
-        order = crud_order.place_order(db, client_id)
+        order = crud_order.place_order(
+            db,
+            client_id,
+            shipping_address_id=body.shipping_address_id,
+        )
     except ValueError as error:
         mensaje = str(error)
 
@@ -63,11 +89,16 @@ def confirm_order(
                 detail="Algún repuesto del carrito ya no está disponible.",
             )
 
+        if mensaje in _ERRORES_DATOS_COMPRA:
+            codigo, detalle = _ERRORES_DATOS_COMPRA[mensaje]
+            raise HTTPException(status_code=codigo, detail=detalle)
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tu carrito está vacío.",
         )
 
+    # El mail de la compra sale cuando Mercado Pago aprueba el pago (ver pagos.py).
     return build_order_detail_out(order)
 
 

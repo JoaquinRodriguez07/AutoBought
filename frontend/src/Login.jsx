@@ -1,7 +1,8 @@
 import { useState } from "react";
 import Navbar from "./Navbar";
 import { login, obtenerPerfil } from "./api";
-import { decodeToken } from "./auth";
+import { decodeToken, esVendedor } from "./auth";
+import repuestos from "./assets/repuestos.jpg";
 
 export default function Login({
   onHome,
@@ -14,6 +15,7 @@ export default function Login({
   cantidadFavoritos,
   onIniciarSesion,
   onRegistro,
+  onOlvidePassword,
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,10 +52,14 @@ export default function Login({
 
       // Nombre y teléfono viven en el backend. Si el perfil no carga, el
       // login igual es válido: la sesión queda sin esos datos.
-      try {
-        sesion = { ...sesion, ...(await obtenerPerfil(data.access_token)) };
-      } catch {
-        // se sigue con la sesión mínima
+      // Un vendedor no tiene perfil de cliente (/auth/me le responde 403):
+      // no se pide.
+      if (!esVendedor(sesion)) {
+        try {
+          sesion = { ...sesion, ...(await obtenerPerfil(data.access_token)) };
+        } catch {
+          // se sigue con la sesión mínima
+        }
       }
 
       onIniciarSesion(sesion, remember);
@@ -142,7 +148,7 @@ export default function Login({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
-                className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500 transition"
+                className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
               />
 
             </div>
@@ -161,6 +167,7 @@ export default function Login({
 
                 <button
                   type="button"
+                  onClick={onOlvidePassword}
                   className="text-[8px] text-orange-500 font-bold hover:underline"
                 >
                   ¿Olvidaste tu contraseña?
@@ -175,7 +182,7 @@ export default function Login({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full mt-2 h-11 px-4 pr-12 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-none focus:border-orange-500 transition"
+                  className="w-full mt-2 h-11 px-4 pr-12 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
                 />
 
                 <button
@@ -268,14 +275,14 @@ export default function Login({
           <div className="hidden md:block relative overflow-hidden">
 
             <img
-              src="/src/assets/repuestos.jpg"
+              src={repuestos}
               alt="AutoBought"
               className="absolute inset-0 w-full h-full object-cover"
             />
 
             <div className="absolute inset-0 bg-black/45" />
 
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent" />
 
             <div className="absolute bottom-10 left-8 right-8">
 

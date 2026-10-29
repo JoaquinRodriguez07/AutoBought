@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.client import Client
+from app.models.employee import Employee
 from app.models.user import User
 
 
@@ -51,6 +52,29 @@ def create_client(
     return client
 
 
+def create_employee(
+    db: Session,
+    *,
+    name: str,
+    email: str,
+    password_hash: str,
+) -> Employee:
+    """Inserta user + employee (vendedor). Puede lanzar IntegrityError
+    (UNIQUE) si dos altas con el mismo correo compiten; el caller hace el
+    rollback."""
+    email = email.strip().lower()
+    employee = Employee(
+        username=_username_disponible(db, email),
+        password=password_hash,
+        name=name,
+        email=email,
+    )
+    db.add(employee)
+    db.commit()
+    db.refresh(employee)
+    return employee
+
+
 def update_client(db: Session, client: Client, *, name: str, phone: str | None) -> Client:
     client.name = name
     client.phone = phone
@@ -59,6 +83,21 @@ def update_client(db: Session, client: Client, *, name: str, phone: str | None) 
     return client
 
 
-def update_password(db: Session, client: Client, password_hash: str) -> None:
-    client.password = password_hash
+def update_password(db: Session, user: User, password_hash: str) -> None:
+    user.password = password_hash
+    # Misma transacción (incremento en SQL, sin carrera): invalida los tokens
+    # emitidos con la contraseña anterior.
+    user.session_version = User.session_version + 1
     db.commit()
+
+
+def mark_email_verified(db: Session, user: User) -> None:
+    user.email_verified = True
+    db.commit()
+
+
+def set_marketing_emails(db: Session, client: Client, value: bool) -> Client:
+    client.marketing_emails = value
+    db.commit()
+    db.refresh(client)
+    return client

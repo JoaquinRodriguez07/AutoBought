@@ -24,6 +24,7 @@
  *   Shape de la UI (mapearRepuesto)  →  PartOut (backend)
  *   ----------------------------------------------------
  *   nombre                           →  name
+ *   fabricante                       →  manufacturer
  *   codigo                           →  part_code
  *   categoria                        →  category
  *   precio                           →  price
@@ -41,39 +42,89 @@
 
 const getNombre = (p) => p.nombre ?? p.name ?? "";
 const getCodigo = (p) => p.codigo ?? p.part_code ?? "";
+const getFabricante = (p) => p.fabricante ?? p.manufacturer ?? "";
 const getCategoria = (p) => p.categoria ?? p.category ?? "";
 const getPrecio = (p) => p.precio ?? p.price ?? 0;
 const getMarca = (p) =>
   p.marca ??
   (Array.isArray(p.compatible_brands) ? p.compatible_brands.join(" ") : "");
+const getMarcas = (p) => p.marcas ?? p.compatible_brands ?? [];
+const getModelos = (p) => (p.modelos ?? p.compatible_models ?? []).join(" ");
+const getStock = (p) => p.stock ?? 0;
+
+// Minúsculas y sin tildes: "bujia" encuentra "Bujía".
+const normalizar = (texto) =>
+  texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+// Un precio vacío ("" o null) es "sin límite".
+const limite = (valor) =>
+  valor === "" || valor === null || valor === undefined ? null : Number(valor);
 
 /**
  * @param {Array<object>} productos - array de repuestos (mock o API).
  * @param {object} opciones
  * @param {string} [opciones.categoria] - categoría seleccionada en el sidebar.
  * @param {string} [opciones.busqueda]  - texto ingresado en el SearchBar.
- * @param {string} [opciones.orden]     - "Menor precio" | "Mayor precio" | otro.
+ * @param {string[]} [opciones.fabricantes] - fabricantes tildados; vacío = todos.
+ * @param {string[]} [opciones.marcasAuto] - marcas de auto tildadas; vacío = todas.
+ * @param {number|string} [opciones.precioMin] - precio mínimo; vacío = sin límite.
+ * @param {number|string} [opciones.precioMax] - precio máximo; vacío = sin límite.
+ * @param {boolean} [opciones.soloConStock] - oculta los repuestos sin stock.
+ * @param {string} [opciones.orden]     - "Menor precio" | "Mayor precio" | "Nombre A-Z" | otro.
  * @returns {Array<object>} nuevo array filtrado y ordenado (no muta el original).
  */
 export function filtrarRepuestos(
   productos,
-  { categoria, busqueda = "", orden } = {}
+  {
+    categoria,
+    busqueda = "",
+    fabricantes = [],
+    marcasAuto = [],
+    precioMin,
+    precioMax,
+    soloConStock = false,
+    orden,
+  } = {}
 ) {
   let lista = Array.isArray(productos) ? productos : [];
 
-  const termino = busqueda.trim().toLowerCase();
+  const palabras = normalizar(busqueda).split(/\s+/).filter(Boolean);
 
-  if (termino) {
-    // Búsqueda por texto: coincide con nombre o código (igual que el
-    // ILIKE del backend), y de yapa marca/categoría para mejor UX.
+  if (palabras.length > 0) {
+    // Búsqueda por texto: cada palabra tiene que aparecer en el nombre,
+    // código, fabricante, marcas o modelos compatibles o categoría, en
+    // cualquier orden ("pastillas onix" encuentra las pastillas que son
+    // para el Onix: el auto no está en el nombre, está en los modelos).
     // Coincidencia parcial: no hace falta el código completo.
-    lista = lista.filter((p) =>
-      `${getNombre(p)} ${getCodigo(p)} ${getMarca(p)} ${getCategoria(p)}`
-        .toLowerCase()
-        .includes(termino)
-    );
+    lista = lista.filter((p) => {
+      const texto = normalizar(
+        `${getNombre(p)} ${getCodigo(p)} ${getFabricante(p)} ${getMarca(p)} ${getModelos(p)} ${getCategoria(p)}`
+      );
+      return palabras.every((palabra) => texto.includes(palabra));
+    });
   } else if (categoria) {
     lista = lista.filter((p) => getCategoria(p) === categoria);
+  }
+
+  if (fabricantes.length > 0) {
+    lista = lista.filter((p) => fabricantes.includes(getFabricante(p)));
+  }
+
+  if (marcasAuto.length > 0) {
+    lista = lista.filter((p) => getMarcas(p).some((m) => marcasAuto.includes(m)));
+  }
+
+  const minimo = limite(precioMin);
+  const maximo = limite(precioMax);
+  if (minimo !== null) {
+    lista = lista.filter((p) => getPrecio(p) >= minimo);
+  }
+  if (maximo !== null) {
+    lista = lista.filter((p) => getPrecio(p) <= maximo);
+  }
+
+  if (soloConStock) {
+    lista = lista.filter((p) => getStock(p) > 0);
   }
 
   const listaOrdenada = [...lista];
@@ -84,6 +135,10 @@ export function filtrarRepuestos(
 
   if (orden === "Mayor precio") {
     listaOrdenada.sort((a, b) => getPrecio(b) - getPrecio(a));
+  }
+
+  if (orden === "Nombre A-Z") {
+    listaOrdenada.sort((a, b) => getNombre(a).localeCompare(getNombre(b), "es"));
   }
 
   return listaOrdenada;

@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-import { obtenerSesion, sesionValida } from "../auth";
+import ConfirmacionAgregarCarrito from "../ConfirmacionAgregarCarrito";
+import { esVendedor, obtenerSesion, sesionValida } from "../auth";
 import {
   obtenerCarrito,
   agregarItemCarrito,
@@ -17,6 +18,18 @@ export function CartProvider({ children }) {
   const navigate = useNavigate();
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
+  const [aviso, setAviso] = useState(null);
+
+  const cerrarAviso = useCallback(() => setAviso(null), []);
+
+  // Si el cliente se va a otra pantalla (ej. tocó el carrito del
+  // navbar) el aviso ya no tiene sentido: se cierra al cambiar la ruta.
+  const { pathname } = useLocation();
+  const [rutaDelAviso, setRutaDelAviso] = useState(pathname);
+  if (pathname !== rutaDelAviso) {
+    setRutaDelAviso(pathname);
+    if (aviso) setAviso(null);
+  }
 
   // Reemplaza el estado local con lo que devuelve la API (todas las
   // mutaciones del carrito devuelven el carrito COMPLETO ya
@@ -31,7 +44,9 @@ export function CartProvider({ children }) {
   // sesión activa, ej. refresh de página) y cuando App.jsx avisa que
   // el usuario inició sesión.
   const cargarCarrito = useCallback(async () => {
-    if (!sesionValida(obtenerSesion())) {
+    // Un vendedor no tiene carrito (la API le responde 403): no se pide.
+    const sesion = obtenerSesion();
+    if (!sesionValida(sesion) || esVendedor(sesion)) {
       setCart([]);
       setTotal(0);
       return;
@@ -63,28 +78,51 @@ export function CartProvider({ children }) {
   }, []);
 
   // Traduce los errores de la API a la reacción que le corresponde en
-  // la UI: 401 → la sesión venció, se limpia el carrito y se manda a
-  // login; el resto de los códigos (404/409/422/...) solo se avisan
-  // con un toast, el mensaje ya viene en español desde el backend.
+  // la UI: 401 → no se hace nada acá, `alSesionInvalida` (api.js) lo maneja
+  // en App.jsx (limpia el carrito, avisa y manda a login); el resto de los
+  // códigos (404/409/422/...) solo se avisan con un toast, el mensaje ya
+  // viene en español desde el backend.
   const manejarError = (error) => {
-    if (error.status === 401) {
-      limpiarCarritoLocal();
-      toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
-      navigate("/login");
-      return;
-    }
+    if (error.status === 401) return;
 
     toast.error(error.message || "No pudimos actualizar el carrito.");
   };
 
-  const addToCart = async (producto, cantidad = 1) => {
+  // El 409 del backend dice "No hay stock suficiente. Disponible: N"
+  // contando el stock total, pero lo que choca casi siempre son las
+  // unidades que el cliente YA tenía en el carrito. Acá se arma un
+  // mensaje que lo explique con los datos que ya tenemos.
+  const mensajeSinStock = (producto) => {
+    const item = cart.find((it) => it.id === String(producto.id));
+    const disponible = item?.stock ?? producto.stock;
+    const enCarrito = item?.cantidad ?? 0;
+    const unidades = (n) => (n === 1 ? "1 unidad" : `${n} unidades`);
+
+    if (disponible == null) return null;
+    if (enCarrito >= disponible) {
+      return `Ya tenés en el carrito las ${unidades(disponible)} disponibles.`;
+    }
+    const queda = disponible === 1 ? "Solo queda" : "Solo quedan";
+    return enCarrito > 0
+      ? `${queda} ${unidades(disponible)} y ya tenés ${enCarrito} en el carrito.`
+      : `${queda} ${unidades(disponible)}.`;
+  };
+
+  // `aviso: false` es para quien ya está en el carrito (las
+  // sugerencias): ahí el ítem aparece en la lista y no hace falta
+  // avisar nada.
+  const addToCart = async (producto, cantidad = 1, { aviso: mostrarAviso = true } = {}) => {
     if (!sesionValida(obtenerSesion())) {
-      toast.error("Iniciá sesión para agregar productos al carrito.");
-      navigate("/login");
-      return;
+      setAviso({ tipo: "login" });
+      return false;
     }
 
-    if (!producto || producto.stock === 0) return;
+    if (esVendedor(obtenerSesion())) {
+      toast.error("Los vendedores no pueden comprar.");
+      return false;
+    }
+
+    if (!producto || producto.stock === 0) return false;
 
     const cantidadPedida = Math.max(1, Number(cantidad) || 1);
     const partId = producto.partId ?? producto.id;
@@ -92,8 +130,23 @@ export function CartProvider({ children }) {
     try {
       const carrito = await agregarItemCarrito(partId, cantidadPedida);
       aplicarRespuesta(carrito);
+      if (mostrarAviso) {
+        // Un solo aviso a la vez: si se vuelve a agregar el mismo
+        // repuesto se suma al que está abierto ("×3") en vez de apilar.
+        setAviso((actual) =>
+          actual?.tipo === "agregado" && actual.producto.id === producto.id
+            ? { ...actual, cantidadAgregada: actual.cantidadAgregada + cantidadPedida }
+            : { tipo: "agregado", producto, cantidadAgregada: cantidadPedida }
+        );
+      }
+      return true;
     } catch (error) {
-      manejarError(error);
+      if (error.status === 409) {
+        toast.error(mensajeSinStock(producto) || error.message);
+      } else {
+        manejarError(error);
+      }
+      return false;
     }
   };
 
@@ -120,6 +173,17 @@ export function CartProvider({ children }) {
       aplicarRespuesta(carrito);
     } catch (error) {
       manejarError(error);
+    }
+  };
+
+  // Deshace un "agregar al carrito": descuenta solo la cantidad que se
+  // acaba de agregar. Si no quedan unidades previas, elimina la línea.
+  const deshacerAgregado = async (productoId, cantidadAgregada) => {
+    const item = cart.find((it) => it.id === String(productoId));
+    if (item && item.cantidad > cantidadAgregada) {
+      await updateQuantity(productoId, item.cantidad - cantidadAgregada);
+    } else {
+      await removeFromCart(productoId);
     }
   };
 
@@ -150,7 +214,30 @@ export function CartProvider({ children }) {
     limpiarCarritoLocal,
   };
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  return (
+    <CartContext.Provider value={value}>
+      {children}
+      <ConfirmacionAgregarCarrito
+        aviso={aviso}
+        cantidadCarrito={cantidadCarrito}
+        total={total}
+        onCerrar={cerrarAviso}
+        onDeshacer={async () => {
+          const { producto, cantidadAgregada } = aviso;
+          cerrarAviso();
+          await deshacerAgregado(producto.id, cantidadAgregada);
+        }}
+        onVerCarrito={() => {
+          cerrarAviso();
+          navigate("/carrito");
+        }}
+        onIniciarSesion={() => {
+          cerrarAviso();
+          navigate("/login");
+        }}
+      />
+    </CartContext.Provider>
+  );
 }
 
 export function useCart() {

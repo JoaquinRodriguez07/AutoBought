@@ -8,6 +8,9 @@ from app.models.cart import Cart
 from app.models.cart_item import CartItem
 from app.models.order import Order
 from app.models.order_item import OrderItem
-from app.models.payment_method import PaymentMethod
+from app.models.payment import Payment
 from app.models.shipping_address import ShippingAddress
 from app.models.favorite import Favorite
+from app.models.stock_alert import StockAlert
+from app.models.auth_attempt import AuthAttempt
+from app.models.uso_ia import UsoIA

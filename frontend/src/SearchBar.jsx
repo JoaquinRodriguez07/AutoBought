@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { IconoCerrar, IconoLupa } from "./Iconos";
 
 /**
  * SearchBar
@@ -19,7 +20,12 @@ import { useEffect, useState } from "react";
  *  - placeholder (string)   opcional
  *  - autoFocus   (bool)     opcional
  *  - className   (string)   opcional, extiende el contenedor
+ *  - inputId     (string)   opcional, id del input (para enfocarlo desde afuera)
  */
+// El buscador del catálogo: la lupa de la barra lo enfoca en vez de abrir
+// otro buscador encima.
+export const ID_BUSCADOR_CATALOGO = "buscador-catalogo";
+
 export default function SearchBar({
   value,
   onChange,
@@ -27,6 +33,7 @@ export default function SearchBar({
   placeholder = "Buscar repuesto por nombre o código...",
   autoFocus = false,
   className = "",
+  inputId,
 }) {
   // Estado interno para permitir uso "no controlado" si no se pasa `value`.
   const [interno, setInterno] = useState(value ?? "");
@@ -61,9 +68,10 @@ export default function SearchBar({
   return (
     <div
       role="search"
-      className={`flex w-full bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 ${className}`}
+      className={`flex w-full bg-white rounded-lg shadow-xs overflow-hidden border border-gray-100 focus-within:ring-2 focus-within:ring-orange-500 transition ${className}`}
     >
       <input
+        id={inputId}
         value={interno}
         onChange={(e) => actualizar(e.target.value)}
         onKeyDown={manejarTecla}
@@ -71,7 +79,7 @@ export default function SearchBar({
         autoFocus={autoFocus}
         aria-label="Buscar repuesto por nombre o código"
         placeholder={placeholder}
-        className="flex-1 px-4 py-4 text-[10px] outline-none"
+        className="flex-1 min-w-0 px-4 py-3 text-sm outline-hidden [&::-webkit-search-cancel-button]:appearance-none"
       />
 
       {interno && (
@@ -79,9 +87,9 @@ export default function SearchBar({
           type="button"
           onClick={limpiar}
           aria-label="Limpiar búsqueda"
-          className="px-3 text-gray-400 hover:text-gray-600 text-[12px]"
+          className="px-3 text-gray-400 hover:text-gray-600"
         >
-          ✕
+          <IconoCerrar />
         </button>
       )}
 
@@ -89,9 +97,9 @@ export default function SearchBar({
         type="button"
         onClick={buscar}
         aria-label="Buscar"
-        className="bg-orange-500 hover:bg-orange-600 text-white w-14 transition"
+        className="bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition"
       >
-        🔍
+        <IconoLupa className="w-5 h-5" />
       </button>
     </div>
   );

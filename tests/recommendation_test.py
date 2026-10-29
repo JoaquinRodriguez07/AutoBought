@@ -6,7 +6,7 @@ from app.models.part import Part
 
 
 def make_part(db_session, code, name, category, stock, *compatibilities):
-    part = Part(part_code=code, name=name, category=category, price=1000, stock=stock)
+    part = Part(part_code=code, name=name, manufacturer="Bosch", category=category, price=1000, stock=stock)
     part.compatibilities = [
         Compatibility(car_model=car_model, year_from=year_from, year_to=year_to)
         for car_model, year_from, year_to in compatibilities
@@ -171,6 +171,7 @@ def test_mantiene_la_estructura_de_parts(client, db_session):
     assert response.json()["parts"][0] == {
         "id": parts["filtro_onix"].id,
         "name": "Filtro de aceite 1.4 SPE/4",
+        "manufacturer": "Bosch",
         "compatible_brands": ["Chevrolet"],
         "compatible_models": ["Onix"],
         "year_from": 2013,
@@ -181,6 +182,13 @@ def test_mantiene_la_estructura_de_parts(client, db_session):
         "color": None,
         "price": 1000,
         "stock": 10,
+        "description": None,
+        "specifications": [],
+        "warranty_months": None,
+        "warranty_provider": None,
+        "compatibilities": [
+            {"brand": "Chevrolet", "model": "Onix", "engine_code": "1.4 SPE/4", "year_from": 2013, "year_to": 2020},
+        ],
     }
 
 
@@ -261,10 +269,16 @@ def test_id_fuera_de_rango_devuelve_404(client, db_session):
     make_catalog(db_session)
 
     response = client.get(
-        "/api/v1/recommendations", params={"part_ids": "99999999999999999999"}
+        "/api/v1/recommendations", params={"part_ids": "9999999999"}
     )
 
     assert response.status_code == 404
+
+
+def test_id_con_demasiados_digitos_devuelve_422(client):
+    response = client.get("/api/v1/recommendations", params={"part_ids": "9" * 5000})
+
+    assert response.status_code == 422
 
 
 def test_demasiados_part_ids_devuelven_422(client):

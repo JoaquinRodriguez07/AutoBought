@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% set titulo = "Bajó el precio de un favorito" %}
+{% block contenido %}
+<p>Hola {{ nombre }}, un repuesto que tenés en favoritos está más barato:</p>
+<p style="font-size:16px;"><strong>{{ repuesto }}</strong><br>
+  <span style="text-decoration:line-through; color:#9ca3af;">{{ precio_anterior }}</span>
+  <strong style="color:#f97316;">{{ precio }}</strong>
+</p>
+{% with texto_boton = "Ver el repuesto" %}{% include "_boton.html" %}{% endwith %}
+{% endblock %}

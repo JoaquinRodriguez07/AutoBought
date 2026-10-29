@@ -10,9 +10,10 @@ from app.models.cart_item import CartItem
 from app.models.client import Client
 from app.models.compatibility import Compatibility
 from app.models.employee import Employee
-from app.models.order import Order
+from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
+from app.models.shipping_address import ShippingAddress
 from app.models.user import User
 from app.schemas.part import build_part_out
 
@@ -23,6 +24,7 @@ def make_catalog(db_session):
 	part = Part(
 		part_code="BRK-001",
 		name="Brake pad",
+		manufacturer="Bosch",
 		category="Brakes",
 		price=12500,
 		stock=5,
@@ -61,6 +63,7 @@ def test_list_parts_and_build_part_output(db_session):
 	assert build_part_out(parts[0]).model_dump() == {
 		"id": parts[0].id,
 		"name": "Brake pad",
+		"manufacturer": "Bosch",
 		"compatible_brands": ["Toyota"],
 		"compatible_models": ["Corolla", "Yaris"],
 		"year_from": 2016,
@@ -71,6 +74,14 @@ def test_list_parts_and_build_part_output(db_session):
 		"color": None,
 		"price": 12500,
 		"stock": 5,
+		"description": None,
+		"specifications": [],
+		"warranty_months": None,
+		"warranty_provider": None,
+		"compatibilities": [
+			{"brand": "Toyota", "model": "Corolla", "engine_code": "2ZR", "year_from": 2018, "year_to": 2020},
+			{"brand": "Toyota", "model": "Yaris", "engine_code": "1NZ", "year_from": 2016, "year_to": 2022},
+		],
 	}
 
 
@@ -88,6 +99,18 @@ def test_parts_endpoint_serializes_compatibilities(client, db_session):
 
 	assert response.status_code == 200
 	assert response.json()["parts"][0]["compatible_models"] == ["Corolla", "Yaris"]
+	assert response.json()["parts"][0]["compatibilities"] == [
+		{"brand": "Toyota", "model": "Corolla", "engine_code": "2ZR", "year_from": 2018, "year_to": 2020},
+		{"brand": "Toyota", "model": "Yaris", "engine_code": "1NZ", "year_from": 2016, "year_to": 2022},
+	]
+
+
+def add_primary_address(client):
+	"""place_order necesita una dirección principal."""
+	client.shipping_addresses.append(ShippingAddress(
+		personal_name=client.name, street="Av. Italia", number="1234",
+		city="Montevideo", department="Montevideo", is_primary=True,
+	))
 
 
 def test_place_order_decreases_stock_clears_cart_and_freezes_price(db_session):
@@ -100,10 +123,12 @@ def test_place_order_decreases_stock_clears_cart_and_freezes_price(db_session):
 	part = Part(
 		part_code="FLT-001",
 		name="Air filter",
+		manufacturer="Bosch",
 		category="Filters",
 		price=3000,
 		stock=4,
 	)
+	add_primary_address(client)
 	cart = Cart(client=client, items=[CartItem(part=part, amount=2)])
 	db_session.add(cart)
 	db_session.commit()
@@ -130,10 +155,12 @@ def test_place_order_rejects_insufficient_stock(db_session):
 	part = Part(
 		part_code="BAT-001",
 		name="Battery",
+		manufacturer="Bosch",
 		category="Electrical",
 		price=50000,
 		stock=1,
 	)
+	add_primary_address(client)
 	db_session.add(Cart(client=client, items=[CartItem(part=part, amount=2)]))
 	db_session.commit()
 	client_id = client.user_id
@@ -157,6 +184,7 @@ def test_cart_persists_client_items_and_part_relationships(db_session):
 	part = Part(
 		part_code="OIL-001",
 		name="Engine oil",
+		manufacturer="Bosch",
 		category="Fluids",
 		price=1800,
 		stock=8,
@@ -181,17 +209,27 @@ def test_order_persists_items_and_links_client_and_parts(db_session):
 	part = Part(
 		part_code="SPK-001",
 		name="Spark plug",
+		manufacturer="Bosch",
 		category="Ignition",
 		price=2200,
 		stock=6,
 	)
-	order = Order(client=client)
+	order = Order(
+		client=client,
+		ship_personal_name="Olga",
+		ship_street="Av. Italia",
+		ship_number="1234",
+		ship_city="Montevideo",
+		ship_department="Montevideo",
+		payment_method_label="Visa •••• 1234",
+	)
 	order.items.append(OrderItem(part=part, quantity=2, frozen_price=2200))
 	db_session.add(order)
 	db_session.commit()
 	db_session.refresh(order)
 
 	assert order.client.username == "olga"
+	assert order.status == OrderStatus.CONFIRMED
 	assert order.items[0].part.part_code == "SPK-001"
 	assert order.items[0].quantity == 2
 	assert order.items[0].frozen_price == 2200
@@ -201,6 +239,7 @@ def test_part_persists_optional_color_and_default_stock(db_session):
 	part = Part(
 		part_code="WIP-001",
 		name="Wiper blade",
+		manufacturer="Bosch",
 		category="Visibility",
 		color="Black",
 		price=950,

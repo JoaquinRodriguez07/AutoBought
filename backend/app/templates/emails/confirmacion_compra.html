@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% set titulo = "¡Gracias por tu compra!" %}
+{% block contenido %}
+<p>Hola {{ nombre }}, confirmamos tu pedido <strong>#{{ pedido }}</strong>. Te vamos a avisar cuando lo enviemos.</p>
+{% include "_detalle_pedido.html" %}
+{% with texto_boton = "Ver mis compras" %}{% include "_boton.html" %}{% endwith %}
+{% endblock %}

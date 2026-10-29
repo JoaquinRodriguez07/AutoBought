@@ -30,9 +30,8 @@ function ModelDropdown({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       disabled={!brand}
-      className={`${className} ${
-        !brand ? "bg-gray-200 text-gray-400 cursor-not-allowed" : ""
-      }`}
+      // Cómo se ve deshabilitado lo decide quien lo usa (disabled: en className).
+      className={className}
     >
       <option value="">
         {brand ? "Selecciona tu Modelo" : "Selecciona una Marca primero"}

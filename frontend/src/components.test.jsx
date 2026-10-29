@@ -1,15 +1,21 @@
-import { fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
+import { useEffect } from "react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 
 jest.mock("./api", () => ({
+  buscarTexto: jest.fn(),
   login: jest.fn(),
   registrar: jest.fn(),
   obtenerPerfil: jest.fn(),
+  renovarToken: jest.fn(),
+  alSesionInvalida: jest.fn(),
   actualizarPerfil: jest.fn(),
   cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
+  obtenerRepuesto: jest.fn(),
   obtenerCategorias: jest.fn(),
+  obtenerMasVendidos: jest.fn(),
   obtenerCarrito: jest.fn(),
   agregarItemCarrito: jest.fn(),
   actualizarItemCarrito: jest.fn(),
@@ -17,38 +23,47 @@ jest.mock("./api", () => ({
   vaciarCarritoAPI: jest.fn(),
   obtenerMarcas: jest.fn(),
   obtenerModelos: jest.fn(),
+  obtenerAnios: jest.fn(),
   obtenerDirecciones: jest.fn(),
   crearDireccion: jest.fn(),
   marcarDireccionPrincipal: jest.fn(),
   eliminarDireccionAPI: jest.fn(),
-  obtenerMetodosPago: jest.fn(),
-  crearMetodoPago: jest.fn(),
-  marcarMetodoPagoPrincipal: jest.fn(),
-  eliminarMetodoPagoAPI: jest.fn(),
   obtenerRecomendaciones: jest.fn(),
   obtenerFavoritos: jest.fn(),
   obtenerHistorialCompras: jest.fn(),
   obtenerDetalleCompra: jest.fn(),
   agregarFavoritoAPI: jest.fn(),
   quitarFavoritoAPI: jest.fn(),
+  pedirRecuperacion: jest.fn(),
+  restablecerPassword: jest.fn(),
+  verificarCorreo: jest.fn(),
+  reenviarVerificacion: jest.fn(),
+  obtenerAvisosStock: jest.fn(),
+  agregarAvisoStock: jest.fn(),
+  quitarAvisoStock: jest.fn(),
+  guardarPreferenciasMails: jest.fn(),
+  darseDeBaja: jest.fn(),
 }));
 jest.mock(
   "react-hot-toast",
-  () => ({ __esModule: true, default: { error: jest.fn() } }),
+  () => ({ __esModule: true, default: { error: jest.fn(), success: jest.fn() } }),
   { virtual: true }
 );
 
 import App from "./App";
+import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import BrandDropdown from "./BrandDropdown";
+import BusquedaCabecera from "./BusquedaCabecera";
 import CambiarPassword from "./CambiarPassword";
 import Carrito from "./Carrito";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
 import Favoritos from "./Favoritos";
+import { mapearRepuesto } from "./mapearRepuesto";
+import ConfirmacionAgregarCarrito, { DURACION_AVISO_MS } from "./ConfirmacionAgregarCarrito";
 import Home from "./Home";
 import Login from "./Login";
 import Marcas from "./Marcas";
-import MetodosPago from "./MetodosPago";
 import ModelDropdown from "./ModelDropdown";
 import Navbar from "./Navbar";
 import Perfil from "./Perfil";
@@ -56,52 +71,67 @@ import Registro from "./Registro";
 import Direcciones from "./Direcciones";
 import HistorialCompras from "./HistorialCompras";
 import ProtectedRoute from "./ProtectedRoute";
+import { crearToken } from "./testTokens";
 import SearchBar from "./SearchBar";
 import SinResultadosBusqueda from "./SinResultadosBusqueda";
+import InvitacionAsistente from "./InvitacionAsistente";
+import PanelPit from "./PanelPit";
+import Footer from "./Footer";
 import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
+import { useVehicle } from "./context/VehicleContext";
+import { PitProvider } from "./context/PitContext";
 
 import { filtrarRepuestos } from "./filtrarRepuestos";
 import toast from "react-hot-toast";
 import {
+  buscarTexto,
   agregarFavoritoAPI,
   actualizarPerfil,
   cambiarPassword,
   agregarItemCarrito,
   actualizarItemCarrito,
   crearDireccion,
-  crearMetodoPago,
   eliminarDireccionAPI,
   eliminarItemCarrito,
-  eliminarMetodoPagoAPI,
   login,
   marcarDireccionPrincipal,
-  marcarMetodoPagoPrincipal,
   obtenerCarrito,
   obtenerCategorias,
+  obtenerMasVendidos,
   obtenerDirecciones,
   obtenerFavoritos,
   obtenerHistorialCompras,
   obtenerDetalleCompra,
   obtenerMarcas,
-  obtenerMetodosPago,
   obtenerModelos,
+  obtenerAnios,
   obtenerRepuestos,
+  obtenerRepuesto,
   obtenerPerfil,
   obtenerRecomendaciones,
   quitarFavoritoAPI,
   registrar,
   vaciarCarritoAPI,
+  renovarToken,
+  alSesionInvalida,
+  verificarCorreo,
+  obtenerAvisosStock,
+  agregarAvisoStock,
+  quitarAvisoStock,
 } from "./api";
 import {
   decodeToken,
+  guardarSesion,
   haySesionActiva,
   obtenerSesion,
   sesionValida,
+  TIPO_VENDEDOR,
 } from "./auth";
 
 const navigationProps = () => ({
   onHome: jest.fn(),
+  esFavorito: jest.fn(() => false),
   onCatalogo: jest.fn(),
   onLogin: jest.fn(),
   onMarcas: jest.fn(),
@@ -124,7 +154,6 @@ const product = {
   especificaciones: [["Material", "Semi-metalico"]],
   aplicaciones: ["Volkswagen Gol"],
   garantia: "6 meses",
-  opiniones: [{ nombre: "Ana", estrellas: 5, texto: "Excelente" }],
 };
 
 const catalogProducts = [
@@ -133,6 +162,7 @@ const catalogProducts = [
     id: "BP1234",
     codigo: "BP1234",
     nombre: "Pastillas de Freno Delanteras Bosch",
+    fabricante: "Bosch",
     marca: "Bosch",
     categoria: "Frenos",
   },
@@ -141,6 +171,7 @@ const catalogProducts = [
     id: "DB5678",
     codigo: "DB5678",
     nombre: "Discos de Freno Delanteros",
+    fabricante: "Brembo",
     marca: "Brembo",
     categoria: "Frenos",
   },
@@ -149,6 +180,7 @@ const catalogProducts = [
     id: "FA9012",
     codigo: "FA9012",
     nombre: "Filtro de Aire",
+    fabricante: "Mann",
     marca: "Mann",
     categoria: "Motor",
   },
@@ -171,18 +203,55 @@ const startClientSession = () => {
  * forwarded to React Testing Library's render function.
  * @returns {import("@testing-library/react").RenderResult} Queries and render utilities.
  */
-function render(ui, options) {
+
+function render(ui, options = {}) {
+  const { initialEntries = ["/"], ...renderOptions } = options;
+
   return renderBase(
-    <MemoryRouter>
-       <CartProvider>
-        <VehicleProvider>{ui}</VehicleProvider>
-       </CartProvider>
+    <MemoryRouter initialEntries={initialEntries}>
+      <CartProvider>
+        <VehicleProvider>
+          <PitProvider>{ui}</PitProvider>
+        </VehicleProvider>
+      </CartProvider>
     </MemoryRouter>,
-    options
+    renderOptions
   );
 }
 
+function RutaActual() {
+  const { useLocation } = require("react-router-dom");
+  const location = useLocation();
+
+  return (
+    <p data-testid="ruta-actual">
+      {location.pathname}
+      {location.search}
+    </p>
+  );
+}
+
+function ControlesHistorialDetalle() {
+  const navigate = useNavigate();
+  return (
+    <div>
+      <button onClick={() => navigate("/producto/filtro-de-aire-8")}>Abrir otro repuesto</button>
+      <button onClick={() => navigate(-1)}>Volver al repuesto anterior</button>
+      <button onClick={() => navigate(1)}>Avanzar al repuesto siguiente</button>
+    </div>
+  );
+}
+
+function ActivarVehiculo({ vehiculo }) {
+  const { activarVehiculo } = useVehicle();
+  useEffect(() => activarVehiculo(vehiculo), [activarVehiculo]);
+  return null;
+}
+
 beforeEach(() => {
+  obtenerRepuesto.mockImplementation(async (id) =>
+    catalogProducts.find((item) => String(item.partId ?? item.id) === String(id)) ?? null
+  );
   obtenerRepuestos.mockImplementation(({ categoria } = {}) =>
     Promise.resolve(
       categoria
@@ -194,6 +263,7 @@ beforeEach(() => {
     { nombre: "Frenos", cantidad: 2 },
     { nombre: "Motor", cantidad: 1 },
   ]);
+  obtenerMasVendidos.mockResolvedValue([]);
   obtenerCarrito.mockResolvedValue(emptyCart);
   agregarItemCarrito.mockResolvedValue(emptyCart);
   actualizarItemCarrito.mockResolvedValue(emptyCart);
@@ -201,16 +271,14 @@ beforeEach(() => {
   vaciarCarritoAPI.mockResolvedValue(emptyCart);
   obtenerMarcas.mockResolvedValue([{ brand: "Volkswagen" }]);
   obtenerModelos.mockResolvedValue([]);
+  obtenerAnios.mockResolvedValue([]);
   obtenerDirecciones.mockResolvedValue([]);
   crearDireccion.mockResolvedValue({});
   marcarDireccionPrincipal.mockResolvedValue({});
   eliminarDireccionAPI.mockResolvedValue({});
-  obtenerMetodosPago.mockResolvedValue([]);
-  crearMetodoPago.mockResolvedValue({});
-  marcarMetodoPagoPrincipal.mockResolvedValue({});
-  eliminarMetodoPagoAPI.mockResolvedValue({});
   obtenerRecomendaciones.mockResolvedValue([]);
   obtenerFavoritos.mockResolvedValue([]);
+  obtenerAvisosStock.mockResolvedValue([]);
   obtenerHistorialCompras.mockResolvedValue([]);
   obtenerDetalleCompra.mockResolvedValue({});
   agregarFavoritoAPI.mockResolvedValue();
@@ -225,6 +293,133 @@ afterEach(() => {
 });
 
 describe("Navbar", () => {
+  it("bounces the favorites counter only when it goes up", () => {
+    const props = navigationProps();
+    const { rerender } = render(<Navbar paginaActual="home" {...props} cantidadFavoritos={1} />);
+    const contador = () => within(screen.getByTitle("Favoritos")).getByText(/^\d+$/);
+
+    // Al montar (ej. al cambiar de pantalla) no rebota.
+    expect(contador()).not.toHaveClass("motion-safe:animate-rebote");
+
+    rerender(
+      <MemoryRouter><CartProvider><VehicleProvider><PitProvider>
+        <Navbar paginaActual="home" {...props} cantidadFavoritos={2} />
+      </PitProvider></VehicleProvider></CartProvider></MemoryRouter>
+    );
+    expect(contador()).toHaveTextContent("2");
+    expect(contador()).toHaveClass("motion-safe:animate-rebote");
+  });
+
+  it("opens the global search with focus and applies its query from another page", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Navbar paginaActual="favoritos" {...navigationProps()} />
+        <RutaActual />
+      </>,
+      { initialEntries: ["/favoritos"] }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    const input = screen.getByPlaceholderText("Buscar repuesto por nombre, código o fabricante...");
+    expect(input).toHaveFocus();
+    // Se despliega debajo de la lupa, dentro de la barra.
+    const panel = screen.getByRole("search");
+    expect(panel).toHaveAttribute("id", "navbar-search-panel");
+    expect(panel.closest("nav")).not.toBeNull();
+    await user.type(input, "kit de distribución");
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+      "/catalogo?q=kit%20de%20distribuci%C3%B3n"
+    );
+    expect(screen.queryByPlaceholderText("Buscar repuesto por nombre, código o fabricante...")).not.toBeInTheDocument();
+  });
+
+  it("closes the global search with Escape, restores focus, and closes on outside click", async () => {
+    const user = userEvent.setup();
+    render(<Navbar paginaActual="home" {...navigationProps()} />);
+
+    const openButton = screen.getByRole("button", { name: "Abrir búsqueda" });
+    await user.click(openButton);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByPlaceholderText("Buscar repuesto por nombre, código o fabricante...")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Abrir búsqueda" })).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByPlaceholderText("Buscar repuesto por nombre, código o fabricante...")).not.toBeInTheDocument();
+  });
+
+  it("on a page with its own search box (the catalog), the magnifier focuses it instead of opening another", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Navbar paginaActual="catalogo" {...navigationProps()} />
+        <input id="buscador-catalogo" aria-label="Buscador de la página" />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+
+    expect(screen.getByRole("textbox", { name: "Buscador de la página" })).toHaveFocus();
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
+  });
+
+  it("opens the mobile menu with the main links and closes it after choosing one", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Navbar paginaActual="home" {...props} />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    const menu = document.getElementById("navbar-menu-celular");
+    expect(within(menu).getByRole("button", { name: "Home" })).toHaveClass("text-orange-500");
+
+    await user.click(within(menu).getByRole("button", { name: "Marcas" }));
+
+    expect(props.onMarcas).toHaveBeenCalledTimes(1);
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+    expect(screen.getByRole("button", { name: "Abrir menú" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes the mobile menu on an outside click or when the search opens", async () => {
+    const user = userEvent.setup();
+    render(<Navbar paginaActual="home" {...navigationProps()} />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    fireEvent.mouseDown(document.body);
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+    expect(screen.getByRole("search")).toBeInTheDocument();
+
+    // Y al revés: abrir el menú cierra el buscador.
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    expect(screen.queryByRole("search")).not.toBeInTheDocument();
+  });
+
+  it("runs a global search with the Buscar button", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <Navbar paginaActual="detalle" {...navigationProps()} />
+        <RutaActual />
+      </>,
+      { initialEntries: ["/producto/kit-de-freno-3"] }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Abrir búsqueda" }));
+    await user.type(screen.getByRole("textbox", { name: "Buscar repuestos" }), "filtro aceite");
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+      "/catalogo?q=filtro%20aceite"
+    );
+  });
+
   it("calls navigation handlers and displays the cart count", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -254,7 +449,6 @@ describe("Navbar", () => {
     const props = navigationProps();
     props.onPerfil = jest.fn();
     props.onDirecciones = jest.fn();
-    props.onMetodosPago = jest.fn();
     props.onHistorial = jest.fn();
     props.onCerrarSesion = jest.fn();
 
@@ -277,9 +471,7 @@ describe("Navbar", () => {
     await user.click(screen.getByTitle("Mi cuenta"));
     await user.click(screen.getByRole("button", { name: "Direcciones" }));
     expect(props.onDirecciones).toHaveBeenCalled();
-    await user.click(screen.getByTitle("Mi cuenta"));
-    await user.click(screen.getByRole("button", { name: "Métodos de pago" }));
-    expect(props.onMetodosPago).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Métodos de pago" })).not.toBeInTheDocument();
     await user.click(screen.getByTitle("Mi cuenta"));
     await user.click(screen.getByRole("button", { name: "Historial de compras" }));
     expect(props.onHistorial).toHaveBeenCalled();
@@ -293,28 +485,41 @@ describe("Navbar", () => {
   });
 });
 
+describe("Footer", () => {
+  it("opens the catalog filtered by a popular brand", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Footer {...props} />);
+    await user.click(screen.getByRole("button", { name: "Chevrolet" }));
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { marca: "Chevrolet" });
+  });
+});
+
 describe("Home", () => {
-  it("renders the hero and opens the catalog from the search button", async () => {
+  it("renders the hero with the vehicle selector as the main action", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
     render(<Home {...props} />);
 
     expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
-    await user.click(screen.getAllByRole("button", { name: /buscar repuestos/i })[0]);
+    expect(screen.getByText("¿Qué auto tenés?")).toBeInTheDocument();
+    // Sin auto elegido no se puede buscar ni hay nada para borrar.
+    const buscar = screen.getByRole("button", { name: "BUSCAR REPUESTOS" });
+    expect(buscar).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "BORRAR FILTROS" })).not.toBeInTheDocument();
+    await user.click(buscar);
 
-    expect(props.onCatalogo).toHaveBeenCalledWith();
-
+    expect(props.onCatalogo).not.toHaveBeenCalled();
   });
 
   it("loads model and year options and searches with the selected vehicle", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
     obtenerModelos.mockResolvedValue(["Golf", "Polo"]);
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue({ years: [2020, 2021] }),
-    });
+    obtenerAnios.mockResolvedValue([2020, 2021]);
 
     render(<Home {...props} />);
 
@@ -326,7 +531,7 @@ describe("Home", () => {
 
     await user.selectOptions(modelSelect, "Golf");
     expect(await screen.findByRole("option", { name: "2020" })).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith("/api/v1/years?brand=Volkswagen&model=Golf");
+    expect(obtenerAnios).toHaveBeenCalledWith("Volkswagen", "Golf");
 
     await user.selectOptions(yearSelect, "2021");
     await user.click(screen.getByRole("button", { name: /^BUSCAR REPUESTOS$/i }));
@@ -344,9 +549,40 @@ describe("Home", () => {
 
     render(<Home {...props} />);
 
-    await user.click(await screen.findByRole("button", { name: "Motor" }));
+    await user.click(await screen.findByRole("button", { name: /^Motor/ }));
 
     expect(props.onCatalogo).toHaveBeenCalledWith("Motor");
+  });
+
+  it("shows how many parts each category has", async () => {
+    render(<Home {...navigationProps()} />);
+
+    const frenos = await screen.findByRole("button", { name: /^Frenos/ });
+    expect(within(frenos).getByText("2 repuestos")).toBeInTheDocument();
+  });
+
+  it("explains how to buy in three steps", () => {
+    render(<Home {...navigationProps()} />);
+
+    expect(screen.getByRole("heading", { name: "Cómo comprar" })).toBeInTheDocument();
+    ["Elegí tu auto", "Agregá tus repuestos", "Pagá y recibilo"].forEach((paso) =>
+      expect(screen.getByRole("heading", { name: paso })).toBeInTheDocument()
+    );
+  });
+
+  it("asks for 8 best sellers and adds one to the cart without opening its detail", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onDetalle: jest.fn() };
+    obtenerMasVendidos.mockResolvedValue([catalogProducts[0]]);
+    startClientSession();
+
+    render(<Home {...props} />);
+
+    expect(obtenerMasVendidos).toHaveBeenCalledWith({ limite: 8 });
+    await user.click(await screen.findByRole("button", { name: /^agregar$/i }));
+
+    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith(catalogProducts[0].id, 1));
+    expect(props.onDetalle).not.toHaveBeenCalled();
   });
 
   it("keeps the landing page available when categories fail to load", async () => {
@@ -355,10 +591,61 @@ describe("Home", () => {
 
     render(<Home {...props} />);
 
-    expect(await screen.findByRole("heading", { name: /encontrá lo que necesitás/i }))
+    expect(await screen.findByRole("heading", { name: "Categorías" }))
       .toBeInTheDocument();
     expect(screen.queryByText("Cargando categorías…")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Frenos" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Frenos/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the real best sellers and opens the detail of the one clicked", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onDetalle: jest.fn() };
+    obtenerMasVendidos.mockResolvedValue([catalogProducts[0]]);
+
+    render(<Home {...props} />);
+
+    expect(await screen.findByText(catalogProducts[0].nombre)).toBeInTheDocument();
+    expect(screen.getByText(`$${catalogProducts[0].precio.toLocaleString("es-UY")}`))
+      .toBeInTheDocument();
+    // Arriba va el fabricante, no la marca del auto.
+    expect(screen.getAllByText("Bosch").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "VER REPUESTO" }));
+
+    expect(props.onDetalle).toHaveBeenCalledWith(catalogProducts[0]);
+  });
+
+  it("opens the catalog filtered by the manufacturer clicked", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Home {...props} />);
+    await user.click(screen.getByRole("button", { name: "Brembo" }));
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { fabricante: "Brembo" });
+  });
+
+  it("opens the catalog filtered by the brand logo clicked, without making it the active vehicle", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Home {...props} />);
+    await user.click(screen.getAllByRole("button", { name: "Ver repuestos de Volkswagen" })[0]);
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { marca: "Volkswagen" });
+  });
+
+  it.each([
+    ["there are no sales", () => obtenerMasVendidos.mockResolvedValue([])],
+    ["the request fails", () => obtenerMasVendidos.mockRejectedValue(new Error("API unavailable"))],
+  ])("hides the best sellers section when %s", async (_caso, preparar) => {
+    preparar();
+
+    render(<Home {...navigationProps()} />);
+
+    await waitFor(() =>
+      expect(screen.queryByText("Cargando más vendidos…")).not.toBeInTheDocument()
+    );
+    expect(screen.queryByRole("heading", { name: "MÁS VENDIDOS" })).not.toBeInTheDocument();
   });
 });
 
@@ -451,6 +738,38 @@ describe("ModelDropdown", () => {
 });
 
 describe("Catalogo", () => {
+  it("shows 24 parts at first and the rest with Ver más", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onAlternarFavorito: jest.fn(), onDetalle: jest.fn(), esFavorito: jest.fn(() => false) };
+    obtenerRepuestos.mockResolvedValue(
+      Array.from({ length: 30 }, (_, i) => ({ ...product, id: `P-${i}`, codigo: `P-${i}`, nombre: `Repuesto número ${i}` }))
+    );
+
+    render(<Catalogo {...props} />);
+
+    expect(await screen.findByText("Repuesto número 23")).toBeInTheDocument();
+    expect(screen.queryByText("Repuesto número 24")).not.toBeInTheDocument();
+    expect(screen.getByText("Mostrando 24 de 30 repuestos")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "VER MÁS REPUESTOS" }));
+
+    expect(screen.getByText("Repuesto número 29")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "VER MÁS REPUESTOS" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the desktop filters sticky and scrollable within the viewport", () => {
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+
+    render(<Catalogo {...props} />);
+
+    const filters = screen.getByRole("complementary", { name: "Filtros" });
+    expect(filters).toHaveClass("lg:sticky", "lg:top-24", "lg:overflow-y-auto");
+    expect(filters).toHaveClass("lg:max-h-[calc(100vh-7rem)]", "lg:overscroll-contain");
+  });
+
   it("filters products and adds the selected quantity to the cart", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -474,6 +793,222 @@ describe("Catalogo", () => {
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("DB5678", 2));
   });
 
+  // Después de agregar, el botón dice "Agregado" por un momento: se
+  // buscan los dos textos para seguir encontrando el mismo botón.
+  const botonesAgregar = () =>
+    screen.getAllByRole("button", { name: /^(agregar|agregado)$/i });
+  const esperarCatalogo = () =>
+    screen.findAllByRole("button", { name: /^agregar$/i });
+  const avisoCarrito = () =>
+    screen.getByText("Agregado al carrito").closest("[aria-live]");
+  const catalogoProps = () => ({
+    ...navigationProps(),
+    onAlternarFavorito: jest.fn(),
+    onDetalle: jest.fn(),
+    esFavorito: jest.fn(() => false),
+  });
+  const carritoConPastillas = (cantidad) => ({
+    items: [{
+      id: "BP1234",
+      partId: "BP1234",
+      nombre: "Pastillas de Freno Delanteras Bosch",
+      precio: 1500,
+      cantidad,
+      stock: 5,
+    }],
+    total: 1500 * cantidad,
+  });
+
+  it("shows a non-blocking notice that merges repeated adds and closes or goes to the cart", async () => {
+    const user = userEvent.setup();
+    startClientSession();
+    agregarItemCarrito
+      .mockResolvedValueOnce(carritoConPastillas(1))
+      .mockResolvedValueOnce(carritoConPastillas(2));
+
+    render(<><Catalogo {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
+
+    expect(await screen.findByText("Agregado al carrito")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(botonesAgregar()[0]).toHaveTextContent("Agregado");
+    expect(within(avisoCarrito()).getByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    expect(within(avisoCarrito()).getByText(/×1/)).toBeInTheDocument();
+    expect(within(avisoCarrito()).getByText(/Tu carrito \(1 producto\)/)).toBeInTheDocument();
+    expect(within(screen.getByTitle("Carrito")).getByText("1"))
+      .toHaveClass("motion-safe:animate-rebote");
+
+    // Agregar otra vez el mismo repuesto actualiza el aviso, no apila otro.
+    await user.click(botonesAgregar()[0]);
+    await waitFor(() => expect(within(avisoCarrito()).getByText(/×2/)).toBeInTheDocument());
+    expect(screen.getAllByText("Agregado al carrito")).toHaveLength(1);
+    expect(within(avisoCarrito()).getByText(/Tu carrito \(2 productos\)/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Seguir comprando" }));
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+
+    await user.click(botonesAgregar()[0]);
+    await user.click(await screen.findByRole("button", { name: "Cerrar aviso" }));
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+
+    await user.click(botonesAgregar()[0]);
+    await screen.findByText("Agregado al carrito");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+
+    await user.click(botonesAgregar()[0]);
+    await user.click(await screen.findByRole("button", { name: "Ver carrito" }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/carrito");
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+  });
+
+  it("disables the button while adding and shows the result in the same place", async () => {
+    const user = userEvent.setup();
+    startClientSession();
+    let responder;
+    agregarItemCarrito.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+
+    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
+
+    expect(screen.getByRole("button", { name: "Agregando…" })).toBeDisabled();
+
+    responder(carritoConPastillas(1));
+    expect(await screen.findByRole("button", { name: "Agregado" })).toBeEnabled();
+  });
+
+  it("undo removes the line when nothing was in the cart before", async () => {
+    const user = userEvent.setup();
+    startClientSession();
+    agregarItemCarrito.mockResolvedValue(carritoConPastillas(1));
+
+    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
+
+    await user.click(await screen.findByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("BP1234"));
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+  });
+
+  it("undo only removes the quantity that was just added", async () => {
+    const user = userEvent.setup();
+    startClientSession();
+    // El carrito ya tenía 2 unidades: después de agregar 1 quedan 3.
+    agregarItemCarrito.mockResolvedValue(carritoConPastillas(3));
+
+    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
+
+    await user.click(await screen.findByRole("button", { name: "Deshacer" }));
+
+    await waitFor(() => expect(actualizarItemCarrito).toHaveBeenCalledWith("BP1234", 2));
+    expect(eliminarItemCarrito).not.toHaveBeenCalled();
+  });
+
+  it("explains a stock conflict with the units already in the cart", async () => {
+    const user = userEvent.setup();
+    startClientSession();
+    obtenerCarrito.mockResolvedValue(carritoConPastillas(4));
+    agregarItemCarrito.mockRejectedValue(
+      Object.assign(new Error("No hay stock suficiente. Disponible: 5 unidades."), { status: 409 })
+    );
+
+    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    await esperarCatalogo();
+    await waitFor(() =>
+      expect(within(screen.getByTitle("Carrito")).getByText("4")).toBeInTheDocument()
+    );
+    await user.click(botonesAgregar()[0]);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Solo quedan 5 unidades y ya tenés 4 en el carrito.")
+    );
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+    expect(botonesAgregar()[0]).toHaveTextContent(/^Agregar$/);
+  });
+
+  it("asks an anonymous visitor to log in with a button instead of only a message", async () => {
+    const user = userEvent.setup();
+
+    render(<><Catalogo {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
+    await esperarCatalogo();
+    await user.click(botonesAgregar()[0]);
+
+    const aviso = screen
+      .getByText("Iniciá sesión para agregar productos al carrito.")
+      .closest("[aria-live]");
+    expect(agregarItemCarrito).not.toHaveBeenCalled();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(/^\/$/);
+
+    await user.click(within(aviso).getByRole("button", { name: "Iniciar sesión" }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/login");
+  });
+
+  it("filters by the manufacturers of the loaded products and clears them", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+
+    render(<Catalogo {...props} categoriaInicial="Frenos" />);
+
+    expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    // Solo los fabricantes de lo cargado (Frenos): Mann es de Motor.
+    expect(screen.getByRole("checkbox", { name: /Bosch/ })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Mann/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: /Brembo/ }));
+
+    expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+
+    expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Brembo/ })).not.toBeChecked();
+  });
+
+  it("filters by price, stock and car brand and shows each filter as a removable chip", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onAlternarFavorito = jest.fn();
+    props.onDetalle = jest.fn();
+    props.esFavorito = jest.fn(() => false);
+    obtenerRepuestos.mockResolvedValue([
+      { ...catalogProducts[0], precio: 1500, stock: 0, marcas: ["Chevrolet"], modelos: ["Onix"] },
+      { ...catalogProducts[1], precio: 4200, stock: 3, marcas: ["Ford"], modelos: ["Ka"] },
+      { ...catalogProducts[2], precio: 900, stock: 8, marcas: ["Chevrolet", "Ford"], modelos: [] },
+    ]);
+
+    render(<Catalogo {...props} />);
+
+    expect(await screen.findByText("Para Chevrolet Onix")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Solo con stock" }));
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole("spinbutton", { name: "Precio máximo" }), "1000");
+    expect(screen.getByText("Filtro de Aire")).toBeInTheDocument();
+    expect(screen.queryByText("Discos de Freno Delanteros")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Quitar filtro Hasta $1.000" }));
+    expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: /Ford/ }));
+    await user.click(screen.getByRole("button", { name: "Quitar filtro Con stock" }));
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quitar filtro Para Ford" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Limpiar filtros" }));
+    expect(screen.getByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Quitar filtro/ })).not.toBeInTheDocument();
+  });
+
   it("changes category and toggles a product favorite", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -490,13 +1025,179 @@ describe("Catalogo", () => {
         expect.objectContaining({ categoria: "Motor" })
       );
     });
-    const favoriteButtons = screen.getAllByRole("button", { name: "♡" });
+    const favoriteButtons = screen.getAllByRole("button", { name: "Marcar como favorito" });
     await user.click(favoriteButtons[favoriteButtons.length - 1]);
 
     expect(props.onAlternarFavorito).toHaveBeenCalledWith(
       expect.objectContaining({ nombre: "Filtro de Aire" })
     );
   });
+
+it("exits free search mode when changing category", async () => {
+  const user = userEvent.setup();
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [],
+    entities: { part: true },
+  });
+
+  render(
+    <>
+      <Catalogo
+        {...props}
+        categoriaInicial="Frenos"
+        esFavorito={() => false}
+      />
+      <RutaActual />
+    </>,
+    { initialEntries: ["/catalogo?q=pastillas"] }
+  );
+
+  await user.click(
+    await screen.findByRole("button", { name: /Motor/ })
+  );
+
+  await waitFor(() => {
+    expect(obtenerRepuestos).toHaveBeenCalledWith(
+      expect.objectContaining({ categoria: "Motor" })
+    );
+  });
+
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+    "/catalogo"
+  );
+  expect(screen.getByTestId("ruta-actual")).not.toHaveTextContent(
+    "?q=pastillas"
+  );
+});
+
+it("shows free search results and activates the detected vehicle", async () => {
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno", brand: "Chevrolet", model: "Onix", year: 2020 },
+  });
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?q=pastillas%20de%20freno%20onix%202020"] }
+  );
+
+  expect(
+    await screen.findByText("Pastillas de Freno Delanteras Bosch")
+  ).toBeInTheDocument();
+  expect(buscarTexto).toHaveBeenCalledWith("pastillas de freno onix 2020");
+  expect(await screen.findByText("Chevrolet Onix 2020")).toBeInTheDocument();
+  expect(obtenerRepuestos).not.toHaveBeenCalled();
+});
+
+it("runs the server search from the catalog bar on Enter and hides the header search", async () => {
+  const user = userEvent.setup();
+  const props = navigationProps();
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno" },
+  });
+
+  render(
+    <>
+      <Catalogo {...props} esFavorito={() => false} />
+      <RutaActual />
+    </>
+  );
+
+  // El buscador de la barra está cerrado: el único es el del catálogo.
+  expect(document.getElementById("navbar-search-panel")).toBeNull();
+
+  await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastillas de frenos{Enter}");
+
+  await waitFor(() => expect(buscarTexto).toHaveBeenCalledWith("pastillas de frenos"));
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastillas");
+  expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+});
+
+it("opens with the manufacturer from the URL already checked", async () => {
+  const props = navigationProps();
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?fabricante=Brembo"] }
+  );
+
+  expect(await screen.findByRole("checkbox", { name: /Brembo/ })).toBeChecked();
+  expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+});
+
+it("opens with the car brand from the URL already checked", async () => {
+  obtenerRepuestos.mockResolvedValue([
+    { ...catalogProducts[0], marcas: ["Chevrolet"] },
+    { ...catalogProducts[1], marcas: ["Ford"] },
+  ]);
+
+  render(
+    <Catalogo {...navigationProps()} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?marca=Ford"] }
+  );
+
+  expect(await screen.findByRole("checkbox", { name: /Ford/ })).toBeChecked();
+  expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+});
+
+it("offers the server search for what was typed, also when nothing on screen matches", async () => {
+  const user = userEvent.setup();
+  buscarTexto.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno" },
+  });
+
+  render(
+    <>
+      <Catalogo {...navigationProps()} esFavorito={() => false} />
+      <RutaActual />
+    </>
+  );
+  await screen.findByText("Pastillas de Freno Delanteras Bosch");
+
+  await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastilas");
+
+  // Con errores no encuentra nada en pantalla: se ofrece en la barra y en grande.
+  expect(screen.getByRole("status")).toHaveTextContent("pastilas");
+  const ofertas = screen.getAllByRole("button", { name: /en todo el catálogo/ });
+  expect(ofertas).toHaveLength(2);
+
+  await user.click(ofertas[1]);
+
+  await waitFor(() => expect(buscarTexto).toHaveBeenCalledWith("pastilas"));
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastilas");
+  expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+  // Ya buscado: no se vuelve a ofrecer.
+  expect(screen.queryByRole("button", { name: /en todo el catálogo/ })).not.toBeInTheDocument();
+});
+
+it("shows the manual filter message when the search cannot be interpreted", async () => {
+  const props = navigationProps();
+
+  buscarTexto.mockResolvedValue({
+    parts: [],
+    entities: { part: null, brand: null, model: null, year: null },
+  });
+
+  render(
+    <Catalogo {...props} esFavorito={() => false} />,
+    { initialEntries: ["/catalogo?q=xyz%20qwerty"] }
+  );
+
+  expect(
+    await screen.findByText(
+      "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual"
+    )
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+});
 
   it("shows an API error and retries the catalog request", async () => {
     const user = userEvent.setup();
@@ -520,22 +1221,495 @@ describe("Catalogo", () => {
   });
 });
 
+describe("ActiveVehicleBanner", () => {
+  it("confirms a new vehicle and updates the catalog banner", async () => {
+    const user = userEvent.setup();
+    obtenerMarcas.mockResolvedValue([
+      { brand: "Chevrolet" },
+      { brand: "Volkswagen" },
+    ]);
+    obtenerModelos.mockResolvedValue(["Onix"]);
+    obtenerAnios.mockResolvedValue([2020]);
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <ActiveVehicleBanner />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cambiar vehículo" }));
+    await user.selectOptions(screen.getByLabelText("MARCA"), "Chevrolet");
+    await user.selectOptions(await screen.findByLabelText("MODELO"), "Onix");
+    await screen.findByRole("option", { name: "2020" });
+    await user.selectOptions(screen.getByLabelText("AÑO"), "2020");
+    await user.click(screen.getByRole("button", { name: "Confirmar vehículo" }));
+
+    expect(screen.getByText("Chevrolet Onix 2020")).toBeInTheDocument();
+  });
+
+  it("edits the catalog vehicle locally and keeps the previous vehicle on cancel", async () => {
+    const user = userEvent.setup();
+    obtenerMarcas.mockResolvedValue([
+      { brand: "Chevrolet" },
+      { brand: "Volkswagen" },
+    ]);
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <ActiveVehicleBanner />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cambiar vehículo" }));
+    expect(screen.getByLabelText("MARCA")).toHaveValue("Volkswagen");
+    await user.selectOptions(screen.getByLabelText("MARCA"), "Chevrolet");
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByLabelText("MARCA")).not.toBeInTheDocument();
+    expect(screen.getByText("Volkswagen Gol 2021")).toBeInTheDocument();
+  });
+});
+
 describe("DetalleProducto", () => {
-  it("changes quantity, adds the product, and switches detail tabs", async () => {
+  it("shows the parts usually bought together and adds one to the cart", async () => {
+    const user = userEvent.setup();
+    const sugerencia = mapearRepuesto({
+      id: 9, name: "Aceite de motor 5W30 4L Castrol", manufacturer: "Castrol", part_code: "LUB-0001",
+      category: "Lubricantes", price: 3900, stock: 10, compatibilities: [],
+    });
+    obtenerRepuesto.mockResolvedValue(mapearRepuesto({
+      id: 7, name: "Filtro compatible", manufacturer: "Bosch", part_code: "FIL-0007",
+      category: "Filtros", price: 790, stock: 3, compatibilities: [],
+    }));
+    obtenerRecomendaciones.mockResolvedValue([sugerencia]);
+    startClientSession();
+
+    render(
+      <Routes>
+        <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+      </Routes>,
+      { initialEntries: ["/producto/filtro-compatible-7"] }
+    );
+
+    const seccion = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
+    expect(obtenerRecomendaciones).toHaveBeenCalledWith([7]);
+    expect(within(seccion).getByText("Aceite de motor 5W30 4L Castrol")).toBeInTheDocument();
+
+    await user.click(within(seccion).getByRole("button", { name: /^agregar$/i }));
+    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith(9, 1));
+  });
+
+  const repuestoCompatible = () => mapearRepuesto({
+    id: 7,
+    name: "Filtro compatible",
+    manufacturer: "Bosch",
+    part_code: "FIL-0007",
+    category: "Filtros",
+    price: 790,
+    stock: 3,
+    compatible_brands: ["Chevrolet", "Volkswagen"],
+    compatibilities: [
+      { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 },
+      { brand: "Volkswagen", model: "Gol", engine_code: "1.6 MSI", year_from: 2020, year_to: 2022 },
+    ],
+  });
+
+  it("loads the requested product from the URL and follows back/forward history", async () => {
+    const user = userEvent.setup();
+    const primerRepuesto = repuestoCompatible();
+    const segundoRepuesto = mapearRepuesto({
+      id: 8,
+      name: "Filtro de aire",
+      manufacturer: "Mann-Filter",
+      part_code: "AIR-0008",
+      category: "Filtros",
+      price: 500,
+      stock: 2,
+      compatibilities: [],
+    });
+    obtenerRepuesto.mockImplementation(async (id) => id === "7" ? primerRepuesto : segundoRepuesto);
+    const props = navigationProps();
+
+    render(
+      <Routes>
+        <Route path="/producto/:id" element={<><DetalleProducto {...props} /><ControlesHistorialDetalle /></>} />
+      </Routes>,
+      { initialEntries: ["/producto/filtro-compatible-7"] }
+    );
+
+    expect(screen.getByText("Cargando")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Filtro compatible" })).toBeInTheDocument();
+    expect(obtenerRepuesto).toHaveBeenCalledWith("7");
+
+    await user.click(screen.getByRole("button", { name: "Abrir otro repuesto" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Filtro de aire" })).toBeInTheDocument();
+    expect(obtenerRepuesto).toHaveBeenLastCalledWith("8");
+
+    await user.click(screen.getByRole("button", { name: "Volver al repuesto anterior" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Filtro compatible" })).toBeInTheDocument();
+    expect(obtenerRepuesto).toHaveBeenLastCalledWith("7");
+
+    await user.click(screen.getByRole("button", { name: "Avanzar al repuesto siguiente" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Filtro de aire" })).toBeInTheDocument();
+    expect(obtenerRepuesto).toHaveBeenLastCalledWith("8");
+  });
+
+  it("shows exactly Repuesto no encontrado for a missing URL product", async () => {
+    const error = new Error("Repuesto no encontrado.");
+    error.status = 404;
+    obtenerRepuesto.mockRejectedValue(error);
+
+    render(
+      <Routes>
+        <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+      </Routes>,
+      { initialEntries: ["/producto/repuesto-inexistente-999999"] }
+    );
+
+    expect(await screen.findByText("Repuesto no encontrado", { exact: true })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
+  });
+
+  it("opens the selector in the header when no vehicle is selected", async () => {
+    const user = userEvent.setup();
+    render(<DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />);
+    expect(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Seleccionar vehículo" }))
+      .toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "sin-vehiculo");
+    expect(screen.getByText("Elegí tu vehículo para verificar la compatibilidad")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-selection").lastElementChild).toHaveClass("grid-rows-[0fr]");
+    expect(screen.queryByText("Compatibilidad de vehículo")).not.toBeInTheDocument();
+    expect(screen.getByText("Chevrolet Onix")).toBeInTheDocument();
+    expect(screen.getByText("Volkswagen Gol")).toBeInTheDocument();
+    await user.click(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Seleccionar vehículo" }));
+    expect(within(screen.getByTestId("vehicle-selection")).getByLabelText("MARCA")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("MARCA")).toHaveLength(1);
+    const vehicleCard = screen.getByTestId("vehicle-selection");
+    const selectorPanel = within(vehicleCard).getByRole("group", { name: "Controles del vehículo" });
+    expect(within(vehicleCard).getByText("Seleccioná tu vehículo")).toBeInTheDocument();
+    expect(selectorPanel.querySelector(".sm\\:grid-cols-3")).toBeInTheDocument();
+    expect(vehicleCard).not.toHaveClass("relative", "absolute", "fixed");
+    expect(selectorPanel).toHaveClass("border-t");
+    expect(vehicleCard.lastElementChild).toHaveClass("grid-rows-[1fr]");
+  });
+
+  it("matches normalized brand and model and includes the first and last range years", () => {
+    const repuesto = repuestoCompatible();
+    const props = navigationProps();
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "  CHEVROLET ", model: " Onix  ", year: "2013" }} />
+        <DetalleProducto {...props} producto={repuesto} />
+      </>
+    );
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+    expect(screen.getByText("Compatible con tu vehículo")).toBeInTheDocument();
+    expect(screen.getByText("CHEVROLET Onix 2013")).toBeInTheDocument();
+  });
+
+  it("includes the last year of a compatibility range", () => {
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2019" }} />
+        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+      </>
+    );
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+  });
+
+  it("shows incompatibility when the selected year is outside the inclusive range", () => {
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2020" }} />
+        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+      </>
+    );
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "incompatible");
+    expect(screen.getByText("No es compatible con tu Chevrolet Onix 2020")).toBeInTheDocument();
+  });
+
+  it("accepts a matching brand when no model is selected", () => {
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "chevrolet", model: "", year: "" }} />
+        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+      </>
+    );
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+  });
+
+  it("shows unavailable when no compatibility records exist", () => {
+    const productWithoutCompatibility = mapearRepuesto({
+      id: 18,
+      name: "Filtro sin aplicaciones",
+      compatible_brands: ["Chevrolet"],
+      compatibilities: [],
+    });
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
+        <DetalleProducto {...navigationProps()} producto={productWithoutCompatibility} />
+      </>
+    );
+
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "no-disponible");
+    expect(screen.getByText("La información de compatibilidad no está disponible.")).toBeInTheDocument();
+    expect(screen.queryByText("Compatible con tu vehículo")).not.toBeInTheDocument();
+    expect(screen.queryByText(/No es compatible/)).not.toBeInTheDocument();
+  });
+
+  it("does not claim incompatibility when a matching application lacks the selected vehicle year range", () => {
+    const productWithIncompleteRange = mapearRepuesto({
+      id: 19,
+      name: "Filtro con aplicación incompleta",
+      compatible_brands: ["Chevrolet"],
+      compatibilities: [
+        { brand: "Chevrolet", model: "Onix", engine_code: "1.4", year_from: null, year_to: null },
+      ],
+    });
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
+        <DetalleProducto {...navigationProps()} producto={productWithIncompleteRange} />
+      </>
+    );
+
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "no-verificable");
+    expect(screen.queryByText("Compatible con tu vehículo")).not.toBeInTheDocument();
+    expect(screen.queryByText(/No es compatible/)).not.toBeInTheDocument();
+    expect(screen.getByText("Chevrolet Onix")).toBeInTheDocument();
+  });
+
+  it("keeps the compatibility card focused on applications and opens the existing header selector", async () => {
+    const user = userEvent.setup();
+    render(<DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />);
+
+    const card = within(screen.getByTestId("compatibility-card"));
+    expect(card.getByText("Chevrolet Onix")).toBeInTheDocument();
+    expect(card.getByText("Volkswagen Gol")).toBeInTheDocument();
+    expect(card.queryByRole("button", { name: "Seleccionar vehículo" })).not.toBeInTheDocument();
+    await user.click(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: /Seleccionar veh/ }));
+    expect(within(screen.getByTestId("vehicle-selection")).getByLabelText("MARCA")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("MARCA")).toHaveLength(1);
+  });
+  it("opens the inline selector, confirms a new vehicle, and immediately updates compatibility", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    obtenerMarcas.mockResolvedValue([
+      { brand: "Chevrolet" },
+      { brand: "Volkswagen" },
+    ]);
+    obtenerModelos.mockImplementation((brand) =>
+      Promise.resolve(brand === "Chevrolet" ? ["Onix"] : ["Gol"])
+    );
+    obtenerAnios.mockResolvedValue([2018, 2019, 2020]);
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <DetalleProducto {...props} producto={repuestoCompatible()} />
+      </>
+    );
+
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+    await user.click(screen.getAllByRole("button", { name: "Cambiar" })[0]);
+    const selector = within(screen.getByTestId("vehicle-selection"));
+    expect(selector.getByLabelText("MARCA")).toBeInTheDocument();
+    expect(selector.getByLabelText("MODELO")).toBeInTheDocument();
+    expect(selector.getByLabelText("AÑO")).toBeInTheDocument();
+    const vehicleCard = screen.getByTestId("vehicle-selection");
+    const selectorPanel = selector.getByRole("group", { name: "Controles del vehículo" });
+    expect(selectorPanel).toHaveClass("border-t");
+    expect(vehicleCard.lastElementChild).toHaveClass("grid-rows-[1fr]");
+    expect(selector.getByText("Volkswagen Gol 2021")).toBeInTheDocument();
+    expect(selectorPanel.querySelector(".sm\\:grid-cols-3")).toBeInTheDocument();
+    expect(selectorPanel.className).not.toMatch(/absolute|fixed/);
+    expect(vehicleCard).not.toHaveClass("relative", "absolute", "fixed");
+    expect(vehicleCard.closest("section")).toContainElement(screen.getByRole("heading", { level: 1 }));
+    expect(screen.getAllByLabelText("MARCA")).toHaveLength(1);
+    expect(screen.queryByText("Compatibilidad de vehículo")).not.toBeInTheDocument();
+
+    await user.selectOptions(selector.getByLabelText("MARCA"), "Chevrolet");
+    await user.selectOptions(await selector.findByLabelText("MODELO"), "Onix");
+    await screen.findByRole("option", { name: "2020" });
+    await user.selectOptions(selector.getByLabelText("AÑO"), "2020");
+    await user.click(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Confirmar" }));
+
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "incompatible");
+    expect(screen.getByText("No es compatible con tu Chevrolet Onix 2020")).toBeInTheDocument();
+    expect(screen.getByText("Chevrolet Onix 2020")).toBeInTheDocument();
+    const collapsedControls = screen.getByTestId("vehicle-selection").lastElementChild;
+    expect(collapsedControls).toHaveClass("grid-rows-[0fr]");
+    expect(within(screen.getByTestId("vehicle-selection")).getByLabelText("MARCA")).toBeInTheDocument();
+    fireEvent.transitionEnd(collapsedControls, { propertyName: "grid-template-rows" });
+    expect(within(screen.getByTestId("vehicle-selection")).queryByLabelText("MARCA")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Filtro compatible" }))
+      .toBeInTheDocument();
+  });
+
+  it("cancels vehicle changes without changing the active vehicle", async () => {
+    const user = userEvent.setup();
+    obtenerMarcas.mockResolvedValue([
+      { brand: "Chevrolet" },
+      { brand: "Volkswagen" },
+    ]);
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+      </>
+    );
+
+    expect(screen.getByText("Volkswagen Gol 2021")).toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Cambiar" })[0]);
+    await user.selectOptions(await screen.findByLabelText("MARCA"), "Chevrolet");
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    const collapsedControls = screen.getByTestId("vehicle-selection").lastElementChild;
+    expect(collapsedControls).toHaveClass("grid-rows-[0fr]");
+    expect(within(screen.getByTestId("vehicle-selection")).getByLabelText("MARCA")).toBeInTheDocument();
+    expect(screen.getByText("Volkswagen Gol 2021")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
+    fireEvent.transitionEnd(collapsedControls, { propertyName: "grid-template-rows" });
+    expect(within(screen.getByTestId("vehicle-selection")).queryByLabelText("MARCA")).not.toBeInTheDocument();
+  });
+
+  it("lists all structured applications in the compatibility card", () => {
+    render(<DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />);
+
+    const card = within(screen.getByTestId("compatibility-card"));
+    expect(card.getByText("Chevrolet Onix")).toBeInTheDocument();
+    expect(card.getByText("Motor: 1.4 8V \u00b7 A\u00f1os: 2013\u20132019")).toBeInTheDocument();
+    expect(card.getByText("Volkswagen Gol")).toBeInTheDocument();
+    expect(card.getByText("Motor: 1.6 MSI \u00b7 A\u00f1os: 2020\u20132022")).toBeInTheDocument();
+  });
+
+  it("separates vehicle, engine, and years from text applications", () => {
+    const productWithTextApplications = {
+      ...repuestoCompatible(),
+      compatibilidades: [],
+      aplicaciones: ["Volkswagen Gol 2019 Highline 1.6 MSI"],
+    };
+    render(<DetalleProducto {...navigationProps()} producto={productWithTextApplications} />);
+
+    const card = within(screen.getByTestId("compatibility-card"));
+    expect(card.getByText("Volkswagen Gol")).toBeInTheDocument();
+    expect(card.getByText("Motor: 1.6 MSI \u00b7 A\u00f1o: 2019")).toBeInTheDocument();
+    expect(card.queryByText(/Highline/)).not.toBeInTheDocument();
+  });
+
+  it("shows the manufacturer above the name, never a compatible car brand, and the new details", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
     props.onAlternarFavorito = jest.fn();
     props.esFavorito = jest.fn(() => false);
+    const repuesto = mapearRepuesto({
+      id: 7,
+      name: "Filtro de aceite Mann-Filter 1.4 8V",
+      manufacturer: "Mann-Filter",
+      part_code: "FIL-0001",
+      category: "Filtros",
+      price: 790,
+      stock: 3,
+      compatible_brands: ["Chevrolet"],
+      compatible_models: ["Onix"],
+      description: "Filtro de aceite Mann-Filter 1.4 8V. Retiene las impurezas del aceite.",
+      specifications: [["Rosca", "M20 x 1,5"]],
+      warranty_months: 6,
+      warranty_provider: "fabricante",
+      compatibilities: [
+        { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 },
+      ],
+    });
+
+    render(<DetalleProducto {...props} producto={repuesto} />);
+
+    expect(screen.getByRole("heading", { level: 1, name: repuesto.nombre })).toBeInTheDocument();
+    expect(screen.getByText("Mann-Filter", { selector: "p" })).toBeInTheDocument();
+    expect(screen.queryByText("Chevrolet", { exact: true })).not.toBeInTheDocument();
+    expect(screen.getByText(/Retiene las impurezas/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Descripción" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Especificaciones" })).toBeInTheDocument();
+    expect(screen.getByText("M20 x 1,5")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Descripción" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Especificaciones" })).not.toBeInTheDocument();
+    expect(screen.getByText("6 meses")).toBeInTheDocument();
+    expect(screen.getByText("Fabricante")).toBeInTheDocument();
+    const specificationsHeading = screen.getByRole("heading", { name: "Especificaciones" });
+    const warrantyHeading = screen.getByRole("heading", { name: "Garantía" });
+    expect(specificationsHeading.compareDocumentPosition(warrantyHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(screen.getByTestId("warranty-details")).getByText("6 meses")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Garantía" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("6 meses")).toHaveLength(1);
+
+    expect(within(screen.getByTestId("compatibility-card")).getByText("Chevrolet Onix")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Opiniones/ })).not.toBeInTheDocument();
+  });
+
+  it("does not invent warranty data when the product has no warranty fields", async () => {
+    const user = userEvent.setup();
+    const repuestoSinGarantia = mapearRepuesto({
+      id: 8,
+      name: "Filtro sin garantía informada",
+      price: 500,
+      stock: 1,
+      compatibilities: [],
+    });
+
+    render(<DetalleProducto {...navigationProps()} producto={repuestoSinGarantia} />);
+    expect(within(screen.getByTestId("warranty-details")).getAllByText("No especificado")).toHaveLength(2);
+    expect(within(screen.getByTestId("warranty-details")).getByText("Proveedor")).toBeInTheDocument();
+    expect(within(screen.getByTestId("warranty-details")).queryByText("Condiciones")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Garantía" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/defectos de fabricación/i)).not.toBeInTheDocument();
+  });
+
+  it("shows warranty conditions only when the product has real condition data", () => {
+    const repuesto = {
+      ...repuestoCompatible(),
+      garantiaMeses: 12,
+      proveedorGarantia: "fabricante",
+      condicionesGarantia: "Presentar comprobante de compra.",
+    };
+
+    render(<DetalleProducto {...navigationProps()} producto={repuesto} />);
+
+    const warranty = screen.getByTestId("warranty-details");
+    expect(within(warranty).getByText("12 meses")).toBeInTheDocument();
+    expect(within(warranty).getByText("Fabricante")).toBeInTheDocument();
+    expect(within(warranty).getByText("Presentar comprobante de compra.")).toBeInTheDocument();
+  });
+
+  it("shows the add notice with the chosen quantity and supports undo and cart navigation", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    buscarTexto.mockResolvedValue({
+      parts: [],
+      entities: { part: true },
+    });
+    props.onAlternarFavorito = jest.fn();
+    props.esFavorito = jest.fn(() => false);
 
     startClientSession();
-    render(<DetalleProducto {...props} producto={product} />);
+    render(<><DetalleProducto {...props} producto={product} /><RutaActual /></>);
 
-    await user.click(screen.getByRole("button", { name: "+" }));
+    await user.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
-    await user.click(screen.getByRole("button", { name: "Especificaciones" }));
 
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 2));
-    expect(screen.getByText("Especificaciones técnicas")).toBeInTheDocument();
+    const aviso = (await screen.findByText("Agregado al carrito")).closest("[aria-live]");
+    expect(within(aviso).getByText("Pastillas de prueba")).toBeInTheDocument();
+    expect(within(aviso).getByText(/×2/)).toBeInTheDocument();
+
+    await user.click(within(aviso).getByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /agregar al carrito|^agregado$/i }));
+    await user.click(await screen.findByRole("button", { name: "Ver carrito" }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/carrito");
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Especificaciones" })).toBeInTheDocument();
     expect(screen.getByText("Semi-metalico")).toBeInTheDocument();
   });
 });
@@ -571,7 +1745,7 @@ describe("Carrito", () => {
     await user.click(screen.getByRole("button", { name: "−" }));
     expect(await screen.findAllByText("2", { exact: true })).toHaveLength(2);
     expect(screen.getAllByText("$3.000")).toHaveLength(3);
-    await user.click(screen.getByRole("button", { name: "🗑" }));
+    await user.click(screen.getByRole("button", { name: /Quitar .* del carrito/ }));
 
     expect(actualizarItemCarrito).toHaveBeenNthCalledWith(1, "TEST-001", 3);
     expect(actualizarItemCarrito).toHaveBeenNthCalledWith(2, "TEST-001", 2);
@@ -607,6 +1781,18 @@ describe("Favoritos", () => {
     expect(props.onCatalogo).toHaveBeenCalledWith();
   });
 
+  it("makes the breadcrumb steps links, except the current page", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+
+    render(<Favoritos {...props} favoritos={[]} />);
+
+    await user.click(screen.getByRole("button", { name: "Inicio" }));
+    expect(props.onHome).toHaveBeenCalled();
+    // La página actual es texto, no link.
+    expect(screen.getByText("Favoritos", { selector: "span" }).closest("button")).toBeNull();
+  });
+
   it("renders favorites and supports remove, detail, and add actions", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -615,7 +1801,7 @@ describe("Favoritos", () => {
 
     startClientSession();
     render(<Favoritos {...props} favoritos={[product]} />);
-    const favoriteButtons = screen.getAllByRole("button", { name: "♥" });
+    const favoriteButtons = screen.getAllByRole("button", { name: "Quitar de favoritos" });
     await user.click(favoriteButtons[favoriteButtons.length - 1]);
     await user.click(screen.getByRole("button", { name: product.nombre }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
@@ -624,9 +1810,80 @@ describe("Favoritos", () => {
     expect(props.onDetalle).toHaveBeenCalledWith(product);
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 1));
   });
+
+  it("confirms the add to cart with a notice that can undo it", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    startClientSession();
+    render(<Favoritos {...props} favoritos={[product]} />);
+
+    await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
+
+    const aviso = (await screen.findByText("Agregado al carrito")).closest("[aria-live]");
+    expect(within(aviso).getByText(product.nombre)).toBeInTheDocument();
+    await user.click(within(aviso).getByRole("button", { name: "Deshacer" }));
+    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
+    expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
+  });
+});
+
+describe("ConfirmacionAgregarCarrito", () => {
+  afterEach(() => jest.useRealTimers());
+
+  it("closes by itself after a few seconds, but waits while the mouse is over it", () => {
+    jest.useFakeTimers();
+    const onCerrar = jest.fn();
+    renderBase(
+      <ConfirmacionAgregarCarrito
+        aviso={{ tipo: "agregado", producto: product, cantidadAgregada: 1 }}
+        cantidadCarrito={1}
+        total={1500}
+        onDeshacer={jest.fn()}
+        onCerrar={onCerrar}
+        onVerCarrito={jest.fn()}
+      />
+    );
+    const tarjeta = screen.getByText("Agregado al carrito").closest("[aria-live] > div");
+
+    fireEvent.mouseEnter(tarjeta);
+    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS + 1000));
+    expect(onCerrar).not.toHaveBeenCalled();
+
+    fireEvent.mouseLeave(tarjeta);
+    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS - 1));
+    expect(onCerrar).not.toHaveBeenCalled();
+    act(() => jest.advanceTimersByTime(1));
+    expect(onCerrar).toHaveBeenCalledTimes(1);
+  });
+
+  it("the next notice closes by itself even if the previous one was closed with the mouse over it", () => {
+    jest.useFakeTimers();
+    const onCerrar = jest.fn();
+    const props = { cantidadCarrito: 1, total: 1500, onDeshacer: jest.fn(), onCerrar, onVerCarrito: jest.fn() };
+    const aviso = () => ({ tipo: "agregado", producto: product, cantidadAgregada: 1 });
+    const { rerender } = renderBase(<ConfirmacionAgregarCarrito {...props} aviso={aviso()} />);
+
+    // Se cierra con el mouse encima: el mouseLeave nunca llega.
+    fireEvent.mouseEnter(screen.getByText("Agregado al carrito").closest("[aria-live] > div"));
+    rerender(<ConfirmacionAgregarCarrito {...props} aviso={null} />);
+    rerender(<ConfirmacionAgregarCarrito {...props} aviso={aviso()} />);
+
+    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS));
+    expect(onCerrar).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("Login", () => {
+  it("lleva a recuperar la contraseña", async () => {
+    const user = userEvent.setup();
+    const onOlvidePassword = jest.fn();
+    render(<Login {...navigationProps()} onOlvidePassword={onOlvidePassword} />);
+
+    await user.click(screen.getByRole("button", { name: "¿Olvidaste tu contraseña?" }));
+
+    expect(onOlvidePassword).toHaveBeenCalled();
+  });
+
   it("toggles password visibility and remembers the user selection", async () => {
     const user = userEvent.setup();
     render(<Login {...navigationProps()} />);
@@ -768,19 +2025,32 @@ describe("Marcas", () => {
 
     render(<Marcas {...props} />);
     expect(await screen.findByText("1 marcas")).toBeInTheDocument();
-    expect(screen.getByText("Volkswagen")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Logo Volkswagen" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Volkswagen/i }));
-    expect(props.onCatalogo).toHaveBeenCalledWith(null, { brand: "Volkswagen", model: "", year: "" });
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { marca: "Volkswagen" });
   });
 });
 
 describe("App", () => {
+  it("shows the footer on the store pages but not on login", async () => {
+    const user = userEvent.setup();
+    renderBase(
+      <MemoryRouter>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("Mis pedidos");
+    await user.click(screen.getByTitle("Iniciar sesión"));
+    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
+  });
+
   it("starts on home and changes pages through the navbar", async () => {
     const user = userEvent.setup();
     renderBase(
       <MemoryRouter>
-         <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+         <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -802,7 +2072,7 @@ describe("App", () => {
     });
     renderBase(
       <MemoryRouter>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -813,6 +2083,157 @@ describe("App", () => {
     expect(screen.getByText("Tu Carrito de Compras")).toBeInTheDocument();
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     expect(agregarItemCarrito).toHaveBeenCalledWith("BP1234", 1);
+  });
+});
+
+describe("App y Pit", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+
+  const renderEn = (ruta) =>
+    renderBase(
+      <MemoryRouter initialEntries={[ruta]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  it("shows the floating Pit to a client on the store pages", () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+    renderEn("/");
+
+    expect(screen.getByRole("button", { name: "Abrir Pit, el asistente con IA" })).toBeInTheDocument();
+  });
+
+  it("does not show it without a session: the invitation asks to log in", async () => {
+    const user = userEvent.setup();
+    renderEn("/");
+
+    expect(screen.queryByRole("button", { name: /Abrir Pit/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "HABLAR CON PIT" }));
+    expect(screen.getByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
+  });
+
+  it("opens Pit at the side from the home invitation, without a page of its own", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+    renderEn("/");
+
+    await user.click(screen.getByRole("button", { name: "HABLAR CON PIT" }));
+
+    expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
+  });
+});
+
+describe("Accesos a Pit", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const conSesion = () =>
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+
+  it("opens Pit from the menu; without a session it asks to log in", async () => {
+    const user = userEvent.setup();
+    const onLogin = jest.fn();
+    const { unmount } = render(<Navbar usuario={null} onLogin={onLogin} />);
+
+    await user.click(screen.getByRole("button", { name: /Pit IA/ }));
+    expect(onLogin).toHaveBeenCalled();
+    unmount();
+
+    conSesion();
+    render(<><Navbar usuario={{ id: 1, nombre: "Ana" }} onLogin={onLogin} /><PanelPit /></>);
+    await user.click(screen.getByRole("button", { name: /Pit IA/ }));
+    expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
+  });
+
+  it("does not show Pit in the menu to the seller", () => {
+    render(<Navbar usuario={{ id: 1, nombre: "Vendedor", userType: TIPO_VENDEDOR }} onLogin={jest.fn()} />);
+
+    expect(screen.queryByRole("button", { name: /Pit IA/ })).not.toBeInTheDocument();
+  });
+
+  it("suggests Pit when a catalog search finds nothing, with the search already written", async () => {
+    const user = userEvent.setup();
+    conSesion();
+    render(<><InvitacionAsistente variante="sinResultados" termino="ruido al frenar" /><PanelPit /></>);
+
+    expect(screen.getByText("¿Y si se lo contás a Pit?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Preguntarle a Pit" }));
+
+    expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Mensaje para Pit")).toHaveValue("ruido al frenar");
+  });
+});
+
+describe("App avisos de stock", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const agotado = { ...catalogProducts[2], id: "FAR-77", partId: 77, nombre: "Faro Agotado", stock: 0 };
+
+  const renderCatalogo = async () => {
+    const user = userEvent.setup();
+    obtenerRepuestos.mockResolvedValue([catalogProducts[0], agotado]);
+    renderBase(
+      <MemoryRouter initialEntries={["/catalogo"]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+    await screen.findByText("Faro Agotado");
+    return user;
+  };
+
+  const conSesion = () =>
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` })
+    );
+
+  it("solo los repuestos sin stock ofrecen el aviso", async () => {
+    await renderCatalogo();
+
+    expect(screen.getAllByRole("button", { name: /Avisame cuando haya/ })).toHaveLength(1);
+  });
+
+  it("pide y cancela el aviso de un repuesto agotado", async () => {
+    conSesion();
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    expect(agregarAvisoStock).toHaveBeenCalledWith(77);
+    expect(toast.success).toHaveBeenCalled();
+    const pedido = await screen.findByRole("button", { name: /Te vamos a avisar/ });
+    expect(pedido).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(pedido);
+
+    expect(quitarAvisoStock).toHaveBeenCalledWith(77);
+    expect(await screen.findByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
+  });
+
+  it("muestra los avisos que ya había pedido", async () => {
+    conSesion();
+    obtenerAvisosStock.mockResolvedValue([77]);
+    await renderCatalogo();
+
+    expect(await screen.findByRole("button", { name: /Te vamos a avisar/ })).toBeInTheDocument();
+  });
+
+  it("si falla, vuelve atrás y muestra el error", async () => {
+    conSesion();
+    agregarAvisoStock.mockRejectedValue(new Error("No pudimos actualizar el aviso."));
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar el aviso."));
+    expect(screen.getByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
+  });
+
+  it("sin sesión lleva al login", async () => {
+    const user = await renderCatalogo();
+
+    await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
+
+    expect(agregarAvisoStock).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
   });
 });
 
@@ -827,10 +2248,10 @@ describe("App favoritos", () => {
     return within(imagen.parentElement).getByRole("button");
   };
 
-  const renderApp = () =>
+  const renderApp = (ruta = "/") =>
     renderBase(
-      <MemoryRouter>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+      <MemoryRouter initialEntries={[ruta]}>
+        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -852,6 +2273,37 @@ describe("App favoritos", () => {
     expect(await screen.findByText("Discos de Freno Delanteros")).toBeInTheDocument();
   });
 
+  it("opens a saved favorite using its backend ID in the URL", async () => {
+    const user = userEvent.setup();
+    const favorite = { ...catalogProducts[1], id: "22", partId: 22 };
+    obtenerFavoritos.mockResolvedValue([favorite]);
+    obtenerRepuesto.mockResolvedValue(favorite);
+    renderApp();
+
+    await user.click(screen.getByTitle("Favoritos"));
+    await user.click(await screen.findByRole("button", { name: favorite.nombre }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: favorite.nombre })).toBeInTheDocument();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/discos-de-freno-delanteros-22");
+    expect(obtenerRepuesto).toHaveBeenCalledWith("22");
+  });
+
+  it("opens a cart suggestion using its backend ID in the URL", async () => {
+    const user = userEvent.setup();
+    const itemCarrito = { ...catalogProducts[0], id: "21", partId: 21, cantidad: 1 };
+    const suggestion = { ...catalogProducts[1], id: "22", partId: 22 };
+    obtenerCarrito.mockResolvedValue({ items: [itemCarrito], total: itemCarrito.precio });
+    obtenerRecomendaciones.mockResolvedValue([suggestion]);
+    obtenerRepuesto.mockResolvedValue(suggestion);
+    renderApp("/carrito");
+
+    await user.click(await screen.findByRole("button", { name: suggestion.nombre }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: suggestion.nombre })).toBeInTheDocument();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/discos-de-freno-delanteros-22");
+    expect(obtenerRepuesto).toHaveBeenCalledWith("22");
+  });
+
   it("does not ask the backend for favorites without a session", () => {
     localStorage.clear();
     renderApp();
@@ -868,12 +2320,12 @@ describe("App favoritos", () => {
     await user.click(await corazon(nombre));
 
     expect(agregarFavoritoAPI).toHaveBeenCalledWith("BP1234");
-    expect(await corazon(nombre)).toHaveTextContent("♥");
+    expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "true");
 
     await user.click(await corazon(nombre));
 
     expect(quitarFavoritoAPI).toHaveBeenCalledWith("BP1234");
-    expect(await corazon(nombre)).toHaveTextContent("♡");
+    expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "false");
   });
 
   it("reverts the heart and shows the error when the API fails", async () => {
@@ -885,7 +2337,7 @@ describe("App favoritos", () => {
     await user.click(screen.getByRole("button", { name: "Repuestos" }));
     await user.click(await corazon(nombre));
 
-    await waitFor(async () => expect(await corazon(nombre)).toHaveTextContent("♡"));
+    await waitFor(async () => expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "false"));
     expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar tus favoritos.");
   });
 });
@@ -905,12 +2357,12 @@ describe("App sesión", () => {
 
     renderBase(
       <MemoryRouter initialEntries={["/perfil"]}>
-        <CartProvider><VehicleProvider><App /></VehicleProvider></CartProvider>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
     await user.click(await screen.findByRole("button", { name: "EDITAR" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
-    await user.click(screen.getByRole("button", { name: "CERRAR SESIÓN" }));
+    await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
     responder({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -919,69 +2371,312 @@ describe("App sesión", () => {
   });
 });
 
-describe("MetodosPago", () => {
-  it("validates and creates a card through the API", async () => {
-    const user = userEvent.setup();
-    let savedCards = [];
-    obtenerMetodosPago.mockImplementation(() => Promise.resolve(savedCards));
-    crearMetodoPago.mockImplementation(async (card) => {
-      savedCards = [{
-        id: 1,
-        ...card,
-        numero: card.numero.slice(-4),
-        principal: true,
-      }];
-    });
-    render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
+describe("App verificación del correo", () => {
+  const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+  const sesionSinVerificar = {
+    userId: "1", nombre: "Ana", email: "ana@example.com", token: `x.${payload}.y`, emailVerificado: false,
+  };
 
-    await user.click(screen.getByRole("button", { name: /agregar tarjeta/i }));
-    await user.type(screen.getByPlaceholderText("Nombre del titular"), "Ana Perez");
-    await user.type(screen.getByPlaceholderText("1234 5678 9012 3456"), "4111111111111111");
-    await user.type(screen.getByPlaceholderText("MM/AA"), "12/30");
-    await user.click(screen.getByRole("button", { name: /guardar tarjeta/i }));
+  it("muestra el aviso a un cliente sin verificar", () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
 
-    expect(await screen.findByText("•••• •••• •••• 1111")).toBeInTheDocument();
-    expect(screen.getByText("PRINCIPAL")).toBeInTheDocument();
-    expect(crearMetodoPago).toHaveBeenCalledWith(expect.objectContaining({
-      titular: "Ana Perez",
-      numero: "4111111111111111",
-      vencimiento: "12/30",
-    }));
+    renderBase(
+      <MemoryRouter>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("region", { name: "Verificación del correo" })).toBeInTheDocument();
   });
 
-  it("rejects incomplete and short card data, then marks and deletes saved cards", async () => {
+  it("al abrir el enlace del mail con la sesión iniciada, saca el aviso", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
+    verificarCorreo.mockResolvedValue();
+
+    renderBase(
+      <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Tu correo quedó verificado/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Verificación del correo" })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("autobought-sesion")).emailVerificado).toBe(true);
+  });
+
+  it("el enlace del mail también funciona sin sesión", async () => {
+    verificarCorreo.mockResolvedValue();
+
+    renderBase(
+      <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Tu correo quedó verificado/)).toBeInTheDocument();
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+  });
+});
+
+describe("App rutas", () => {
+  const renderEn = (ruta) =>
+    renderBase(
+      <MemoryRouter initialEntries={[ruta]}>
+        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  it("opens the catalog product using its backend ID in the URL", async () => {
     const user = userEvent.setup();
-    const alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
-    let savedCards = [
-      { id: 1, tipo: "Visa", titular: "Ana", numero: "1111", vencimiento: "12/30", principal: true },
-      { id: 2, tipo: "Mastercard", titular: "Luis", numero: "2222", vencimiento: "11/29", principal: false },
-    ];
-    obtenerMetodosPago.mockImplementation(() => Promise.resolve(savedCards));
-    marcarMetodoPagoPrincipal.mockImplementation(async (id) => {
-      savedCards = savedCards.map((card) => ({ ...card, principal: card.id === id }));
+    const catalogProduct = { ...catalogProducts[0], id: "21", partId: 21 };
+    obtenerRepuestos.mockResolvedValue([catalogProduct]);
+    obtenerRepuesto.mockResolvedValue(catalogProduct);
+
+    renderEn("/catalogo");
+    await user.click(await screen.findByRole("button", { name: "Ver detalle" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: catalogProduct.nombre })).toBeInTheDocument();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/pastillas-de-freno-delanteras-bosch-21");
+    expect(obtenerRepuesto).toHaveBeenCalledWith("21");
+  });
+
+  it.each(["/favoritos", "/perfil", "/direcciones", "/historial", "/pago?pedido=1"])(
+    "sends anonymous users from %s to the login instead of a blank page",
+    (ruta) => {
+      renderEn(ruta);
+
+      expect(screen.getByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
+    }
+  );
+
+  it("shows the not found page for an unknown address and goes back home", async () => {
+    const user = userEvent.setup();
+    renderEn("/no-existe");
+
+    expect(screen.getByRole("heading", { name: "Esta página no existe" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "VOLVER AL INICIO" }));
+
+    expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
+  });
+});
+
+describe("App renovación de sesión", () => {
+  const MIN = 60 * 1000;
+  const sesionQueVenceEn = (minutos) => ({
+    id: 1,
+    userId: "1",
+    nombre: "Ana",
+    email: "ana@example.com",
+    token: crearToken(Date.now() + minutos * MIN),
+    tokenType: "bearer",
+  });
+
+  const renderApp = () =>
+    renderBase(
+      <MemoryRouter initialEntries={["/"]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+  it("replaces the token of a remembered session before it expires, keeping the rest of the session", async () => {
+    const sesion = sesionQueVenceEn(4);
+    const nuevo = crearToken(Date.now() + 60 * MIN);
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    renovarToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+
+    renderApp();
+
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe(nuevo)
+    );
+    expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({ ...sesion, token: nuevo });
+    expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+    expect(renovarToken).toHaveBeenCalledTimes(1);
+    expect(toast.error).not.toHaveBeenCalled();
+    // Los favoritos no se vuelven a pedir por cambiar el token.
+    expect(obtenerFavoritos).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a non-remembered session in sessionStorage after renewing", async () => {
+    const nuevo = crearToken(Date.now() + 60 * MIN);
+    sessionStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
+    renovarToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+
+    renderApp();
+
+    await waitFor(() =>
+      expect(JSON.parse(sessionStorage.getItem("autobought-sesion")).token).toBe(nuevo)
+    );
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+  });
+
+  it("does not ask for a new token while the current one is far from expiring", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(60)));
+
+    renderApp();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(renovarToken).not.toHaveBeenCalled();
+  });
+
+  it("closes the session and warns the client when the API answers 401", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
+    renovarToken.mockRejectedValueOnce(Object.assign(new Error("vencida"), { status: 401 }));
+
+    renderApp();
+
+    await waitFor(() => expect(localStorage.getItem("autobought-sesion")).toBeNull());
+    expect(toast.error).toHaveBeenCalledWith("Tu sesión se cerró. Iniciá sesión de nuevo.");
+  });
+});
+
+describe("App sesión inválida (401)", () => {
+  const MIN = 60 * 1000;
+  const sesion = {
+    id: 1,
+    userId: "1",
+    nombre: "Ana",
+    email: "ana@example.com",
+    token: crearToken(Date.now() + 60 * MIN),
+    tokenType: "bearer",
+  };
+
+  // Captura el manejador que App registra en api.js con alSesionInvalida.
+  const renderApp = (ruta = "/favoritos") => {
+    const desregistrar = jest.fn();
+    alSesionInvalida.mockReturnValue(desregistrar);
+
+    const vista = renderBase(
+      <MemoryRouter initialEntries={[ruta]}>
+        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    return { ...vista, desregistrar, manejador: alSesionInvalida.mock.calls.at(-1)[0] };
+  };
+
+  it("closes the session, warns once and goes to the login when the handler fires", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    const { manejador } = renderApp();
+
+    act(() => manejador());
+
+    await waitFor(() => expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/login"));
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith("Tu sesión se cerró. Iniciá sesión de nuevo.");
+  });
+
+  it("warns and navigates only once when several requests answer 401 at once", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    const { manejador } = renderApp();
+
+    act(() => {
+      manejador();
+      manejador();
+      manejador();
     });
-    eliminarMetodoPagoAPI.mockImplementation(async (id) => {
-      savedCards = savedCards.filter((card) => card.id !== id);
+
+    await waitFor(() => expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/login"));
+    expect(toast.error).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing if there is no session left to close", () => {
+    const { manejador } = renderApp("/");
+
+    act(() => manejador());
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/");
+  });
+
+  it("rolls back a favorite without a second toast when the API answers 401", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    agregarFavoritoAPI.mockRejectedValueOnce(Object.assign(new Error("Tu sesión venció."), { status: 401 }));
+    renderApp("/");
+
+    const nombre = "Pastillas de Freno Delanteras Bosch";
+    const corazon = async () =>
+      within((await screen.findByAltText(nombre)).parentElement).getByRole("button");
+    await user.click(screen.getByRole("button", { name: "Repuestos" }));
+    await user.click(await corazon());
+
+    await waitFor(async () => expect(await corazon()).toHaveAttribute("aria-pressed", "false"));
+    expect(agregarFavoritoAPI).toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/catalogo");
+  });
+
+  it("unregisters the handler when App unmounts", () => {
+    const { unmount, desregistrar } = renderApp("/");
+
+    unmount();
+
+    expect(desregistrar).toHaveBeenCalled();
+  });
+
+  it("follows the token saved by another screen, so renewal works on the new token", async () => {
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    renderApp("/");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(renovarToken).not.toHaveBeenCalled();
+
+    // Cambia la contraseña: CambiarPassword guarda el token nuevo. Si App no
+    // lo siguiera, `usuario` conservaría el viejo (60 min de vida) y no se
+    // programaría nada; con el nuevo (4 min) la renovación corre enseguida.
+    renovarToken.mockResolvedValue({
+      access_token: crearToken(Date.now() + 60 * MIN),
+      token_type: "bearer",
     });
-    render(<MetodosPago {...navigationProps()} onPerfil={jest.fn()} />);
+    act(() =>
+      guardarSesion({ ...obtenerSesion(), token: crearToken(Date.now() + 4 * MIN) })
+    );
 
-    await user.click(screen.getByRole("button", { name: /agregar tarjeta/i }));
-    await user.click(screen.getByRole("button", { name: /guardar tarjeta/i }));
-    expect(alertSpy).toHaveBeenCalledWith("Completá todos los campos.");
+    await waitFor(() => expect(renovarToken).toHaveBeenCalledTimes(1));
+  });
+});
 
-    await user.type(screen.getByPlaceholderText("Nombre del titular"), "Test");
-    await user.type(screen.getByPlaceholderText("1234 5678 9012 3456"), "123456789012");
-    await user.type(screen.getByPlaceholderText("MM/AA"), "01/30");
-    await user.click(screen.getByRole("button", { name: /guardar tarjeta/i }));
-    expect(alertSpy).toHaveBeenCalledWith("Ingresá un número de tarjeta válido.");
+describe("Direcciones ante un 401", () => {
+  // El 401 ya lo maneja alSesionInvalida (cierra la sesión y va a /login):
+  // las pantallas no tienen que sumar un alert propio.
+  const error401 = () => Object.assign(new Error("Tu sesión venció. Iniciá sesión de nuevo."), { status: 401 });
+  const direccion = {
+    id: 1, nombre: "Casa", calle: "Av. Italia", numero: "1234", apartamento: "",
+    ciudad: "Montevideo", departamento: "Montevideo", codigoPostal: "", principal: false,
+  };
+  let alertSpy;
 
-    await user.click(await screen.findByRole("button", { name: "MARCAR PRINCIPAL" }));
-    expect(await screen.findAllByText("PRINCIPAL")).toHaveLength(1);
-    await user.click(screen.getAllByRole("button", { name: "ELIMINAR" })[1]);
-    await waitFor(() => expect(screen.queryByText("Luis")).not.toBeInTheDocument());
-    expect(marcarMetodoPagoPrincipal).toHaveBeenCalledWith(2);
-    expect(eliminarMetodoPagoAPI).toHaveBeenCalledWith(2);
-    alertSpy.mockRestore();
+  beforeEach(() => {
+    alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
+  });
+
+  afterEach(() => alertSpy.mockRestore());
+
+  it.each([
+    ["ELIMINAR", () => eliminarDireccionAPI],
+    ["MARCAR COMO PRINCIPAL", () => marcarDireccionPrincipal],
+  ])("%s does not show an alert on 401", async (boton, accion) => {
+    const user = userEvent.setup();
+    obtenerDirecciones.mockResolvedValue([direccion]);
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+    accion().mockRejectedValueOnce(error401());
+
+    await user.click(await screen.findByRole("button", { name: boton }));
+
+    await waitFor(() => expect(accion()).toHaveBeenCalled());
+    expect(alertSpy).not.toHaveBeenCalled();
+  });
+
+  it("still alerts other errors", async () => {
+    const user = userEvent.setup();
+    obtenerDirecciones.mockResolvedValue([direccion]);
+    eliminarDireccionAPI.mockRejectedValueOnce(new Error("No encontramos esa dirección."));
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: "ELIMINAR" }));
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("No encontramos esa dirección."));
   });
 });
 
@@ -991,8 +2686,7 @@ describe("Perfil", () => {
     const props = navigationProps();
     props.onActualizarUsuario = jest.fn();
     props.onDirecciones = jest.fn();
-    props.onMetodosPago = jest.fn();
-    props.onHistorialCompras = jest.fn();
+    props.onHistorial = jest.fn();
     props.onCerrarSesion = jest.fn();
     const usuario = {
       id: 1,
@@ -1009,7 +2703,7 @@ describe("Perfil", () => {
     });
 
     render(<Perfil {...props} usuario={usuario} />);
-    expect(screen.getByRole("heading", { name: "MI PERFIL" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Información personal" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
     expect(screen.queryByText("APELLIDO")).not.toBeInTheDocument();
     const nameInput = screen.getByDisplayValue("Ana Perez");
@@ -1017,7 +2711,6 @@ describe("Perfil", () => {
     await user.type(nameInput, "Ana Maria Perez");
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
     await user.click(screen.getByRole("button", { name: /direcciones/i }));
-    await user.click(screen.getByRole("button", { name: /métodos de pago/i }));
     await user.click(screen.getByRole("button", { name: /historial de compra/i }));
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));
 
@@ -1028,8 +2721,7 @@ describe("Perfil", () => {
       expect.objectContaining({ id: 1, nombre: "Ana Maria Perez" })
     );
     expect(props.onDirecciones).toHaveBeenCalled();
-    expect(props.onMetodosPago).toHaveBeenCalled();
-    expect(props.onHistorialCompras).toHaveBeenCalled();
+    expect(props.onHistorial).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
   });
 
@@ -1041,7 +2733,7 @@ describe("Perfil", () => {
       new Error("Revisá el nombre y el teléfono (ej: 099 123 456).")
     );
 
-    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
@@ -1050,6 +2742,18 @@ describe("Perfil", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /guardar cambios/i })).toBeInTheDocument();
     expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+  });
+
+  it("does not let the user remove the phone, only change it", async () => {
+    const user = userEvent.setup();
+    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
+
+    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.clear(screen.getByDisplayValue("099 123 456"));
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+
+    expect(screen.getByText("Ingresá tu teléfono.")).toBeInTheDocument();
+    expect(actualizarPerfil).not.toHaveBeenCalled();
   });
 
   it("ignores a late profile response once the user started editing", async () => {
@@ -1082,7 +2786,7 @@ describe("Perfil", () => {
   it("clears the save error when the user edits the data again", async () => {
     const user = userEvent.setup();
     actualizarPerfil.mockRejectedValue(new Error("Revisá el nombre y el teléfono (ej: 099 123 456)."));
-    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
 
     await user.click(screen.getByRole("button", { name: "EDITAR" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
@@ -1137,9 +2841,11 @@ describe("CambiarPassword", () => {
     await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
   };
 
+  const respuesta = { access_token: "jwt-nuevo", token_type: "bearer" };
+
   it("changes the password and shows a confirmation", async () => {
     const user = userEvent.setup();
-    cambiarPassword.mockResolvedValue();
+    cambiarPassword.mockResolvedValue(respuesta);
     render(<CambiarPassword />);
 
     await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
@@ -1149,23 +2855,87 @@ describe("CambiarPassword", () => {
     expect(screen.queryByLabelText("CONTRASEÑA ACTUAL")).not.toBeInTheDocument();
   });
 
-  it("validates empty fields, length and matching passwords before calling the API", async () => {
+  it("saves the new token in the session, keeping the rest of it, before showing the success", async () => {
+    const user = userEvent.setup();
+    const sesion = { id: 1, nombre: "Ana", email: "ana@example.com", token: "jwt-viejo", tokenType: "bearer" };
+    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    cambiarPassword.mockResolvedValue(respuesta);
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    expect(await screen.findByText("Tu contraseña se actualizó correctamente.")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({
+      ...sesion,
+      token: "jwt-nuevo",
+      tokenType: "bearer",
+    });
+    expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+  });
+
+  it("keeps a non-remembered session in sessionStorage when saving the new token", async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
+    cambiarPassword.mockResolvedValue(respuesta);
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    await screen.findByText("Tu contraseña se actualizó correctamente.");
+    expect(JSON.parse(sessionStorage.getItem("autobought-sesion")).token).toBe("jwt-nuevo");
+    expect(localStorage.getItem("autobought-sesion")).toBeNull();
+  });
+
+  it("warns that the session is no longer valid when the response has no new token", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
+    cambiarPassword.mockResolvedValue(null);
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/iniciá sesión de nuevo/i);
+    expect(screen.queryByText("Tu contraseña se actualizó correctamente.")).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe("jwt-viejo");
+  });
+
+  it("does not touch the session when the password change fails", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
+    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<CambiarPassword />);
+
+    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+
+    await screen.findByText("La contraseña actual es incorrecta.");
+    expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe("jwt-viejo");
+  });
+
+  it("shows an error under each empty field before calling the API", async () => {
     const user = userEvent.setup();
     render(<CambiarPassword />);
 
-    await completar(user, { actual: "secreto123" });
-    expect(screen.getByText("Completá todos los campos.")).toBeInTheDocument();
+    await completar(user, {});
 
-    await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "corta");
-    await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "corta");
-    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
-    expect(screen.getByText("La nueva contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
+    expect(screen.getByText("Ingresá tu contraseña actual.")).toBeInTheDocument();
+    expect(screen.getByText("La contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
+    expect(cambiarPassword).not.toHaveBeenCalled();
+  });
 
-    await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "-larga-1");
-    await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "-distinta");
-    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
-    expect(screen.getByText("Las contraseñas nuevas no coinciden.")).toBeInTheDocument();
+  it.each([
+    ["too short", "corta1", "corta1", "La contraseña tiene que tener al menos 8 caracteres."],
+    ["without numbers", "solotexto", "solotexto", "La contraseña tiene que tener al menos una letra y un número."],
+    ["too common", "qwerty123", "qwerty123", "Esa contraseña es muy común. Elegí otra."],
+    ["equal to the current one", "secreto123", "secreto123", "La nueva contraseña tiene que ser distinta de la actual."],
+    ["containing the email", "lucia2026", "lucia2026", "La contraseña no puede contener tu correo."],
+    ["not repeated", "nueva-clave-1", "otra-clave-1", "Las contraseñas no coinciden."],
+  ])("rejects a new password %s", async (_caso, nueva, repetir, mensaje) => {
+    const user = userEvent.setup();
+    render(<CambiarPassword email="lucia@example.com" />);
 
+    await completar(user, { actual: "secreto123", nueva, repetir });
+
+    expect(screen.getByText(mensaje)).toBeInTheDocument();
     expect(cambiarPassword).not.toHaveBeenCalled();
   });
 
@@ -1281,15 +3051,42 @@ describe("Registro", () => {
     expect(props.onRegistroExitoso).not.toHaveBeenCalled();
   });
 
+  it("shows an error under each field of an empty form", async () => {
+    const { user, props } = renderRegistro();
+
+    await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
+
+    expect(screen.getByText("El nombre no puede estar vacío.")).toBeInTheDocument();
+    expect(screen.getByText("El apellido no puede estar vacío.")).toBeInTheDocument();
+    expect(screen.getByText("Ingresá tu correo electrónico.")).toBeInTheDocument();
+    expect(screen.getByText("Ingresá tu teléfono.")).toBeInTheDocument();
+    expect(screen.getByText("La contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
+    expect(screen.getByText("Repetí la contraseña.")).toBeInTheDocument();
+    expect(screen.getByText("Tenés que aceptar los términos y condiciones.")).toBeInTheDocument();
+    expect(registrar).not.toHaveBeenCalled();
+    expect(props.onRegistroExitoso).not.toHaveBeenCalled();
+  });
+
   it.each([
-    ["an empty form", {}, "Completá todos los campos."],
+    ["a name with numbers", { nombre: "Lucia2" }, "El nombre solo puede tener letras, espacios, apóstrofos y guiones."],
+    ["a one letter surname", { apellido: "G" }, "El apellido tiene que tener al menos 2 letras."],
     ["a malformed email", { email: "no-es-un-correo" }, "Ingresá un correo electrónico válido."],
     ["a non-Uruguayan phone", { telefono: "+54 9 11 1234 5678" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
     ["a too short phone", { telefono: "099 12" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
     [
       "a password shorter than 8 characters",
-      { password: "1234567", confirmar: "1234567" },
-      "La contraseña debe tener al menos 8 caracteres.",
+      { password: "clave12", confirmar: "clave12" },
+      "La contraseña tiene que tener al menos 8 caracteres.",
+    ],
+    [
+      "a password without numbers",
+      { password: "solotexto", confirmar: "solotexto" },
+      "La contraseña tiene que tener al menos una letra y un número.",
+    ],
+    [
+      "a password that contains the email",
+      { password: "lucia2026", confirmar: "lucia2026" },
+      "La contraseña no puede contener tu correo.",
     ],
     [
       "passwords that do not match",
@@ -1300,15 +3097,25 @@ describe("Registro", () => {
   ])("does not call the API with %s", async (_caso, datos, mensaje) => {
     const { user, props } = renderRegistro();
 
-    if (mensaje === "Completá todos los campos.") {
-      await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
-    } else {
-      await completar(user, datos);
-    }
+    await completar(user, datos);
 
     expect(screen.getByText(mensaje)).toBeInTheDocument();
     expect(registrar).not.toHaveBeenCalled();
     expect(props.onRegistroExitoso).not.toHaveBeenCalled();
+  });
+
+  it("shows backend validation errors under their field", async () => {
+    registrar.mockRejectedValue(
+      Object.assign(new Error("Revisá los datos ingresados."), {
+        campos: { password: "Esa contraseña es muy común. Elegí otra." },
+      })
+    );
+    const { user } = renderRegistro();
+
+    await completar(user);
+
+    expect(await screen.findByText("Esa contraseña es muy común. Elegí otra.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Mínimo 8 caracteres")).toHaveAttribute("aria-invalid", "true");
   });
 
   it("disables the button while the request is in flight", async () => {
@@ -1340,7 +3147,7 @@ describe("Direcciones", () => {
     await user.type(screen.getByPlaceholderText("Ej: Casa"), "Casa");
     await user.type(screen.getByPlaceholderText("Ej: Montevideo"), "Montevideo");
     await user.type(screen.getByPlaceholderText("Ej: Av. Italia"), "Av. Italia");
-    await user.type(screen.getByPlaceholderText("Ej: 1234"), "1234");
+    await user.type(screen.getByPlaceholderText("Ej: 1234 o S/N"), "1234");
     await user.selectOptions(screen.getByRole("combobox"), "Montevideo");
     await user.click(screen.getByRole("button", { name: /guardar dirección/i }));
 
@@ -1353,6 +3160,92 @@ describe("Direcciones", () => {
       departamento: "Montevideo",
     }));
     expect(eliminarDireccionAPI).toHaveBeenCalledWith(1);
+  });
+
+  const completarDireccion = async (user, d = {}) => {
+    const datos = { nombre: "Casa", ciudad: "Montevideo", calle: "Av. Italia", numero: "1234", departamento: "Montevideo", ...d };
+    await user.click(await screen.findByRole("button", { name: /agregar dirección/i }));
+    if (datos.nombre) await user.type(screen.getByPlaceholderText("Ej: Casa"), datos.nombre);
+    if (datos.ciudad) await user.type(screen.getByPlaceholderText("Ej: Montevideo"), datos.ciudad);
+    if (datos.calle) await user.type(screen.getByPlaceholderText("Ej: Av. Italia"), datos.calle);
+    if (datos.numero) await user.type(screen.getByPlaceholderText("Ej: 1234 o S/N"), datos.numero);
+    if (datos.codigoPostal) await user.type(screen.getByPlaceholderText("Opcional (ej: 11300)"), datos.codigoPostal);
+    if (datos.departamento) await user.selectOptions(screen.getByRole("combobox"), datos.departamento);
+    await user.click(screen.getByRole("button", { name: /guardar dirección/i }));
+  };
+
+  it("shows an error under each required field", async () => {
+    const user = userEvent.setup();
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+
+    await completarDireccion(user, { nombre: "", ciudad: "", calle: "", numero: "", departamento: "" });
+
+    expect(screen.getByText("Poné un nombre para la dirección (ej: Casa).")).toBeInTheDocument();
+    expect(screen.getByText("La calle no puede estar vacía.")).toBeInTheDocument();
+    expect(screen.getByText("El número de puerta no puede estar vacío.")).toBeInTheDocument();
+    expect(screen.getByText("La ciudad no puede estar vacía.")).toBeInTheDocument();
+    expect(screen.getByText("Seleccioná un departamento.")).toBeInTheDocument();
+    expect(crearDireccion).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a city of another department", { ciudad: "Montevideo", departamento: "Artigas" }, "Montevideo no está en el departamento de Artigas."],
+    ["a door number with letters only", { numero: "abc" }, "Ingresá un número de puerta válido (ej: 1234, 1234B, 1234 bis o S/N)."],
+    ["a street without letters", { calle: "1234" }, "Ingresá un nombre de calle válido (ej: Av. Italia, 18 de Julio)."],
+    ["a postal code that is not 5 digits", { codigoPostal: "113" }, "El código postal tiene que tener 5 dígitos."],
+  ])("rejects %s", async (_caso, datos, mensaje) => {
+    const user = userEvent.setup();
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+
+    await completarDireccion(user, datos);
+
+    expect(screen.getByText(mensaje)).toBeInTheDocument();
+    expect(crearDireccion).not.toHaveBeenCalled();
+  });
+
+  it("shows a duplicated address error from the API", async () => {
+    const user = userEvent.setup();
+    crearDireccion.mockRejectedValue(Object.assign(new Error("Ya tenés guardada esta dirección."), { campos: {} }));
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+
+    await completarDireccion(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Ya tenés guardada esta dirección.");
+  });
+
+  it("shows the account menu with the current section marked and a log out", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onHistorial: jest.fn(), onCerrarSesion: jest.fn() };
+    obtenerDirecciones.mockResolvedValue([]);
+
+    render(<Direcciones {...props} usuario={{ nombre: "Ana Pérez" }} />);
+
+    const menu = screen.getByRole("navigation", { name: "Mi cuenta" });
+    expect(within(menu).getByRole("button", { name: "Direcciones" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("Hola, Ana")).toBeInTheDocument();
+
+    expect(within(menu).queryByRole("button", { name: "Métodos de pago" })).not.toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "Historial de compras" }));
+    await user.click(within(menu).getByRole("button", { name: "Cerrar sesión" }));
+
+    expect(props.onHistorial).toHaveBeenCalled();
+    expect(props.onCerrarSesion).toHaveBeenCalled();
+  });
+
+  it("opens the account menu from the navbar also inside the account pages", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onHistorial: jest.fn() };
+    obtenerDirecciones.mockResolvedValue([]);
+
+    render(<Direcciones {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+
+    await user.click(screen.getByTitle("Mi cuenta"));
+    // "Mi perfil" está solo en el menú desplegable (el menú de la
+    // izquierda dice "Información personal").
+    const desplegable = screen.getByRole("button", { name: "Mi perfil" }).closest("div.absolute");
+    await user.click(within(desplegable).getByRole("button", { name: "Historial de compras" }));
+
+    expect(props.onHistorial).toHaveBeenCalled();
   });
 
   it("changes the primary address and returns to the profile", async () => {
@@ -1373,7 +3266,8 @@ describe("Direcciones", () => {
 
     await user.click(await screen.findByRole("button", { name: "MARCAR COMO PRINCIPAL" }));
     expect(await screen.findAllByText("PRINCIPAL")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: /volver a mi perfil/i }));
+    // El menú de la cuenta reemplaza al viejo "Volver a mi perfil".
+    await user.click(screen.getByRole("button", { name: "Información personal" }));
     expect(onPerfil).toHaveBeenCalled();
     expect(marcarDireccionPrincipal).toHaveBeenCalledWith(2);
   });
@@ -1452,10 +3346,85 @@ describe("SearchBar and search helpers", () => {
         { busqueda: "api" }
       )
     ).toHaveLength(1);
+
+    const repuestos = [
+      { nombre: "Bujía 1.4", fabricante: "NGK" },
+      { nombre: "Bujía 1.4", fabricante: "Bosch" },
+      { nombre: "Filtro 1.4", fabricante: "Mann-Filter" },
+    ];
+    expect(filtrarRepuestos(repuestos, { fabricantes: ["NGK", "Mann-Filter"] }))
+      .toEqual([repuestos[0], repuestos[2]]);
+    expect(filtrarRepuestos(repuestos, { busqueda: "bosch" })).toEqual([repuestos[1]]);
+    // Por palabras, en cualquier orden y sin importar las tildes.
+    expect(filtrarRepuestos(repuestos, { busqueda: "ngk bujia" })).toEqual([repuestos[0]]);
+    // El auto no está en el nombre: se encuentra por los modelos compatibles.
+    const radiadores = [
+      { nombre: "Radiador Valeo", marcas: ["Chevrolet"], modelos: ["Onix"] },
+      { nombre: "Radiador Valeo", marcas: ["Fiat"], modelos: ["Cronos"] },
+    ];
+    expect(filtrarRepuestos(radiadores, { busqueda: "radiador onix" })).toEqual([radiadores[0]]);
+
+    const conPrecio = [
+      { nombre: "Faro", precio: 6900, stock: 0, marcas: ["Ford"] },
+      { nombre: "Bujía", precio: 620, stock: 4, marcas: ["Fiat", "Ford"] },
+      { nombre: "Aceite", precio: 2600, stock: 9, marcas: ["Fiat"] },
+    ];
+    const nombres = (lista) => lista.map((p) => p.nombre);
+    expect(nombres(filtrarRepuestos(conPrecio, { precioMin: "600", precioMax: "3000" })))
+      .toEqual(["Bujía", "Aceite"]);
+    expect(nombres(filtrarRepuestos(conPrecio, { precioMax: "", soloConStock: true })))
+      .toEqual(["Bujía", "Aceite"]);
+    expect(nombres(filtrarRepuestos(conPrecio, { marcasAuto: ["Ford"] }))).toEqual(["Faro", "Bujía"]);
+    expect(nombres(filtrarRepuestos(conPrecio, { orden: "Nombre A-Z" })))
+      .toEqual(["Aceite", "Bujía", "Faro"]);
   });
 
   it("renders the no-results message", () => {
     render(<SinResultadosBusqueda termino="bujía" />);
     expect(screen.getByRole("status")).toHaveTextContent("bujía");
   });
+});
+
+describe("BusquedaCabecera", () => {
+  it("no navega ni consulta la API cuando la búsqueda está vacía", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <>
+        <BusquedaCabecera />
+        <RutaActual />
+      </>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+
+    expect(screen.getByTestId("ruta-actual")).not.toHaveTextContent(
+      "/catalogo"
+    );
+    expect(buscarTexto).not.toHaveBeenCalled();
+  });
+
+  it("navega al catálogo al presionar Enter", async () => {
+  const user = userEvent.setup();
+
+  render(
+    <>
+      <BusquedaCabecera />
+      <RutaActual />
+    </>
+  );
+
+  const input = screen.getByPlaceholderText(
+    "Buscar repuesto por nombre, código o fabricante..."
+  );
+
+  await user.type(input, "pastillas de freno onix 2020");
+  await user.keyboard("{Enter}");
+
+  expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
+    "/catalogo?q=pastillas%20de%20freno%20onix%202020"
+  );
+  expect(buscarTexto).not.toHaveBeenCalled();
+});
+
 });
