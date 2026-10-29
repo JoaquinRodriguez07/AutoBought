@@ -8,7 +8,12 @@ test.describe("Carrito", () => {
 
   test("agregar muestra un aviso con deshacer, y el aviso se va solo", async ({ page }) => {
     await page.goto("/catalogo");
-    const agregar = page.getByRole("button", { name: "Agregar", exact: true }).first();
+    // El botón queda en "Agregado" un momento después del clic: buscar
+    // "el primer Agregar" de la página daría otra tarjeta. Se fija la
+    // tarjeta.
+    const tarjeta = page.locator("article").first();
+    const nombre = await tarjeta.locator("h3").innerText();
+    const agregar = tarjeta.getByRole("button", { name: "Agregar", exact: true });
 
     await agregar.click();
     await expect(avisoAgregado(page)).toBeVisible();
@@ -21,7 +26,6 @@ test.describe("Carrito", () => {
     await expect(avisoAgregado(page)).toHaveCount(0, { timeout: 8_000 });
 
     // Lo agregado queda en el carrito; se saca para dejarlo como estaba.
-    const nombre = await page.locator("article h3").first().innerText();
     await page.goto("/carrito");
     const quitar = page.getByRole("button", { name: `Quitar ${nombre} del carrito` });
     await expect(quitar).toBeVisible();
