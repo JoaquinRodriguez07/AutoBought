@@ -6,7 +6,7 @@ from app.api.deps import get_current_client, get_current_user, get_db
 from app.core import validators
 from app.core.auth_attempts import clear_failures, is_blocked, register_failure
 from app.core.config import FRONTEND_URL
-from app.core.email import enviar_mail
+from app.core.email import programar_mail
 from app.core.security import (
     DARSE_DE_BAJA,
     RECUPERAR_PASSWORD,
@@ -48,8 +48,8 @@ def _mandar_verificacion(background_tasks: BackgroundTasks, user: User) -> None:
     token = create_purpose_token(
         str(user.user_id), VERIFICAR_CORREO, VIGENCIA_VERIFICACION_MINUTOS
     )
-    background_tasks.add_task(
-        enviar_mail,
+    programar_mail(
+        background_tasks,
         user.email,
         "Verificá tu correo en AutoBought",
         "verificar_correo",
@@ -58,8 +58,8 @@ def _mandar_verificacion(background_tasks: BackgroundTasks, user: User) -> None:
 
 
 def _mandar_aviso_password_cambiada(background_tasks: BackgroundTasks, user: User) -> None:
-    background_tasks.add_task(
-        enviar_mail,
+    programar_mail(
+        background_tasks,
         user.email,
         "Tu contraseña de AutoBought se cambió",
         "password_cambiada",
@@ -169,8 +169,8 @@ def forgot_password(
             VIGENCIA_RECUPERACION_MINUTOS,
             extra_claims={"pwd": huella_password(user.password)},
         )
-        background_tasks.add_task(
-            enviar_mail,
+        programar_mail(
+            background_tasks,
             user.email,
             "Recuperá tu contraseña de AutoBought",
             "recuperar_password",

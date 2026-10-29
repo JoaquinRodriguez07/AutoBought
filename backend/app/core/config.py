@@ -21,6 +21,14 @@ EMAIL_FROM = os.getenv("EMAIL_FROM", "AutoBought <no-reply@autobought.local>")
 # Los enlaces de los mails llevan a esta dirección del frontend.
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
+# Los mails salen en segundo plano, después de responder. En Vercel no: la
+# función se congela al responder y la tarea puede no correr nunca, así que
+# allá se mandan antes de responder (Vercel define VERCEL=1). Se puede
+# forzar con MAILS_EN_SEGUNDO_PLANO=1 o 0.
+MAILS_EN_SEGUNDO_PLANO = os.getenv(
+    "MAILS_EN_SEGUNDO_PLANO", "0" if os.getenv("VERCEL") else "1"
+) == "1"
+
 # Inteligencia artificial (Gemini). Sin clave, las funcionalidades con IA
 # responden "no disponible" y la aplicación sigue funcionando.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
