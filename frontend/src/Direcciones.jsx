@@ -7,6 +7,8 @@ import {
   eliminarDireccionAPI,
 } from "./api";
 import ErrorCampo from "./ErrorCampo";
+import { IconoUbicacion } from "./Iconos";
+import { claseBotonCancelar, claseBotonGuardar } from "./SeccionCuenta";
 import { conError, propsError } from "./erroresCampo";
 import { DEPARTAMENTOS, validarDireccion } from "./validaciones";
 
@@ -43,6 +45,10 @@ export default function Direcciones(navegacion) {
   const [formulario, setFormulario] = useState(FORMULARIO_VACIO);
   const [errores, setErrores] = useState({});
   const [errorFormulario, setErrorFormulario] = useState("");
+  // Error de "eliminar" o "usar como principal": un aviso en la página.
+  const [errorAccion, setErrorAccion] = useState("");
+  // La dirección que pide confirmación antes de eliminarse.
+  const [confirmandoId, setConfirmandoId] = useState(null);
 
   useEffect(() => {
     obtenerDirecciones()
@@ -98,27 +104,58 @@ export default function Direcciones(navegacion) {
     }
   };
 
-  const eliminarDireccion = async (id) => {
+  // Eliminar y marcar como principal: si falla, un aviso arriba de la lista.
+  const ejecutar = async (accion) => {
+    setErrorAccion("");
     try {
-      await eliminarDireccionAPI(id);
+      await accion();
       setDirecciones(await obtenerDirecciones());
     } catch (err) {
       // Un 401 ya lo manejó alSesionInvalida (cerró la sesión y fue a /login).
       if (err.status === 401) return;
-      alert(err.message);
+      setErrorAccion(err.message);
     }
   };
 
-  const marcarPrincipal = async (id) => {
-    try {
-      await marcarDireccionPrincipal(id);
-      setDirecciones(await obtenerDirecciones());
-    } catch (err) {
-      // Un 401 ya lo manejó alSesionInvalida (cerró la sesión y fue a /login).
-      if (err.status === 401) return;
-      alert(err.message);
-    }
+  const eliminarDireccion = (id) => {
+    setConfirmandoId(null);
+    return ejecutar(() => eliminarDireccionAPI(id));
   };
+
+  const marcarPrincipal = (id) => ejecutar(() => marcarDireccionPrincipal(id));
+
+  // La principal, primero.
+  const ordenadas = [...direcciones].sort((a, b) => Number(b.principal) - Number(a.principal));
+
+  const campo = (nombre, etiqueta, clase, input) => (
+    <div className={clase}>
+      <label htmlFor={`direccion-${nombre}`} className="text-xs font-bold text-gray-500">
+        {etiqueta}
+      </label>
+      {input}
+      <ErrorCampo campo={nombre} mensaje={errores[nombre]} />
+    </div>
+  );
+
+  const propsInput = (nombre) => ({
+    id: `direccion-${nombre}`,
+    name: nombre,
+    value: formulario[nombre],
+    onChange: manejarCambio,
+    className: conError(claseInput, errores[nombre]),
+    ...propsError(nombre, errores[nombre]),
+  });
+
+  const botonAgregar = (
+    <button
+      type="button"
+      onClick={alternarFormulario}
+      className="min-h-[180px] w-full border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-orange-300 hover:text-orange-600 transition"
+    >
+      <span aria-hidden="true" className="text-2xl leading-none">+</span>
+      <span className="text-sm font-bold">Agregar dirección</span>
+    </button>
+  );
 
   return (
     <CuentaLayout
@@ -126,17 +163,7 @@ export default function Direcciones(navegacion) {
       seccion="direcciones"
       titulo="Mis direcciones"
       descripcion="Las direcciones donde recibís tus compras."
-      accion={
-        <button
-          type="button"
-          onClick={alternarFormulario}
-          className="h-10 px-5 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs font-black transition"
-        >
-          {mostrarFormulario ? "CANCELAR" : "+ AGREGAR DIRECCIÓN"}
-        </button>
-      }
     >
-
 
       {/* FORMULARIO */}
 
@@ -144,112 +171,40 @@ export default function Direcciones(navegacion) {
         <form
           onSubmit={agregarDireccion}
           noValidate
-          className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8"
+          aria-labelledby="titulo-nueva-direccion"
+          className="border border-gray-200 rounded-xl mb-8 bg-white"
         >
+          <div className="px-6 py-5 border-b border-gray-100">
+            <h3 id="titulo-nueva-direccion" className="text-base font-black text-gray-900">
+              Nueva dirección
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">Los campos con * son obligatorios.</p>
+          </div>
 
-          <h2 className="text-sm font-black uppercase text-gray-900 mb-5">
-            NUEVA DIRECCIÓN
-          </h2>
+          <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-6 gap-5">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {campo("nombre", "NOMBRE DE LA DIRECCIÓN *", "md:col-span-3",
+              <input {...propsInput("nombre")} placeholder="Ej: Casa" maxLength={50} />
+            )}
 
-            <div>
-              <label className="text-xs font-bold text-gray-500">
-                NOMBRE DE LA DIRECCIÓN *
-              </label>
+            {campo("calle", "CALLE *", "md:col-span-4 md:col-start-1",
+              <input {...propsInput("calle")} placeholder="Ej: Av. Italia" maxLength={50} autoComplete="address-line1" />
+            )}
 
-              <input
-                name="nombre"
-                value={formulario.nombre}
-                onChange={manejarCambio}
-                placeholder="Ej: Casa"
-                maxLength={50}
-                className={conError(claseInput, errores.nombre)}
-                {...propsError("nombre", errores.nombre)}
-              />
-              <ErrorCampo campo="nombre" mensaje={errores.nombre} />
-            </div>
+            {campo("numero", "NÚMERO *", "md:col-span-1",
+              <input {...propsInput("numero")} placeholder="Ej: 1234 o S/N" maxLength={10} />
+            )}
 
-            <div>
-              <label className="text-xs font-bold text-gray-500">
-                CIUDAD *
-              </label>
+            {campo("apartamento", "APTO.", "md:col-span-1",
+              <input {...propsInput("apartamento")} placeholder="Opcional" maxLength={10} autoComplete="address-line2" />
+            )}
 
-              <input
-                name="ciudad"
-                value={formulario.ciudad}
-                onChange={manejarCambio}
-                placeholder="Ej: Montevideo"
-                maxLength={50}
-                className={conError(claseInput, errores.ciudad)}
-                {...propsError("ciudad", errores.ciudad)}
-              />
-              <ErrorCampo campo="ciudad" mensaje={errores.ciudad} />
-            </div>
+            {campo("ciudad", "CIUDAD *", "md:col-span-3",
+              <input {...propsInput("ciudad")} placeholder="Ej: Montevideo" maxLength={50} autoComplete="address-level2" />
+            )}
 
-            <div>
-              <label className="text-xs font-bold text-gray-500">
-                CALLE *
-              </label>
-
-              <input
-                name="calle"
-                value={formulario.calle}
-                onChange={manejarCambio}
-                placeholder="Ej: Av. Italia"
-                maxLength={50}
-                className={conError(claseInput, errores.calle)}
-                {...propsError("calle", errores.calle)}
-              />
-              <ErrorCampo campo="calle" mensaje={errores.calle} />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-gray-500">
-                NÚMERO *
-              </label>
-
-              <input
-                name="numero"
-                value={formulario.numero}
-                onChange={manejarCambio}
-                placeholder="Ej: 1234 o S/N"
-                maxLength={10}
-                className={conError(claseInput, errores.numero)}
-                {...propsError("numero", errores.numero)}
-              />
-              <ErrorCampo campo="numero" mensaje={errores.numero} />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-gray-500">
-                APARTAMENTO
-              </label>
-
-              <input
-                name="apartamento"
-                value={formulario.apartamento}
-                onChange={manejarCambio}
-                placeholder="Opcional"
-                maxLength={10}
-                className={conError(claseInput, errores.apartamento)}
-                {...propsError("apartamento", errores.apartamento)}
-              />
-              <ErrorCampo campo="apartamento" mensaje={errores.apartamento} />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-gray-500">
-                DEPARTAMENTO *
-              </label>
-
-              <select
-                name="departamento"
-                value={formulario.departamento}
-                onChange={manejarCambio}
-                className={conError(claseInput, errores.departamento)}
-                {...propsError("departamento", errores.departamento)}
-              >
+            {campo("departamento", "DEPARTAMENTO *", "md:col-span-3",
+              <select {...propsInput("departamento")}>
                 <option value="">Seleccioná un departamento</option>
                 {DEPARTAMENTOS.map((departamento) => (
                   <option key={departamento} value={departamento}>
@@ -257,153 +212,188 @@ export default function Direcciones(navegacion) {
                   </option>
                 ))}
               </select>
-              <ErrorCampo campo="departamento" mensaje={errores.departamento} />
-            </div>
+            )}
 
-            <div>
-              <label className="text-xs font-bold text-gray-500">
-                CÓDIGO POSTAL
-              </label>
-
+            {campo("codigoPostal", "CÓDIGO POSTAL", "md:col-span-2",
               <input
-                name="codigoPostal"
-                value={formulario.codigoPostal}
-                onChange={manejarCambio}
+                {...propsInput("codigoPostal")}
                 placeholder="Opcional (ej: 11300)"
                 inputMode="numeric"
                 maxLength={5}
-                className={conError(claseInput, errores.codigoPostal)}
-                {...propsError("codigoPostal", errores.codigoPostal)}
+                autoComplete="postal-code"
               />
-              <ErrorCampo campo="codigoPostal" mensaje={errores.codigoPostal} />
-            </div>
+            )}
 
           </div>
 
-          <label className="flex items-center gap-2 mt-5 text-xs font-bold text-gray-500 cursor-pointer">
-            <input
-              type="checkbox"
-              name="principal"
-              checked={formulario.principal}
-              onChange={manejarCambio}
-              className="accent-orange-500"
-            />
-            MARCAR COMO DIRECCIÓN PRINCIPAL
-          </label>
+          <div className="px-6 pb-5">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                name="principal"
+                checked={formulario.principal}
+                onChange={manejarCambio}
+                className="w-4 h-4 accent-orange-500"
+              />
+              Usar como dirección principal
+            </label>
 
-          {errorFormulario && (
-            <p role="alert" className="text-red-500 text-sm mt-5">
-              {errorFormulario}
-            </p>
-          )}
+            {errorFormulario && (
+              <p role="alert" className="bg-red-50 border border-red-200 text-red-600 rounded-md px-4 py-3 text-sm mt-5">
+                {errorFormulario}
+              </p>
+            )}
+          </div>
 
-          <div className="flex justify-end mt-6">
-
-            <button
-              type="submit"
-              className="h-10 px-6 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-xs font-black"
-            >
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
+            <button type="button" onClick={alternarFormulario} className={claseBotonCancelar}>
+              CANCELAR
+            </button>
+            <button type="submit" className={claseBotonGuardar}>
               GUARDAR DIRECCIÓN
             </button>
-
           </div>
-
         </form>
+      )}
+
+      {errorAccion && (
+        <p role="alert" className="bg-red-50 border border-red-200 text-red-600 rounded-md px-4 py-3 text-sm mb-6">
+          {errorAccion}
+        </p>
       )}
 
       {/* DIRECCIONES */}
 
       {cargando ? (
 
-        <p className="text-center text-gray-400 text-sm py-16">
-          Cargando…
-        </p>
+        <div role="status" className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <span className="sr-only">Cargando direcciones...</span>
+          {[0, 1].map((i) => (
+            <div key={i} aria-hidden="true" className="border border-gray-200 rounded-xl p-5 animate-pulse">
+              <div className="flex gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-100" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-24 bg-gray-100 rounded" />
+                  <div className="h-3 w-40 bg-gray-100 rounded" />
+                  <div className="h-3 w-32 bg-gray-100 rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
 
       ) : error ? (
 
-        <p className="text-center text-red-500 text-sm py-16">
+        <p role="alert" className="bg-red-50 border border-red-200 text-red-600 rounded-md px-4 py-3 text-sm">
           {error}
         </p>
 
       ) : direcciones.length === 0 ? (
 
-        <div className="text-center py-16">
-
-          <p className="text-gray-400 text-sm">
-            Todavía no tenés direcciones guardadas.
-          </p>
-
-          <p className="text-gray-300 text-xs mt-2">
-            Agregá una dirección para utilizarla durante tus compras.
-          </p>
-
-        </div>
+        mostrarFormulario ? null : (
+          <div className="border border-dashed border-gray-200 rounded-xl text-center px-6 py-14">
+            <IconoUbicacion className="w-10 h-10 mx-auto text-gray-300" />
+            <p className="text-gray-700 text-sm font-bold mt-4">
+              Todavía no tenés direcciones guardadas.
+            </p>
+            <p className="text-gray-500 text-sm mt-1">
+              Agregá una dirección para utilizarla durante tus compras.
+            </p>
+            <button type="button" onClick={alternarFormulario} className={`${claseBotonGuardar} mt-6`}>
+              + Agregar dirección
+            </button>
+          </div>
+        )
 
       ) : (
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <ul aria-label="Direcciones guardadas" className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-          {direcciones.map((direccion) => (
-
-            <div
+          {ordenadas.map((direccion) => (
+            <li
               key={direccion.id}
-              className="border border-gray-200 rounded-xl p-6 relative"
+              className={`rounded-xl p-5 flex flex-col bg-white border ${
+                direccion.principal ? "border-orange-200" : "border-gray-200"
+              }`}
             >
-
-              <h3 className="font-black text-gray-900 text-sm uppercase">
-                {direccion.nombre}
-                {direccion.principal && (
-                  <span className="ml-2 align-middle text-[11px] leading-5 bg-orange-500 text-white rounded-sm px-2 py-0.5 tracking-wider">
-                    PRINCIPAL
-                  </span>
-                )}
-              </h3>
-
-              <p className="text-sm text-gray-600 mt-4">
-                {direccion.calle} {direccion.numero}
-                {direccion.apartamento &&
-                  `, Apt. ${direccion.apartamento}`}
-              </p>
-
-              <p className="text-sm text-gray-500 mt-1">
-                {direccion.ciudad}, {direccion.departamento}
-              </p>
-
-              {direccion.codigoPostal && (
-                <p className="text-xs text-gray-400 mt-1">
-                  CP: {direccion.codigoPostal}
-                </p>
-              )}
-
-              <div className="flex gap-3 mt-6">
-
-                {!direccion.principal && (
-                  <button
-                    type="button"
-                    onClick={() => marcarPrincipal(direccion.id)}
-                    className="text-[11px] text-orange-500 font-bold hover:underline"
-                  >
-                    MARCAR COMO PRINCIPAL
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    eliminarDireccion(direccion.id)
-                  }
-                  className="text-[11px] text-red-500 font-bold hover:underline"
+              <div className="flex gap-3 flex-1">
+                <span
+                  aria-hidden="true"
+                  className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
+                    direccion.principal ? "bg-orange-50 text-orange-500" : "bg-gray-50 text-gray-400"
+                  }`}
                 >
-                  ELIMINAR
-                </button>
+                  <IconoUbicacion className="w-5 h-5" />
+                </span>
 
+                <div className="min-w-0">
+                  <h3 className="text-sm font-black text-gray-900 flex flex-wrap items-center gap-2">
+                    {direccion.nombre}
+                    {direccion.principal && (
+                      <span className="rounded-full px-2 py-0.5 text-[11px] font-bold bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200">
+                        Principal
+                      </span>
+                    )}
+                  </h3>
+
+                  <p className="text-sm text-gray-700 mt-2">
+                    {direccion.calle} {direccion.numero}
+                    {direccion.apartamento && `, apto. ${direccion.apartamento}`}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {direccion.ciudad}, {direccion.departamento}
+                    {direccion.codigoPostal && ` · CP ${direccion.codigoPostal}`}
+                  </p>
+                </div>
               </div>
 
-            </div>
-
+              <div className="border-t border-gray-100 mt-5 pt-3 min-h-[36px] flex items-center gap-4">
+                {confirmandoId === direccion.id ? (
+                  <>
+                    <p className="text-sm text-gray-700 flex-1">¿Eliminar esta dirección?</p>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmandoId(null)}
+                      className="text-xs font-bold text-gray-600 hover:text-gray-900"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => eliminarDireccion(direccion.id)}
+                      className="h-8 px-3 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
+                    >
+                      Sí, eliminar
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {!direccion.principal && (
+                      <button
+                        type="button"
+                        onClick={() => marcarPrincipal(direccion.id)}
+                        className="text-xs font-bold text-gray-600 hover:text-orange-600"
+                      >
+                        Usar como principal
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setConfirmandoId(direccion.id)}
+                      aria-label={`Eliminar la dirección ${direccion.nombre}`}
+                      className="ml-auto text-xs font-bold text-gray-500 hover:text-red-600"
+                    >
+                      Eliminar
+                    </button>
+                  </>
+                )}
+              </div>
+            </li>
           ))}
 
-        </div>
+          {!mostrarFormulario && <li>{botonAgregar}</li>}
+
+        </ul>
 
       )}
 
