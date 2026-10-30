@@ -2,14 +2,19 @@ import { useEffect, useState } from "react";
 
 import { crearLinkPago, obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
 import CuentaLayout from "./CuentaLayout";
+import { IconoAlerta, IconoCaja } from "./Iconos";
+import { imagenDeRepuesto, usarImagenGenerica } from "./mapearRepuesto";
+import { textoPlazoPago } from "./plazoPago";
 import { irA } from "./redirigir";
 
 const ESTADOS_PEDIDO = {
-  confirmed: { texto: "Confirmado", clase: "bg-blue-50 text-blue-700" },
-  shipped: { texto: "Enviado", clase: "bg-orange-50 text-orange-700" },
-  delivered: { texto: "Entregado", clase: "bg-green-50 text-green-700" },
-  cancelled: { texto: "Cancelado", clase: "bg-gray-100 text-gray-500" },
+  confirmed: { texto: "Confirmado", clase: "bg-blue-50 text-blue-700 ring-blue-200" },
+  shipped: { texto: "Enviado", clase: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
+  delivered: { texto: "Entregado", clase: "bg-green-50 text-green-700 ring-green-200" },
+  cancelled: { texto: "Cancelado", clase: "bg-gray-50 text-gray-500 ring-gray-200" },
 };
+
+const PENDIENTE_DE_PAGO = { texto: "Pendiente de pago", clase: "bg-amber-50 text-amber-800 ring-amber-200" };
 
 // Pedidos con Mercado Pago que todavía no se pagaron.
 const PAGO_SIN_COMPLETAR = {
@@ -17,20 +22,103 @@ const PAGO_SIN_COMPLETAR = {
   rejected: "rechazado",
 };
 
+// Cuántas fotos de productos se ven en cada pedido de la lista.
+const MINIATURAS = 3;
+
+function faltaPagar(compra) {
+  return Boolean(PAGO_SIN_COMPLETAR[compra.estadoPago]) && compra.estado !== "cancelled";
+}
+
+// Se canceló solo porque venció el plazo sin pagarse (el stock volvió).
+function vencioSinPagar(compra) {
+  return Boolean(PAGO_SIN_COMPLETAR[compra.estadoPago]) && compra.estado === "cancelled";
+}
+
+// La línea chica al lado del estado: cuánto queda para pagar, o por qué se canceló.
+function notaPago(compra) {
+  if (vencioSinPagar(compra)) return "No se completó el pago a tiempo";
+  if (!faltaPagar(compra)) return "";
+  const plazo = compra.vencePago ? `Pagalo antes de ${textoPlazoPago(compra.vencePago)}` : "";
+  if (compra.estadoPago === "rejected") return plazo ? `Pago rechazado · ${plazo}` : "Pago rechazado";
+  return plazo;
+}
+
 function textoDireccion(d) {
   const apartamento = d.apartamento ? ` apto ${d.apartamento}` : "";
   return `${d.calle} ${d.numero}${apartamento}, ${d.ciudad}, ${d.departamento}`;
 }
 
-function EstadoPedido({ estado }) {
-  const { texto, clase } = ESTADOS_PEDIDO[estado] ?? {
-    texto: "Sin estado",
-    clase: "bg-gray-100 text-gray-500",
-  };
+function textoProductos(items) {
+  if (items.length === 0) return "";
+  const primero = items[0].nombre || "Producto";
+  if (items.length === 1) return primero;
+  const resto = items.length - 1;
+  return `${primero} y ${resto} ${resto === 1 ? "producto más" : "productos más"}`;
+}
+
+const formatearPrecio = (precio) =>
+  new Intl.NumberFormat("es-UY", {
+    style: "currency",
+    currency: "UYU",
+    maximumFractionDigits: 0,
+  }).format(Number(precio) || 0);
+
+const formatearFecha = (fecha) => {
+  if (!fecha) return "Fecha no disponible";
+
+  return new Date(fecha).toLocaleDateString("es-UY", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+/**
+ * La etiqueta del pedido. Mientras no se pagó, eso es lo que importa: el
+ * estado del envío ("Confirmado") se ve recién con el pago aprobado.
+ */
+function EstadoPedido({ compra }) {
+  const { texto, clase } = faltaPagar(compra)
+    ? PENDIENTE_DE_PAGO
+    : ESTADOS_PEDIDO[compra.estado] ?? { texto: "Sin estado", clase: "bg-gray-50 text-gray-500 ring-gray-200" };
   return (
-    <span className={`inline-block rounded-full px-3 py-1 text-xs font-black uppercase ${clase}`}>
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ring-1 ring-inset ${clase}`}>
       {texto}
     </span>
+  );
+}
+
+function FotoProducto({ producto, clase }) {
+  return (
+    <div className={`shrink-0 bg-gray-50 border border-gray-100 rounded-md overflow-hidden ${clase}`}>
+      <img
+        onError={usarImagenGenerica}
+        src={imagenDeRepuesto(producto.nombre || "")}
+        alt=""
+        className="w-full h-full object-contain p-1"
+      />
+    </div>
+  );
+}
+
+function CargandoHistorial() {
+  return (
+    <div role="status" className="space-y-4">
+      <span className="sr-only">Cargando historial de compras...</span>
+      {[0, 1, 2].map((i) => (
+        <div key={i} aria-hidden="true" className="border border-gray-200 rounded-xl p-5 animate-pulse">
+          <div className="flex justify-between">
+            <div className="h-4 w-40 bg-gray-100 rounded" />
+            <div className="h-6 w-24 bg-gray-100 rounded-full" />
+          </div>
+          <div className="flex gap-2 mt-5">
+            <div className="w-14 h-14 bg-gray-100 rounded-md" />
+            <div className="w-14 h-14 bg-gray-100 rounded-md" />
+          </div>
+          <div className="h-5 w-28 bg-gray-100 rounded mt-5" />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -41,8 +129,8 @@ export default function HistorialCompras(navegacion) {
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [error, setError] = useState("");
   const [errorDetalle, setErrorDetalle] = useState("");
-  const [abriendoPago, setAbriendoPago] = useState(false);
-
+  // El pedido cuyo link de Mercado Pago se está pidiendo.
+  const [pagandoId, setPagandoId] = useState(null);
 
   useEffect(() => {
     let cancelado = false;
@@ -68,24 +156,7 @@ export default function HistorialCompras(navegacion) {
     };
   }, []);
 
-  const formatearPrecio = (precio) =>
-    new Intl.NumberFormat("es-UY", {
-      style: "currency",
-      currency: "UYU",
-      maximumFractionDigits: 0,
-    }).format(Number(precio) || 0);
-
-  const formatearFecha = (fecha) => {
-    if (!fecha) return "Fecha no disponible";
-
-    return new Date(fecha).toLocaleDateString("es-UY", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
-    const verDetalle = async (compra) => {
+  const verDetalle = async (compra) => {
     setCargandoDetalle(true);
     setErrorDetalle("");
     try {
@@ -101,22 +172,44 @@ export default function HistorialCompras(navegacion) {
   };
 
   const pagar = async (compra) => {
-    setAbriendoPago(true);
+    setPagandoId(compra.id);
     setErrorDetalle("");
     try {
       irA(await crearLinkPago(compra.id));
     } catch (errorPago) {
       setErrorDetalle(errorPago.message || "No pudimos abrir Mercado Pago.");
-      setAbriendoPago(false);
+      setPagandoId(null);
     }
   };
+
+  // En el detalle es el botón principal (naranja); en la lista, uno
+  // secundario, para que la lista no se llene de naranja.
+  const botonPagar = (compra, texto, principal) => (
+    <button
+      type="button"
+      onClick={() => pagar(compra)}
+      disabled={pagandoId !== null}
+      aria-label={`Pagar el pedido #${compra.id} con Mercado Pago`}
+      className={`rounded-md text-xs font-black transition whitespace-nowrap disabled:opacity-40 ${
+        principal
+          ? "h-10 px-5 shrink-0 bg-orange-500 hover:bg-orange-600 text-white"
+          : "h-9 px-4 bg-white border border-gray-300 text-gray-800 hover:border-orange-500 hover:text-orange-600"
+      }`}
+    >
+      {pagandoId === compra.id ? "ABRIENDO..." : texto}
+    </button>
+  );
 
   return (
     <CuentaLayout
       {...navegacion}
       seccion="historial"
       titulo={compraSeleccionada ? `Pedido #${compraSeleccionada.id}` : "Historial de compras"}
-      descripcion={compraSeleccionada ? null : "Las compras que hiciste."}
+      descripcion={
+        compraSeleccionada
+          ? `Realizado el ${formatearFecha(compraSeleccionada.fecha)}`
+          : "Las compras que hiciste."
+      }
     >
       {error && (
         <p role="alert" className="text-center text-red-600 font-bold">
@@ -125,146 +218,197 @@ export default function HistorialCompras(navegacion) {
       )}
 
       {errorDetalle && (
-        <p role="alert" className="text-center text-red-600 font-bold mb-6">
+        <p role="alert" className="bg-red-50 border border-red-200 text-red-600 rounded-md px-4 py-3 text-sm font-bold mb-6">
           {errorDetalle}
         </p>
       )}
 
       {cargando ? (
-        <p role="status" className="text-center text-gray-500">
-          Cargando historial de compras...
-        </p>
+        <CargandoHistorial />
       ) : compraSeleccionada ? (
+
+        /* DETALLE */
+
         <section aria-label={`Detalle del pedido ${compraSeleccionada.id}`}>
-          <button
-            type="button"
-            onClick={() => {
-              setCompraSeleccionada(null);
-              setErrorDetalle("");
-            }}
-            className="text-orange-500 text-sm font-bold hover:underline mb-6"
-          >
-            ← Volver al historial
-          </button>
-          <div className="mb-2">
-            <EstadoPedido estado={compraSeleccionada.estado} />
-          </div>
-          <p className="text-gray-600 mb-2">
-            Fecha: {formatearFecha(compraSeleccionada.fecha)}
-          </p>
-          {compraSeleccionada.direccion && (
-            <p className="text-gray-600 mb-2">
-              Envío: {textoDireccion(compraSeleccionada.direccion)}
-            </p>
-          )}
-          {compraSeleccionada.metodoPago && (
-            <p className="text-gray-600 mb-2">
-              Pago: {compraSeleccionada.metodoPago}
-              {PAGO_SIN_COMPLETAR[compraSeleccionada.estadoPago] &&
-                ` (${PAGO_SIN_COMPLETAR[compraSeleccionada.estadoPago]})`}
-            </p>
-          )}
-          {PAGO_SIN_COMPLETAR[compraSeleccionada.estadoPago] && (
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <button
               type="button"
-              onClick={() => pagar(compraSeleccionada)}
-              disabled={abriendoPago}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-md px-5 py-2.5 mb-4 text-sm font-black disabled:opacity-40"
+              onClick={() => {
+                setCompraSeleccionada(null);
+                setErrorDetalle("");
+              }}
+              className="text-orange-500 text-sm font-bold hover:underline"
             >
-              {abriendoPago ? "ABRIENDO MERCADO PAGO..." : "PAGAR CON MERCADO PAGO"}
+              ← Volver al historial
             </button>
-          )}
-          <p className="text-gray-900 font-black mb-6">
-            Total: {formatearPrecio(compraSeleccionada.total)}
-          </p>
-          <ul className="space-y-3">
-            {(compraSeleccionada.items || []).map((producto, index) => (
-              <li
-                key={producto.partId || index}
-                className="flex justify-between gap-4 border-b border-gray-100 pb-3"
-              >
+            <EstadoPedido compra={compraSeleccionada} />
+          </div>
+
+          {faltaPagar(compraSeleccionada) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex gap-3">
+                <IconoAlerta className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
                 <div>
-                  <p className="font-bold">
-                    {producto.nombre || "Producto"}
+                  <p className="text-sm font-black text-gray-900">
+                    {compraSeleccionada.estadoPago === "rejected"
+                      ? "El pago fue rechazado"
+                      : "Este pedido todavía no está pagado"}
                   </p>
-                  {producto.codigo && (
-                    <p className="text-xs text-gray-400">
-                      Código: {producto.codigo}
-                    </p>
-                  )}
-                  <p className="text-sm text-gray-500">
-                    Cantidad: {producto.cantidad}
+                  <p className="text-sm text-gray-600 mt-1">
+                    {compraSeleccionada.vencePago
+                      ? `Tus repuestos quedan reservados hasta ${textoPlazoPago(compraSeleccionada.vencePago)}. Si no se paga, el pedido se cancela solo.`
+                      : "Tus repuestos quedan reservados mientras completás el pago."}
                   </p>
                 </div>
-                <p className="font-bold whitespace-nowrap">
-                  Precio unitario: {formatearPrecio(producto.precio)}
-                </p>
-              </li>
-            ))}
-          </ul>
+              </div>
+              {botonPagar(compraSeleccionada, "PAGAR CON MERCADO PAGO", true)}
+            </div>
+          )}
+
+          {vencioSinPagar(compraSeleccionada) && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
+              <p className="text-sm font-black text-gray-900">
+                Este pedido se canceló porque no se completó el pago a tiempo
+              </p>
+              <p className="text-sm text-gray-600 mt-1">
+                No se te cobró nada. Si todavía querés los repuestos, podés volver a comprarlos desde el catálogo.
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+            <div className="border border-gray-200 rounded-xl">
+              <h3 className="text-xs font-black uppercase text-gray-500 px-5 pt-5">
+                Productos
+              </h3>
+              <ul className="divide-y divide-gray-100 px-5">
+                {(compraSeleccionada.items || []).map((producto, index) => (
+                  <li key={producto.partId || index} className="flex items-center gap-4 py-4">
+                    <FotoProducto producto={producto} clase="w-16 h-16" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900">
+                        {producto.nombre || "Producto"}
+                      </p>
+                      {producto.codigo && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Código: {producto.codigo}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {`Cantidad: ${producto.cantidad} · ${formatearPrecio(producto.precio)} c/u`}
+                      </p>
+                    </div>
+                    <p className="text-sm font-black whitespace-nowrap">
+                      {formatearPrecio(producto.precio * producto.cantidad)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <aside className="bg-gray-50 border border-gray-200 rounded-xl p-5 h-fit space-y-5">
+              {compraSeleccionada.direccion && (
+                <div>
+                  <p className="text-xs font-black uppercase text-gray-500">Envío</p>
+                  <p className="text-sm text-gray-700 mt-1">
+                    {textoDireccion(compraSeleccionada.direccion)}
+                  </p>
+                </div>
+              )}
+              {compraSeleccionada.metodoPago && (
+                <div>
+                  <p className="text-xs font-black uppercase text-gray-500">Pago</p>
+                  <p className="text-sm text-gray-700 mt-1">
+                    {compraSeleccionada.metodoPago}
+                    {faltaPagar(compraSeleccionada) &&
+                      ` (${PAGO_SIN_COMPLETAR[compraSeleccionada.estadoPago]})`}
+                    {vencioSinPagar(compraSeleccionada) && " (no se completó)"}
+                  </p>
+                </div>
+              )}
+              <div className="border-t border-gray-200 pt-4 flex justify-between items-end">
+                <span className="text-sm font-bold">Total</span>
+                <span className="text-2xl font-black text-orange-500">
+                  {formatearPrecio(compraSeleccionada.total)}
+                </span>
+              </div>
+            </aside>
+          </div>
         </section>
       ) : cargandoDetalle ? (
-        <p role="status" className="text-center text-gray-500">
-          Cargando detalle de la compra...
-        </p>
+        <CargandoHistorial />
       ) : error ? null : compras.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="text-4xl mb-5">🛒</div>
+        <div className="text-center py-16 border border-dashed border-gray-200 rounded-xl">
+          <IconoCaja className="w-10 h-10 mx-auto text-gray-300 mb-4" />
           <p className="text-gray-500 text-sm font-bold">
             Todavía no realizaste ninguna compra.
           </p>
-          <p className="text-gray-300 text-xs mt-2">
+          <p className="text-gray-400 text-xs mt-2">
             Cuando realices una compra, aparecerá acá.
           </p>
         </div>
       ) : (
-        <ul aria-label="Compras realizadas" className="space-y-5">
-          {compras.map((compra) => (
-            <li
-              key={compra.id}
-              className="border border-gray-200 rounded-xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-            >
-              <div>
-                <p className="text-[11px] text-gray-400 font-bold uppercase">
-                  COMPRA
-                </p>
-                <p className="text-sm font-black text-gray-900">
-                  #{compra.id}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] text-gray-400 font-bold uppercase">
-                  FECHA
-                </p>
-                <p className="text-sm font-bold">
-                  {formatearFecha(compra.fecha)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] text-gray-400 font-bold uppercase">
-                  ESTADO
-                </p>
-                <EstadoPedido estado={compra.estado} />
-              </div>
-              <div>
-                <p className="text-[11px] text-gray-400 font-bold uppercase">
-                  TOTAL
-                </p>
-                <p className="text-lg font-black">
-                  {formatearPrecio(compra.total)}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => verDetalle(compra)}
-                disabled={cargandoDetalle}
-                aria-label={`Ver detalle del pedido #${compra.id}`}
-                className="text-orange-500 text-sm font-bold hover:underline disabled:opacity-50"
-              >
-                Ver detalle
-              </button>
-            </li>
-          ))}
+
+        /* LISTA */
+
+        <ul aria-label="Compras realizadas" className="space-y-4">
+          {compras.map((compra) => {
+            const items = compra.items || [];
+            return (
+              <li key={compra.id} className="border border-gray-200 rounded-xl hover:border-gray-300 transition">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
+                  <p className="text-sm text-gray-500">
+                    <span className="font-black text-gray-900">#{compra.id}</span>
+                    <span className="mx-2 text-gray-300">·</span>
+                    {formatearFecha(compra.fecha)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    {notaPago(compra) && (
+                      <span className="text-xs text-gray-500">{notaPago(compra)}</span>
+                    )}
+                    <EstadoPedido compra={compra} />
+                  </div>
+                </div>
+
+                <div className="px-5 py-4 flex flex-col md:flex-row md:items-center gap-4">
+                  {items.length > 0 && (
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex gap-2">
+                        {items.slice(0, MINIATURAS).map((producto, index) => (
+                          <FotoProducto key={producto.partId || index} producto={producto} clase="w-14 h-14" />
+                        ))}
+                        {items.length > MINIATURAS && (
+                          <div className="w-14 h-14 shrink-0 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center text-xs font-black text-gray-500">
+                            +{items.length - MINIATURAS}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-700 truncate">{textoProductos(items)}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between md:justify-end gap-5 md:ml-auto">
+                    <div className="md:text-right">
+                      <p className="text-[11px] text-gray-400 font-bold uppercase">Total</p>
+                      <p className="text-lg font-black">{formatearPrecio(compra.total)}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {faltaPagar(compra) && botonPagar(compra, "Completar pago", false)}
+                      <button
+                        type="button"
+                        onClick={() => verDetalle(compra)}
+                        disabled={cargandoDetalle}
+                        aria-label={`Ver detalle del pedido #${compra.id}`}
+                        className="text-gray-600 text-sm font-bold hover:text-orange-500 whitespace-nowrap disabled:opacity-50"
+                      >
+                        Ver detalle →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </CuentaLayout>

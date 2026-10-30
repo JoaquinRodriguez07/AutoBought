@@ -63,6 +63,9 @@ def confirm_order(
     client_id = client.user_id
     body = body or OrderConfirm()
 
+    # Antes de mirar el stock, que vuelva el de los pedidos que no se pagaron a tiempo.
+    crud_order.cancel_expired_orders(db)
+
     # place_order abre su propia transacción con `db.begin()`, y la
     # autenticación ya dejó una abierta al leer el cliente. Solo hubo
     # lecturas, así que el rollback no descarta nada.
@@ -107,7 +110,9 @@ def list_orders(
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
 ):
-    orders = crud_order.list_order_by_client(db, client.user_id)
+    client_id = client.user_id
+    crud_order.cancel_expired_orders(db)
+    orders = crud_order.list_order_by_client(db, client_id)
     return {
         "orders": [build_order_detail_out(order) for order in orders],
     }
@@ -119,7 +124,9 @@ def get_order(
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
 ):
-    order = crud_order.get_order_for_client(db, order_id, client.user_id)
+    client_id = client.user_id
+    crud_order.cancel_expired_orders(db)
+    order = crud_order.get_order_for_client(db, order_id, client_id)
     if order is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

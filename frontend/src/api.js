@@ -1043,6 +1043,8 @@ function mapearPedido(p) {
     // "pending" | "approved" | "rejected"; null en los pedidos de antes de
     // Mercado Pago (ya cobrados).
     estadoPago: p.payment_status ?? null,
+    // Hasta cuándo se puede pagar; pasado el plazo el pedido se cancela solo.
+    vencePago: p.payment_due_at ?? null,
     total: p.total ?? 0,
     items: (p.items || []).map((item) => ({
       partId: item.part_id,

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { guardarPreferenciasMails } from "./api";
+import SeccionCuenta from "./SeccionCuenta";
 
 /**
  * Interruptor «Ofertas y recordatorios por mail» del perfil: carrito
@@ -28,15 +29,19 @@ export default function PreferenciasMails({ usuario, onActualizarUsuario }) {
   };
 
   return (
-    <div className="mt-8 pt-6 border-t border-gray-200">
+    <SeccionCuenta
+      titulo="Mails"
+      descripcion="Elegí qué mails querés recibir de la tienda."
+      idTitulo="titulo-mails"
+    >
 
       <div className="flex items-center justify-between gap-5">
 
         <div>
-          <h3 id="titulo-preferencias-mails" className="text-sm font-black text-gray-900 uppercase">
+          <h4 id="titulo-preferencias-mails" className="text-sm font-bold text-gray-900">
             Ofertas y recordatorios por mail
-          </h3>
-          <p className="text-xs text-gray-400 mt-1">
+          </h4>
+          <p className="text-xs text-gray-500 mt-1">
             Carrito abandonado, recordatorios de mantenimiento y bajas de precio de tus favoritos.
             Los mails de tu cuenta y de tus pedidos llegan siempre.
           </p>
@@ -63,9 +68,9 @@ export default function PreferenciasMails({ usuario, onActualizarUsuario }) {
       </div>
 
       {error && (
-        <p role="alert" className="text-red-500 text-sm mt-4">{error}</p>
+        <p role="alert" className="text-red-600 text-sm mt-4">{error}</p>
       )}
 
-    </div>
+    </SeccionCuenta>
   );
 }

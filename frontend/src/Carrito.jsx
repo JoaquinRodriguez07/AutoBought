@@ -6,6 +6,7 @@ import { useCart } from "./context/CartContext";
 import SugerenciasCarrito from "./SugerenciasCarrito";
 import EncabezadoPagina from "./EncabezadoPagina";
 import { IconoBasura, IconoCandado, IconoCarrito } from "./Iconos";
+import { textoPlazoPago } from "./plazoPago";
 import { irA } from "./redirigir";
 
 
@@ -137,7 +138,11 @@ export default function Carrito({
                 {errorCompra ? (
                   <>
                     <p role="alert" className="text-sm text-red-600 font-bold mt-2">{errorCompra}</p>
-                    <p className="text-sm text-gray-500 mt-2">Tus repuestos quedan reservados mientras pagás.</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      {pedido.vencePago
+                        ? `Tus repuestos quedan reservados hasta ${textoPlazoPago(pedido.vencePago)}.`
+                        : "Tus repuestos quedan reservados mientras pagás."}
+                    </p>
                     <button onClick={() => irAPagar(pedido)} disabled={enviando}
                       className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 mt-6 text-sm font-black disabled:opacity-40">
                       REINTENTAR PAGO
