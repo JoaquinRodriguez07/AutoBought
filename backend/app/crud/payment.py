@@ -1,7 +1,8 @@
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.models.order import Order
+from app.crud.order import reactivate_paid_order
+from app.models.order import Order, OrderStatus
 from app.models.payment import Payment, PaymentStatus
 
 # Estados de Mercado Pago que cierran el intento como rechazado. Los demás
@@ -43,6 +44,9 @@ def apply_mp_status(
 
     Devuelve (pago, recién aprobado). Un pago aprobado ya no cambia: un aviso
     repetido, o el de un intento rechazado que llega tarde, no hace nada.
+    Si el pedido ya se había cancelado por no pagarse a tiempo, se reactiva
+    cuando hay stock; si no, el pago queda aprobado pero no cuenta como
+    recién aprobado (no sale el mail de la compra).
     """
     payment = db.scalar(
         select(Payment).where(Payment.order_id == order_id).with_for_update()
@@ -58,6 +62,9 @@ def apply_mp_status(
         return payment, False
 
     payment.mp_payment_id = mp_payment_id
+    recien_aprobado = payment.status == PaymentStatus.APPROVED
+    if recien_aprobado and payment.order.status == OrderStatus.CANCELLED:
+        recien_aprobado = reactivate_paid_order(db, payment.order)
     db.commit()
     db.refresh(payment)
-    return payment, payment.status == PaymentStatus.APPROVED
+    return payment, recien_aprobado

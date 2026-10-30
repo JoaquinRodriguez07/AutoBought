@@ -411,7 +411,11 @@ def test_vercel_cron_corre_las_tareas_con_el_secreto(client, db_session, mails, 
     respuesta = client.get(TAREAS, headers={"Authorization": "Bearer secreto"})
 
     assert respuesta.status_code == 200
-    assert respuesta.json() == {"Carritos abandonados": 1, "Recordatorios de mantenimiento": 0}
+    assert respuesta.json() == {
+        "Carritos abandonados": 1,
+        "Recordatorios de mantenimiento": 0,
+        "Pedidos vencidos cancelados": 0,
+    }
     assert len(mails) == 1
 
 

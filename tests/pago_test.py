@@ -4,6 +4,7 @@ nunca lo llama."""
 import hashlib
 import hmac
 import json
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
@@ -15,6 +16,8 @@ from app.core.mercadopago import (
     firma_valida,
     get_cliente_mp,
 )
+from app.crud.order import cancel_expired_orders
+from app.models.order import Order, OrderStatus
 from app.models.part import Part
 from app.models.payment import Payment, PaymentStatus
 from backend.main import app
@@ -393,3 +396,148 @@ def test_cliente_http_sin_token_o_con_error_no_esta_disponible(token, responder)
 
     with pytest.raises(MercadoPagoNoDisponible):
         cliente.consultar_pago("999")
+
+
+# =====================================================
+# Plazo para pagar: el pedido vence y el stock vuelve
+# =====================================================
+
+
+def vencer(db_session, order_id, minutos=61):
+    """Hace de cuenta que el pedido se confirmó hace `minutos` (el plazo es de 60)."""
+    payment = db_session.query(Payment).filter_by(order_id=order_id).one()
+    payment.created_at = datetime.now(timezone.utc) - timedelta(minutes=minutos)
+    db_session.commit()
+
+
+def estado_del_pedido(db_session, order_id):
+    db_session.expire_all()
+    return db_session.get(Order, order_id).status
+
+
+def test_el_detalle_trae_hasta_cuando_se_puede_pagar(client, db_session, pedido):
+    order_id, headers = pedido
+
+    body = client.get(f"/api/v1/orders/{order_id}", headers=headers).json()
+
+    vence = datetime.fromisoformat(body["payment_due_at"])
+    if vence.tzinfo is None:
+        vence = vence.replace(tzinfo=timezone.utc)
+    restante = vence - datetime.now(timezone.utc)
+    assert timedelta(minutes=59) < restante <= timedelta(minutes=60)
+
+
+def test_el_link_de_pago_vence_con_el_pedido(client, db_session, mp, pedido):
+    order_id, headers = pedido
+
+    client.post(f"/api/v1/pagos/{order_id}", headers=headers)
+
+    assert mp.preferencias[0]["expires"] is True
+    assert mp.preferencias[0]["expiration_date_to"]
+
+
+@pytest.mark.parametrize("estado_mp", [None, "rejected"])
+def test_un_pedido_sin_pagar_a_tiempo_se_cancela_y_devuelve_el_stock(client, db_session, mp, pedido, estado_mp):
+    order_id, headers = pedido
+    if estado_mp:
+        mp.pagos["998"] = PagoMP(id="998", estado=estado_mp, referencia=str(order_id))
+        avisar(client, "998")
+    vencer(db_session, order_id)
+
+    # Se cancela al ver el historial.
+    body = client.get("/api/v1/orders", headers=headers).json()
+
+    assert body["orders"][0]["status"] == "cancelled"
+    assert estado_del_pedido(db_session, order_id) == OrderStatus.CANCELLED
+    assert db_session.query(Part).one().stock == 5
+
+
+def test_un_pedido_dentro_del_plazo_sigue_reservado(client, db_session, pedido):
+    order_id, headers = pedido
+    vencer(db_session, order_id, minutos=59)
+
+    client.get("/api/v1/orders", headers=headers)
+
+    assert estado_del_pedido(db_session, order_id) == OrderStatus.CONFIRMED
+    assert db_session.query(Part).one().stock == 3
+
+
+def test_el_stock_de_un_pedido_vencido_vuelve_antes_de_otra_compra(client, db_session, pedido):
+    order_id, _ = pedido
+    vencer(db_session, order_id)
+    # Otro cliente quiere las 5 pastillas: 3 libres y 2 del pedido vencido.
+    otro = make_client(db_session, username="beto", email="beto@example.com")
+    make_address(db_session, otro)
+    make_cart(db_session, otro, [(db_session.query(Part).one(), 5)])
+
+    response = client.post("/api/v1/orders", headers=auth_headers(otro))
+
+    assert response.status_code == 201
+    assert estado_del_pedido(db_session, order_id) == OrderStatus.CANCELLED
+    assert db_session.query(Part).one().stock == 0
+
+
+def test_un_pedido_vencido_no_da_otro_link(client, db_session, mp, pedido):
+    order_id, headers = pedido
+    vencer(db_session, order_id)
+
+    response = client.post(f"/api/v1/pagos/{order_id}", headers=headers)
+
+    assert response.status_code == 409
+    assert "no se pagó a tiempo" in response.json()["detail"]
+    assert mp.preferencias == []
+
+
+def test_los_pedidos_pagados_no_vencen(client, db_session, mp, pedido):
+    order_id, headers = pedido
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    avisar(client)
+    vencer(db_session, order_id, minutos=60 * 24)
+
+    assert cancel_expired_orders(db_session) == 0
+    assert estado_del_pedido(db_session, order_id) == OrderStatus.CONFIRMED
+    assert db_session.query(Part).one().stock == 3
+
+
+def test_cancelar_dos_veces_no_devuelve_el_stock_dos_veces(client, db_session, pedido):
+    order_id, _ = pedido
+    vencer(db_session, order_id)
+
+    assert cancel_expired_orders(db_session) == 1
+    assert cancel_expired_orders(db_session) == 0
+    db_session.expire_all()
+    assert db_session.query(Part).one().stock == 5
+
+
+def test_un_pago_aprobado_despues_de_vencer_reactiva_el_pedido_si_hay_stock(client, db_session, mp, pedido, mails):
+    order_id, _ = pedido
+    vencer(db_session, order_id)
+    cancel_expired_orders(db_session)
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+
+    avisar(client)
+
+    assert estado_del_pago(db_session, order_id) == PaymentStatus.APPROVED
+    assert estado_del_pedido(db_session, order_id) == OrderStatus.CONFIRMED
+    assert db_session.query(Part).one().stock == 3
+    assert len(mails) == 1
+
+
+def test_un_pago_aprobado_despues_de_vencer_sin_stock_queda_cancelado_y_en_el_log(
+    client, db_session, mp, pedido, mails, caplog
+):
+    order_id, _ = pedido
+    vencer(db_session, order_id)
+    cancel_expired_orders(db_session)
+    pastillas = db_session.query(Part).one()
+    pastillas.stock = 0
+    db_session.commit()
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+
+    avisar(client)
+
+    assert estado_del_pago(db_session, order_id) == PaymentStatus.APPROVED
+    assert estado_del_pedido(db_session, order_id) == OrderStatus.CANCELLED
+    assert db_session.query(Part).one().stock == 0
+    assert mails == []
+    assert f"Pedido {order_id} pagado después de vencer y sin stock" in caplog.text

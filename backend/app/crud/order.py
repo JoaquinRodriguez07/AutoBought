@@ -1,4 +1,7 @@
-from sqlalchemy import select
+import logging
+from datetime import datetime, timezone
+
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.car_model import CarModel
@@ -7,11 +10,13 @@ from app.models.cart_item import CartItem
 from app.models.client import Client
 from app.models.compatibility import Compatibility
 from app.models.employee import Employee
-from app.models.order import Order
+from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
 from app.models.payment import Payment, PaymentStatus
 from app.models.shipping_address import ShippingAddress
+
+logger = logging.getLogger(__name__)
 
 
 def _get_owned_or_primary(db: Session, model, pk_column, client_id: int, chosen_id: int | None):
@@ -38,7 +43,8 @@ def place_order(
     Without an explicit shipping address, the client's primary one is used;
     it must belong to the client. The order starts with a pending payment:
     the client pays it afterwards on Mercado Pago. The stock is taken now,
-    so it stays reserved while the client pays (or retries a rejected payment).
+    so it stays reserved while the client pays (or retries a rejected payment),
+    until the deadline (see `cancel_expired_orders`).
     """
     with db.begin():
         cart = db.scalar(
@@ -110,6 +116,69 @@ def place_order(
 
         cart.items.clear()
         return order
+
+
+def _cambiar_stock(db: Session, order: Order, signo: int) -> None:
+    # En SQL (stock = stock ± n) y no en Python: así no pisa una compra que
+    # esté descontando el mismo repuesto al mismo tiempo.
+    for item in order.items:
+        db.execute(
+            update(Part)
+            .where(Part.id == item.part_id)
+            .values(stock=Part.stock + signo * item.quantity)
+        )
+
+
+def cancel_expired_orders(db: Session, ahora: datetime | None = None) -> int:
+    """Cancela los pedidos que no se pagaron a tiempo y devuelve su stock.
+
+    No hay un proceso que corra cada minuto: se llama antes de comprar, al
+    ver el historial, al pedir un link de pago y en las tareas diarias.
+    Devuelve cuántos pedidos canceló.
+    """
+    ahora = ahora or datetime.now(timezone.utc)
+    pagos = db.scalars(
+        select(Payment)
+        .join(Order)
+        .where(Payment.status != PaymentStatus.APPROVED, Order.status == OrderStatus.CONFIRMED)
+        .options(selectinload(Payment.order).selectinload(Order.items))
+        # Si dos pedidos llegan juntos, el segundo espera y ya no ve como
+        # confirmados los que canceló el primero: el stock vuelve una sola vez.
+        .with_for_update()
+    ).all()
+
+    cancelados = 0
+    for payment in pagos:
+        if payment.due_at > ahora:
+            continue
+        payment.order.status = OrderStatus.CANCELLED
+        _cambiar_stock(db, payment.order, +1)
+        cancelados += 1
+
+    db.commit()
+    return cancelados
+
+
+def reactivate_paid_order(db: Session, order: Order) -> bool:
+    """Un pago aprobado de un pedido que ya se había cancelado por vencido
+    (el cliente pagó justo sobre el límite). Si todavía hay stock, el pedido
+    vuelve a estar confirmado. Si no, queda cancelado y en el log, para
+    devolver el dinero a mano. No hace commit: lo hace quien llama."""
+    partes = {
+        part.id: part
+        for part in db.scalars(
+            select(Part).where(Part.id.in_([item.part_id for item in order.items])).with_for_update()
+        )
+    }
+    if any(partes[item.part_id].stock < item.quantity for item in order.items):
+        logger.warning(
+            "Pedido %s pagado después de vencer y sin stock: devolver el pago.", order.order_id
+        )
+        return False
+
+    _cambiar_stock(db, order, -1)
+    order.status = OrderStatus.CONFIRMED
+    return True
 
 
 def list_order_by_client(db: Session, client_id: int) -> list[Order]:

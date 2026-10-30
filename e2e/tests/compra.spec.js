@@ -29,6 +29,6 @@ test("compra: con la dirección guardada, va a pagar y el pedido queda pendiente
 
   await page.getByRole("button", { name: "Ver mis compras" }).click();
   await page.getByRole("button", { name: `Ver detalle del pedido #${numero}` }).click();
-  await expect(page.getByText("Pago: Mercado Pago (pendiente)")).toBeVisible();
-  await expect(page.getByRole("button", { name: "PAGAR CON MERCADO PAGO" })).toBeVisible();
+  await expect(page.getByText("Mercado Pago (pendiente)")).toBeVisible();
+  await expect(page.getByRole("button", { name: `Pagar el pedido #${numero} con Mercado Pago` })).toBeVisible();
 });

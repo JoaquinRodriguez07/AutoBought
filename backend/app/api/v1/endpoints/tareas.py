@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.core.config import CRON_SECRET
 from app.core.notificaciones import TAREAS_DIARIAS
+from app.crud.order import cancel_expired_orders
 
 router = APIRouter(prefix="/tareas", tags=["tareas"])
 
@@ -27,5 +28,9 @@ def _verificar_cron(credentials: HTTPAuthorizationCredentials | None = Depends(_
 @router.get("/diarias", dependencies=[Depends(_verificar_cron)])
 def correr_tareas_diarias(db: Session = Depends(get_db)) -> dict[str, int]:
     """Lo llama Vercel Cron una vez por día (ver el vercel.json de la raíz).
-    Devuelve cuántos mails mandó cada tarea."""
-    return {nombre: tarea(db, None) for nombre, tarea in TAREAS_DIARIAS.items()}
+    Devuelve cuántos mails mandó cada tarea y cuántos pedidos sin pagar
+    canceló la limpieza (de respaldo: también se cancelan al comprar y al
+    ver el historial)."""
+    resultado = {nombre: tarea(db, None) for nombre, tarea in TAREAS_DIARIAS.items()}
+    resultado["Pedidos vencidos cancelados"] = cancel_expired_orders(db)
+    return resultado

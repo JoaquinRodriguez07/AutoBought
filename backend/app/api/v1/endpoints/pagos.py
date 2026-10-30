@@ -9,8 +9,10 @@ from app.api.deps import get_current_client, get_db
 from app.core.config import BACKEND_URL, FRONTEND_URL
 from app.core.mercadopago import ClienteMercadoPago, MercadoPagoNoDisponible, firma_valida, get_cliente_mp
 from app.core.notificaciones import notificar_compra
+from app.crud import order as crud_order
 from app.crud import payment as crud_payment
 from app.models.client import Client
+from app.models.order import OrderStatus
 from app.models.payment import PaymentStatus
 
 router = APIRouter(prefix="/pagos", tags=["pagos"])
@@ -49,6 +51,10 @@ def _armar_preferencia(order) -> dict:
         ],
         "external_reference": str(order.order_id),
         "back_urls": {"success": volver, "failure": volver, "pending": volver},
+        # El link deja de servir cuando vence el pedido: nadie paga un pedido
+        # que ya se canceló y devolvió su stock.
+        "expires": True,
+        "expiration_date_to": order.payment.due_at.isoformat(timespec="milliseconds"),
     }
     # Mercado Pago solo vuelve solo (sin que el cliente toque "Volver al
     # sitio") a direcciones https; en local el cliente vuelve con el botón.
@@ -172,12 +178,19 @@ def crear_link_pago(
 ):
     """Link de Mercado Pago para pagar el pedido. Sirve también para
     reintentar después de un pago rechazado: cada vez es un link nuevo."""
-    payment = crud_payment.get_payment_for_client(db, order_id, client.user_id)
+    client_id = client.user_id
+    crud_order.cancel_expired_orders(db)
+    payment = crud_payment.get_payment_for_client(db, order_id, client_id)
     if payment is None:
         # Pedidos de otro cliente, inexistentes o de antes de Mercado Pago.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pedido no encontrado.")
     if payment.status == PaymentStatus.APPROVED:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Este pedido ya está pagado.")
+    if payment.order.status == OrderStatus.CANCELLED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este pedido se canceló porque no se pagó a tiempo. Podés volver a comprar desde el catálogo.",
+        )
 
     try:
         preference_id, url = cliente_mp.crear_preferencia(_armar_preferencia(payment.order))

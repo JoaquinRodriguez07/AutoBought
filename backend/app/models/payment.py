@@ -1,8 +1,10 @@
 import enum
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 
+from app.core.config import MINUTOS_PARA_PAGAR
 from app.db.base import Base
 
 
@@ -44,3 +46,13 @@ class Payment(Base):
     )
 
     order = relationship("Order", back_populates="payment")
+
+    @property
+    def due_at(self) -> datetime:
+        """Hasta cuándo se puede pagar el pedido: el plazo corre desde que se
+        confirmó la compra, y no se reinicia al reintentar."""
+        creado = self.created_at
+        # SQLite devuelve las fechas sin zona; Postgres, con zona.
+        if creado.tzinfo is None:
+            creado = creado.replace(tzinfo=timezone.utc)
+        return creado + timedelta(minutes=MINUTOS_PARA_PAGAR)
