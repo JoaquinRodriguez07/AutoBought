@@ -403,8 +403,8 @@ def test_cliente_http_sin_token_o_con_error_no_esta_disponible(token, responder)
 # =====================================================
 
 
-def vencer(db_session, order_id, minutos=61):
-    """Hace de cuenta que el pedido se confirmó hace `minutos` (el plazo es de 60)."""
+def vencer(db_session, order_id, minutos=16):
+    """Hace de cuenta que el pedido se confirmó hace `minutos` (el plazo es de 15)."""
     payment = db_session.query(Payment).filter_by(order_id=order_id).one()
     payment.created_at = datetime.now(timezone.utc) - timedelta(minutes=minutos)
     db_session.commit()
@@ -424,7 +424,7 @@ def test_el_detalle_trae_hasta_cuando_se_puede_pagar(client, db_session, pedido)
     if vence.tzinfo is None:
         vence = vence.replace(tzinfo=timezone.utc)
     restante = vence - datetime.now(timezone.utc)
-    assert timedelta(minutes=59) < restante <= timedelta(minutes=60)
+    assert timedelta(minutes=14) < restante <= timedelta(minutes=15)
 
 
 def test_el_link_de_pago_vence_con_el_pedido(client, db_session, mp, pedido):
@@ -454,7 +454,7 @@ def test_un_pedido_sin_pagar_a_tiempo_se_cancela_y_devuelve_el_stock(client, db_
 
 def test_un_pedido_dentro_del_plazo_sigue_reservado(client, db_session, pedido):
     order_id, headers = pedido
-    vencer(db_session, order_id, minutos=59)
+    vencer(db_session, order_id, minutos=14)
 
     client.get("/api/v1/orders", headers=headers)
 

@@ -52,7 +52,7 @@ MERCADOPAGO_TIMEOUT_SEGUNDOS = float(os.getenv("MERCADOPAGO_TIMEOUT_SEGUNDOS", "
 BACKEND_URL = os.getenv("BACKEND_URL", "").rstrip("/")
 # Cuánto tiempo tiene el cliente para pagar un pedido. Mientras tanto el
 # stock queda reservado; pasado el plazo, el pedido se cancela y el stock vuelve.
-MINUTOS_PARA_PAGAR = int(os.getenv("MINUTOS_PARA_PAGAR", "60"))
+MINUTOS_PARA_PAGAR = int(os.getenv("MINUTOS_PARA_PAGAR", "15"))
 
 # Vercel Cron lo manda para llamar a /tareas/diarias. Vacío: nadie puede llamarlo.
 CRON_SECRET = os.getenv("CRON_SECRET", "")
