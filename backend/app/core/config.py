@@ -50,3 +50,6 @@ MERCADOPAGO_TIMEOUT_SEGUNDOS = float(os.getenv("MERCADOPAGO_TIMEOUT_SEGUNDOS", "
 # Dirección pública del backend, a la que Mercado Pago manda los avisos de
 # pago. Sin ella (en local), no hay avisos y el pedido queda pendiente.
 BACKEND_URL = os.getenv("BACKEND_URL", "").rstrip("/")
+
+# Vercel Cron lo manda para llamar a /tareas/diarias. Vacío: nadie puede llamarlo.
+CRON_SECRET = os.getenv("CRON_SECRET", "")
