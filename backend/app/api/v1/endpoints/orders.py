@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_client, get_db
+from app.core.mercadopago import mercadopago_configurado
 from app.crud import order as crud_order
 from app.crud import part as crud_part
 from app.models.client import Client
@@ -58,6 +59,14 @@ def confirm_order(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Verificá tu correo para confirmar la compra. Te mandamos un enlace al registrarte.",
+        )
+
+    # Sin Mercado Pago el pedido no se podría pagar: se corta antes de
+    # descontar el stock y vaciar el carrito.
+    if not mercadopago_configurado():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Por ahora no podemos cobrar. Tu carrito quedó igual: probá de nuevo en un rato.",
         )
 
     client_id = client.user_id

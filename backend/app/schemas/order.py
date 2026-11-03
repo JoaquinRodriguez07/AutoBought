@@ -73,10 +73,8 @@ class OrderListOut(BaseModel):
 
 def build_order_detail_out(order: Order) -> OrderDetailOut:
     items = []
-    total = 0
 
     for order_item in order.items:
-        total += order_item.frozen_price * order_item.quantity
         items.append(
             OrderItemDetailOut(
                 part_id=order_item.part_id,
@@ -103,6 +101,6 @@ def build_order_detail_out(order: Order) -> OrderDetailOut:
         payment_method=order.payment_method_label,
         payment_status=order.payment.status if order.payment else None,
         payment_due_at=order.payment.due_at if order.payment else None,
-        total=total,
+        total=order.total,
         items=items,
     )

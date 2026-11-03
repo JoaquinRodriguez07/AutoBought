@@ -17,6 +17,7 @@ from app.core.mercadopago import (
     get_cliente_mp,
 )
 from app.crud.order import cancel_expired_orders
+from app.models.cart_item import CartItem
 from app.models.order import Order, OrderStatus
 from app.models.part import Part
 from app.models.payment import Payment, PaymentStatus
@@ -30,6 +31,7 @@ class ClienteMPFalso:
         # Lo que "responde" Mercado Pago al consultar cada pago.
         self.pagos: dict[str, PagoMP] = {}
         self.error: Exception | None = None
+        self.consultadas: list[str] = []
 
     def crear_preferencia(self, preferencia: dict) -> tuple[str, str]:
         if self.error:
@@ -42,6 +44,12 @@ class ClienteMPFalso:
         if self.error:
             raise self.error
         return self.pagos[pago_id]
+
+    def consultar_preferencia(self, preferencia_id: str) -> str:
+        if self.error:
+            raise self.error
+        self.consultadas.append(preferencia_id)
+        return f"https://mercadopago.test/checkout/{preferencia_id}"
 
 
 @pytest.fixture
@@ -116,7 +124,7 @@ def test_el_link_de_un_pedido_ajeno_da_404(client, db_session, mp, pedido):
 
 def test_un_pedido_pagado_no_da_otro_link(client, db_session, mp, pedido):
     order_id, headers = pedido
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
     avisar(client)
 
     response = client.post(f"/api/v1/pagos/{order_id}", headers=headers)
@@ -136,6 +144,66 @@ def test_si_mercado_pago_no_responde_el_link_da_503_y_lo_registra(client, db_ses
     assert f"No se pudo crear el link de pago del pedido {order_id}: No hay token" in caplog.text
 
 
+def test_pagar_de_nuevo_con_el_pago_pendiente_abre_el_mismo_link(client, db_session, mp, pedido):
+    order_id, headers = pedido
+    primero = client.post(f"/api/v1/pagos/{order_id}", headers=headers).json()
+
+    segundo = client.post(f"/api/v1/pagos/{order_id}", headers=headers)
+
+    assert segundo.status_code == 200
+    assert segundo.json() == primero
+    # No se creó otra preferencia: se pidió el link de la que ya había.
+    assert len(mp.preferencias) == 1
+    assert mp.consultadas == ["pref-1"]
+    assert db_session.query(Payment).one().mp_preference_id == "pref-1"
+
+
+def test_pagar_de_nuevo_despues_de_un_rechazo_crea_un_link_nuevo(client, db_session, mp, pedido):
+    order_id, headers = pedido
+    client.post(f"/api/v1/pagos/{order_id}", headers=headers)
+    mp.pagos["998"] = PagoMP(id="998", estado="rejected", referencia=str(order_id))
+    avisar(client, "998")
+
+    response = client.post(f"/api/v1/pagos/{order_id}", headers=headers)
+
+    assert response.json() == {"url": "https://mercadopago.test/checkout/pref-2"}
+    assert len(mp.preferencias) == 2
+    assert mp.consultadas == []
+
+
+def test_si_mercado_pago_no_devuelve_el_link_vigente_da_503(client, db_session, mp, pedido, caplog):
+    order_id, headers = pedido
+    client.post(f"/api/v1/pagos/{order_id}", headers=headers)
+    mp.error = MercadoPagoNoDisponible("Mercado Pago no respondió: ConnectTimeout.")
+
+    response = client.post(f"/api/v1/pagos/{order_id}", headers=headers)
+
+    assert response.status_code == 503
+    assert f"No se pudo crear el link de pago del pedido {order_id}" in caplog.text
+
+
+# =====================================================
+# POST /orders sin Mercado Pago configurado
+# =====================================================
+
+
+def test_sin_token_de_mercado_pago_no_se_crea_el_pedido(client, db_session, monkeypatch):
+    monkeypatch.setattr("app.core.config.MERCADOPAGO_ACCESS_TOKEN", "")
+    cliente = make_client(db_session)
+    make_address(db_session, cliente)
+    pastillas = make_part(db_session, stock=5, price=1500)
+    make_cart(db_session, cliente, [(pastillas, 2)])
+
+    response = client.post("/api/v1/orders", headers=auth_headers(cliente))
+
+    assert response.status_code == 503
+    assert "carrito quedó igual" in response.json()["detail"]
+    db_session.expire_all()
+    assert db_session.query(Order).count() == 0
+    assert db_session.query(Part).one().stock == 5
+    assert db_session.query(CartItem).one().amount == 2
+
+
 # =====================================================
 # POST /api/v1/pagos/webhook: avisos de Mercado Pago
 # =====================================================
@@ -143,7 +211,7 @@ def test_si_mercado_pago_no_responde_el_link_da_503_y_lo_registra(client, db_ses
 
 def test_aviso_de_pago_aprobado_marca_el_pedido_pagado_y_manda_el_mail(client, db_session, mp, pedido, mails):
     order_id, headers = pedido
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
 
     response = avisar(client)
 
@@ -189,7 +257,7 @@ def test_un_link_nuevo_despues_de_un_rechazo_deja_el_pago_pendiente(client, db_s
 def test_reintentar_despues_de_un_rechazo_y_aprobar(client, db_session, mp, pedido):
     order_id, _ = pedido
     mp.pagos["998"] = PagoMP(id="998", estado="rejected", referencia=str(order_id))
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
 
     avisar(client, "998")
     avisar(client, "999")
@@ -197,9 +265,34 @@ def test_reintentar_despues_de_un_rechazo_y_aprobar(client, db_session, mp, pedi
     assert estado_del_pago(db_session, order_id) == PaymentStatus.APPROVED
 
 
+@pytest.mark.parametrize("monto", [1500, 3000.5, None])
+def test_un_pago_aprobado_por_otro_monto_queda_rechazado_y_en_el_log(
+    client, db_session, mp, pedido, mails, caplog, monto
+):
+    order_id, headers = pedido
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=monto)
+
+    response = avisar(client)
+
+    assert response.status_code == 200
+    assert estado_del_pago(db_session, order_id) == PaymentStatus.REJECTED
+    assert mails == []
+    assert f"El pago 999 del pedido {order_id} se aprobó por {monto}, pero el pedido cuesta 3000" in caplog.text
+
+
+def test_verificar_un_pago_por_otro_monto_no_lo_da_por_pagado(client, db_session, mp, pedido, mails):
+    order_id, headers = pedido
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=1)
+
+    response = verificar(client, order_id, headers)
+
+    assert response.json() == {"estado": "rejected"}
+    assert mails == []
+
+
 def test_un_aviso_repetido_no_se_procesa_dos_veces(client, db_session, mp, pedido, mails):
     order_id, _ = pedido
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
     mp.pagos["998"] = PagoMP(id="998", estado="rejected", referencia=str(order_id))
 
     avisar(client)
@@ -235,7 +328,7 @@ def test_el_estado_sale_de_consultar_a_mercado_pago_no_del_aviso(client, db_sess
 
 def test_avisos_que_no_son_de_pagos_o_de_otro_pedido_se_ignoran(client, db_session, mp, pedido):
     order_id, _ = pedido
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia="12345")
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia="12345", monto=3000)
 
     assert avisar(client, "1", tipo="merchant_order").status_code == 200
     assert avisar(client).status_code == 200
@@ -261,7 +354,7 @@ def test_si_mercado_pago_no_responde_el_aviso_da_502_para_que_lo_reintente(clien
 
 def test_con_clave_secreta_rechaza_avisos_sin_firma_valida(client, db_session, mp, pedido, monkeypatch):
     order_id, _ = pedido
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
     monkeypatch.setattr("app.core.mercadopago.MERCADOPAGO_WEBHOOK_SECRET", "secreto")
 
     sin_firma = avisar(client)
@@ -288,7 +381,7 @@ def test_con_clave_secreta_rechaza_avisos_sin_firma_valida(client, db_session, m
 
 def test_verificar_un_pago_aprobado_marca_el_pedido_pagado_sin_esperar_el_aviso(client, db_session, mp, pedido, mails):
     order_id, headers = pedido
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
 
     response = verificar(client, order_id, headers)
 
@@ -303,7 +396,7 @@ def test_verificar_un_pago_aprobado_marca_el_pedido_pagado_sin_esperar_el_aviso(
 
 def test_verificar_con_el_pago_de_otro_pedido_no_cambia_nada(client, db_session, mp, pedido, mails):
     order_id, headers = pedido
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id + 1))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id + 1), monto=3000)
 
     response = verificar(client, order_id, headers)
 
@@ -316,7 +409,7 @@ def test_verificar_con_el_pago_de_otro_pedido_no_cambia_nada(client, db_session,
 def test_verificar_el_pedido_de_otro_cliente_da_404(client, db_session, mp, pedido):
     order_id, _ = pedido
     otro = make_client(db_session, username="beto", email="beto@example.com")
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
 
     assert verificar(client, order_id, auth_headers(otro)).status_code == 404
     assert estado_del_pago(db_session, order_id) == PaymentStatus.PENDING
@@ -376,11 +469,25 @@ def test_cliente_http_crea_la_preferencia_con_el_token_y_devuelve_el_link():
 def test_cliente_http_consulta_el_pago():
     def responder(request):
         assert request.url == "https://mp/v1/payments/999"
-        return httpx.Response(200, json={"id": 999, "status": "approved", "external_reference": "7"})
+        return httpx.Response(
+            200,
+            json={"id": 999, "status": "approved", "external_reference": "7", "transaction_amount": 3000.0},
+        )
 
     cliente = ClienteMercadoPagoHTTP(token="APP_USR-1", transport=httpx.MockTransport(responder), url="https://mp")
 
-    assert cliente.consultar_pago("999") == PagoMP(id="999", estado="approved", referencia="7")
+    assert cliente.consultar_pago("999") == PagoMP(id="999", estado="approved", referencia="7", monto=3000.0)
+
+
+def test_cliente_http_trae_el_link_de_una_preferencia_ya_creada():
+    def responder(request):
+        assert request.method == "GET"
+        assert request.url == "https://mp/checkout/preferences/pref-1"
+        return httpx.Response(200, json={"id": "pref-1", "init_point": "https://mp/pagar"})
+
+    cliente = ClienteMercadoPagoHTTP(token="APP_USR-1", transport=httpx.MockTransport(responder), url="https://mp")
+
+    assert cliente.consultar_preferencia("pref-1") == "https://mp/pagar"
 
 
 @pytest.mark.parametrize(
@@ -490,7 +597,7 @@ def test_un_pedido_vencido_no_da_otro_link(client, db_session, mp, pedido):
 
 def test_los_pedidos_pagados_no_vencen(client, db_session, mp, pedido):
     order_id, headers = pedido
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
     avisar(client)
     vencer(db_session, order_id, minutos=60 * 24)
 
@@ -513,7 +620,7 @@ def test_un_pago_aprobado_despues_de_vencer_reactiva_el_pedido_si_hay_stock(clie
     order_id, _ = pedido
     vencer(db_session, order_id)
     cancel_expired_orders(db_session)
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
 
     avisar(client)
 
@@ -532,7 +639,7 @@ def test_un_pago_aprobado_despues_de_vencer_sin_stock_queda_cancelado_y_en_el_lo
     pastillas = db_session.query(Part).one()
     pastillas.stock = 0
     db_session.commit()
-    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id))
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
 
     avisar(client)
 

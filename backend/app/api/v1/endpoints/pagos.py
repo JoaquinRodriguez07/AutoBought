@@ -119,7 +119,9 @@ async def recibir_aviso(
         return {"ok": True}
 
     def aplicar():
-        payment, recien_aprobado = crud_payment.apply_mp_status(db, int(pago.referencia), pago.id, pago.estado)
+        payment, recien_aprobado = crud_payment.apply_mp_status(
+            db, int(pago.referencia), pago.id, pago.estado, pago.monto
+        )
         # El pedido se carga acá, en el hilo, para el mail.
         return payment.order if recien_aprobado else None
 
@@ -163,7 +165,7 @@ def verificar_pago(
     if pago.referencia != str(order_id):
         return EstadoPagoOut(estado=payment.status)
 
-    payment, recien_aprobado = crud_payment.apply_mp_status(db, order_id, pago.id, pago.estado)
+    payment, recien_aprobado = crud_payment.apply_mp_status(db, order_id, pago.id, pago.estado, pago.monto)
     if recien_aprobado:
         notificar_compra(payment.order, background_tasks)
     return EstadoPagoOut(estado=payment.status)
@@ -176,8 +178,12 @@ def crear_link_pago(
     client: Client = Depends(get_current_client),
     cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
 ):
-    """Link de Mercado Pago para pagar el pedido. Sirve también para
-    reintentar después de un pago rechazado: cada vez es un link nuevo."""
+    """Link de Mercado Pago para pagar el pedido.
+
+    Mientras el pago esté pendiente se devuelve el mismo link: con dos links
+    vivos el cliente podría pagar dos veces, y el segundo cobro no quedaría
+    registrado. Después de un rechazo (o en el primer intento) se crea uno nuevo.
+    """
     client_id = client.user_id
     crud_order.cancel_expired_orders(db)
     payment = crud_payment.get_payment_for_client(db, order_id, client_id)
@@ -192,7 +198,10 @@ def crear_link_pago(
             detail="Este pedido se canceló porque no se pagó a tiempo. Podés volver a comprar desde el catálogo.",
         )
 
+    reutilizar = payment.status == PaymentStatus.PENDING and payment.mp_preference_id
     try:
+        if reutilizar:
+            return LinkPagoOut(url=cliente_mp.consultar_preferencia(payment.mp_preference_id))
         preference_id, url = cliente_mp.crear_preferencia(_armar_preferencia(payment.order))
     except MercadoPagoNoDisponible as error:
         # El cliente ve un mensaje genérico; el motivo real (falta el token,
