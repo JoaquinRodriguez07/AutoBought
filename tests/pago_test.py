@@ -679,10 +679,8 @@ def test_un_pago_aprobado_despues_de_vencer_reactiva_el_pedido_si_hay_stock(clie
     assert len(mails) == 1
 
 
-def test_un_pago_aprobado_despues_de_vencer_sin_stock_queda_cancelado_y_en_el_log(
-    client, db_session, mp, pedido, mails, caplog
-):
-    order_id, _ = pedido
+def pagar_vencido_sin_stock(db_session, mp, order_id):
+    """El pedido vence, otro se lleva el stock y después llega el pago aprobado."""
     vencer(db_session, order_id)
     cancel_expired_orders(db_session)
     pastillas = db_session.query(Part).one()
@@ -690,10 +688,42 @@ def test_un_pago_aprobado_despues_de_vencer_sin_stock_queda_cancelado_y_en_el_lo
     db_session.commit()
     mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
 
+
+def test_un_pago_aprobado_despues_de_vencer_sin_stock_queda_cancelado_y_avisa_al_cliente(
+    client, db_session, mp, pedido, mails, caplog
+):
+    order_id, _ = pedido
+    pagar_vencido_sin_stock(db_session, mp, order_id)
+
     avisar(client)
 
     assert estado_del_pago(db_session, order_id) == PaymentStatus.APPROVED
     assert estado_del_pedido(db_session, order_id) == OrderStatus.CANCELLED
     assert db_session.query(Part).one().stock == 0
-    assert mails == []
     assert f"Pedido {order_id} pagado después de vencer y sin stock" in caplog.text
+    # El cliente no recibe la confirmación de compra, sino el aviso de devolución.
+    assert len(mails) == 1
+    assert mails[0]["Subject"] == f"No pudimos completar tu pedido #{order_id}"
+    texto = mails[0].get_body(preferencelist=("plain",)).get_content()
+    assert "te vamos a devolver el dinero" in texto
+
+
+def test_verificar_un_pago_de_un_pedido_vencido_sin_stock_avisa_al_cliente(client, db_session, mp, pedido, mails):
+    order_id, headers = pedido
+    pagar_vencido_sin_stock(db_session, mp, order_id)
+
+    response = verificar(client, order_id, headers)
+
+    assert response.json()["estado"] == "approved"
+    assert estado_del_pedido(db_session, order_id) == OrderStatus.CANCELLED
+    assert [mail["Subject"] for mail in mails] == [f"No pudimos completar tu pedido #{order_id}"]
+
+
+def test_un_aviso_repetido_de_un_pedido_vencido_sin_stock_no_manda_otro_mail(client, db_session, mp, pedido, mails):
+    order_id, _ = pedido
+    pagar_vencido_sin_stock(db_session, mp, order_id)
+
+    avisar(client)
+    avisar(client)
+
+    assert len(mails) == 1

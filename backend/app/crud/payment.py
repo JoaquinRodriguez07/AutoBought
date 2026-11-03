@@ -54,8 +54,8 @@ def apply_mp_status(
     Devuelve (pago, recién aprobado). Un pago aprobado ya no cambia: un aviso
     repetido, o el de un intento rechazado que llega tarde, no hace nada.
     Si el pedido ya se había cancelado por no pagarse a tiempo, se reactiva
-    cuando hay stock; si no, el pago queda aprobado pero no cuenta como
-    recién aprobado (no sale el mail de la compra).
+    cuando hay stock; si no, el pago queda aprobado y el pedido cancelado
+    (quien llama ve el estado del pedido para saber qué mail mandar).
     Un pago aprobado por un monto distinto al total del pedido queda
     rechazado y en el log: no se da por pagado un pedido cobrado de menos.
     """
@@ -84,7 +84,7 @@ def apply_mp_status(
     payment.mp_payment_id = mp_payment_id
     recien_aprobado = payment.status == PaymentStatus.APPROVED
     if recien_aprobado and payment.order.status == OrderStatus.CANCELLED:
-        recien_aprobado = reactivate_paid_order(db, payment.order)
+        reactivate_paid_order(db, payment.order)
     db.commit()
     db.refresh(payment)
     return payment, recien_aprobado

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_client, get_db
 from app.core.config import BACKEND_URL, FRONTEND_URL
 from app.core.mercadopago import ClienteMercadoPago, MercadoPagoNoDisponible, firma_valida, get_cliente_mp
-from app.core.notificaciones import notificar_compra
+from app.core.notificaciones import notificar_compra, notificar_pago_sin_stock
 from app.crud import order as crud_order
 from app.crud import payment as crud_payment
 from app.models.client import Client
@@ -67,6 +67,15 @@ def _armar_preferencia(order) -> dict:
     if BACKEND_URL:
         preferencia["notification_url"] = f"{BACKEND_URL}/api/v1/pagos/webhook"
     return preferencia
+
+
+def _avisar_pago_aprobado(order, background_tasks: BackgroundTasks) -> None:
+    """El mail de la compra o, si el pedido había vencido y ya no hay stock
+    (sigue cancelado), el aviso de que se le devuelve el dinero."""
+    if order.status == OrderStatus.CANCELLED:
+        notificar_pago_sin_stock(order, background_tasks)
+    else:
+        notificar_compra(order, background_tasks)
 
 
 @router.post("/webhook")
@@ -130,7 +139,7 @@ async def recibir_aviso(
 
     pedido_aprobado = await run_in_threadpool(aplicar)
     if pedido_aprobado is not None:
-        notificar_compra(pedido_aprobado, background_tasks)
+        _avisar_pago_aprobado(pedido_aprobado, background_tasks)
     return {"ok": True}
 
 
@@ -170,7 +179,7 @@ def verificar_pago(
 
     payment, recien_aprobado = crud_payment.apply_mp_status(db, order_id, pago.id, pago.estado, pago.monto)
     if recien_aprobado:
-        notificar_compra(payment.order, background_tasks)
+        _avisar_pago_aprobado(payment.order, background_tasks)
     return EstadoPagoOut(estado=payment.status)
 
 

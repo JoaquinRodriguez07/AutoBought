@@ -169,7 +169,8 @@ def reactivate_paid_order(db: Session, order: Order) -> bool:
     """Un pago aprobado de un pedido que ya se había cancelado por vencido
     (el cliente pagó justo sobre el límite). Si todavía hay stock, el pedido
     vuelve a estar confirmado. Si no, queda cancelado y en el log, para
-    devolver el dinero a mano. No hace commit: lo hace quien llama."""
+    devolver el dinero a mano (al cliente se le avisa por mail desde el
+    endpoint). No hace commit: lo hace quien llama."""
     partes = {
         part.id: part
         for part in db.scalars(
