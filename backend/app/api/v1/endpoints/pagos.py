@@ -55,6 +55,9 @@ def _armar_preferencia(order) -> dict:
         # que ya se canceló y devolvió su stock.
         "expires": True,
         "expiration_date_to": order.payment.due_at.isoformat(timespec="milliseconds"),
+        # Sin efectivo (Abitab, RedPagos): se paga horas después y el pedido
+        # ya se habría cancelado por no pagarse a tiempo.
+        "payment_methods": {"excluded_payment_types": [{"id": "ticket"}]},
     }
     # Mercado Pago solo vuelve solo (sin que el cliente toque "Volver al
     # sitio") a direcciones https; en local el cliente vuelve con el botón.

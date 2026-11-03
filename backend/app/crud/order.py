@@ -1,9 +1,10 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import MINUTOS_PARA_PAGAR
 from app.models.car_model import CarModel
 from app.models.cart import Cart
 from app.models.cart_item import CartItem
@@ -133,30 +134,35 @@ def cancel_expired_orders(db: Session, ahora: datetime | None = None) -> int:
     """Cancela los pedidos que no se pagaron a tiempo y devuelve su stock.
 
     No hay un proceso que corra cada minuto: se llama antes de comprar, al
-    ver el historial, al pedir un link de pago y en las tareas diarias.
-    Devuelve cuántos pedidos canceló.
+    ver el historial o el catálogo, al pedir un link de pago, en el dashboard
+    de stock del vendedor y en las tareas diarias. Devuelve cuántos canceló.
     """
-    ahora = ahora or datetime.now(timezone.utc)
+    ahora = (ahora or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    # El mismo plazo que `Payment.due_at`, pero filtrado en la base: casi
+    # siempre no hay ninguno vencido y no se trae nada.
+    limite = ahora - timedelta(minutes=MINUTOS_PARA_PAGAR)
     pagos = db.scalars(
         select(Payment)
         .join(Order)
-        .where(Payment.status != PaymentStatus.APPROVED, Order.status == OrderStatus.CONFIRMED)
+        .where(
+            Payment.status != PaymentStatus.APPROVED,
+            Order.status == OrderStatus.CONFIRMED,
+            Payment.created_at <= limite,
+        )
         .options(selectinload(Payment.order).selectinload(Order.items))
-        # Si dos pedidos llegan juntos, el segundo espera y ya no ve como
-        # confirmados los que canceló el primero: el stock vuelve una sola vez.
-        .with_for_update()
+        .order_by(Payment.payment_id)
+        # Solo se bloquean los pagos, siempre en el mismo orden. Si otra
+        # llamada ya está cancelando alguno (o el webhook lo está aprobando),
+        # se saltea en vez de esperarlo: el stock vuelve una sola vez.
+        .with_for_update(skip_locked=True, of=Payment)
     ).all()
 
-    cancelados = 0
     for payment in pagos:
-        if payment.due_at > ahora:
-            continue
         payment.order.status = OrderStatus.CANCELLED
         _cambiar_stock(db, payment.order, +1)
-        cancelados += 1
 
     db.commit()
-    return cancelados
+    return len(pagos)
 
 
 def reactivate_paid_order(db: Session, order: Order) -> bool:
