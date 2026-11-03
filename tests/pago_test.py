@@ -16,6 +16,8 @@ from app.core.mercadopago import (
     firma_valida,
     get_cliente_mp,
 )
+from app.core.security import hash_password
+from app.crud import user as crud_user
 from app.crud.order import cancel_expired_orders
 from app.models.cart_item import CartItem
 from app.models.order import Order, OrderStatus
@@ -543,6 +545,16 @@ def test_el_link_de_pago_vence_con_el_pedido(client, db_session, mp, pedido):
     assert mp.preferencias[0]["expiration_date_to"]
 
 
+def test_el_link_de_pago_no_ofrece_pagar_en_efectivo(client, db_session, mp, pedido):
+    order_id, headers = pedido
+
+    client.post(f"/api/v1/pagos/{order_id}", headers=headers)
+
+    # Abitab y RedPagos ("ticket") se pagan horas después: el pedido vencería antes.
+    excluidos = mp.preferencias[0]["payment_methods"]["excluded_payment_types"]
+    assert {"id": "ticket"} in excluidos
+
+
 @pytest.mark.parametrize("estado_mp", [None, "rejected"])
 def test_un_pedido_sin_pagar_a_tiempo_se_cancela_y_devuelve_el_stock(client, db_session, mp, pedido, estado_mp):
     order_id, headers = pedido
@@ -567,6 +579,43 @@ def test_un_pedido_dentro_del_plazo_sigue_reservado(client, db_session, pedido):
 
     assert estado_del_pedido(db_session, order_id) == OrderStatus.CONFIRMED
     assert db_session.query(Part).one().stock == 3
+
+
+def test_vence_justo_al_cumplirse_el_plazo(client, db_session, pedido):
+    order_id, _ = pedido
+    ahora = datetime.now(timezone.utc)
+    payment = db_session.query(Payment).filter_by(order_id=order_id).one()
+    payment.created_at = ahora - timedelta(minutes=15)
+    db_session.commit()
+
+    assert cancel_expired_orders(db_session, ahora=ahora - timedelta(seconds=1)) == 0
+    assert cancel_expired_orders(db_session, ahora=ahora) == 1
+
+
+@pytest.mark.parametrize("ruta", ["/api/v1/parts", "/api/v1/parts/{part_id}", "/api/v1/parts/best-sellers"])
+def test_ver_el_catalogo_libera_el_stock_de_un_pedido_vencido(client, db_session, pedido, ruta):
+    order_id, _ = pedido
+    vencer(db_session, order_id)
+    part_id = db_session.query(Part).one().id
+
+    assert client.get(ruta.format(part_id=part_id)).status_code == 200
+
+    assert estado_del_pedido(db_session, order_id) == OrderStatus.CANCELLED
+    assert db_session.query(Part).one().stock == 5
+
+
+@pytest.mark.parametrize("ruta", ["/api/v1/analytics/stock", "/api/v1/analytics/stockout-risk"])
+def test_el_dashboard_del_vendedor_libera_el_stock_de_un_pedido_vencido(client, db_session, pedido, ruta):
+    order_id, _ = pedido
+    vencer(db_session, order_id)
+    vendedor = crud_user.create_employee(
+        db_session, name="Vendedor Uno", email="vendedor@example.com", password_hash=hash_password("secreto123")
+    )
+    response = client.get(ruta, headers=auth_headers(vendedor, "employee"))
+
+    assert response.status_code == 200
+    assert estado_del_pedido(db_session, order_id) == OrderStatus.CANCELLED
+    assert db_session.query(Part).one().stock == 5
 
 
 def test_el_stock_de_un_pedido_vencido_vuelve_antes_de_otra_compra(client, db_session, pedido):

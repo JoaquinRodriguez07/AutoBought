@@ -7,6 +7,7 @@ from app.crud import text_search
 from app.api.deps import get_current_employee, get_db
 from app.core.notificaciones import notificar_baja_de_precio, notificar_vuelta_de_stock
 from app.crud import part as crud_part
+from app.crud.order import cancel_expired_orders
 from app.schemas.part import (
     BestSellersResponse,
     CategoriesResponse,
@@ -61,6 +62,8 @@ def list_parts(
     ),
     db: Session = Depends(get_db),
 ):
+    # Antes de mostrar el stock, se libera el de los pedidos vencidos.
+    cancel_expired_orders(db)
     categoria_filtro = categoria or category
     entities = None
 
@@ -117,6 +120,7 @@ def list_best_sellers(
     ),
     db: Session = Depends(get_db),
 ):
+    cancel_expired_orders(db)
     best_sellers = crud_part.list_best_sellers(
         db, limit=limit, days=days, in_stock=in_stock
     )
@@ -130,6 +134,7 @@ def list_best_sellers(
 
 @router.get("/{part_id}", response_model=PartOut)
 def get_part(part_id: int, db: Session = Depends(get_db)):
+    cancel_expired_orders(db)
     part = crud_part.get_part(db, part_id)
     if part is None:
         raise HTTPException(
