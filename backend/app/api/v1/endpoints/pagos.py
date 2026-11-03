@@ -8,9 +8,11 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_client, get_db
 from app.core.config import BACKEND_URL, FRONTEND_URL
 from app.core.mercadopago import ClienteMercadoPago, MercadoPagoNoDisponible, firma_valida, get_cliente_mp
-from app.core.notificaciones import notificar_compra
+from app.core.notificaciones import notificar_compra, notificar_pago_sin_stock
+from app.crud import order as crud_order
 from app.crud import payment as crud_payment
 from app.models.client import Client
+from app.models.order import OrderStatus
 from app.models.payment import PaymentStatus
 
 router = APIRouter(prefix="/pagos", tags=["pagos"])
@@ -49,6 +51,13 @@ def _armar_preferencia(order) -> dict:
         ],
         "external_reference": str(order.order_id),
         "back_urls": {"success": volver, "failure": volver, "pending": volver},
+        # El link deja de servir cuando vence el pedido: nadie paga un pedido
+        # que ya se canceló y devolvió su stock.
+        "expires": True,
+        "expiration_date_to": order.payment.due_at.isoformat(timespec="milliseconds"),
+        # Sin efectivo (Abitab, RedPagos): se paga horas después y el pedido
+        # ya se habría cancelado por no pagarse a tiempo.
+        "payment_methods": {"excluded_payment_types": [{"id": "ticket"}]},
     }
     # Mercado Pago solo vuelve solo (sin que el cliente toque "Volver al
     # sitio") a direcciones https; en local el cliente vuelve con el botón.
@@ -58,6 +67,15 @@ def _armar_preferencia(order) -> dict:
     if BACKEND_URL:
         preferencia["notification_url"] = f"{BACKEND_URL}/api/v1/pagos/webhook"
     return preferencia
+
+
+def _avisar_pago_aprobado(order, background_tasks: BackgroundTasks) -> None:
+    """El mail de la compra o, si el pedido había vencido y ya no hay stock
+    (sigue cancelado), el aviso de que se le devuelve el dinero."""
+    if order.status == OrderStatus.CANCELLED:
+        notificar_pago_sin_stock(order, background_tasks)
+    else:
+        notificar_compra(order, background_tasks)
 
 
 @router.post("/webhook")
@@ -113,13 +131,15 @@ async def recibir_aviso(
         return {"ok": True}
 
     def aplicar():
-        payment, recien_aprobado = crud_payment.apply_mp_status(db, int(pago.referencia), pago.id, pago.estado)
+        payment, recien_aprobado = crud_payment.apply_mp_status(
+            db, int(pago.referencia), pago.id, pago.estado, pago.monto
+        )
         # El pedido se carga acá, en el hilo, para el mail.
         return payment.order if recien_aprobado else None
 
     pedido_aprobado = await run_in_threadpool(aplicar)
     if pedido_aprobado is not None:
-        notificar_compra(pedido_aprobado, background_tasks)
+        _avisar_pago_aprobado(pedido_aprobado, background_tasks)
     return {"ok": True}
 
 
@@ -157,9 +177,9 @@ def verificar_pago(
     if pago.referencia != str(order_id):
         return EstadoPagoOut(estado=payment.status)
 
-    payment, recien_aprobado = crud_payment.apply_mp_status(db, order_id, pago.id, pago.estado)
+    payment, recien_aprobado = crud_payment.apply_mp_status(db, order_id, pago.id, pago.estado, pago.monto)
     if recien_aprobado:
-        notificar_compra(payment.order, background_tasks)
+        _avisar_pago_aprobado(payment.order, background_tasks)
     return EstadoPagoOut(estado=payment.status)
 
 
@@ -170,16 +190,30 @@ def crear_link_pago(
     client: Client = Depends(get_current_client),
     cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
 ):
-    """Link de Mercado Pago para pagar el pedido. Sirve también para
-    reintentar después de un pago rechazado: cada vez es un link nuevo."""
-    payment = crud_payment.get_payment_for_client(db, order_id, client.user_id)
+    """Link de Mercado Pago para pagar el pedido.
+
+    Mientras el pago esté pendiente se devuelve el mismo link: con dos links
+    vivos el cliente podría pagar dos veces, y el segundo cobro no quedaría
+    registrado. Después de un rechazo (o en el primer intento) se crea uno nuevo.
+    """
+    client_id = client.user_id
+    crud_order.cancel_expired_orders(db)
+    payment = crud_payment.get_payment_for_client(db, order_id, client_id)
     if payment is None:
         # Pedidos de otro cliente, inexistentes o de antes de Mercado Pago.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pedido no encontrado.")
     if payment.status == PaymentStatus.APPROVED:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Este pedido ya está pagado.")
+    if payment.order.status == OrderStatus.CANCELLED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este pedido se canceló porque no se pagó a tiempo. Podés volver a comprar desde el catálogo.",
+        )
 
+    reutilizar = payment.status == PaymentStatus.PENDING and payment.mp_preference_id
     try:
+        if reutilizar:
+            return LinkPagoOut(url=cliente_mp.consultar_preferencia(payment.mp_preference_id))
         preference_id, url = cliente_mp.crear_preferencia(_armar_preferencia(payment.order))
     except MercadoPagoNoDisponible as error:
         # El cliente ve un mensaje genérico; el motivo real (falta el token,

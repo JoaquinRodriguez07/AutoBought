@@ -61,6 +61,8 @@ class OrderDetailOut(BaseModel):
     payment_method: str
     # None en los pedidos de antes de Mercado Pago (ya cobrados con tarjeta).
     payment_status: PaymentStatus | None
+    # Hasta cuándo se puede pagar; None en los pedidos de antes de Mercado Pago.
+    payment_due_at: datetime | None
     total: int
     items: list[OrderItemDetailOut]
 
@@ -71,10 +73,8 @@ class OrderListOut(BaseModel):
 
 def build_order_detail_out(order: Order) -> OrderDetailOut:
     items = []
-    total = 0
 
     for order_item in order.items:
-        total += order_item.frozen_price * order_item.quantity
         items.append(
             OrderItemDetailOut(
                 part_id=order_item.part_id,
@@ -100,6 +100,7 @@ def build_order_detail_out(order: Order) -> OrderDetailOut:
         ),
         payment_method=order.payment_method_label,
         payment_status=order.payment.status if order.payment else None,
-        total=total,
+        payment_due_at=order.payment.due_at if order.payment else None,
+        total=order.total,
         items=items,
     )

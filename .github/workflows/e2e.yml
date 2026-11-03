@@ -34,6 +34,9 @@ jobs:
             echo "COMPOSE_PROFILES=local"
             echo "LOCAL_DB_PASSWORD=ci-only-not-a-real-password"
             echo "SECRET_KEY=ci-only-not-a-real-secret"
+            # Sin token no se aceptan pedidos (503). Mercado Pago no se llama:
+            # el test de compra intercepta /api/v1/pagos.
+            echo "MERCADOPAGO_ACCESS_TOKEN=TEST-ci-only-not-a-real-token"
           } > .env
 
       - name: Levantar la app (postgres, mailpit, backend, frontend)

@@ -2639,44 +2639,44 @@ describe("App sesión inválida (401)", () => {
 
 describe("Direcciones ante un 401", () => {
   // El 401 ya lo maneja alSesionInvalida (cierra la sesión y va a /login):
-  // las pantallas no tienen que sumar un alert propio.
+  // la pantalla no tiene que sumar un aviso propio.
   const error401 = () => Object.assign(new Error("Tu sesión venció. Iniciá sesión de nuevo."), { status: 401 });
   const direccion = {
     id: 1, nombre: "Casa", calle: "Av. Italia", numero: "1234", apartamento: "",
     ciudad: "Montevideo", departamento: "Montevideo", codigoPostal: "", principal: false,
   };
-  let alertSpy;
-
-  beforeEach(() => {
-    alertSpy = jest.spyOn(window, "alert").mockImplementation(() => {});
-  });
-
-  afterEach(() => alertSpy.mockRestore());
+  const eliminar = async (user) => {
+    await user.click(await screen.findByRole("button", { name: "Eliminar la dirección Casa" }));
+    await user.click(screen.getByRole("button", { name: "Sí, eliminar" }));
+  };
+  const usarComoPrincipal = async (user) => {
+    await user.click(await screen.findByRole("button", { name: "Usar como principal" }));
+  };
 
   it.each([
-    ["ELIMINAR", () => eliminarDireccionAPI],
-    ["MARCAR COMO PRINCIPAL", () => marcarDireccionPrincipal],
-  ])("%s does not show an alert on 401", async (boton, accion) => {
+    ["deleting", eliminar, () => eliminarDireccionAPI],
+    ["marking as primary", usarComoPrincipal, () => marcarDireccionPrincipal],
+  ])("%s does not show an error on 401", async (_caso, hacer, accion) => {
     const user = userEvent.setup();
     obtenerDirecciones.mockResolvedValue([direccion]);
     render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
     accion().mockRejectedValueOnce(error401());
 
-    await user.click(await screen.findByRole("button", { name: boton }));
+    await hacer(user);
 
     await waitFor(() => expect(accion()).toHaveBeenCalled());
-    expect(alertSpy).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("still alerts other errors", async () => {
+  it("still shows other errors in the page", async () => {
     const user = userEvent.setup();
     obtenerDirecciones.mockResolvedValue([direccion]);
     eliminarDireccionAPI.mockRejectedValueOnce(new Error("No encontramos esa dirección."));
     render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
 
-    await user.click(await screen.findByRole("button", { name: "ELIMINAR" }));
+    await eliminar(user);
 
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("No encontramos esa dirección."));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No encontramos esa dirección.");
   });
 });
 
@@ -2815,6 +2815,24 @@ describe("Perfil", () => {
       )
     );
     expect(obtenerPerfil).toHaveBeenCalledWith("t");
+  });
+
+  it("shows whether the email is verified", () => {
+    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", emailVerificado: true }} />);
+
+    expect(screen.getByText("Verificado")).toBeInTheDocument();
+  });
+
+  it("links to favorites and the cart from the profile", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onFavoritos: jest.fn(), onCarrito: jest.fn() };
+    render(<Perfil {...props} cantidadFavoritos={1} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+
+    await user.click(screen.getByRole("button", { name: /Favoritos.*1 producto guardado/ }));
+    await user.click(screen.getByRole("button", { name: /Carrito.*en tu carrito/ }));
+
+    expect(props.onFavoritos).toHaveBeenCalled();
+    expect(props.onCarrito).toHaveBeenCalled();
   });
 
   it("cancels profile edits and restores the saved values", async () => {
@@ -3143,8 +3161,8 @@ describe("Direcciones", () => {
     });
     render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
 
-    await user.click(screen.getByRole("button", { name: /agregar dirección/i }));
-    await user.type(screen.getByPlaceholderText("Ej: Casa"), "Casa");
+    await user.click(await screen.findByRole("button", { name: /agregar dirección/i }));
+    await user.type(screen.getByLabelText("NOMBRE DE LA DIRECCIÓN *"), "Casa");
     await user.type(screen.getByPlaceholderText("Ej: Montevideo"), "Montevideo");
     await user.type(screen.getByPlaceholderText("Ej: Av. Italia"), "Av. Italia");
     await user.type(screen.getByPlaceholderText("Ej: 1234 o S/N"), "1234");
@@ -3152,8 +3170,11 @@ describe("Direcciones", () => {
     await user.click(screen.getByRole("button", { name: /guardar dirección/i }));
 
     expect(await screen.findByRole("heading", { name: /casa/i })).toBeInTheDocument();
-    expect(await screen.findByText("PRINCIPAL")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "ELIMINAR" }));
+    expect(await screen.findByText("Principal")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Eliminar la dirección Casa" }));
+    // Pide confirmación antes de borrar.
+    expect(eliminarDireccionAPI).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Sí, eliminar" }));
     expect(await screen.findByText("Todavía no tenés direcciones guardadas.")).toBeInTheDocument();
     expect(crearDireccion).toHaveBeenCalledWith(expect.objectContaining({
       nombre: "Casa",
@@ -3248,6 +3269,21 @@ describe("Direcciones", () => {
     expect(props.onHistorial).toHaveBeenCalled();
   });
 
+  it("can cancel deleting an address", async () => {
+    const user = userEvent.setup();
+    obtenerDirecciones.mockResolvedValue([
+      { id: 1, nombre: "Casa", calle: "A", numero: "1", ciudad: "MVD", departamento: "MVD", principal: true },
+    ]);
+    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: "Eliminar la dirección Casa" }));
+    expect(screen.getByText("¿Eliminar esta dirección?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByText("¿Eliminar esta dirección?")).not.toBeInTheDocument();
+    expect(eliminarDireccionAPI).not.toHaveBeenCalled();
+  });
+
   it("changes the primary address and returns to the profile", async () => {
     const user = userEvent.setup();
     const onPerfil = jest.fn();
@@ -3264,8 +3300,13 @@ describe("Direcciones", () => {
     });
     render(<Direcciones {...navigationProps()} onPerfil={onPerfil} />);
 
-    await user.click(await screen.findByRole("button", { name: "MARCAR COMO PRINCIPAL" }));
-    expect(await screen.findAllByText("PRINCIPAL")).toHaveLength(1);
+    await user.click(await screen.findByRole("button", { name: "Usar como principal" }));
+    expect(await screen.findAllByText("Principal")).toHaveLength(1);
+    // La principal pasa a ser la primera.
+    await waitFor(() =>
+      expect(within(screen.getByRole("list", { name: "Direcciones guardadas" })).getAllByRole("heading")[0])
+        .toHaveTextContent("Oficina")
+    );
     // El menú de la cuenta reemplaza al viejo "Volver a mi perfil".
     await user.click(screen.getByRole("button", { name: "Información personal" }));
     expect(onPerfil).toHaveBeenCalled();

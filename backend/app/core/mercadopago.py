@@ -14,6 +14,7 @@ from typing import Protocol
 
 import httpx
 
+from app.core import config
 from app.core.config import (
     MERCADOPAGO_ACCESS_TOKEN,
     MERCADOPAGO_API_URL,
@@ -35,12 +36,16 @@ class PagoMP:
     estado: str
     # El número de pedido que se mandó al crear la preferencia.
     referencia: str | None
+    # Lo que se cobró (transaction_amount). Se compara con el total del pedido.
+    monto: float | None = None
 
 
 class ClienteMercadoPago(Protocol):
     def crear_preferencia(self, preferencia: dict) -> tuple[str, str]: ...
 
     def consultar_pago(self, pago_id: str) -> PagoMP: ...
+
+    def consultar_preferencia(self, preferencia_id: str) -> str: ...
 
 
 class ClienteMercadoPagoHTTP:
@@ -81,16 +86,24 @@ class ClienteMercadoPagoHTTP:
         except ValueError as error:
             raise MercadoPagoNoDisponible("Mercado Pago devolvió algo que no es JSON.") from error
 
-    def crear_preferencia(self, preferencia: dict) -> tuple[str, str]:
-        """Devuelve (id de la preferencia, link de pago)."""
-        cuerpo = self._pedir("POST", "/checkout/preferences", json=preferencia)
+    def _link(self, cuerpo: dict) -> str:
         # Los tokens viejos de prueba ("TEST-...") pagan en el sandbox; los de
         # las cuentas de prueba actuales, en el link normal.
         clave_link = "sandbox_init_point" if self.token.startswith("TEST-") else "init_point"
         link = cuerpo.get(clave_link) or cuerpo.get("init_point")
         if not cuerpo.get("id") or not link:
             raise MercadoPagoNoDisponible("Mercado Pago no devolvió el link de pago.")
+        return link
+
+    def crear_preferencia(self, preferencia: dict) -> tuple[str, str]:
+        """Devuelve (id de la preferencia, link de pago)."""
+        cuerpo = self._pedir("POST", "/checkout/preferences", json=preferencia)
+        link = self._link(cuerpo)
         return str(cuerpo["id"]), link
+
+    def consultar_preferencia(self, preferencia_id: str) -> str:
+        """Devuelve el link de pago de una preferencia ya creada."""
+        return self._link(self._pedir("GET", f"/checkout/preferences/{preferencia_id}"))
 
     def consultar_pago(self, pago_id: str) -> PagoMP:
         cuerpo = self._pedir("GET", f"/v1/payments/{pago_id}")
@@ -98,6 +111,7 @@ class ClienteMercadoPagoHTTP:
             id=str(cuerpo.get("id", pago_id)),
             estado=cuerpo.get("status") or "",
             referencia=cuerpo.get("external_reference"),
+            monto=cuerpo.get("transaction_amount"),
         )
 
 
@@ -134,6 +148,12 @@ def firma_valida(
     manifiesto += f"ts:{ts};"
     esperado = hmac.new(secreto.encode(), manifiesto.encode(), hashlib.sha256).hexdigest()
     return hmac.compare_digest(esperado, hash_recibido)
+
+
+def mercadopago_configurado() -> bool:
+    """Si hay token para cobrar. Sin token no se puede crear el link de pago,
+    así que tampoco se acepta el pedido."""
+    return bool(config.MERCADOPAGO_ACCESS_TOKEN)
 
 
 def get_cliente_mp() -> ClienteMercadoPago:

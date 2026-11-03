@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { crearLinkPago, obtenerDetalleCompra, verificarPago } from "./api";
 import { irA } from "./redirigir";
@@ -31,20 +31,21 @@ export default function ResultadoPago({ onHistorial, ...propsNavbar }) {
   const [error, setError] = useState(pedidoId ? "" : "No encontramos ese pedido.");
   const [reintentando, setReintentando] = useState(false);
 
-  // En desarrollo, StrictMode corre los efectos dos veces: con esto se
-  // consulta una sola vez.
-  const iniciado = useRef(false);
-
   useEffect(() => {
-    if (!pedidoId || iniciado.current) return;
-    iniciado.current = true;
+    if (!pedidoId) return;
 
+    // Al salir de la pantalla se corta la consulta: no se vuelve a preguntar
+    // ni se cambia el estado. En desarrollo, StrictMode monta dos veces: la
+    // primera vuelta se cancela y la segunda verifica de nuevo, sin problema
+    // (el backend no aplica dos veces el mismo pago).
+    let cancelado = false;
     let consultas = 0;
     let temporizador;
     const consultar = async () => {
       consultas += 1;
       try {
         const { estadoPago } = await obtenerDetalleCompra(pedidoId);
+        if (cancelado) return;
         if (estadoPago === "approved" || estadoPago === null) {
           setEstado("aprobado");
         } else if (estadoMP !== "approved" && (estadoPago === "rejected" || SIN_PAGAR.includes(estadoMP))) {
@@ -55,6 +56,7 @@ export default function ResultadoPago({ onHistorial, ...propsNavbar }) {
           setEstado("en-proceso");
         }
       } catch (err) {
+        if (cancelado) return;
         setEstado("error");
         setError(err.message);
       }
@@ -69,10 +71,13 @@ export default function ResultadoPago({ onHistorial, ...propsNavbar }) {
           // Se sigue con la consulta de siempre.
         }
       }
-      consultar();
+      if (!cancelado) consultar();
     };
     empezar();
-    return () => clearTimeout(temporizador);
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+    };
   }, [pedidoId, estadoMP, pagoMP]);
 
   const reintentar = async () => {

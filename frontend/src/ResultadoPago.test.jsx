@@ -162,6 +162,51 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     }
   });
 
+  test("al salir de la pantalla deja de consultar el pago", async () => {
+    jest.useFakeTimers();
+    try {
+      obtenerDetalleCompra.mockResolvedValue(pedido("pending"));
+
+      const { unmount } = renderResultado("/pago?pedido=42");
+      expect(await screen.findByText("Estamos confirmando tu pago...")).toBeInTheDocument();
+      expect(obtenerDetalleCompra).toHaveBeenCalledTimes(1);
+
+      unmount();
+      await act(async () => {
+        jest.advanceTimersByTime(30000);
+      });
+
+      expect(obtenerDetalleCompra).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("si sale mientras espera la respuesta, no vuelve a consultar", async () => {
+    jest.useFakeTimers();
+    try {
+      let responder;
+      obtenerDetalleCompra.mockReturnValueOnce(new Promise((resolve) => { responder = resolve; }));
+
+      const { unmount } = renderResultado("/pago?pedido=42");
+      await act(async () => {});
+      expect(obtenerDetalleCompra).toHaveBeenCalledTimes(1);
+
+      unmount();
+      // Primero llega la respuesta y después pasa el tiempo de espera.
+      await act(async () => {
+        responder(pedido("pending"));
+      });
+      await act(async () => {
+        jest.advanceTimersByTime(30000);
+      });
+
+      expect(obtenerDetalleCompra).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("sin número de pedido o con un pedido ajeno muestra el error", async () => {
     const error = Object.assign(new Error("Pedido no encontrado."), { status: 404 });
     obtenerDetalleCompra.mockRejectedValue(error);

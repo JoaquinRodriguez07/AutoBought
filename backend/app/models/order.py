@@ -64,3 +64,8 @@ class Order(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+
+    @property
+    def total(self) -> int:
+        """Lo que cuesta el pedido, con los precios del momento de la compra."""
+        return sum(item.frozen_price * item.quantity for item in self.items)

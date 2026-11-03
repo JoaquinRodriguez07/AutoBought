@@ -2,6 +2,7 @@ import { useState } from "react";
 import { cambiarPassword } from "./api";
 import { guardarSesion, obtenerSesion } from "./auth";
 import ErrorCampo from "./ErrorCampo";
+import SeccionCuenta, { claseBotonCancelar, claseBotonGuardar, claseBotonSeccion } from "./SeccionCuenta";
 import { conError, propsError } from "./erroresCampo";
 import { validarCambioPassword } from "./validaciones";
 
@@ -81,133 +82,123 @@ export default function CambiarPassword({ email = "" }) {
   };
 
   return (
-    <div className="mt-8 pt-6 border-t border-gray-200">
-
-      <div className="flex items-center justify-between gap-5">
-
-        <div>
-          <h3 className="text-sm font-black text-gray-900 uppercase">
-            Seguridad
-          </h3>
-          <p className="text-xs text-gray-400 mt-1">
-            Cambiá la contraseña con la que iniciás sesión.
-          </p>
-        </div>
-
-        {!abierto && (
-          <button
-            type="button"
-            onClick={abrir}
-            className="h-9 px-5 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md text-xs font-black transition"
-          >
+    <SeccionCuenta
+      titulo="Contraseña"
+      descripcion="Cambiá la contraseña con la que iniciás sesión."
+      idTitulo="titulo-contrasena"
+      accion={
+        !abierto && (
+          <button type="button" onClick={abrir} className={claseBotonSeccion}>
             CAMBIAR CONTRASEÑA
           </button>
-        )}
-
-      </div>
-
-      {exito && !sinTokenNuevo && (
-        <p className="text-green-600 text-sm mt-4">
-          Tu contraseña se actualizó correctamente.
-        </p>
-      )}
-
-      {exito && sinTokenNuevo && (
-        <p role="alert" className="text-orange-600 text-sm mt-4">
-          Tu contraseña se actualizó, pero tu sesión actual ya no es válida.
-          Iniciá sesión de nuevo con la contraseña nueva.
-        </p>
-      )}
-
-      {abierto && (
-        <form onSubmit={guardar} className="mt-5">
-
-          <p className="text-[11px] text-gray-400 mb-4">
-            Mínimo 8 caracteres, con al menos una letra y un número.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-            <div>
-              <label htmlFor="password-actual" className="text-xs font-bold text-gray-500">
-                CONTRASEÑA ACTUAL
-              </label>
-              <input
-                id="password-actual"
-                type="password"
-                name="actual"
-                autoComplete="current-password"
-                value={formulario.actual}
-                onChange={manejarCambio}
-                className={conError(claseInput, errores.actual)}
-                {...propsError("actual", errores.actual)}
-              />
-              <ErrorCampo campo="actual" mensaje={errores.actual} />
-            </div>
-
-            <div>
-              <label htmlFor="password-nueva" className="text-xs font-bold text-gray-500">
-                NUEVA CONTRASEÑA
-              </label>
-              <input
-                id="password-nueva"
-                type="password"
-                name="nueva"
-                autoComplete="new-password"
-                value={formulario.nueva}
-                onChange={manejarCambio}
-                className={conError(claseInput, errores.nueva)}
-                {...propsError("nueva", errores.nueva)}
-              />
-              <ErrorCampo campo="nueva" mensaje={errores.nueva} />
-            </div>
-
-            <div>
-              <label htmlFor="password-repetir" className="text-xs font-bold text-gray-500">
-                REPETIR NUEVA CONTRASEÑA
-              </label>
-              <input
-                id="password-repetir"
-                type="password"
-                name="repetir"
-                autoComplete="new-password"
-                value={formulario.repetir}
-                onChange={manejarCambio}
-                className={conError(claseInput, errores.repetir)}
-                {...propsError("repetir", errores.repetir)}
-              />
-              <ErrorCampo campo="repetir" mensaje={errores.repetir} />
-            </div>
-
-          </div>
-
-          {error && (
-            <p className="text-red-500 text-sm mt-4">{error}</p>
+        )
+      }
+    >
+      {(exito || abierto) && (
+        <>
+          {exito && !sinTokenNuevo && (
+            <p role="status" className="bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-sm">
+              Tu contraseña se actualizó correctamente.
+            </p>
           )}
 
-          <div className="flex justify-end gap-3 mt-6">
+          {exito && sinTokenNuevo && (
+            <p role="alert" className="bg-amber-50 border border-amber-200 text-amber-800 rounded-md px-4 py-3 text-sm">
+              Tu contraseña se actualizó, pero tu sesión actual ya no es válida.
+              Iniciá sesión de nuevo con la contraseña nueva.
+            </p>
+          )}
 
-            <button
-              type="button"
-              onClick={cancelar}
-              className="h-10 px-6 border border-gray-200 hover:border-gray-400 text-gray-500 rounded-md text-xs font-black transition"
-            >
-              CANCELAR
-            </button>
+          {abierto && (
+            <form onSubmit={guardar}>
 
-            <button
-              type="submit"
-              disabled={guardando}
-              className="h-10 px-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-md text-xs font-black transition"
-            >
-              {guardando ? "GUARDANDO..." : "GUARDAR CONTRASEÑA"}
-            </button>
+              <p className="text-xs text-gray-500 mb-4">
+                Mínimo 8 caracteres, con al menos una letra y un número.
+              </p>
 
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
-        </form>
+                <div>
+                  <label htmlFor="password-actual" className="text-xs font-bold text-gray-500">
+                    CONTRASEÑA ACTUAL
+                  </label>
+                  <input
+                    id="password-actual"
+                    type="password"
+                    name="actual"
+                    autoComplete="current-password"
+                    value={formulario.actual}
+                    onChange={manejarCambio}
+                    className={conError(claseInput, errores.actual)}
+                    {...propsError("actual", errores.actual)}
+                  />
+                  <ErrorCampo campo="actual" mensaje={errores.actual} />
+                </div>
+
+                <div>
+                  <label htmlFor="password-nueva" className="text-xs font-bold text-gray-500">
+                    NUEVA CONTRASEÑA
+                  </label>
+                  <input
+                    id="password-nueva"
+                    type="password"
+                    name="nueva"
+                    autoComplete="new-password"
+                    value={formulario.nueva}
+                    onChange={manejarCambio}
+                    className={conError(claseInput, errores.nueva)}
+                    {...propsError("nueva", errores.nueva)}
+                  />
+                  <ErrorCampo campo="nueva" mensaje={errores.nueva} />
+                </div>
+
+                <div>
+                  <label htmlFor="password-repetir" className="text-xs font-bold text-gray-500">
+                    REPETIR NUEVA CONTRASEÑA
+                  </label>
+                  <input
+                    id="password-repetir"
+                    type="password"
+                    name="repetir"
+                    autoComplete="new-password"
+                    value={formulario.repetir}
+                    onChange={manejarCambio}
+                    className={conError(claseInput, errores.repetir)}
+                    {...propsError("repetir", errores.repetir)}
+                  />
+                  <ErrorCampo campo="repetir" mensaje={errores.repetir} />
+                </div>
+
+              </div>
+
+              {error && (
+                <p role="alert" className="text-red-600 text-sm mt-4">{error}</p>
+              )}
+
+              <div className="flex justify-end gap-3 mt-6">
+
+                <button
+                  type="button"
+                  onClick={cancelar}
+                  className={claseBotonCancelar}
+                >
+                  CANCELAR
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className={claseBotonGuardar}
+                >
+                  {guardando ? "GUARDANDO..." : "GUARDAR CONTRASEÑA"}
+                </button>
+
+              </div>
+
+            </form>
+          )}
+        </>
       )}
-
-    </div>
+    </SeccionCuenta>
   );
 }

@@ -135,6 +135,18 @@ def notificar_compra(order: Order, background_tasks: BackgroundTasks | None = No
     )
 
 
+def notificar_pago_sin_stock(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
+    """El cliente pagó después de que el pedido venciera y ya no queda stock:
+    el pedido sigue cancelado y se le devuelve el dinero (a mano, por ahora)."""
+    _programar(
+        background_tasks,
+        order.client.email,
+        f"No pudimos completar tu pedido #{order.order_id}",
+        "pago_sin_stock",
+        _datos_pedido(order),
+    )
+
+
 def notificar_cambio_de_estado(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
     """Llamar después de cambiar `order.status` (panel del vendedor o
     cancelación). Para «confirmado» no hay mail: ese es el de la compra."""
@@ -254,7 +266,7 @@ def recordar_carritos_abandonados(db: Session, ahora: datetime | None = None) ->
         if actualizado > limite or ya_avisado:
             continue
 
-        enviar_mail(
+        if not enviar_mail(
             cart.client.email,
             "Te quedó algo en el carrito",
             "carrito_abandonado",
@@ -264,7 +276,8 @@ def recordar_carritos_abandonados(db: Session, ahora: datetime | None = None) ->
                 "enlace": f"{FRONTEND_URL}/carrito",
             },
             enlace_baja=enlace_baja(cart.client),
-        )
+        ):
+            continue  # Sin marcar: se reintenta en la próxima corrida.
         cart.reminder_sent_at = ahora
         enviados += 1
 
@@ -333,7 +346,7 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
             continue
 
         client = item.order.client
-        enviar_mail(
+        if not enviar_mail(
             client.email,
             f"¿Toca cambiar {item.part.name}?",
             "recordatorio_mantenimiento",
@@ -344,7 +357,8 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
                 "enlace": _enlace_repuesto(item.part),
             },
             enlace_baja=enlace_baja(client),
-        )
+        ):
+            continue  # Sin marcar: se reintenta en la próxima corrida.
         item.reminder_sent_at = ahora
         enviados += 1
 

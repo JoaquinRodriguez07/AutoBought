@@ -9,6 +9,7 @@ from app.core import analitica
 from app.crud import analytics as crud_analytics
 from app.crud import car_model as crud_car_model
 from app.crud import part as crud_part
+from app.crud.order import cancel_expired_orders
 from app.schemas.analytics import (
     AnalyticsBestSellersResponse,
     CarModelsResponse,
@@ -74,6 +75,8 @@ def stock(
     search: Optional[str] = _busqueda(),
     db: Session = Depends(get_db),
 ):
+    # El stock reservado por pedidos vencidos vuelve antes de mostrarlo.
+    cancel_expired_orders(db)
     parts = crud_part.list_stock(db, category=category, search=search)
     return {
         "low_stock_threshold": low_stock_threshold,
@@ -213,6 +216,7 @@ def stockout_risk(
     hoy: date = Depends(fecha_de_hoy),
     db: Session = Depends(get_db),
 ):
+    cancel_expired_orders(db)
     mes, filas = crud_analytics.proyecciones(db, hoy, category=category, search=search)
     if at_risk_only:
         filas = [fila for fila in filas if fila.risk != analitica.RIESGO_BAJO]
