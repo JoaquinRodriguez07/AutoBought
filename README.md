@@ -1,10 +1,157 @@
 # Ingenier-a-de-software-II
 
-## Carga de datos
+## Base de datos y migraciones (Alembic)
 
-Con el stack levantado (`docker compose up -d`), los scripts se corren dentro del contenedor del backend, en este orden. Todos se pueden correr más de una vez: si los datos ya están, no hacen nada.
+Las tablas de la base las crea y las cambia [Alembic](https://alembic.sqlalchemy.org): cada cambio de esquema es una *migración*, un archivo de `backend/migrations/versions/` con un `upgrade()` (aplicar el cambio) y un `downgrade()` (deshacerlo). La base guarda en la tabla `alembic_version` qué migración tiene aplicada, así que `alembic upgrade head` aplica solo las que faltan, en orden, y en Postgres cada corrida es todo o nada.
+
+Las responsabilidades quedan separadas:
+
+- **Alembic**: el esquema (tablas, columnas, índices, restricciones). Ya no se usa `create_all` ni se agregan columnas a mano.
+- **Seeds** (`scripts.seed`, `scripts.seed_demo_users`, `scripts.seed_order_history`): solo los datos. Si la base no está en la última migración, no corren y dicen qué hacer.
+
+| Revisión | Qué hace |
+|---|---|
+| `0001` baseline | Crea todas las tablas tal como las dejaban `create_all` y `add_missing_columns` antes de Alembic. |
+| `0002` part_code único | Agrega `UNIQUE (part_code)` en `part` (`uq_part_part_code`). Si hay códigos repetidos, falla sin tocar nada y los lista. |
+
+### `DATABASE_URL`
+
+Alembic usa la misma `DATABASE_URL` (y el mismo engine, `app/db/session.py`) que el backend; `alembic.ini` no tiene credenciales.
+
+- **Con Docker** no hay que configurar nada: `docker-compose.yml` la arma con las variables `LOCAL_DB_*` del `.env` de la raíz, y los comandos se corren dentro del contenedor (`docker exec backend uv run alembic ...`).
+- **Sin Docker**, desde `backend/`, se exporta en la terminal (con el Postgres de Docker publicado en el puerto 5432):
+
+  ```bash
+  export DATABASE_URL="postgresql+psycopg2://ingsoft2:<LOCAL_DB_PASSWORD>@localhost:5432/ingsoft2db"
+  uv run alembic current
+  ```
+
+Ojo con a qué base apunta antes de correr una migración. La base de la nube (perfil `remoto`) se migra solo a propósito, con un respaldo hecho antes (`pg_dump`).
+
+### Base nueva (vacía)
 
 ```bash
+cp .env.example .env                              # completar LOCAL_DB_PASSWORD y SECRET_KEY
+docker compose up -d
+docker exec backend uv run alembic upgrade head   # crea todas las tablas
+docker exec backend uv run python -m scripts.seed # y después los demás seeds (ver "Carga de datos")
+```
+
+No hace falta reconstruir la imagen al bajar migraciones o dependencias nuevas: `uv run` instala lo que falte según `uv.lock`.
+
+### Base que ya existía antes de Alembic
+
+Una base creada con los seeds viejos ya tiene las tablas, pero no tiene `alembic_version`: `alembic upgrade head` intentaría crearlas de nuevo (y fallaría sin cambiar nada). Hay que *marcarla* en la baseline (`stamp`) sin ejecutarla, pero solo si su esquema es realmente el de la baseline. No usar `alembic stamp` directamente: `scripts.db_baseline` lo verifica primero.
+
+```bash
+# 1. Comparar el esquema con la baseline. Solo mira, no cambia nada.
+docker exec backend uv run python -m scripts.db_baseline check
+
+# 2. Si dice que faltan tablas o columnas (por ejemplo, la base no se actualizó
+#    desde antes de Mercado Pago y le falta la tabla payment): agregarlas.
+#    Solo hace CREATE TABLE / ADD COLUMN y pasa specifications de JSON a JSONB. Nunca borra.
+docker exec backend uv run python -m scripts.db_baseline completar
+
+# 3. Marcarla en la baseline (vuelve a verificar; si no coincide, no hace nada).
+docker exec backend uv run python -m scripts.db_baseline stamp
+
+# 4. Aplicar las migraciones que siguen (0002: part_code único) y cargar datos.
+docker exec backend uv run alembic upgrade head
+docker exec backend uv run python -m scripts.seed
+```
+
+`check` compara tablas, columnas, tipos, nulos, defaults, claves primarias y foráneas, índices y restricciones únicas. Para eso aplica la baseline en un esquema temporal dentro de una transacción que después deshace (el usuario de la base necesita permiso para crear esquemas, como el dueño de la base local). Solo funciona con Postgres. El resultado se reparte en tres grupos:
+
+- **Faltan**: `completar` las agrega.
+- **Sobran**: tablas o columnas que la baseline no tiene. En las bases de antes de Mercado Pago aparecen `payment_method`, `order.payment_method_id` y su índice y clave foránea, que quedaron de las tarjetas guardadas. No se borran solas porque tienen datos. Si el equipo decide conservarlas por ahora, `stamp --permitir-sobrantes` sigue igual: no molestan al backend. Borrarlas requiere una migración aparte, acordada antes.
+- **Son distintas** (otro tipo, otro nulo): hay que resolverlas a mano, sin stamp.
+
+Si la base ya está bajo Alembic, o está vacía, `check` lo dice y no hay nada que marcar.
+
+### Cambiar el esquema: nueva migración
+
+1. Cambiar el modelo en `backend/app/models/`.
+2. Con la base al día (`alembic upgrade head`), generar la migración comparando modelos contra base. Con `--rev-id` se sigue la numeración:
+
+   ```bash
+   docker exec backend uv run alembic revision --autogenerate -m "agregar columna x a part" --rev-id 0003
+   ```
+
+   El archivo aparece en `backend/migrations/versions/0003_agregar_columna_x_a_part.py` (la carpeta está montada en el contenedor).
+3. **Revisarla antes de aplicarla.** Autogenerate es un borrador:
+   - Un renombre (de tabla o columna) lo ve como borrar y crear: se pierden los datos. Cambiarlo por `op.alter_column(..., new_column_name=...)` / `op.rename_table`.
+   - No detecta valores nuevos de un `Enum` de Postgres ni cambios en índices parciales: agregarlos a mano (`ALTER TYPE ... ADD VALUE`).
+   - Una columna `nullable=False` nueva en una tabla con filas necesita `server_default` (o cargar los valores en la misma migración) o falla.
+   - Que no haya `drop_table` / `drop_column` inesperados, y que `downgrade()` deshaga exactamente `upgrade()`.
+   - Si hace falta mover datos, va en la misma migración con `op.execute(...)`.
+4. Aplicarla y comprobar que no queda nada pendiente:
+
+   ```bash
+   docker exec backend uv run alembic upgrade head
+   docker exec backend uv run alembic check      # "No new upgrade operations detected."
+   ```
+
+5. Correr los tests: `test_las_migraciones_coinciden_con_los_modelos*` falla si un modelo cambió sin su migración.
+
+### Ver y revertir migraciones
+
+```bash
+docker exec backend uv run alembic current            # en qué revisión está la base
+docker exec backend uv run alembic history            # todas las revisiones
+docker exec backend uv run alembic downgrade -1       # deshace la última (ej. 0002 -> 0001: quita el UNIQUE)
+docker exec backend uv run alembic downgrade 0001     # vuelve a una revisión concreta
+docker exec backend uv run alembic upgrade head --sql # muestra el SQL sin ejecutarlo
+```
+
+`alembic downgrade base` deshace también la baseline: **borra todas las tablas con sus datos**. Nunca contra una base con datos que importen.
+
+### Códigos de repuesto repetidos
+
+La migración 0002 no se aplica si dos repuestos comparten `part_code`. Para verlos (también los lista `scripts.db_baseline check`):
+
+```sql
+SELECT part_code, array_agg(id ORDER BY id) AS ids
+FROM part GROUP BY part_code HAVING count(*) > 1;
+```
+
+No se arreglan solos, porque cada repuesto repetido puede tener pedidos, carritos, favoritos, avisos de stock y compatibilidades. Para ver qué tiene cada id:
+
+```sql
+SELECT p.id, p.name, p.price, p.stock,
+  (SELECT count(*) FROM order_item    WHERE part_id = p.id) AS pedidos,
+  (SELECT count(*) FROM cart_item     WHERE part_id = p.id) AS carritos,
+  (SELECT count(*) FROM favorite      WHERE part_id = p.id) AS favoritos,
+  (SELECT count(*) FROM stock_alert   WHERE part_id = p.id) AS avisos,
+  (SELECT count(*) FROM compatibility WHERE part_id = p.id) AS compatibilidades
+FROM part p WHERE p.part_code = '<código>';
+```
+
+Con un respaldo hecho y la decisión del equipo:
+
+- **Son repuestos distintos** con el código mal puesto: se le da un código nuevo a uno (`UPDATE part SET part_code = '...' WHERE id = ...`). No rompe ninguna relación, porque todas apuntan al `id`.
+- **Son el mismo repuesto** cargado dos veces: se elige el que queda, se pasan a ese `id` las referencias del otro y recién después se borra el otro. Hay que hacerlo en una transacción y cuidando los choques: `order_item`, `cart_item` y `compatibility` tienen clave (`pedido`/`carrito`/`repuesto`, `repuesto`/`auto`), y `favorite` y `stock_alert` son únicos por cliente y repuesto. En esos casos se suman las cantidades o se descarta la fila repetida.
+
+Después, `alembic upgrade head`.
+
+### Tests de migraciones
+
+`tests/migrations_test.py` prueba las migraciones sobre una base vacía, la incorporación de una base existente (sin recrear tablas: mismos OID y mismos datos), el `UNIQUE` de `part_code`, el downgrade y el seed corrido dos veces y dos a la vez. Una parte corre en SQLite (siempre). La otra necesita un Postgres de prueba en `TEST_POSTGRES_URL`: sin la variable se saltea, y en el CI la tiene. Cada test crea su propia base con un nombre al azar y la borra al terminar, sin tocar las demás. Para correrlos en local con un Postgres descartable, en memoria (sin volumen):
+
+```bash
+docker run -d --rm --name pg-tests -p 55432:5432 --tmpfs /var/lib/postgresql/data -e POSTGRES_PASSWORD=test postgres:17
+cd backend
+TEST_POSTGRES_URL=postgresql+psycopg2://postgres:test@localhost:55432/postgres uv run pytest ../tests/migrations_test.py
+docker stop pg-tests
+```
+
+## Carga de datos
+
+Con el stack levantado (`docker compose up -d`) y la base preparada con las migraciones (ver arriba), los scripts se corren dentro del contenedor del backend, en este orden. Todos se pueden correr más de una vez: si los datos ya están, no hacen nada.
+
+```bash
+# 0. Tablas (la primera vez, y cada vez que se bajan migraciones nuevas)
+docker exec backend uv run alembic upgrade head
+
 # 1. Catálogo: modelos de autos y repuestos (backend/data/*.json)
 docker exec backend uv run python -m scripts.seed
 
@@ -15,7 +162,7 @@ docker exec backend uv run python -m scripts.seed_demo_users
 docker exec backend uv run python -m scripts.seed_order_history
 ```
 
-Sin Docker, desde `backend/` y con el `.venv` activado: `python -m scripts.seed`, etc.
+Sin Docker, desde `backend/` y con `DATABASE_URL` exportada: `uv run alembic upgrade head`, `uv run python -m scripts.seed`, etc.
 
 ### Catálogo
 
@@ -25,7 +172,9 @@ Cada repuesto tiene su fabricante (`MANUFACTURERS` en el mismo script), como en 
 
 Cada repuesto trae además una descripción, sus especificaciones técnicas (diámetro, material, medidas, etc., según el tipo) y su garantía: cuántos meses y quién la cubre, el fabricante o el vendedor (las marcas económicas de `VENDOR_WARRANTY` no tienen garantía de fábrica en el país y la cubre la tienda). Ni el nombre ni la descripción nombran autos ("Radiador Valeo", no "Radiador Valeo Chevrolet Onix"): para qué autos es cada repuesto lo dicen sus compatibilidades, que el detalle muestra en la pestaña Aplicaciones. Los de motor sí llevan el código del motor ("Filtro de aceite Mann-Filter 1.4 8V"). El script falla si un repuesto tiene como fabricante una marca de auto, o si el nombre o la descripción nombran una marca o un modelo de auto.
 
-Sobre una base que ya tiene el catálogo, `scripts.seed` no lo vuelve a cargar: agrega las columnas nuevas de `part` si faltan, agrega lo que la base no tiene (modelos de auto, repuestos y compatibilidades nuevas, por ejemplo de una marca agregada) y actualiza, por código, el nombre, la descripción, las especificaciones y la garantía de los repuestos que ya existen, sin tocar precios, stock, pedidos, carritos ni favoritos. Así, después de bajar cambios del catálogo alcanza con volver a correrlo (también contra la base de la nube).
+Sobre una base que ya tiene el catálogo, `scripts.seed` no lo vuelve a cargar: agrega lo que la base no tiene (modelos de auto, repuestos y compatibilidades nuevas, por ejemplo de una marca agregada) y actualiza, por código, el nombre, la descripción, las especificaciones y la garantía de los repuestos que ya existen, sin tocar precios, stock, pedidos, carritos ni favoritos. Así, después de bajar cambios del catálogo alcanza con volver a correrlo (también contra la base de la nube, si ya está en la última migración).
+
+Correrlo dos veces, o dos a la vez, no duplica nada. Los repuestos se insertan con `INSERT ... ON CONFLICT (part_code) DO NOTHING`, así que la restricción `UNIQUE` de la base frena un código repetido aunque otro proceso lo haya cargado entre la consulta y el insert. Las compatibilidades van igual, por su clave. Además, un *advisory lock* de Postgres hace que un segundo seed espere a que termine el primero, lo que también cubre a los modelos de auto, que no tienen una restricción única. Todo el seed es una sola transacción: si falla, no queda nada a medias.
 
 ### Imágenes de los repuestos
 
@@ -76,7 +225,7 @@ Es reproducible: con la misma semilla y la misma fecha final se generan exactame
 docker exec backend uv run python -m scripts.seed_order_history --semilla 7 --hasta 2026-10-19
 ```
 
-Si cambia algo del catálogo o de los pedidos y hay que regenerar todo, lo más simple es recrear la base (`docker compose down -v`, que borra todos los datos locales) y volver a correr los tres scripts.
+Si cambia algo del catálogo o de los pedidos y hay que regenerar todo, lo más simple es recrear la base (`docker compose down -v`, que borra todos los datos locales), aplicar las migraciones (`alembic upgrade head`) y volver a correr los tres scripts.
 
 ## Dashboard del vendedor
 

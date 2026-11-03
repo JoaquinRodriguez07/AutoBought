@@ -5,22 +5,25 @@ Usage: python -m scripts.seed
 Reads data/car_models.json and data/parts.json and inserts them. Run
 scripts/generate_dataset.py first if those files don't exist yet.
 
-Si la base ya tiene el catálogo, no lo vuelve a cargar: agrega solo lo
-que falta (modelos de auto, repuestos y compatibilidades nuevas, por
+La base tiene que estar preparada con las migraciones (`alembic upgrade
+head`): el seed carga datos, no crea ni cambia tablas, y si la base no está
+al día no corre.
+
+Se puede correr las veces que haga falta, también dos a la vez: agrega solo
+lo que falta (modelos de auto, repuestos y compatibilidades nuevas, por
 ejemplo de una marca agregada) y actualiza los repuestos que ya existen
 (por su código) con lo que cambió en parts.json (nombre, descripción,
 especificaciones y garantía), sin tocar precios, stock, pedidos, carritos
-ni favoritos. Las columnas que se agregaron después de creada la base
-(descripción, especificaciones, garantía y la versión de sesión del
-usuario) se agregan solas: no hace falta borrar la base.
+ni favoritos.
 """
 
 import json
 from pathlib import Path
 
-from sqlalchemy import insert, inspect, text
+from sqlalchemy import insert, text
+from sqlalchemy.dialects import postgresql, sqlite
 
-from app.db.base import Base
+from app.db.migrations import require_head
 from app.db.session import SessionLocal, engine
 from app.models.car_model import CarModel
 from app.models.compatibility import Compatibility
@@ -35,51 +38,25 @@ def load_json(filename, key):
     return json.loads(path.read_text(encoding="utf-8"))[key]
 
 
-# Columnas de `part` que no estaban cuando se crearon las primeras bases.
-# create_all no agrega columnas a una tabla que ya existe.
-NEW_PART_COLUMNS = {
-    "description": "TEXT",
-    "specifications": "JSON",  # JSONB en Postgres (ver models/part.py)
-    "warranty_months": "INTEGER",
-    "warranty_provider": "VARCHAR(20)",
-}
+# Dos seeds a la vez (dos personas contra la base de la nube, por ejemplo)
+# se esperan: el segundo arranca cuando el primero confirmó. Cualquier número
+# fijo sirve; solo tiene que ser el mismo en todos.
+SEED_LOCK = 168_2026
 
-# Columnas de `user` que no estaban cuando se crearon las primeras bases.
-NEW_USER_COLUMNS = {
-    # Versión de sesión: sube al cambiar la contraseña e invalida los tokens anteriores.
-    "session_version": "INTEGER NOT NULL DEFAULT 0",
-}
+
+def lock_seed(db):
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": SEED_LOCK})
+
+
+def insert_ignoring(db, model, *conflict_columns):
+    """INSERT ... ON CONFLICT (columnas) DO NOTHING, en Postgres o en SQLite
+    (los tests): si la fila ya está, no la duplica ni falla."""
+    dialect = postgresql if db.get_bind().dialect.name == "postgresql" else sqlite
+    return dialect.insert(model).on_conflict_do_nothing(index_elements=list(conflict_columns))
+
 
 DETAIL_FIELDS = ("name", "description", "specifications", "warranty_months", "warranty_provider")
-
-
-def add_missing_columns():
-    postgres = engine.dialect.name == "postgresql"
-    inspector = inspect(engine)
-    existing = {column["name"]: column["type"] for column in inspector.get_columns("part")}
-    user_columns = (
-        {column["name"] for column in inspector.get_columns("user")}
-        if inspector.has_table("user")
-        else None
-    )
-    with engine.begin() as connection:
-        if user_columns is not None:
-            for name, sql_type in NEW_USER_COLUMNS.items():
-                if name not in user_columns:
-                    connection.execute(text(f'ALTER TABLE "user" ADD COLUMN {name} {sql_type}'))
-                    print(f"Added column user.{name}.")
-        for name, sql_type in NEW_PART_COLUMNS.items():
-            if postgres and sql_type == "JSON":
-                sql_type = "JSONB"
-            if name not in existing:
-                connection.execute(text(f"ALTER TABLE part ADD COLUMN {name} {sql_type}"))
-                print(f"Added column part.{name}.")
-            elif postgres and sql_type == "JSONB" and type(existing[name]).__name__ == "JSON":
-                # Una columna creada como JSON común (sin comparación) pasa a JSONB.
-                connection.execute(text(
-                    f"ALTER TABLE part ALTER COLUMN {name} TYPE JSONB USING {name}::jsonb"
-                ))
-                print(f"Changed column part.{name} to JSONB.")
 
 
 def update_details(db, parts_data):
@@ -95,7 +72,7 @@ def update_details(db, parts_data):
                 setattr(part, field, data[field])
                 changed = True
         updated += changed
-    db.commit()
+    db.flush()
     return updated
 
 
@@ -109,7 +86,16 @@ def add_missing_catalog(db, car_models_data, parts_data):
     devuelve los ids). Contra una base remota, insertar de a uno son miles
     de viajes de ida y vuelta y el seed tarda muchísimo.
 
+    Los repuestos y las compatibilidades van con ON CONFLICT DO NOTHING: si
+    otro proceso cargó el mismo código entre la consulta y el INSERT, la
+    restricción UNIQUE de part_code (y la clave de compatibility) lo frena
+    y la fila no se duplica. Los modelos de auto no tienen una restricción
+    así; a esos los protege lock_seed.
+
+    No confirma: lo hace seed_catalog, todo junto.
+
     Devuelve cuántos modelos y cuántos repuestos agregó."""
+    lock_seed(db)
     index = {
         (car_model.brand, car_model.model, car_model.engine_code): car_model.id
         for car_model in db.query(CarModel)
@@ -146,11 +132,15 @@ def add_missing_catalog(db, car_models_data, parts_data):
             warranty_months=data["warranty_months"],
             warranty_provider=data["warranty_provider"],
         )
+    added_parts = 0
     if new_parts:
         returned = db.execute(
-            insert(Part).returning(Part.id, Part.part_code), list(new_parts.values())
-        )
-        part_ids.update({row.part_code: row.id for row in returned})
+            insert_ignoring(db, Part, "part_code").returning(Part.id, Part.part_code),
+            list(new_parts.values()),
+        ).all()
+        added_parts = len(returned)
+        # Los que se saltearon por conflicto no vuelven en el RETURNING.
+        part_ids = dict(db.query(Part.part_code, Part.id))
 
     # Un repuesto que ya estaba puede servirle a un auto nuevo (el aceite,
     # las baterías...).
@@ -170,21 +160,31 @@ def add_missing_catalog(db, car_models_data, parts_data):
             })
             compatibilities.add((part_id, car_model_id))
     if rows:
-        db.execute(insert(Compatibility), rows)
+        db.execute(insert_ignoring(db, Compatibility, "part_id", "car_model_id"), rows)
 
-    db.commit()
-    return len(new_models), len(new_parts)
+    db.flush()
+    return len(new_models), added_parts
+
+
+def seed_catalog(db, car_models_data, parts_data):
+    """Agrega lo que falta y actualiza los detalles, en una sola transacción."""
+    try:
+        added = add_missing_catalog(db, car_models_data, parts_data)
+        updated = update_details(db, parts_data)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return (*added, updated)
 
 
 def main():
-    Base.metadata.create_all(bind=engine)
-    add_missing_columns()
+    require_head(engine)
     db = SessionLocal()
 
     car_models_data = load_json("car_models.json", "car_models")
     parts_data = load_json("parts.json", "parts")
-    new_models, new_parts = add_missing_catalog(db, car_models_data, parts_data)
-    updated = update_details(db, parts_data)
+    new_models, new_parts, updated = seed_catalog(db, car_models_data, parts_data)
     print(
         f"Added {new_models} car models and {new_parts} parts; "
         f"updated the details of {updated} parts."

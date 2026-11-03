@@ -31,7 +31,7 @@ from app.crud import cart as crud_cart
 from app.crud import order as crud_order
 from app.crud import shipping_address as crud_address
 from app.crud import user as crud_user
-from app.db.base import Base
+from app.db.migrations import require_head
 from app.db.session import SessionLocal, engine
 from app.models.part import Part
 from app.models.payment import PaymentStatus
@@ -160,7 +160,7 @@ def crear_vendedor(db, datos: dict) -> str:
 
 
 def main():
-    Base.metadata.create_all(bind=engine)
+    require_head(engine)
     db = SessionLocal()
     try:
         for datos in USUARIOS:

@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -154,54 +154,24 @@ def test_check_parts_rechaza_un_auto_en_el_nombre_o_la_descripcion(catalogo, cam
 # ---------------------------------------------------------------- seed sobre una base existente
 
 @pytest.fixture
-def base_vieja(monkeypatch):
-    """Base con la tabla `part` como estaba antes: sin las columnas nuevas."""
+def base_cargada():
+    """Base con el esquema de hoy y un repuesto cargado antes de que el
+    catálogo tuviera descripción, especificaciones y garantía."""
     engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
+    Base.metadata.create_all(bind=engine)
     with engine.begin() as connection:
-        connection.execute(text(
-            "CREATE TABLE part (id INTEGER PRIMARY KEY, part_code VARCHAR(50) NOT NULL, "
-            "name VARCHAR(120) NOT NULL, manufacturer VARCHAR(60) NOT NULL, "
-            "category VARCHAR(60) NOT NULL, color VARCHAR(40), price INTEGER NOT NULL, "
-            "stock INTEGER NOT NULL)"
-        ))
         connection.execute(text(
             "INSERT INTO part (part_code, name, manufacturer, category, price, stock) "
             "VALUES ('FIL-0001', 'Nombre viejo', 'Mann-Filter', 'Filtros', 123, 7)"
         ))
-    monkeypatch.setattr(seed, "engine", engine)
     return engine
 
 
-def test_seed_agrega_las_columnas_que_faltan(base_vieja):
-    seed.add_missing_columns()
-    seed.add_missing_columns()  # la segunda vez no hace nada
-
-    columnas = {c["name"] for c in inspect(base_vieja).get_columns("part")}
-    assert set(seed.NEW_PART_COLUMNS) <= columnas
-
-
-def test_seed_agrega_la_version_de_sesion_a_una_tabla_user_vieja(base_vieja):
-    with base_vieja.begin() as connection:
-        connection.execute(text(
-            'CREATE TABLE "user" (user_id INTEGER PRIMARY KEY, email VARCHAR(255) NOT NULL)'
-        ))
-        connection.execute(text("INSERT INTO \"user\" (email) VALUES ('viejo@mail.com')"))
-
-    seed.add_missing_columns()
-    seed.add_missing_columns()  # la segunda vez no hace nada
-
-    with base_vieja.connect() as connection:
-        version = connection.execute(text('SELECT session_version FROM "user"')).scalar_one()
-    assert version == 0
-
-
-def test_seed_actualiza_los_detalles_sin_tocar_precio_ni_stock(base_vieja, catalogo):
+def test_seed_actualiza_los_detalles_sin_tocar_precio_ni_stock(base_cargada, catalogo):
     _, parts = catalogo
-    seed.add_missing_columns()
-    Base.metadata.create_all(bind=base_vieja)
-    db = sessionmaker(bind=base_vieja)()
+    db = sessionmaker(bind=base_cargada)()
 
     assert seed.update_details(db, parts) == 1
 

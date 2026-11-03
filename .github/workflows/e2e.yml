@@ -45,6 +45,9 @@ jobs:
       - name: Esperar al backend
         run: timeout 180 bash -c 'until curl -sf http://localhost:8000/docs > /dev/null; do sleep 2; done'
 
+      - name: Crear las tablas (migraciones)
+        run: docker compose exec -T backend uv run alembic upgrade head
+
       - name: Cargar repuestos y usuarios de prueba
         run: |
           docker compose exec -T backend uv run python -m scripts.seed
