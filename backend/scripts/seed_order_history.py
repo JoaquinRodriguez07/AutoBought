@@ -49,7 +49,7 @@ from app.core.security import hash_password
 from app.crud import shipping_address as crud_address
 from app.crud import order as crud_order
 from app.crud import user as crud_user
-from app.db.base import Base
+from app.db.migrations import require_head
 from app.db.session import SessionLocal, engine
 from app.models.client import Client
 from app.models.order import Order, OrderStatus
@@ -389,7 +389,7 @@ def main():
                         help="último día del historial (AAAA-MM-DD); por defecto, hoy")
     args = parser.parse_args()
 
-    Base.metadata.create_all(bind=engine)
+    require_head(engine)
     db = SessionLocal()
     try:
         resumen = generar_historial(db, semilla=args.semilla, hasta=args.hasta)

@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Column, Integer, String, Text
+from sqlalchemy import JSON, Column, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
@@ -6,6 +6,9 @@ from app.db.base import Base
 
 class Part(Base):
     __tablename__ = "part"
+    # El código identifica al repuesto: la base no deja repetirlo (migración
+    # 0002) y el seed lo usa para no cargar dos veces el mismo.
+    __table_args__ = (UniqueConstraint("part_code", name = "uq_part_part_code"),)
 
     id = Column(Integer, primary_key = True)
     part_code = Column(String(50), nullable = False)

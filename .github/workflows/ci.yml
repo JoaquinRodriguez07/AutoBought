@@ -25,10 +25,25 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # Postgres de prueba para tests/migrations_test.py (migraciones, UNIQUE de
+    # part_code, seeds en paralelo). Vive y muere con la corrida.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only-not-a-real-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       # Valores solo para CI: los tests usan SQLite en memoria (tests/conftest.py).
       SECRET_KEY: ci-only-not-a-real-secret
       DATABASE_URL: sqlite://
+      TEST_POSTGRES_URL: postgresql+psycopg2://postgres:ci-only-not-a-real-password@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v7
 
