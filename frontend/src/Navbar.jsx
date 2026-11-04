@@ -6,7 +6,7 @@ import { usePitOpcional } from "./context/PitContext";
 import { esVendedor } from "./auth";
 import BusquedaCabecera from "./BusquedaCabecera";
 import { ID_BUSCADOR_CATALOGO } from "./SearchBar";
-import { IconoCaja, IconoCerrar, IconoCorazon, IconoLupa, IconoMenu } from "./Iconos";
+import { IconoCamion, IconoCerrar, IconoCorazon, IconoLupa, IconoMenu } from "./Iconos";
 import logo from "./assets/logo.png";
 
 // Los contadores (carrito y favoritos) rebotan cuando SUBEN (se agregó
@@ -505,13 +505,14 @@ export default function Navbar({
         {/* =================================================
             MIS PEDIDOS
             A la vista (no solo en el menú de la cuenta): un clic
-            para ver cómo viene lo que compraste.
+            para ver cómo viene lo que compraste. Como favoritos y el
+            carrito, se ve también sin sesión (lleva al login).
         ================================================== */}
 
-        {usuario && !vendedor && (
+        {!vendedor && (
         <button
           type="button"
-          onClick={() => navigate("/pedidos")}
+          onClick={usuario ? () => navigate("/pedidos") : onLogin}
           className={`relative transition ${
             paginaActual === "pedidos"
               ? "text-orange-500"
@@ -524,7 +525,7 @@ export default function Navbar({
               : "Mis pedidos"
           }
         >
-          <IconoCaja className="w-5 h-5" />
+          <IconoCamion className="w-5 h-5" />
 
           {cantidadPedidosEnCurso > 0 && (
             <span
