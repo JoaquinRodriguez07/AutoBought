@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { usarImagenGenerica } from "./mapearRepuesto";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import BotonAvisoStock from "./BotonAvisoStock";
 import Navbar from "./Navbar";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";
@@ -109,6 +109,7 @@ export default function Catalogo({
   const [orden, setOrden] = useState("Más relevantes");
   const [searchParams, setSearchParams] = useSearchParams();
   const consulta = (searchParams.get("q") || "").trim();
+  const { key: claveNavegacion } = useLocation();
   // Si se entra con ?q= (desde la barra del menú), la búsqueda se ve en
   // la barra del catálogo.
   const [busqueda, setBusqueda] = useState(consulta);
@@ -120,6 +121,28 @@ export default function Catalogo({
     const desdeInicio = searchParams.get("marca");
     return desdeInicio ? [desdeInicio] : [];
   });
+
+  // Los filtros ?marca= y ?fabricante= (marcas del footer, logos de Home,
+  // botones de fabricantes) también se aplican cuando YA se está en el
+  // catálogo: ahí la pantalla no se vuelve a montar y el estado inicial
+  // de arriba no se lee de nuevo. Se mira la navegación (no solo la
+  // dirección) para que tocar de nuevo la misma marca, después de haber
+  // destildado el filtro, lo vuelva a aplicar. Sin esos parámetros no se
+  // toca nada: lo que el cliente tildó a mano se conserva.
+  useEffect(() => {
+    const marca = searchParams.get("marca");
+    const fabricante = searchParams.get("fabricante");
+    if (!marca && !fabricante) return;
+
+    if (marca) setMarcasAuto([marca]);
+    if (fabricante) setFabricantes([fabricante]);
+    // Un filtro de una sola vez parte de la lista completa: se quita el
+    // texto que se había escrito en la barra, que si no seguiría filtrando.
+    setBusqueda(consulta);
+    // Solo cuando se navega: los filtros que el cliente cambia después
+    // a mano no se pisan.
+  }, [claveNavegacion]);
+
   const [precioMin, setPrecioMin] = useState("");
   const [precioMax, setPrecioMax] = useState("");
   const [soloConStock, setSoloConStock] = useState(false);

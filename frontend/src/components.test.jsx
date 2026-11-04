@@ -497,6 +497,59 @@ describe("Footer", () => {
   });
 });
 
+describe("Footer dentro del catálogo (App)", () => {
+  const autos = [
+    { ...catalogProducts[0], marcas: ["Chevrolet"] },
+    { ...catalogProducts[1], marcas: ["Fiat"] },
+  ];
+
+  it("filtra por la marca tocada aunque ya se esté en el catálogo", async () => {
+    const user = userEvent.setup();
+    obtenerRepuestos.mockResolvedValue(autos);
+    renderBase(
+      <MemoryRouter initialEntries={["/catalogo"]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+    await screen.findByText("Pastillas de Freno Delanteras Bosch");
+    expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+
+    const footer = screen.getByRole("contentinfo");
+    await user.click(within(footer).getByRole("button", { name: "Fiat" }));
+
+    expect(await screen.findByRole("checkbox", { name: /Fiat/ })).toBeChecked();
+    expect(screen.getByText("Discos de Freno Delanteros")).toBeInTheDocument();
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+
+    // Cambia a otra marca: reemplaza la anterior.
+    await user.click(within(footer).getByRole("button", { name: "Chevrolet" }));
+    await waitFor(() =>
+      expect(screen.queryByText("Discos de Freno Delanteros")).not.toBeInTheDocument()
+    );
+    expect(screen.getByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+  });
+
+  it("vuelve a aplicar la misma marca después de destildarla", async () => {
+    const user = userEvent.setup();
+    obtenerRepuestos.mockResolvedValue(autos);
+    renderBase(
+      <MemoryRouter initialEntries={["/catalogo?marca=Fiat"]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+    const casilla = await screen.findByRole("checkbox", { name: /Fiat/ });
+    expect(casilla).toBeChecked();
+
+    await user.click(casilla);
+    expect(screen.getByRole("checkbox", { name: /Fiat/ })).not.toBeChecked();
+
+    await user.click(within(screen.getByRole("contentinfo")).getByRole("button", { name: "Fiat" }));
+
+    expect(await screen.findByRole("checkbox", { name: /Fiat/ })).toBeChecked();
+    expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
+  });
+});
+
 describe("Home", () => {
   it("renders the hero with the vehicle selector as the main action", async () => {
     const user = userEvent.setup();
@@ -1297,6 +1350,64 @@ describe("DetalleProducto", () => {
 
     await user.click(within(seccion).getByRole("button", { name: /^agregar$/i }));
     await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith(9, 1));
+  });
+
+  it("con un vehículo activo, las sugerencias son solo las compatibles con ese auto", async () => {
+    const sugerida = (id, nombre, compatibilities) => mapearRepuesto({
+      id, name: nombre, manufacturer: "Castrol", part_code: `LUB-${id}`,
+      category: "Lubricantes", price: 3900, stock: 10, compatibilities,
+    });
+    const onix = { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 };
+    const gol = { brand: "Volkswagen", model: "Gol", engine_code: "1.6 MSI", year_from: 2013, year_to: 2019 };
+    const onixNuevo = { ...onix, year_from: 2020, year_to: 2023 };
+    obtenerRepuesto.mockResolvedValue(repuestoCompatible());
+    obtenerRecomendaciones.mockResolvedValue([
+      sugerida(21, "Aceite para Onix", [onix]),
+      sugerida(22, "Aceite para Gol", [gol]),
+      sugerida(23, "Aceite para Onix 2020 en adelante", [onixNuevo]),
+      sugerida(24, "Aceite sin datos de auto", []),
+    ]);
+
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: 2016 }} />
+        <Routes>
+          <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+        </Routes>
+      </>,
+      { initialEntries: ["/producto/filtro-compatible-7"] }
+    );
+
+    const seccion = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
+    expect(within(seccion).getByText("Aceite para Onix")).toBeInTheDocument();
+    expect(within(seccion).queryByText("Aceite para Gol")).not.toBeInTheDocument();
+    expect(within(seccion).queryByText("Aceite para Onix 2020 en adelante")).not.toBeInTheDocument();
+    expect(within(seccion).queryByText("Aceite sin datos de auto")).not.toBeInTheDocument();
+  });
+
+  it("oculta la sección si ninguna sugerencia es compatible con el vehículo activo", async () => {
+    obtenerRepuesto.mockResolvedValue(repuestoCompatible());
+    obtenerRecomendaciones.mockResolvedValue([
+      mapearRepuesto({
+        id: 22, name: "Aceite para Gol", manufacturer: "Castrol", part_code: "LUB-22",
+        category: "Lubricantes", price: 3900, stock: 10,
+        compatibilities: [{ brand: "Volkswagen", model: "Gol", engine_code: "1.6", year_from: 2013, year_to: 2019 }],
+      }),
+    ]);
+
+    render(
+      <>
+        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: 2016 }} />
+        <Routes>
+          <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+        </Routes>
+      </>,
+      { initialEntries: ["/producto/filtro-compatible-7"] }
+    );
+
+    await waitFor(() => expect(obtenerRecomendaciones).toHaveBeenCalledWith([7]));
+    await screen.findByRole("heading", { level: 1, name: "Filtro compatible" });
+    expect(screen.queryByRole("region", { name: "Suelen comprarse juntos" })).not.toBeInTheDocument();
   });
 
   const repuestoCompatible = () => mapearRepuesto({
@@ -3427,6 +3538,23 @@ describe("SearchBar and search helpers", () => {
 });
 
 describe("BusquedaCabecera", () => {
+  it("muestra el foco (anillo naranja) al navegar con el teclado", async () => {
+    const user = userEvent.setup();
+
+    render(<BusquedaCabecera />);
+    const input = screen.getByRole("textbox", { name: "Buscar repuestos" });
+    const contenedor = input.parentElement;
+
+    // El input no dibuja su propio contorno: el aro lo da el contenedor.
+    expect(contenedor).toHaveClass("focus-within:ring-2", "focus-within:ring-orange-500");
+
+    await user.tab();
+    expect(input).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Buscar" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Buscar" })).toHaveClass("focus-visible:ring-2");
+  });
+
   it("no navega ni consulta la API cuando la búsqueda está vacía", async () => {
     const user = userEvent.setup();
 

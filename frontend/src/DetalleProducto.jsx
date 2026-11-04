@@ -12,6 +12,7 @@ import { IconoAuto } from "./Iconos";
 import { obtenerRepuesto } from "./api";
 import { extraerIdProducto } from "./slugProducto";
 import { esVendedor } from "./auth";
+import { compatibilidadesDe, esCompatible, normalizar } from "./compatibilidad";
 
 function IconoCarrito({ className = "h-4 w-4" }) {
   return (
@@ -141,77 +142,12 @@ export default function DetalleProducto({
     }
   };
 
-  const normalizar = (valor) => valor?.trim().replace(/\s+/g, " ").toLocaleLowerCase("es") || "";
   const marcaSeleccionada = normalizar(filtrosVehiculo?.brand);
-  const modeloSeleccionado = normalizar(filtrosVehiculo?.model);
-  const anioSeleccionado = filtrosVehiculo?.year ? Number(filtrosVehiculo.year) : null;
   const nombreVehiculo = [filtrosVehiculo?.brand, filtrosVehiculo?.model, filtrosVehiculo?.year].filter(Boolean).join(" ");
-  // La API puede entregar compatibilidades estructuradas o aplicaciones como texto.
-  // Normalizamos ambas formas para que la tarjeta no indique "no disponible"
-  // cuando el producto sí trae aplicaciones registradas.
-  const compatibilidadesEstructuradas = Array.isArray(productoActual.compatibilidades)
-    ? productoActual.compatibilidades
-    : [];
-  const aplicacionesTexto = Array.isArray(productoActual.aplicaciones)
-    ? productoActual.aplicaciones.filter((item) => typeof item === "string" && item.trim())
-    : [];
-  const compatibilidades = compatibilidadesEstructuradas.length
-    ? compatibilidadesEstructuradas.map((item) => ({ ...item, formatoTexto: false }))
-    : aplicacionesTexto.map((texto) => ({ texto: texto.trim(), formatoTexto: true }));
-
-  const compatible = marcaSeleccionada && compatibilidades.length > 0
-    ? (() => {
-        let hayDatosInsuficientes = false;
-
-        for (const compatibilidad of compatibilidades) {
-          if (compatibilidad.formatoTexto) {
-            const aplicacion = normalizar(compatibilidad.texto);
-            const marcaCoincide = aplicacion.includes(marcaSeleccionada);
-            if (!marcaCoincide) continue;
-            if (!modeloSeleccionado) return true;
-            if (!aplicacion.includes(modeloSeleccionado)) continue;
-            if (!anioSeleccionado) return true;
-
-            // En aplicaciones textuales solo afirmamos compatibilidad por año
-            // si el año seleccionado aparece explícitamente en la aplicación.
-            const aniosExplicitos = aplicacion.match(/\b(?:19|20)\d{2}\b/g) || [];
-            if (aniosExplicitos.includes(String(anioSeleccionado))) return true;
-            if (aniosExplicitos.length === 0) hayDatosInsuficientes = true;
-            continue;
-          }
-
-          const marcaAplicacion = normalizar(compatibilidad.brand);
-          if (!marcaAplicacion) {
-            hayDatosInsuficientes = true;
-            continue;
-          }
-          if (marcaAplicacion !== marcaSeleccionada) continue;
-          if (!modeloSeleccionado) return true;
-
-          const modeloAplicacion = normalizar(compatibilidad.model);
-          if (!modeloAplicacion) {
-            hayDatosInsuficientes = true;
-            continue;
-          }
-          if (modeloAplicacion !== modeloSeleccionado) continue;
-          if (!anioSeleccionado) return true;
-
-          if (compatibilidad.year_from == null || compatibilidad.year_to == null) {
-            hayDatosInsuficientes = true;
-            continue;
-          }
-          const anioDesde = Number(compatibilidad.year_from);
-          const anioHasta = Number(compatibilidad.year_to);
-          if (!Number.isFinite(anioDesde) || !Number.isFinite(anioHasta) || anioDesde > anioHasta) {
-            hayDatosInsuficientes = true;
-            continue;
-          }
-          if (anioSeleccionado >= anioDesde && anioSeleccionado <= anioHasta) return true;
-        }
-
-        return hayDatosInsuficientes ? null : false;
-      })()
-    : null;
+  // La regla de compatibilidad vive en compatibilidad.js (la comparte con
+  // "Suelen comprarse juntos").
+  const compatibilidades = compatibilidadesDe(productoActual);
+  const compatible = esCompatible(compatibilidades, filtrosVehiculo);
 
   // El agregado lo hace BotonAgregarCarrito y el aviso, CartContext.
   const sinStock = productoActual.stock === 0;
