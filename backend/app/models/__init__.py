@@ -8,6 +8,7 @@ from app.models.cart import Cart
 from app.models.cart_item import CartItem
 from app.models.order import Order
 from app.models.order_item import OrderItem
+from app.models.order_status_history import OrderStatusHistory
 from app.models.payment import Payment
 from app.models.shipping_address import ShippingAddress
 from app.models.favorite import Favorite

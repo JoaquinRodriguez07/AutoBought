@@ -43,7 +43,7 @@ export default function Footer({
   onCatalogo,
   onMarcas,
   onLogin,
-  onHistorial,
+  onPedidos,
   onFavoritos,
   onCarrito,
 }) {
@@ -79,7 +79,7 @@ export default function Footer({
         <Columna titulo="Mi cuenta">
           <Enlace onClick={onLogin}>Mi perfil</Enlace>
           {/* Sin sesión, "Mis pedidos" lleva a iniciar sesión. */}
-          <Enlace onClick={usuario ? onHistorial : onLogin}>Mis pedidos</Enlace>
+          <Enlace onClick={usuario ? onPedidos : onLogin}>Mis pedidos</Enlace>
           <Enlace onClick={onFavoritos}>Mis favoritos</Enlace>
           <Enlace onClick={onCarrito}>Mi carrito</Enlace>
         </Columna>

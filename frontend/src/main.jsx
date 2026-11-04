@@ -7,6 +7,7 @@ import App from './App.jsx'
 import { CartProvider } from './context/CartContext.jsx'
 import { VehicleProvider } from './context/VehicleContext.jsx'
 import { PitProvider } from './context/PitContext.jsx'
+import { PedidosProvider } from './context/PedidosContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -14,8 +15,10 @@ createRoot(document.getElementById('root')).render(
       <CartProvider>
         <VehicleProvider>
           <PitProvider>
-            <Toaster position="top-right" />
-            <App />
+            <PedidosProvider>
+              <Toaster position="top-right" />
+              <App />
+            </PedidosProvider>
           </PitProvider>
         </VehicleProvider>
       </CartProvider>

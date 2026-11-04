@@ -11,6 +11,7 @@ class OrderStatus(str, enum.Enum):
     `Payment`."""
 
     CONFIRMED = "confirmed"
+    PACKING = "packing"
     SHIPPED = "shipped"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
@@ -56,6 +57,14 @@ class Order(Base):
         "OrderItem",
         back_populates="order",
         cascade="all, delete-orphan",
+    )
+    # Los pedidos de antes de esta tabla (y los del seed de historial) no
+    # tienen filas: ver `schemas.order.linea_de_tiempo`.
+    status_history = relationship(
+        "OrderStatusHistory",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        order_by="(OrderStatusHistory.changed_at, OrderStatusHistory.id)",
     )
     # Los pedidos de antes de Mercado Pago no tienen.
     payment = relationship(
