@@ -111,7 +111,7 @@ export default function Login({
             className="p-8 md:p-12 flex flex-col justify-center"
           >
 
-            <p className="text-orange-500 text-[11px] font-black tracking-[4px]">
+            <p className="text-orange-500 text-xs font-black tracking-[4px]">
               AUTOBOUGHT
             </p>
 
@@ -220,7 +220,7 @@ export default function Login({
               disabled={cargando}
               className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-sm font-black mt-6 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {cargando ? "INICIANDO SESIÓN..." : "INICIAR SESIÓN"}
+              {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
 
             {/* =================================================
@@ -261,7 +261,7 @@ export default function Login({
 
             <div className="absolute bottom-10 left-8 right-8">
 
-              <p className="text-orange-500 text-[11px] font-black tracking-[4px]">
+              <p className="text-orange-500 text-xs font-black tracking-[4px]">
                 REPUESTOS PARA SEGUIR AVANZANDO
               </p>
 

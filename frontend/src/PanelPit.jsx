@@ -96,7 +96,7 @@ export default function PanelPit({ onDetalle, onBuscarEnCatalogo }) {
           type="button"
           onClick={abrirPanel}
           aria-label={hayCharla ? "Seguir la conversación con Pit" : "Abrir Pit, el asistente con IA"}
-          className="relative w-16 h-16 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg flex items-center justify-center transition"
+          className="relative w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg flex items-center justify-center transition"
         >
           {saludar && !hayCharla && (
             <span
@@ -105,7 +105,7 @@ export default function PanelPit({ onDetalle, onBuscarEnCatalogo }) {
               className="absolute inset-0 rounded-2xl bg-orange-500 opacity-0 motion-safe:animate-llamar"
             />
           )}
-          <IconoPit className="relative w-8 h-8" />
+          <IconoPit className="relative w-6 h-6 md:w-8 md:h-8" />
           {hayCharla && (
             <span aria-hidden="true" className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-white" />
           )}

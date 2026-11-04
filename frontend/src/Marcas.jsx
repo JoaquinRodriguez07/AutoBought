@@ -139,11 +139,11 @@ export default function Marcas({
           {error && (
             <div className="bg-white border border-red-200 rounded-xl p-6 text-center">
               <p className="text-sm font-bold text-red-500">
-                No se pudieron cargar las marcas.
+                No pudimos cargar las marcas.
               </p>
 
               <p className="text-xs text-gray-400 mt-2">
-                Verificá que el backend esté funcionando.
+                Probá de nuevo en unos minutos.
               </p>
             </div>
           )}
@@ -227,11 +227,11 @@ export default function Marcas({
               </p>
 
               <h2 className="text-white text-xl md:text-2xl font-black italic uppercase mt-2">
-                BUSCÁ DIRECTAMENTE TU REPUESTO
+                Buscá tu repuesto en el catálogo
               </h2>
 
               <p className="text-gray-400 text-sm mt-2">
-                Nuestro catálogo se actualiza constantemente.
+                Encontralo por nombre, código o categoría.
               </p>
 
             </div>
@@ -241,7 +241,7 @@ export default function Marcas({
               onClick={() => onCatalogo()}
               className="bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-lg text-sm font-black transition whitespace-nowrap"
             >
-              VER REPUESTOS →
+              Ver repuestos →
             </button>
 
           </div>

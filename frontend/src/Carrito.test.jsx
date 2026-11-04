@@ -69,7 +69,7 @@ function renderCarrito(props = {}) {
 
 // Abre el modal y espera a que terminen de cargar las direcciones.
 async function abrirConfirmacion(user) {
-  await user.click(screen.getByRole("button", { name: "FINALIZAR COMPRA" }));
+  await user.click(screen.getByRole("button", { name: "Finalizar compra" }));
   await waitFor(() =>
     expect(screen.queryByText("Cargando tus direcciones...")).not.toBeInTheDocument()
   );
@@ -108,7 +108,7 @@ describe("Carrito: confirmación de compra (HU 1.9)", () => {
     expect(within(dialogo).getByText("Filtro de aire × 1")).toBeInTheDocument();
     expect(within(dialogo).getByText(`$${(5000).toLocaleString("es-UY")}`)).toBeInTheDocument();
 
-    await user.click(within(dialogo).getByRole("button", { name: "IR A PAGAR" }));
+    await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
 
     expect(await screen.findByText("Pedido #42")).toBeInTheDocument();
     expect(confirmarCompra).toHaveBeenCalledWith({ direccionId: 1 });
@@ -128,12 +128,12 @@ describe("Carrito: confirmación de compra (HU 1.9)", () => {
 
     renderCarrito({ onHistorial });
     await abrirConfirmacion(user);
-    await user.click(screen.getByRole("button", { name: "IR A PAGAR" }));
+    await user.click(screen.getByRole("button", { name: "Ir a pagar" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos conectar con Mercado Pago");
     expect(irA).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "REINTENTAR PAGO" }));
+    await user.click(screen.getByRole("button", { name: "Reintentar pago" }));
 
     await waitFor(() => expect(irA).toHaveBeenCalledWith(LINK_MP));
     expect(confirmarCompra).toHaveBeenCalledTimes(1);
@@ -148,7 +148,7 @@ describe("Carrito: confirmación de compra (HU 1.9)", () => {
 
     renderCarrito();
     await abrirConfirmacion(user);
-    await user.click(screen.getByRole("button", { name: "IR A PAGAR" }));
+    await user.click(screen.getByRole("button", { name: "Ir a pagar" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "No hay stock suficiente de 'Filtro de aire'"
@@ -163,7 +163,7 @@ describe("Carrito: confirmación de compra (HU 1.9)", () => {
 
     renderCarrito();
 
-    expect(screen.getByRole("button", { name: "FINALIZAR COMPRA" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Finalizar compra" })).toBeDisabled();
   });
 });
 
@@ -184,7 +184,7 @@ describe("Carrito: dirección de envío", () => {
     expect(selectorDireccion).toHaveValue("2");
 
     await user.selectOptions(selectorDireccion, "Av. Italia 1234, Montevideo");
-    await user.click(within(dialogo).getByRole("button", { name: "IR A PAGAR" }));
+    await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
 
     expect(await screen.findByText("Pedido #50")).toBeInTheDocument();
     expect(confirmarCompra).toHaveBeenCalledWith({ direccionId: 1 });
@@ -199,7 +199,7 @@ describe("Carrito: dirección de envío", () => {
     renderCarrito({ onDirecciones });
     const dialogo = await abrirConfirmacion(user);
 
-    expect(within(dialogo).getByRole("button", { name: "IR A PAGAR" })).toBeDisabled();
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeDisabled();
     await user.click(within(dialogo).getByRole("button", { name: "Agregar una dirección" }));
     expect(onDirecciones).toHaveBeenCalledTimes(1);
     expect(confirmarCompra).not.toHaveBeenCalled();

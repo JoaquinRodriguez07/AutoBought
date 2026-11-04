@@ -103,36 +103,36 @@ export default function ResultadoPago(propsNavbar) {
   return (
     <TarjetaCuenta titulo={pedidoId ? `Pedido #${pedidoId}` : "Pago"} {...propsNavbar}>
       {estado === "consultando" && (
-        <p role="status" className="mt-6 text-[10px] text-gray-500">
+        <p role="status" className="mt-6 text-xs text-gray-500">
           Estamos confirmando tu pago...
         </p>
       )}
 
       {estado === "aprobado" && (
-        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-[10px] font-semibold">
+        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-xs font-semibold">
           ¡Pago aprobado! Tu compra está confirmada y te mandamos el detalle por mail.
         </div>
       )}
 
       {estado === "en-proceso" && (
-        <div role="status" className="mt-6 bg-orange-50 border border-orange-200 text-orange-700 rounded-md px-4 py-3 text-[10px] font-semibold">
+        <div role="status" className="mt-6 bg-orange-50 border border-orange-200 text-orange-700 rounded-md px-4 py-3 text-xs font-semibold">
           Tu pago está en proceso. Cuando Mercado Pago lo apruebe, te avisamos por mail.
         </div>
       )}
 
       {estado === "rechazado" && (
         <>
-          <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-[9px] font-semibold">
+          <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-xs font-semibold">
             El pago no se pudo completar. Tus repuestos siguen reservados: podés intentarlo de nuevo.
           </div>
           <button type="button" onClick={reintentar} disabled={reintentando} className={claseBotonCuenta}>
-            {reintentando ? "ABRIENDO MERCADO PAGO..." : "REINTENTAR PAGO"}
+            {reintentando ? "Abriendo Mercado Pago..." : "Reintentar pago"}
           </button>
         </>
       )}
 
       {error && (
-        <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-[9px] font-semibold">
+        <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-xs font-semibold">
           {error}
         </div>
       )}
@@ -141,7 +141,7 @@ export default function ResultadoPago(propsNavbar) {
         <button
           type="button"
           onClick={estado === "error" ? () => propsNavbar.onCatalogo() : () => navigate(`/pedidos/${pedidoId}`)}
-          className="w-full mt-3 py-2 text-[11px] font-bold text-gray-500 hover:text-orange-500"
+          className="w-full mt-3 py-2 text-xs font-bold text-gray-500 hover:text-orange-500"
         >
           {estado === "error" ? "Ir a la tienda" : "Seguir mi pedido"}
         </button>

@@ -220,7 +220,7 @@ export default function Registro({
         {errorDe("terminos")}
 
         <button type="submit" disabled={cargando} className={`${claseBotonPrincipal} mt-6`}>
-          {cargando ? "CREANDO CUENTA..." : "CREAR CUENTA"}
+          {cargando ? "Creando cuenta..." : "Crear cuenta"}
         </button>
 
         <p className="text-center text-sm text-gray-500 mt-5">

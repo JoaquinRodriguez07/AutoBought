@@ -97,14 +97,16 @@ describe("MisPedidos: los pedidos en curso", () => {
     expect(screen.getByText(/Pagalo antes de/)).toBeInTheDocument();
   });
 
-  test("links to the purchase history", async () => {
+  test("the 'Anteriores' tab opens the finished purchases", async () => {
     const user = userEvent.setup();
-    const props = renderPedidos();
+    renderPedidos();
     await enCurso();
 
-    await user.click(screen.getByRole("button", { name: "Ver historial de compras →" }));
+    const pestanas = screen.getByRole("navigation", { name: "Mis compras" });
+    expect(within(pestanas).getByRole("button", { name: /En curso/ })).toHaveAttribute("aria-current", "page");
+    await user.click(within(pestanas).getByRole("button", { name: "Anteriores" }));
 
-    expect(props.onHistorial).toHaveBeenCalled();
+    expect(screen.getByTestId("ruta")).toHaveTextContent(/^\/historial$/);
   });
 
   test("without orders in progress, says so and leads to the catalog", async () => {
@@ -113,9 +115,8 @@ describe("MisPedidos: los pedidos en curso", () => {
     const props = renderPedidos();
 
     expect(await screen.findByText("No tenés pedidos en curso.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "VER REPUESTOS" }));
+    await user.click(screen.getByRole("button", { name: "Ver repuestos" }));
     expect(props.onCatalogo).toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Ver historial de compras →" })).toBeInTheDocument();
   });
 
   test("shows the error if the orders can't be loaded", async () => {
@@ -205,10 +206,10 @@ describe("MisPedidos: el detalle (/pedidos/:id)", () => {
     expect(within(linea).getAllByRole("listitem")).toHaveLength(4);
     expect(screen.getByText("Pastillas de freno")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "YA LO RECIBÍ" }));
+    await user.click(screen.getByRole("button", { name: "Ya lo recibí" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Marcamos el pedido como entregado");
-    expect(screen.queryByRole("button", { name: "YA LO RECIBÍ" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ya lo recibí" })).not.toBeInTheDocument();
   });
 
   test("shows the error if the order can't be loaded and lets you go back", async () => {
@@ -217,7 +218,7 @@ describe("MisPedidos: el detalle (/pedidos/:id)", () => {
     renderPedidos("/pedidos/999");
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Pedido no encontrado.");
-    await user.click(screen.getByRole("button", { name: "← Volver a mis pedidos" }));
+    await user.click(screen.getByRole("button", { name: "← Volver a mis compras" }));
     expect(screen.getByTestId("ruta")).toHaveTextContent(/^\/pedidos$/);
   });
 
@@ -226,7 +227,7 @@ describe("MisPedidos: el detalle (/pedidos/:id)", () => {
     obtenerDetalleCompra.mockResolvedValue(enCamino);
     renderPedidos("/pedidos/17");
 
-    await user.click(await screen.findByRole("button", { name: "← Volver a mis pedidos" }));
+    await user.click(await screen.findByRole("button", { name: "← Volver a mis compras" }));
 
     expect(screen.getByTestId("ruta")).toHaveTextContent(/^\/pedidos$/);
     expect(await enCurso()).toBeInTheDocument();

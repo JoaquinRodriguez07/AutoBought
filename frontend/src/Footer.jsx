@@ -8,6 +8,8 @@
  * Recibe los mismos on* de navegación que la Navbar (propsNavbar).
  */
 
+import { IconoCaja, IconoCamion, IconoSobre } from "./Iconos";
+
 const ANIO = new Date().getFullYear();
 
 // Las marcas más buscadas: llevan al catálogo filtrado por esa marca (el
@@ -43,6 +45,7 @@ export default function Footer({
   onCatalogo,
   onMarcas,
   onLogin,
+  onCuenta,
   onPedidos,
   onFavoritos,
   onCarrito,
@@ -77,24 +80,33 @@ export default function Footer({
         </Columna>
 
         <Columna titulo="Mi cuenta">
-          <Enlace onClick={onLogin}>Mi perfil</Enlace>
-          {/* Sin sesión, "Mis pedidos" lleva a iniciar sesión. */}
-          <Enlace onClick={usuario ? onPedidos : onLogin}>Mis pedidos</Enlace>
+          {/* Sin sesión, la cuenta y las compras llevan a iniciar sesión. */}
+          <Enlace onClick={usuario ? onCuenta : onLogin}>Mi cuenta</Enlace>
+          <Enlace onClick={usuario ? onPedidos : onLogin}>Mis compras</Enlace>
           <Enlace onClick={onFavoritos}>Mis favoritos</Enlace>
           <Enlace onClick={onCarrito}>Mi carrito</Enlace>
         </Columna>
 
+        {/* El mail es un link; lo demás son datos (con ícono, para que
+            no parezcan links). */}
         <Columna titulo="Ayuda">
           <li>
             <a
               href="mailto:autobought.notificaciones@gmail.com"
-              className="hover:text-orange-400 transition"
+              className="flex items-center gap-2 hover:text-orange-400 transition"
             >
+              <IconoSobre className="w-4 h-4 shrink-0 text-orange-500" />
               Escribinos por mail
             </a>
           </li>
-          <li>Envíos a todo el país</li>
-          <li>Despachamos de lunes a viernes</li>
+          <li className="flex items-center gap-2 text-gray-500">
+            <IconoCamion className="w-4 h-4 shrink-0" />
+            Envíos a todo el país
+          </li>
+          <li className="flex items-center gap-2 text-gray-500">
+            <IconoCaja className="w-4 h-4 shrink-0" />
+            Despachamos de lunes a viernes
+          </li>
         </Columna>
 
       </div>

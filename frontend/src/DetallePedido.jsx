@@ -38,7 +38,7 @@ export function EstadoPedido({ compra }) {
         clase: CLASES_ESTADO[compra.estado] ?? "bg-gray-50 text-gray-500 ring-gray-200",
       };
   return (
-    <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ring-1 ring-inset ${clase}`}>
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ring-1 ring-inset ${clase}`}>
       {texto}
     </span>
   );
@@ -47,7 +47,7 @@ export function EstadoPedido({ compra }) {
 function LineaDeTiempo({ compra }) {
   const pasos = pasosDeSeguimiento(compra);
   return (
-    <div className="border border-gray-200 rounded-xl p-5 mb-6">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
       <h3 className="text-xs font-black uppercase text-gray-500 mb-4">Seguimiento</h3>
       <ol aria-label="Seguimiento del pedido" className="grid grid-cols-1 sm:grid-flow-col sm:auto-cols-fr gap-4">
         {pasos.map((paso, indice) => {
@@ -93,11 +93,11 @@ function textoDireccion(d) {
 }
 
 const botonPrincipal =
-  "h-10 px-5 shrink-0 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-xs font-black transition whitespace-nowrap disabled:opacity-40";
+  "h-10 px-5 shrink-0 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition whitespace-nowrap disabled:opacity-40";
 
 /**
- * El detalle de un pedido, igual en «Historial de compras» y en «Mis
- * pedidos»: qué falta (pagar o avisar que llegó), la línea de tiempo, los
+ * El detalle de un pedido, igual en las dos pestañas de «Mis compras»
+ * (en curso y anteriores): qué falta (pagar o avisar que llegó), la línea de tiempo, los
  * productos, el envío y el total.
  *
  * Props:
@@ -174,7 +174,7 @@ export default function DetallePedido({ compra, onVolver, textoVolver, onActuali
             aria-label={`Pagar el pedido #${compra.id} con Mercado Pago`}
             className={botonPrincipal}
           >
-            {pagando ? "ABRIENDO..." : "PAGAR CON MERCADO PAGO"}
+            {pagando ? "Abriendo..." : "Pagar con Mercado Pago"}
           </button>
         </div>
       )}
@@ -186,7 +186,7 @@ export default function DetallePedido({ compra, onVolver, textoVolver, onActuali
             <p className="text-sm text-gray-600 mt-1">Cuando te llegue, avisanos para darlo por entregado.</p>
           </div>
           <button type="button" onClick={confirmarLlegada} disabled={confirmando} className={botonPrincipal}>
-            {confirmando ? "CONFIRMANDO..." : "YA LO RECIBÍ"}
+            {confirmando ? "Confirmando..." : "Ya lo recibí"}
           </button>
         </div>
       )}
@@ -198,7 +198,7 @@ export default function DetallePedido({ compra, onVolver, textoVolver, onActuali
       )}
 
       {canceladoPorLaTienda(compra) && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
           <p className="text-sm font-black text-gray-900">La tienda canceló este pedido</p>
           <p className="text-sm text-gray-600 mt-1">
             Si ya lo habías pagado, te devolvemos el dinero. El reintegro puede tardar unos días en verse.
@@ -209,7 +209,7 @@ export default function DetallePedido({ compra, onVolver, textoVolver, onActuali
       {!faltaPagar(compra) && <LineaDeTiempo compra={compra} />}
 
       {vencioSinPagar(compra) && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
           <p className="text-sm font-black text-gray-900">
             Este pedido se canceló porque no se completó el pago a tiempo
           </p>
@@ -220,7 +220,7 @@ export default function DetallePedido({ compra, onVolver, textoVolver, onActuali
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-        <div className="border border-gray-200 rounded-xl">
+        <div className="bg-white border border-gray-200 rounded-xl">
           <h3 className="text-xs font-black uppercase text-gray-500 px-5 pt-5">Productos</h3>
           <ul className="divide-y divide-gray-100 px-5">
             {(compra.items || []).map((producto, index) => (
@@ -241,7 +241,7 @@ export default function DetallePedido({ compra, onVolver, textoVolver, onActuali
           </ul>
         </div>
 
-        <aside className="bg-gray-50 border border-gray-200 rounded-xl p-5 h-fit space-y-5">
+        <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit space-y-5">
           {compra.direccion && (
             <div>
               <p className="text-xs font-black uppercase text-gray-500">Envío</p>

@@ -20,21 +20,21 @@ export default function PaginaNoEncontrada(propsNavbar) {
         <div className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-16 text-center">
           <p className="text-orange-500 text-5xl font-black">404</p>
           <h1 className="text-xl font-black mt-4">Esta página no existe</h1>
-          <p className="text-[10px] text-gray-400 mt-2">
+          <p className="text-xs text-gray-400 mt-2">
             Puede que el link esté mal escrito o que la página se haya movido.
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <button
               onClick={onHome}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-md text-[10px] font-black"
+              className="bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-md text-sm font-bold"
             >
-              VOLVER AL INICIO
+              Volver al inicio
             </button>
             <button
               onClick={() => onCatalogo()}
-              className="border border-gray-300 hover:border-orange-500 px-7 py-3 rounded-md text-[10px] font-black"
+              className="border border-gray-300 hover:border-orange-500 px-7 py-3 rounded-md text-sm font-bold"
             >
-              VER REPUESTOS
+              Ver repuestos
             </button>
           </div>
         </div>

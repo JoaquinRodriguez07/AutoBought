@@ -530,8 +530,9 @@ export default function Catalogo({
           descripcion="Encontrá el repuesto justo para tu auto."
         >
 
-          {/* BUSCADOR + PIT: el buscador a lo ancho y, al lado, la tarjeta
-              de Pit a la misma altura. En celular, uno debajo del otro. */}
+          {/* BUSCADOR, a lo ancho. Pit ya está en la barra y en su botón
+              flotante: acá no se repite (sí aparece si una búsqueda no
+              encuentra nada). */}
 
           <div className="flex flex-col lg:flex-row gap-3">
             <div className="flex-1 min-w-0">
@@ -556,8 +557,6 @@ export default function Catalogo({
                 </button>
               )}
             </div>
-
-            {!textoSinBuscar && <InvitacionAsistente variante="enlace" />}
           </div>
 
           {/* VEHÍCULO ACTIVO */}
@@ -655,7 +654,7 @@ export default function Catalogo({
                   <IconoFiltros />
                   {filtrosAbiertos ? "Ocultar filtros" : "Filtros"}
                   {filtrosActivos.length > 0 && (
-                    <span className="bg-orange-500 text-white rounded-full px-1.5 text-[11px]">
+                    <span className="bg-orange-500 text-white rounded-full px-1.5 text-xs">
                       {filtrosActivos.length}
                     </span>
                   )}
@@ -765,9 +764,12 @@ export default function Catalogo({
 
                   return (
 
+                    // Toda la tarjeta lleva al detalle: el nombre es el botón
+                    // y su ::after la cubre entera. Favorito, cantidad y
+                    // "Agregar" quedan por encima (relative z-10).
                     <article
                       key={producto.id}
-                      className="flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition"
+                      className="group relative flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg hover:border-gray-200 transition"
                     >
 
                       {/* IMAGEN */}
@@ -782,7 +784,7 @@ export default function Catalogo({
                           src={producto.imagen}
                           alt={producto.nombre}
                           loading="lazy"
-                          className="w-full h-full object-contain p-3"
+                          className="w-full h-full object-contain p-3 group-hover:scale-105 transition duration-300"
                         />
 
                         {!vendedor && (
@@ -793,7 +795,7 @@ export default function Catalogo({
                           }
                           aria-label={favorito ? "Quitar de favoritos" : "Marcar como favorito"}
                           aria-pressed={favorito}
-                          className={`absolute top-3 right-3 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center transition hover:scale-105 ${
+                          className={`absolute z-10 top-3 right-3 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center transition hover:scale-105 ${
                             favorito
                               ? "text-orange-500"
                               : "text-gray-500"
@@ -809,12 +811,19 @@ export default function Catalogo({
 
                       <div className="flex flex-col flex-1 p-4">
 
-                        <p className="text-[11px] font-black uppercase tracking-wide text-orange-500">
+                        <p className="text-xs font-black uppercase tracking-wide text-orange-500">
                           {producto.fabricante}
                         </p>
 
                         <h3 className="text-sm font-bold mt-1 leading-snug">
-                          {producto.nombre}
+                          <button
+                            type="button"
+                            onClick={() => onDetalle(producto)}
+                            aria-label={`Ver detalle de ${producto.nombre}`}
+                            className="text-left group-hover:text-orange-500 transition after:absolute after:inset-0 after:content-['']"
+                          >
+                            {producto.nombre}
+                          </button>
                         </h3>
 
                         {compatibilidad && (
@@ -823,7 +832,7 @@ export default function Catalogo({
                           </p>
                         )}
 
-                        <p className="text-[11px] text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 mt-1">
                           Código: {producto.codigo}
                         </p>
 
@@ -850,14 +859,14 @@ export default function Catalogo({
                             producto={producto}
                             tieneAviso={tieneAvisoStock(producto.partId)}
                             onAlternarAviso={onAlternarAvisoStock}
-                            className="mt-2 self-start"
+                            className="relative z-10 mt-2 self-start"
                           />
                         )}
 
                         {/* CANTIDAD + AGREGAR */}
 
                         {!vendedor && (
-                        <div className="flex items-center gap-2 mt-4">
+                        <div className="relative z-10 flex items-center gap-2 mt-4">
 
                           <div className="flex border border-gray-200 rounded-md">
 
@@ -913,18 +922,6 @@ export default function Catalogo({
                         </div>
                         )}
 
-                        {/* DETALLE */}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onDetalle(producto)
-                          }
-                          className="w-full h-9 mt-2 border border-gray-200 hover:border-orange-500 hover:text-orange-500 rounded-md text-xs font-bold transition"
-                        >
-                          Ver detalle
-                        </button>
-
                       </div>
 
                     </article>
@@ -948,7 +945,7 @@ export default function Catalogo({
                     onClick={verMas}
                     className="h-11 px-8 rounded-md border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white text-sm font-black transition"
                   >
-                    VER MÁS REPUESTOS
+                    Ver más repuestos
                   </button>
                 </div>
               )}

@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 
-import { crearLinkPago, obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
+import { obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
 import { usePedidos } from "./context/PedidosContext";
 import CuentaLayout from "./CuentaLayout";
 import DetallePedido, { EstadoPedido } from "./DetallePedido";
 import { IconoCaja } from "./Iconos";
-import { pagaloAntesDe } from "./plazoPago";
-import { irA } from "./redirigir";
+import PestanasCompras from "./PestanasCompras";
 import {
   canceladoPorLaTienda,
-  faltaPagar,
+  estaEnCurso,
   formatearFecha,
   formatearPrecio,
   textoProductos,
@@ -20,14 +19,11 @@ import { FotoProducto } from "./TarjetaPedidoEnCurso";
 // Cuántas fotos de productos se ven en cada pedido de la lista.
 const MINIATURAS = 3;
 
-// La línea chica al lado del estado: cuánto queda para pagar, o por qué se canceló.
-function notaPago(compra) {
+// La línea chica al lado del estado: por qué se canceló.
+function notaCancelacion(compra) {
   if (vencioSinPagar(compra)) return "No se completó el pago a tiempo";
   if (canceladoPorLaTienda(compra)) return "Lo canceló la tienda";
-  if (!faltaPagar(compra)) return "";
-  const plazo = compra.vencePago ? pagaloAntesDe(compra.vencePago) : "";
-  if (compra.estadoPago === "rejected") return plazo ? `Pago rechazado · ${plazo}` : "Pago rechazado";
-  return plazo;
+  return "";
 }
 
 function CargandoHistorial() {
@@ -35,7 +31,7 @@ function CargandoHistorial() {
     <div role="status" className="space-y-4">
       <span className="sr-only">Cargando historial de compras...</span>
       {[0, 1, 2].map((i) => (
-        <div key={i} aria-hidden="true" className="border border-gray-200 rounded-xl p-5 animate-pulse">
+        <div key={i} aria-hidden="true" className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse">
           <div className="flex justify-between">
             <div className="h-4 w-40 bg-gray-100 rounded" />
             <div className="h-6 w-24 bg-gray-100 rounded-full" />
@@ -58,8 +54,6 @@ export default function HistorialCompras(navegacion) {
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [error, setError] = useState("");
   const [errorDetalle, setErrorDetalle] = useState("");
-  // El pedido cuyo link de Mercado Pago se está pidiendo.
-  const [pagandoId, setPagandoId] = useState(null);
   const { establecer } = usePedidos();
 
   // Después de «Ya lo recibí»: el pedido entregado reemplaza al de la lista
@@ -110,46 +104,19 @@ export default function HistorialCompras(navegacion) {
     }
   };
 
-  const pagar = async (compra) => {
-    setPagandoId(compra.id);
-    setErrorDetalle("");
-    try {
-      irA(await crearLinkPago(compra.id));
-    } catch (errorPago) {
-      setErrorDetalle(errorPago.message || "No pudimos abrir Mercado Pago.");
-      setPagandoId(null);
-    }
-  };
-
-  // En el detalle es el botón principal (naranja); en la lista, uno
-  // secundario, para que la lista no se llene de naranja.
-  const botonPagar = (compra, texto, principal) => (
-    <button
-      type="button"
-      onClick={() => pagar(compra)}
-      disabled={pagandoId !== null}
-      aria-label={`Pagar el pedido #${compra.id} con Mercado Pago`}
-      className={`rounded-md text-xs font-black transition whitespace-nowrap disabled:opacity-40 ${
-        principal
-          ? "h-10 px-5 shrink-0 bg-orange-500 hover:bg-orange-600 text-white"
-          : "h-9 px-4 bg-white border border-gray-300 text-gray-800 hover:border-orange-500 hover:text-orange-600"
-      }`}
-    >
-      {pagandoId === compra.id ? "ABRIENDO..." : texto}
-    </button>
-  );
+  // Las que están en curso van en la otra pestaña (/pedidos): acá solo
+  // las que ya terminaron (entregadas o canceladas).
+  const anteriores = compras.filter((compra) => !estaEnCurso(compra));
 
   return (
     <CuentaLayout
       {...navegacion}
-      seccion="historial"
-      titulo={compraSeleccionada ? `Pedido #${compraSeleccionada.id}` : "Historial de compras"}
-      descripcion={
-        compraSeleccionada
-          ? `Realizado el ${formatearFecha(compraSeleccionada.fecha)}`
-          : "Las compras que hiciste."
-      }
+      seccion="compras"
+      titulo={compraSeleccionada ? `Pedido #${compraSeleccionada.id}` : "Mis compras"}
+      descripcion={compraSeleccionada ? `Realizado el ${formatearFecha(compraSeleccionada.fecha)}` : undefined}
     >
+      {!compraSeleccionada && <PestanasCompras actual="anteriores" />}
+
       {error && (
         <p role="alert" className="text-center text-red-600 font-bold">
           {error}
@@ -170,7 +137,7 @@ export default function HistorialCompras(navegacion) {
 
         <DetallePedido
           compra={compraSeleccionada}
-          textoVolver="← Volver al historial"
+          textoVolver="← Volver a mis compras"
           onVolver={() => {
             setCompraSeleccionada(null);
             setErrorDetalle("");
@@ -179,25 +146,25 @@ export default function HistorialCompras(navegacion) {
         />
       ) : cargandoDetalle ? (
         <CargandoHistorial />
-      ) : error ? null : compras.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-gray-200 rounded-xl">
+      ) : error ? null : anteriores.length === 0 ? (
+        <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-xl">
           <IconoCaja className="w-10 h-10 mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500 text-sm font-bold">
-            Todavía no realizaste ninguna compra.
+          <p className="text-gray-600 text-sm font-bold">
+            Todavía no tenés compras terminadas.
           </p>
-          <p className="text-gray-400 text-xs mt-2">
-            Cuando realices una compra, aparecerá acá.
+          <p className="text-gray-500 text-sm mt-2">
+            Cuando te llegue un pedido, lo vas a ver acá.
           </p>
         </div>
       ) : (
 
         /* LISTA */
 
-        <ul aria-label="Compras realizadas" className="space-y-4">
-          {compras.map((compra) => {
+        <ul aria-label="Compras anteriores" className="space-y-4">
+          {anteriores.map((compra) => {
             const items = compra.items || [];
             return (
-              <li key={compra.id} className="border border-gray-200 rounded-xl hover:border-gray-300 transition">
+              <li key={compra.id} className="bg-white border border-gray-200 rounded-xl shadow-xs hover:border-gray-300 transition">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
                   <p className="text-sm text-gray-500">
                     <span className="font-black text-gray-900">#{compra.id}</span>
@@ -205,8 +172,8 @@ export default function HistorialCompras(navegacion) {
                     {formatearFecha(compra.fecha)}
                   </p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    {notaPago(compra) && (
-                      <span className="text-xs text-gray-500">{notaPago(compra)}</span>
+                    {notaCancelacion(compra) && (
+                      <span className="text-xs text-gray-500">{notaCancelacion(compra)}</span>
                     )}
                     <EstadoPedido compra={compra} />
                   </div>
@@ -231,11 +198,10 @@ export default function HistorialCompras(navegacion) {
 
                   <div className="flex items-center justify-between md:justify-end gap-5 md:ml-auto">
                     <div className="md:text-right">
-                      <p className="text-[11px] text-gray-400 font-bold uppercase">Total</p>
+                      <p className="text-xs text-gray-400 font-bold uppercase">Total</p>
                       <p className="text-lg font-black">{formatearPrecio(compra.total)}</p>
                     </div>
                     <div className="flex items-center gap-4">
-                      {faltaPagar(compra) && botonPagar(compra, "Completar pago", false)}
                       <button
                         type="button"
                         onClick={() => verDetalle(compra)}

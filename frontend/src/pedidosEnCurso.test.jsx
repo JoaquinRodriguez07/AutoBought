@@ -99,7 +99,7 @@ describe("tarjeta de pedidos en curso del inicio", () => {
     expect(region).toHaveTextContent("Falta pagar");
     expect(region).toHaveTextContent(/Pagalo antes de/);
     expect(within(region).queryByRole("img", { name: /Progreso/ })).not.toBeInTheDocument();
-    expect(within(region).getByRole("button", { name: "Ver mis pedidos →" })).toBeInTheDocument();
+    expect(within(region).getByRole("button", { name: "Ver todo →" })).toBeInTheDocument();
   });
 
   test("without orders in progress it doesn't show", async () => {
@@ -136,7 +136,7 @@ describe("ícono de Mis pedidos en la barra", () => {
     obtenerHistorialCompras.mockResolvedValue([enCamino, sinPagar, entregado]);
     renderConPedidos(<Navbar usuario={cliente} onHistorial={jest.fn()} />);
 
-    const icono = await screen.findByRole("button", { name: "Mis pedidos (2 en curso)" });
+    const icono = await screen.findByRole("button", { name: "Mis compras (2 en curso)" });
     expect(icono).toHaveTextContent("2");
 
     await user.click(icono);
@@ -148,28 +148,29 @@ describe("ícono de Mis pedidos en la barra", () => {
     renderConPedidos(<Navbar usuario={cliente} />);
 
     await screen.findByTestId("ruta");
-    expect(screen.getByRole("button", { name: "Mis pedidos" })).not.toHaveTextContent(/\d/);
+    expect(screen.getByRole("button", { name: "Mis compras" })).not.toHaveTextContent(/\d/);
   });
 
-  test("the account menu has Mis pedidos (with the count) and the purchase history", async () => {
+  test("the account menu has a single Mis compras (with the count) and the rest of the account", async () => {
     const user = userEvent.setup();
-    const onHistorial = jest.fn();
     obtenerHistorialCompras.mockResolvedValue([enCamino]);
-    renderConPedidos(<Navbar usuario={cliente} onHistorial={onHistorial} />);
-    await screen.findByRole("button", { name: "Mis pedidos (1 en curso)" });
+    renderConPedidos(<Navbar usuario={cliente} />);
+    await screen.findByRole("button", { name: "Mis compras (1 en curso)" });
 
     await user.click(screen.getByTitle("Mi cuenta"));
     const menu = screen.getByText("ana@example.com").closest("div.absolute");
-    expect(within(menu).getByRole("button", { name: /Mis pedidos/ })).toHaveTextContent("1 en curso");
+    expect(within(menu).getByRole("button", { name: /Mis compras/ })).toHaveTextContent("1 en curso");
+    // Las compras anteriores van en una pestaña de Mis compras, no aparte.
+    expect(within(menu).queryByRole("button", { name: /Historial/ })).not.toBeInTheDocument();
 
-    await user.click(within(menu).getByRole("button", { name: "Historial de compras" }));
-    expect(onHistorial).toHaveBeenCalled();
+    await user.click(within(menu).getByRole("button", { name: "Ver toda mi cuenta" }));
+    expect(screen.getByTestId("ruta")).toHaveTextContent(/^\/cuenta$/);
   });
 
   test("a seller doesn't see it", () => {
     renderConPedidos(<Navbar usuario={{ ...cliente, userType: "employee" }} />);
 
-    expect(screen.queryByTitle("Mis pedidos")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Mis compras")).not.toBeInTheDocument();
   });
 
   test("an anonymous visitor sees it, like the cart and favorites, and it leads to the login", async () => {
@@ -178,7 +179,7 @@ describe("ícono de Mis pedidos en la barra", () => {
     obtenerSesion.mockReturnValue(null);
     renderConPedidos(<Navbar usuario={null} onLogin={onLogin} />);
 
-    await user.click(screen.getByTitle("Mis pedidos"));
+    await user.click(screen.getByTitle("Mis compras"));
 
     expect(onLogin).toHaveBeenCalled();
     expect(screen.getByTestId("ruta")).toHaveTextContent(/^\/$/);
@@ -188,17 +189,20 @@ describe("ícono de Mis pedidos en la barra", () => {
 });
 
 describe("link del pie de página", () => {
-  test("'Mis pedidos' opens the orders in progress, or the login without a session", async () => {
+  test("'Mis compras' and 'Mi cuenta' open the account, or the login without a session", async () => {
     const user = userEvent.setup();
-    const props = { onPedidos: jest.fn(), onLogin: jest.fn() };
+    const props = { onPedidos: jest.fn(), onCuenta: jest.fn(), onLogin: jest.fn() };
     const { unmount } = render(<Footer usuario={cliente} {...props} />);
 
-    await user.click(screen.getByRole("button", { name: "Mis pedidos" }));
+    await user.click(screen.getByRole("button", { name: "Mis compras" }));
+    await user.click(screen.getByRole("button", { name: "Mi cuenta" }));
     expect(props.onPedidos).toHaveBeenCalled();
+    expect(props.onCuenta).toHaveBeenCalled();
     unmount();
 
     render(<Footer usuario={null} {...props} />);
-    await user.click(screen.getByRole("button", { name: "Mis pedidos" }));
-    expect(props.onLogin).toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Mis compras" }));
+    await user.click(screen.getByRole("button", { name: "Mi cuenta" }));
+    expect(props.onLogin).toHaveBeenCalledTimes(2);
   });
 });

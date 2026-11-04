@@ -69,7 +69,7 @@ export default function SugerenciasCarrito({ onDetalle }) {
   return (
     <section aria-labelledby="titulo-sugerencias" className="mt-6">
       <h2 id="titulo-sugerencias" className="text-sm font-black">
-        También podrías necesitar esto...
+        Te puede servir también
       </h2>
 
       <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
@@ -85,7 +85,7 @@ export default function SugerenciasCarrito({ onDetalle }) {
             />
 
             <div className="flex flex-col min-w-0 flex-1">
-              <p className="text-orange-500 text-[10px] uppercase tracking-wide font-black truncate">
+              <p className="text-orange-500 text-xs uppercase tracking-wide font-black truncate">
                 {producto.fabricante}
               </p>
               <button type="button" onClick={() => onDetalle?.(producto)} className="text-left text-xs font-bold leading-snug line-clamp-2 hover:text-orange-500">

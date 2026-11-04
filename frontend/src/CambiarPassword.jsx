@@ -89,7 +89,7 @@ export default function CambiarPassword({ email = "" }) {
       accion={
         !abierto && (
           <button type="button" onClick={abrir} className={claseBotonSeccion}>
-            CAMBIAR CONTRASEÑA
+            Cambiar contraseña
           </button>
         )
       }
@@ -182,7 +182,7 @@ export default function CambiarPassword({ email = "" }) {
                   onClick={cancelar}
                   className={claseBotonCancelar}
                 >
-                  CANCELAR
+                  Cancelar
                 </button>
 
                 <button
@@ -190,7 +190,7 @@ export default function CambiarPassword({ email = "" }) {
                   disabled={guardando}
                   className={claseBotonGuardar}
                 >
-                  {guardando ? "GUARDANDO..." : "GUARDAR CONTRASEÑA"}
+                  {guardando ? "Guardando..." : "Guardar contraseña"}
                 </button>
 
               </div>

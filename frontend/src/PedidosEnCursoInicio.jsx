@@ -61,7 +61,7 @@ export default function PedidosEnCursoInicio() {
     >
       <div className="flex items-center justify-between gap-4 px-5 md:px-6 pt-5">
         <div className="flex items-baseline gap-3 flex-wrap">
-          <p className="text-orange-500 text-[11px] font-black tracking-[3px]">SEGUÍ TU COMPRA</p>
+          <p className="text-orange-500 text-xs font-black tracking-[3px] whitespace-nowrap">SEGUÍ TU COMPRA</p>
           <h2 id="titulo-pedidos-en-curso" className="text-sm font-black text-white">
             Tus pedidos en curso
           </h2>
@@ -71,7 +71,7 @@ export default function PedidosEnCursoInicio() {
           onClick={() => navigate("/pedidos")}
           className="text-orange-400 text-sm font-bold hover:text-orange-300 whitespace-nowrap"
         >
-          {enCurso.length > MAXIMO ? `Ver los ${enCurso.length} →` : "Ver mis pedidos →"}
+          {enCurso.length > MAXIMO ? `Ver los ${enCurso.length} →` : "Ver todo →"}
         </button>
       </div>
 

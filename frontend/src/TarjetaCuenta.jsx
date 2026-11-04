@@ -19,7 +19,7 @@ export default function TarjetaCuenta({ titulo, subtitulo, children, ...propsNav
       <main className="min-h-screen flex items-center justify-center px-5 pt-24 pb-10">
         <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-2xl p-8 md:p-12">
 
-          <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
+          <p className="text-orange-500 text-xs font-black tracking-[4px]">
             AUTOBOUGHT
           </p>
 
@@ -28,7 +28,7 @@ export default function TarjetaCuenta({ titulo, subtitulo, children, ...propsNav
           </h1>
 
           {subtitulo && (
-            <p className="text-gray-400 text-[10px] mt-3">{subtitulo}</p>
+            <p className="text-gray-400 text-xs mt-3">{subtitulo}</p>
           )}
 
           {children}
@@ -40,10 +40,10 @@ export default function TarjetaCuenta({ titulo, subtitulo, children, ...propsNav
 }
 
 export const claseInputCuenta =
-  "w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition";
+  "w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-xs outline-hidden focus:border-orange-500 transition";
 
 export const claseBotonCuenta =
-  "w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[10px] font-black mt-6 transition disabled:opacity-60 disabled:cursor-not-allowed";
+  "w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-sm font-bold mt-6 transition disabled:opacity-60 disabled:cursor-not-allowed";
 
 export const claseEnlaceCuenta =
   "text-orange-500 font-bold hover:underline";

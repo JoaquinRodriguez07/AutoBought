@@ -81,7 +81,7 @@ export default function PantallaAcceso({ propsNavbar, etiqueta, titulo, benefici
             <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent" />
 
             <div className="relative">
-              <p className="text-orange-500 text-[11px] font-black tracking-[4px]">{etiqueta}</p>
+              <p className="text-orange-500 text-xs font-black tracking-[4px]">{etiqueta}</p>
               <h2 className="text-3xl font-black italic uppercase leading-[0.95] mt-3">
                 {titulo.map((linea) => (
                   <span key={linea} className="block">
@@ -112,7 +112,7 @@ export default function PantallaAcceso({ propsNavbar, etiqueta, titulo, benefici
 export function EncabezadoAcceso({ titulo, bajada }) {
   return (
     <>
-      <p className="text-orange-500 text-[11px] font-black tracking-[4px]">AUTOBOUGHT</p>
+      <p className="text-orange-500 text-xs font-black tracking-[4px]">AUTOBOUGHT</p>
       <h1 className="text-3xl font-black italic uppercase mt-2">{titulo}</h1>
       <p className="text-gray-500 text-sm mt-2">{bajada}</p>
     </>
