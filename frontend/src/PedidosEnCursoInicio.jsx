@@ -31,7 +31,7 @@ function Progreso({ pedido }) {
       className="mt-3 grid grid-cols-4 gap-1"
     >
       {pasos.map((paso) => (
-        <span key={paso.estado} className={`h-1.5 rounded-full ${paso.hecho ? "bg-orange-500" : "bg-white/10"}`} />
+        <span key={paso.estado} className={`h-1.5 rounded-full ${paso.hecho ? "bg-orange-500" : "bg-white/25"}`} />
       ))}
     </div>
   );
@@ -39,8 +39,8 @@ function Progreso({ pedido }) {
 
 /**
  * Los pedidos en curso del cliente, en el banner del inicio: debajo del
- * selector de auto y con su mismo estilo oscuro, hasta 3 pedidos del más
- * avanzado al menos. Sin sesión o sin pedidos en
+ * selector de auto, en un recuadro blanco semitransparente, hasta 3
+ * pedidos del más avanzado al menos. Sin sesión o sin pedidos en
  * curso no se muestra.
  */
 export default function PedidosEnCursoInicio() {
@@ -53,10 +53,11 @@ export default function PedidosEnCursoInicio() {
   const columnas = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3" }[pedidos.length];
 
   return (
-    // Dentro del banner, debajo del selector y con su mismo estilo oscuro.
+    // Dentro del banner, debajo del selector: blanco semitransparente
+    // (vidrio esmerilado), para distinguirse del selector oscuro.
     <section
       aria-labelledby="titulo-pedidos-en-curso"
-      className="mt-4 bg-[#151719]/95 border border-white/10 rounded-xl shadow-2xl"
+      className="mt-4 bg-white/[0.22] backdrop-blur-md border border-white/30 rounded-xl shadow-2xl"
     >
       <div className="flex items-center justify-between gap-4 px-5 md:px-6 pt-5">
         <div className="flex items-baseline gap-3 flex-wrap">
@@ -74,7 +75,7 @@ export default function PedidosEnCursoInicio() {
         </button>
       </div>
 
-      <ul className={`grid grid-cols-1 ${columnas} divide-y md:divide-y-0 md:divide-x divide-white/10 mt-2`}>
+      <ul className={`grid grid-cols-1 ${columnas} divide-y md:divide-y-0 md:divide-x divide-white/20 mt-2`}>
         {pedidos.map((pedido) => {
           const sinPagar = faltaPagar(pedido);
           const Icono = iconoDe(pedido);
@@ -84,12 +85,12 @@ export default function PedidosEnCursoInicio() {
                 type="button"
                 onClick={() => navigate(`/pedidos/${pedido.id}`)}
                 aria-label={`Ver el seguimiento del pedido #${pedido.id}: ${fraseDelEstado(pedido)}`}
-                className="group w-full h-full text-left px-5 md:px-6 py-4 rounded-xl hover:bg-white/[0.04] transition"
+                className="group w-full h-full text-left px-5 md:px-6 py-4 rounded-xl hover:bg-white/10 transition"
               >
                 <div className="flex items-start gap-3">
                   <span
                     className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
-                      sinPagar ? "bg-amber-400/10 text-amber-300" : "bg-orange-500/15 text-orange-400"
+                      sinPagar ? "bg-amber-400/10 text-amber-300" : "bg-orange-500/20 text-orange-300"
                     }`}
                   >
                     <Icono className="w-5 h-5" />
@@ -99,11 +100,11 @@ export default function PedidosEnCursoInicio() {
                       <p className={`font-black ${sinPagar ? "text-amber-300" : "text-white"}`}>
                         {fraseCorta(pedido)}
                       </p>
-                      <span aria-hidden="true" className="text-gray-500 group-hover:text-orange-400 transition">
+                      <span aria-hidden="true" className="text-gray-400 group-hover:text-orange-300 transition">
                         →
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-gray-300 mt-0.5">
                       Pedido #{pedido.id} · {formatearPrecio(pedido.total)}
                     </p>
                     {sinPagar ? (
