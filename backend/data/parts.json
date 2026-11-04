@@ -129,6 +129,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -162,7 +166,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -173,8 +177,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -399,6 +407,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -436,7 +448,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -641,6 +657,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -678,7 +698,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -883,6 +907,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -909,7 +937,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -920,8 +948,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -1125,6 +1157,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -1162,7 +1198,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -1367,6 +1407,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -1404,7 +1448,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -1609,19 +1657,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Chevrolet",
-          "model": "S10",
-          "engine_code": "2.8 Duramax",
-          "year_from": 2012,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0014",
@@ -1635,7 +1679,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -1646,21 +1690,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Chevrolet",
-          "model": "S10",
-          "engine_code": "2.8 Duramax",
-          "year_from": 2012,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0013",
@@ -1865,6 +1905,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -1898,7 +1942,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -1909,8 +1953,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -2177,6 +2225,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -2235,7 +2287,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -2503,19 +2559,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Fiat",
-          "model": "Toro",
-          "engine_code": "2.0 Multijet",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0020",
@@ -2529,7 +2581,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -2540,21 +2592,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Fiat",
-          "model": "Toro",
-          "engine_code": "2.0 Multijet",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0019",
@@ -2801,6 +2849,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -2855,7 +2907,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -2866,8 +2918,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -3155,6 +3211,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -3192,7 +3252,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -3397,19 +3461,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Volkswagen",
-          "model": "Amarok",
-          "engine_code": "2.0 TDI",
-          "year_from": 2011,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0026",
@@ -3434,21 +3494,17 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Volkswagen",
-          "model": "Amarok",
-          "engine_code": "2.0 TDI",
-          "year_from": 2011,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0025",
@@ -3639,6 +3695,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -3665,7 +3725,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -3676,8 +3736,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -3881,6 +3945,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -3918,7 +3986,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -4137,6 +4209,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -4181,7 +4257,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -4407,19 +4487,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "5"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Ford",
-          "model": "Ranger",
-          "engine_code": "3.2 Duratorq",
-          "year_from": 2012,
-          "year_to": 2022
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0034",
@@ -4433,7 +4509,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -4444,21 +4520,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "5"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Ford",
-          "model": "Ranger",
-          "engine_code": "3.2 Duratorq",
-          "year_from": 2012,
-          "year_to": 2022
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0033",
@@ -4691,6 +4763,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -4738,7 +4814,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -4749,8 +4825,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -5017,6 +5097,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -5054,7 +5138,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -5259,6 +5347,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -5285,7 +5377,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -5296,8 +5388,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -5529,6 +5625,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -5569,7 +5669,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -5580,8 +5680,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -5841,26 +5945,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Peugeot",
-          "model": "Partner",
-          "engine_code": "1.6 HDi",
-          "year_from": 2010,
-          "year_to": 2020
-        },
-        {
-          "brand": "Citroen",
-          "model": "Berlingo",
-          "engine_code": "1.6 HDi",
-          "year_from": 2010,
-          "year_to": 2020
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0044",
@@ -5885,28 +5978,17 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Peugeot",
-          "model": "Partner",
-          "engine_code": "1.6 HDi",
-          "year_from": 2010,
-          "year_to": 2020
-        },
-        {
-          "brand": "Citroen",
-          "model": "Berlingo",
-          "engine_code": "1.6 HDi",
-          "year_from": 2010,
-          "year_to": 2020
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0043",
@@ -6125,6 +6207,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -6169,7 +6255,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -6395,6 +6485,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -6421,7 +6515,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -6432,8 +6526,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -6637,19 +6735,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Toyota",
-          "model": "Hilux",
-          "engine_code": "2.8 1GD",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0050",
@@ -6674,21 +6768,17 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Toyota",
-          "model": "Hilux",
-          "engine_code": "2.8 1GD",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0049",
@@ -6907,6 +6997,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -6958,7 +7052,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -7205,19 +7303,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Nissan",
-          "model": "Frontier",
-          "engine_code": "2.3 YS23",
-          "year_from": 2018,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0054",
@@ -7231,7 +7325,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -7242,21 +7336,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Nissan",
-          "model": "Frontier",
-          "engine_code": "2.3 YS23",
-          "year_from": 2018,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0053",
@@ -7475,6 +7565,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -7515,7 +7609,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -7526,8 +7620,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -7773,6 +7871,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -7810,7 +7912,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -25263,6 +25369,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -25313,6 +25423,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -25346,7 +25460,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -25357,8 +25471,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -25392,7 +25510,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -25403,8 +25521,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -25673,6 +25795,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -25710,7 +25836,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -25874,7 +26004,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -26032,6 +26166,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -26069,7 +26207,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -26097,7 +26239,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -26108,8 +26250,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -26352,6 +26498,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -26389,7 +26539,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -26633,6 +26787,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -26676,6 +26834,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -26713,7 +26875,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -26741,7 +26907,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -26752,8 +26918,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -26957,19 +27127,15 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Chevrolet",
-          "model": "S10",
-          "engine_code": "2.8 Duramax",
-          "year_from": 2012,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0076",
@@ -27000,19 +27166,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Chevrolet",
-          "model": "S10",
-          "engine_code": "2.8 Duramax",
-          "year_from": 2012,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0077",
@@ -27026,7 +27188,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -27037,21 +27199,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Chevrolet",
-          "model": "S10",
-          "engine_code": "2.8 Duramax",
-          "year_from": 2012,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0078",
@@ -27076,21 +27234,17 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Chevrolet",
-          "model": "S10",
-          "engine_code": "2.8 Duramax",
-          "year_from": 2012,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0072",
@@ -27360,6 +27514,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -27410,6 +27568,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -27808,6 +27970,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -27872,6 +28038,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -27919,7 +28089,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -27930,8 +28100,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -27990,7 +28164,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -28196,21 +28374,17 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Fiat",
-          "model": "Toro",
-          "engine_code": "2.0 Multijet",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0076",
@@ -28564,6 +28738,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -28635,6 +28813,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -28689,7 +28871,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -28700,8 +28882,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -28756,7 +28942,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -28767,8 +28953,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -29060,6 +29250,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -29097,7 +29291,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -29136,7 +29334,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -29427,19 +29629,15 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Volkswagen",
-          "model": "Amarok",
-          "engine_code": "2.0 TDI",
-          "year_from": 2011,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0094",
@@ -29470,19 +29668,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Volkswagen",
-          "model": "Amarok",
-          "engine_code": "2.0 TDI",
-          "year_from": 2011,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0095",
@@ -29496,7 +29690,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -29507,21 +29701,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Volkswagen",
-          "model": "Amarok",
-          "engine_code": "2.0 TDI",
-          "year_from": 2011,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0096",
@@ -29535,7 +29725,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -29546,21 +29736,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Volkswagen",
-          "model": "Amarok",
-          "engine_code": "2.0 TDI",
-          "year_from": 2011,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0081",
@@ -29790,6 +29976,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -29827,7 +30017,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -30118,6 +30312,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -30161,6 +30359,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -30198,7 +30400,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -30237,7 +30443,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -30321,6 +30531,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -30354,7 +30568,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -30365,8 +30579,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -30549,19 +30767,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "5"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Ford",
-          "model": "Ranger",
-          "engine_code": "3.2 Duratorq",
-          "year_from": 2012,
-          "year_to": 2022
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0106",
@@ -30575,7 +30789,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -30586,21 +30800,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "5"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Ford",
-          "model": "Ranger",
-          "engine_code": "3.2 Duratorq",
-          "year_from": 2012,
-          "year_to": 2022
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "FIL-0181",
@@ -30759,6 +30969,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -30823,6 +31037,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -30881,7 +31099,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -30930,7 +31152,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -30941,8 +31163,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -31179,6 +31405,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -31222,6 +31452,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -31248,7 +31482,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -31259,8 +31493,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -31298,7 +31536,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -31536,7 +31778,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -31694,6 +31940,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -32053,26 +32303,15 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Peugeot",
-          "model": "Partner",
-          "engine_code": "1.6 HDi",
-          "year_from": 2010,
-          "year_to": 2020
-        },
-        {
-          "brand": "Citroen",
-          "model": "Berlingo",
-          "engine_code": "1.6 HDi",
-          "year_from": 2010,
-          "year_to": 2020
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0118",
@@ -32086,7 +32325,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -32097,28 +32336,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Peugeot",
-          "model": "Partner",
-          "engine_code": "1.6 HDi",
-          "year_from": 2010,
-          "year_to": 2020
-        },
-        {
-          "brand": "Citroen",
-          "model": "Berlingo",
-          "engine_code": "1.6 HDi",
-          "year_from": 2010,
-          "year_to": 2020
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0096",
@@ -32383,6 +32611,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -32433,6 +32665,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -32477,7 +32713,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -32523,7 +32763,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -32835,6 +33079,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -32878,6 +33126,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -32904,7 +33156,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -32915,8 +33167,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -32943,7 +33199,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -32954,8 +33210,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -33210,19 +33470,15 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Toyota",
-          "model": "Hilux",
-          "engine_code": "2.8 1GD",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0128",
@@ -33253,19 +33509,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Toyota",
-          "model": "Hilux",
-          "engine_code": "2.8 1GD",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0129",
@@ -33290,21 +33542,17 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Toyota",
-          "model": "Hilux",
-          "engine_code": "2.8 1GD",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0130",
@@ -33318,7 +33566,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -33329,21 +33577,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Toyota",
-          "model": "Hilux",
-          "engine_code": "2.8 1GD",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0102",
@@ -33562,6 +33806,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -33602,7 +33850,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -33613,8 +33861,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -33999,19 +34251,15 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Nissan",
-          "model": "Frontier",
-          "engine_code": "2.3 YS23",
-          "year_from": 2018,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0134",
@@ -34042,19 +34290,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Nissan",
-          "model": "Frontier",
-          "engine_code": "2.3 YS23",
-          "year_from": 2018,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0107",
@@ -34387,6 +34631,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -34444,6 +34692,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -34495,7 +34747,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -34795,6 +35051,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -55014,6 +55274,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -55051,7 +55315,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -55256,6 +55524,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -55293,7 +55565,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -55498,6 +55774,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -55524,7 +55804,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -55535,8 +55815,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -55740,6 +56024,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -55766,7 +56054,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -55777,8 +56065,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -55996,6 +56288,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -56040,7 +56336,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -56280,6 +56580,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -56313,7 +56617,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -56324,8 +56628,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -56564,6 +56872,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -56597,7 +56909,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -56608,8 +56920,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -56834,6 +57150,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -56871,7 +57191,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -57076,6 +57400,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -57113,7 +57441,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -57318,19 +57650,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Sprinter",
-          "engine_code": "2.2 OM651",
-          "year_from": 2012,
-          "year_to": 2023
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0158",
@@ -57344,7 +57672,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -57355,21 +57683,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Sprinter",
-          "engine_code": "2.2 OM651",
-          "year_from": 2012,
-          "year_to": 2023
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0130",
@@ -57574,6 +57898,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -57618,7 +57946,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -57844,6 +58176,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -57881,7 +58217,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -58100,6 +58440,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -58133,7 +58477,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -58144,8 +58488,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -58370,6 +58718,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -58396,7 +58748,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -58407,8 +58759,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -58612,6 +58968,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -58649,7 +59009,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -58854,19 +59218,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Mitsubishi",
-          "model": "L200",
-          "engine_code": "2.4 4N15",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0170",
@@ -58880,7 +59240,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -58891,21 +59251,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Mitsubishi",
-          "model": "L200",
-          "engine_code": "2.4 4N15",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0142",
@@ -59110,6 +59466,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -59143,7 +59503,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -59154,8 +59514,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -59394,6 +59758,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -59438,7 +59806,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -59664,6 +60036,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -59701,7 +60077,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -59906,6 +60286,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -59932,7 +60316,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -59943,8 +60327,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -60148,6 +60536,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -60185,7 +60577,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -60390,6 +60786,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -60427,7 +60827,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -60632,6 +61036,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -60658,7 +61066,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -60669,8 +61077,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -60874,19 +61286,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "JAC",
-          "model": "T8",
-          "engine_code": "2.0 HFC4DA",
-          "year_from": 2019,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0186",
@@ -60900,7 +61308,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -60911,21 +61319,17 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "JAC",
-          "model": "T8",
-          "engine_code": "2.0 HFC4DA",
-          "year_from": 2019,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0158",
@@ -61116,6 +61520,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -61153,7 +61561,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -61372,6 +61784,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -61405,7 +61821,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -61416,8 +61832,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -71842,6 +72262,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -71885,6 +72309,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -71911,7 +72339,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -71922,8 +72350,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -72252,6 +72684,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -72295,6 +72731,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -72332,7 +72772,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -72371,7 +72815,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "3"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -72537,6 +72985,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -72563,7 +73015,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -72574,8 +73026,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -72602,7 +73058,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -72613,8 +73069,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -72865,6 +73325,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -72891,7 +73355,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -72902,8 +73366,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -72930,7 +73398,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -72941,8 +73409,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -73299,6 +73771,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -73349,6 +73825,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -73687,6 +74167,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -73983,6 +74467,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -74016,7 +74504,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -74027,8 +74515,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -74062,7 +74554,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -74073,8 +74565,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -74303,6 +74799,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -74346,6 +74846,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -74383,7 +74887,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -74422,7 +74930,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -74592,6 +75104,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -74618,7 +75134,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -74629,8 +75145,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -74959,19 +75479,15 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Sprinter",
-          "engine_code": "2.2 OM651",
-          "year_from": 2012,
-          "year_to": 2023
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0217",
@@ -75002,19 +75518,15 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Sprinter",
-          "engine_code": "2.2 OM651",
-          "year_from": 2012,
-          "year_to": 2023
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0218",
@@ -75039,21 +75551,17 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Sprinter",
-          "engine_code": "2.2 OM651",
-          "year_from": 2012,
-          "year_to": 2023
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0181",
@@ -75319,6 +75827,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -75352,7 +75864,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -75363,8 +75875,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -75618,7 +76134,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -75629,8 +76145,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -75848,6 +76368,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -75898,6 +76422,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -75942,7 +76470,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -75988,7 +76520,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -76346,6 +76882,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -76389,6 +76929,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -76415,7 +76959,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -76426,8 +76970,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -76454,7 +77002,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -76465,8 +77013,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "3"
         ]
       ],
       "warranty_months": 12,
@@ -76760,6 +77312,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -76803,6 +77359,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -77131,19 +77691,15 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Mitsubishi",
-          "model": "L200",
-          "engine_code": "2.4 4N15",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "IGN-0233",
@@ -77168,21 +77724,17 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "Mitsubishi",
-          "model": "L200",
-          "engine_code": "2.4 4N15",
-          "year_from": 2016,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0195",
@@ -77374,7 +77926,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -77385,8 +77937,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -77420,7 +77976,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -77431,8 +77987,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -77771,6 +78331,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -77804,7 +78368,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -77815,8 +78379,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -78085,6 +78653,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -78122,7 +78694,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -78413,6 +78989,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -78456,6 +79036,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -78482,7 +79066,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -78493,8 +79077,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -78823,6 +79411,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -78866,6 +79458,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -78903,7 +79499,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -79233,6 +79833,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -79276,6 +79880,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -79302,7 +79910,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -79313,8 +79921,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -79341,7 +79953,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -79352,8 +79964,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -79643,6 +80259,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -79686,6 +80306,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -79723,7 +80347,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -79762,7 +80390,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -80092,19 +80724,15 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
       "warranty_provider": "fabricante",
-      "compatibilities": [
-        {
-          "brand": "JAC",
-          "model": "T8",
-          "engine_code": "2.0 HFC4DA",
-          "year_from": 2019,
-          "year_to": 2024
-        }
-      ]
+      "compatibilities": []
     },
     {
       "part_code": "ENG-0213",
@@ -80334,6 +80962,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -80377,6 +81009,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -80733,6 +81369,10 @@
         [
           "Duraci\u00f3n estimada",
           "30.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -80783,6 +81423,10 @@
         [
           "Duraci\u00f3n estimada",
           "60.000 km"
+        ],
+        [
+          "Unidades por motor",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -80827,7 +81471,11 @@
           "3 pines"
         ],
         [
-          "Unidades",
+          "Unidades por motor",
+          "4"
+        ],
+        [
+          "Salidas",
           "1"
         ]
       ],
@@ -80862,7 +81510,7 @@
       "specifications": [
         [
           "Tipo",
-          "Bloque (4 salidas)"
+          "Bloque"
         ],
         [
           "Tensi\u00f3n de entrada",
@@ -80873,8 +81521,12 @@
           "4 pines"
         ],
         [
-          "Unidades",
-          "1 (para los 4 cilindros)"
+          "Unidades por motor",
+          "1"
+        ],
+        [
+          "Salidas",
+          "4"
         ]
       ],
       "warranty_months": 12,
@@ -141059,20 +141711,6 @@
         },
         {
           "brand": "Chevrolet",
-          "model": "Cruze",
-          "engine_code": "1.4 Turbo",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chevrolet",
-          "model": "Tracker",
-          "engine_code": "1.2 Turbo",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chevrolet",
           "model": "S10",
           "engine_code": "2.8 Duramax",
           "year_from": 2012,
@@ -141121,13 +141759,6 @@
           "year_to": 2020
         },
         {
-          "brand": "Fiat",
-          "model": "Toro",
-          "engine_code": "2.0 Multijet",
-          "year_from": 2016,
-          "year_to": 2024
-        },
-        {
           "brand": "Volkswagen",
           "model": "Gol",
           "engine_code": "1.6 MSI",
@@ -141160,13 +141791,6 @@
           "model": "Virtus",
           "engine_code": "1.6 MSI",
           "year_from": 2018,
-          "year_to": 2024
-        },
-        {
-          "brand": "Volkswagen",
-          "model": "T-Cross",
-          "engine_code": "1.0 TSI",
-          "year_from": 2019,
           "year_to": 2024
         },
         {
@@ -141304,13 +141928,6 @@
         },
         {
           "brand": "Toyota",
-          "model": "Corolla",
-          "engine_code": "1.8 2ZR",
-          "year_from": 2015,
-          "year_to": 2024
-        },
-        {
-          "brand": "Toyota",
           "model": "Hilux",
           "engine_code": "2.8 1GD",
           "year_from": 2016,
@@ -141332,13 +141949,6 @@
         },
         {
           "brand": "Nissan",
-          "model": "Kicks",
-          "engine_code": "1.6 HR16",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
-          "brand": "Nissan",
           "model": "Frontier",
           "engine_code": "2.3 YS23",
           "year_from": 2018,
@@ -141352,25 +141962,11 @@
           "year_to": 2022
         },
         {
-          "brand": "Hyundai",
-          "model": "Creta",
-          "engine_code": "1.6 Gamma",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
           "brand": "Kia",
           "model": "Rio",
           "engine_code": "1.6 Gamma",
           "year_from": 2012,
           "year_to": 2020
-        },
-        {
-          "brand": "Kia",
-          "model": "Sportage",
-          "engine_code": "2.0 Nu",
-          "year_from": 2016,
-          "year_to": 2023
         },
         {
           "brand": "Suzuki",
@@ -141401,62 +141997,6 @@
           "year_to": 2024
         },
         {
-          "brand": "Chery",
-          "model": "Tiggo 4",
-          "engine_code": "1.5 TGDI",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chery",
-          "model": "Tiggo 7",
-          "engine_code": "1.5 TGDI",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "BYD",
-          "model": "Song Pro DM-i",
-          "engine_code": "1.5 Xiaoyun",
-          "year_from": 2022,
-          "year_to": 2024
-        },
-        {
-          "brand": "BYD",
-          "model": "King DM-i",
-          "engine_code": "1.5 Xiaoyun",
-          "year_from": 2023,
-          "year_to": 2024
-        },
-        {
-          "brand": "GAC",
-          "model": "GS3",
-          "engine_code": "1.5 4A15J1",
-          "year_from": 2021,
-          "year_to": 2024
-        },
-        {
-          "brand": "GAC",
-          "model": "GS4",
-          "engine_code": "1.5 4A15J1",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Clase A",
-          "engine_code": "1.3 M282",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Clase C",
-          "engine_code": "2.0 M264",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
           "brand": "Mercedes-Benz",
           "model": "Sprinter",
           "engine_code": "2.2 OM651",
@@ -141464,74 +142004,11 @@
           "year_to": 2023
         },
         {
-          "brand": "BMW",
-          "model": "Serie 1",
-          "engine_code": "1.5 B38",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "X1",
-          "engine_code": "1.5 B38",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "Serie 3",
-          "engine_code": "2.0 B48",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "Audi",
-          "model": "A3",
-          "engine_code": "1.4 TFSI",
-          "year_from": 2014,
-          "year_to": 2020
-        },
-        {
-          "brand": "Audi",
-          "model": "Q3",
-          "engine_code": "1.4 TFSI",
-          "year_from": 2015,
-          "year_to": 2020
-        },
-        {
-          "brand": "Geely",
-          "model": "Coolray",
-          "engine_code": "1.5 3G15TD",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Geely",
-          "model": "Emgrand",
-          "engine_code": "1.5 JL4G15",
-          "year_from": 2022,
-          "year_to": 2024
-        },
-        {
           "brand": "Mitsubishi",
           "model": "L200",
           "engine_code": "2.4 4N15",
           "year_from": 2016,
           "year_to": 2024
-        },
-        {
-          "brand": "Mitsubishi",
-          "model": "Outlander",
-          "engine_code": "2.0 4B11",
-          "year_from": 2015,
-          "year_to": 2021
-        },
-        {
-          "brand": "Mitsubishi",
-          "model": "ASX",
-          "engine_code": "2.0 4B11",
-          "year_from": 2013,
-          "year_to": 2021
         },
         {
           "brand": "Honda",
@@ -141548,32 +142025,11 @@
           "year_to": 2022
         },
         {
-          "brand": "Honda",
-          "model": "HR-V",
-          "engine_code": "1.8 R18",
-          "year_from": 2016,
-          "year_to": 2022
-        },
-        {
-          "brand": "Honda",
-          "model": "Civic",
-          "engine_code": "2.0 K20C",
-          "year_from": 2017,
-          "year_to": 2021
-        },
-        {
           "brand": "Jeep",
           "model": "Renegade",
           "engine_code": "1.8 E.torQ",
           "year_from": 2016,
           "year_to": 2021
-        },
-        {
-          "brand": "Jeep",
-          "model": "Compass",
-          "engine_code": "1.3 T270",
-          "year_from": 2022,
-          "year_to": 2024
         },
         {
           "brand": "JAC",
@@ -141594,20 +142050,6 @@
           "model": "Mazda2",
           "engine_code": "1.5 Skyactiv-G",
           "year_from": 2015,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mazda",
-          "model": "Mazda3",
-          "engine_code": "2.0 Skyactiv-G",
-          "year_from": 2014,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mazda",
-          "model": "CX-5",
-          "engine_code": "2.0 Skyactiv-G",
-          "year_from": 2017,
           "year_to": 2024
         }
       ]
@@ -142907,10 +143349,17 @@
           "year_to": 2023
         },
         {
-          "brand": "Chevrolet",
-          "model": "S10",
-          "engine_code": "2.8 Duramax",
-          "year_from": 2012,
+          "brand": "Fiat",
+          "model": "Cronos",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Fiat",
+          "model": "Argo",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
           "year_to": 2024
         },
         {
@@ -142963,32 +143412,11 @@
           "year_to": 2023
         },
         {
-          "brand": "Volkswagen",
-          "model": "Amarok",
-          "engine_code": "2.0 TDI",
-          "year_from": 2011,
-          "year_to": 2024
-        },
-        {
           "brand": "Ford",
-          "model": "Fiesta",
-          "engine_code": "1.6 Sigma",
-          "year_from": 2011,
-          "year_to": 2019
-        },
-        {
-          "brand": "Ford",
-          "model": "Focus",
-          "engine_code": "2.0 Duratec",
-          "year_from": 2009,
-          "year_to": 2018
-        },
-        {
-          "brand": "Ford",
-          "model": "Ranger",
-          "engine_code": "3.2 Duratorq",
-          "year_from": 2012,
-          "year_to": 2022
+          "model": "Ka",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2023
         },
         {
           "brand": "Renault",
@@ -143020,6 +143448,13 @@
         },
         {
           "brand": "Renault",
+          "model": "Kwid",
+          "engine_code": "1.0 SCe",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Renault",
           "model": "Kangoo",
           "engine_code": "1.6 K7M",
           "year_from": 2008,
@@ -143027,24 +143462,10 @@
         },
         {
           "brand": "Peugeot",
-          "model": "208",
-          "engine_code": "1.6 EC5",
-          "year_from": 2013,
-          "year_to": 2021
-        },
-        {
-          "brand": "Peugeot",
           "model": "Partner",
           "engine_code": "1.6 HDi",
           "year_from": 2010,
           "year_to": 2020
-        },
-        {
-          "brand": "Citroen",
-          "model": "C3",
-          "engine_code": "1.6 EC5",
-          "year_from": 2013,
-          "year_to": 2021
         },
         {
           "brand": "Citroen",
@@ -143061,13 +143482,6 @@
           "year_to": 2022
         },
         {
-          "brand": "Toyota",
-          "model": "Corolla",
-          "engine_code": "1.8 2ZR",
-          "year_from": 2015,
-          "year_to": 2024
-        },
-        {
           "brand": "Nissan",
           "model": "March",
           "engine_code": "1.6 HR16",
@@ -143082,18 +143496,11 @@
           "year_to": 2024
         },
         {
-          "brand": "Hyundai",
-          "model": "HB20",
-          "engine_code": "1.6 Gamma",
-          "year_from": 2013,
-          "year_to": 2022
-        },
-        {
-          "brand": "Kia",
-          "model": "Rio",
-          "engine_code": "1.6 Gamma",
-          "year_from": 2012,
-          "year_to": 2020
+          "brand": "Suzuki",
+          "model": "Swift",
+          "engine_code": "1.2 K12M",
+          "year_from": 2018,
+          "year_to": 2024
         },
         {
           "brand": "Suzuki",
@@ -143103,66 +143510,31 @@
           "year_to": 2024
         },
         {
-          "brand": "Mercedes-Benz",
-          "model": "Sprinter",
-          "engine_code": "2.2 OM651",
-          "year_from": 2012,
-          "year_to": 2023
-        },
-        {
-          "brand": "Audi",
-          "model": "A3",
-          "engine_code": "1.4 TFSI",
-          "year_from": 2014,
-          "year_to": 2020
-        },
-        {
-          "brand": "Audi",
-          "model": "Q3",
-          "engine_code": "1.4 TFSI",
-          "year_from": 2015,
-          "year_to": 2020
-        },
-        {
-          "brand": "Mitsubishi",
-          "model": "Outlander",
-          "engine_code": "2.0 4B11",
-          "year_from": 2015,
-          "year_to": 2021
-        },
-        {
-          "brand": "Mitsubishi",
-          "model": "ASX",
-          "engine_code": "2.0 4B11",
-          "year_from": 2013,
-          "year_to": 2021
-        },
-        {
-          "brand": "Honda",
-          "model": "Fit",
-          "engine_code": "1.5 L15",
-          "year_from": 2015,
-          "year_to": 2020
-        },
-        {
-          "brand": "Honda",
-          "model": "City",
-          "engine_code": "1.5 L15",
-          "year_from": 2015,
-          "year_to": 2022
-        },
-        {
-          "brand": "Mazda",
-          "model": "Mazda2",
-          "engine_code": "1.5 Skyactiv-G",
-          "year_from": 2015,
+          "brand": "Suzuki",
+          "model": "Vitara",
+          "engine_code": "1.6 M16A",
+          "year_from": 2016,
           "year_to": 2024
         },
         {
-          "brand": "Mazda",
-          "model": "Mazda3",
-          "engine_code": "2.0 Skyactiv-G",
-          "year_from": 2014,
+          "brand": "Chery",
+          "model": "Tiggo 2",
+          "engine_code": "1.5 Acteco",
+          "year_from": 2017,
+          "year_to": 2024
+        },
+        {
+          "brand": "JAC",
+          "model": "S2",
+          "engine_code": "1.5 HFC4GA3",
+          "year_from": 2016,
+          "year_to": 2022
+        },
+        {
+          "brand": "JAC",
+          "model": "T8",
+          "engine_code": "2.0 HFC4DA",
+          "year_from": 2019,
           "year_to": 2024
         }
       ]
@@ -143203,13 +143575,6 @@
       "compatibilities": [
         {
           "brand": "Chevrolet",
-          "model": "Onix",
-          "engine_code": "1.0 Turbo",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chevrolet",
           "model": "Cruze",
           "engine_code": "1.4 Turbo",
           "year_from": 2017,
@@ -143217,23 +143582,9 @@
         },
         {
           "brand": "Chevrolet",
-          "model": "Tracker",
-          "engine_code": "1.2 Turbo",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Fiat",
-          "model": "Cronos",
-          "engine_code": "1.3 Firefly",
-          "year_from": 2018,
-          "year_to": 2024
-        },
-        {
-          "brand": "Fiat",
-          "model": "Argo",
-          "engine_code": "1.3 Firefly",
-          "year_from": 2018,
+          "model": "S10",
+          "engine_code": "2.8 Duramax",
+          "year_from": 2012,
           "year_to": 2024
         },
         {
@@ -143259,17 +143610,24 @@
         },
         {
           "brand": "Volkswagen",
-          "model": "T-Cross",
-          "engine_code": "1.0 TSI",
-          "year_from": 2019,
+          "model": "Amarok",
+          "engine_code": "2.0 TDI",
+          "year_from": 2011,
           "year_to": 2024
         },
         {
           "brand": "Ford",
-          "model": "Ka",
-          "engine_code": "1.5 Dragon",
-          "year_from": 2018,
-          "year_to": 2023
+          "model": "Fiesta",
+          "engine_code": "1.6 Sigma",
+          "year_from": 2011,
+          "year_to": 2019
+        },
+        {
+          "brand": "Ford",
+          "model": "Focus",
+          "engine_code": "2.0 Duratec",
+          "year_from": 2009,
+          "year_to": 2018
         },
         {
           "brand": "Ford",
@@ -143279,11 +143637,18 @@
           "year_to": 2022
         },
         {
-          "brand": "Renault",
-          "model": "Kwid",
-          "engine_code": "1.0 SCe",
-          "year_from": 2018,
-          "year_to": 2024
+          "brand": "Ford",
+          "model": "Ranger",
+          "engine_code": "3.2 Duratorq",
+          "year_from": 2012,
+          "year_to": 2022
+        },
+        {
+          "brand": "Peugeot",
+          "model": "208",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
         },
         {
           "brand": "Peugeot",
@@ -143291,6 +143656,13 @@
           "engine_code": "1.6 EC5",
           "year_from": 2016,
           "year_to": 2022
+        },
+        {
+          "brand": "Citroen",
+          "model": "C3",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
         },
         {
           "brand": "Toyota",
@@ -143308,17 +143680,17 @@
         },
         {
           "brand": "Nissan",
-          "model": "Kicks",
-          "engine_code": "1.6 HR16",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
-          "brand": "Nissan",
           "model": "Frontier",
           "engine_code": "2.3 YS23",
           "year_from": 2018,
           "year_to": 2024
+        },
+        {
+          "brand": "Hyundai",
+          "model": "HB20",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2013,
+          "year_to": 2022
         },
         {
           "brand": "Hyundai",
@@ -143329,122 +143701,24 @@
         },
         {
           "brand": "Kia",
+          "model": "Rio",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2012,
+          "year_to": 2020
+        },
+        {
+          "brand": "Kia",
           "model": "Sportage",
           "engine_code": "2.0 Nu",
           "year_from": 2016,
           "year_to": 2023
         },
         {
-          "brand": "Suzuki",
-          "model": "Swift",
-          "engine_code": "1.2 K12M",
-          "year_from": 2018,
-          "year_to": 2024
-        },
-        {
-          "brand": "Suzuki",
-          "model": "Vitara",
-          "engine_code": "1.6 M16A",
-          "year_from": 2016,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chery",
-          "model": "Tiggo 2",
-          "engine_code": "1.5 Acteco",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chery",
-          "model": "Tiggo 4",
-          "engine_code": "1.5 TGDI",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chery",
-          "model": "Tiggo 7",
-          "engine_code": "1.5 TGDI",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "BYD",
-          "model": "Song Pro DM-i",
-          "engine_code": "1.5 Xiaoyun",
-          "year_from": 2022,
-          "year_to": 2024
-        },
-        {
-          "brand": "BYD",
-          "model": "King DM-i",
-          "engine_code": "1.5 Xiaoyun",
-          "year_from": 2023,
-          "year_to": 2024
-        },
-        {
-          "brand": "GAC",
-          "model": "GS3",
-          "engine_code": "1.5 4A15J1",
-          "year_from": 2021,
-          "year_to": 2024
-        },
-        {
-          "brand": "GAC",
-          "model": "GS4",
-          "engine_code": "1.5 4A15J1",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
           "brand": "Mercedes-Benz",
-          "model": "Clase A",
-          "engine_code": "1.3 M282",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Clase C",
-          "engine_code": "2.0 M264",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "Serie 1",
-          "engine_code": "1.5 B38",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "X1",
-          "engine_code": "1.5 B38",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "Serie 3",
-          "engine_code": "2.0 B48",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "Geely",
-          "model": "Coolray",
-          "engine_code": "1.5 3G15TD",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Geely",
-          "model": "Emgrand",
-          "engine_code": "1.5 JL4G15",
-          "year_from": 2022,
-          "year_to": 2024
+          "model": "Sprinter",
+          "engine_code": "2.2 OM651",
+          "year_from": 2012,
+          "year_to": 2023
         },
         {
           "brand": "Mitsubishi",
@@ -143455,17 +143729,17 @@
         },
         {
           "brand": "Honda",
-          "model": "HR-V",
-          "engine_code": "1.8 R18",
-          "year_from": 2016,
-          "year_to": 2022
+          "model": "Fit",
+          "engine_code": "1.5 L15",
+          "year_from": 2015,
+          "year_to": 2020
         },
         {
           "brand": "Honda",
-          "model": "Civic",
-          "engine_code": "2.0 K20C",
-          "year_from": 2017,
-          "year_to": 2021
+          "model": "City",
+          "engine_code": "1.5 L15",
+          "year_from": 2015,
+          "year_to": 2022
         },
         {
           "brand": "Jeep",
@@ -143475,31 +143749,10 @@
           "year_to": 2021
         },
         {
-          "brand": "Jeep",
-          "model": "Compass",
-          "engine_code": "1.3 T270",
-          "year_from": 2022,
-          "year_to": 2024
-        },
-        {
-          "brand": "JAC",
-          "model": "S2",
-          "engine_code": "1.5 HFC4GA3",
-          "year_from": 2016,
-          "year_to": 2022
-        },
-        {
-          "brand": "JAC",
-          "model": "T8",
-          "engine_code": "2.0 HFC4DA",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
           "brand": "Mazda",
-          "model": "CX-5",
-          "engine_code": "2.0 Skyactiv-G",
-          "year_from": 2017,
+          "model": "Mazda2",
+          "engine_code": "1.5 Skyactiv-G",
+          "year_from": 2015,
           "year_to": 2024
         }
       ]
@@ -185967,20 +186220,6 @@
         },
         {
           "brand": "Chevrolet",
-          "model": "Cruze",
-          "engine_code": "1.4 Turbo",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chevrolet",
-          "model": "Tracker",
-          "engine_code": "1.2 Turbo",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chevrolet",
           "model": "S10",
           "engine_code": "2.8 Duramax",
           "year_from": 2012,
@@ -186029,13 +186268,6 @@
           "year_to": 2020
         },
         {
-          "brand": "Fiat",
-          "model": "Toro",
-          "engine_code": "2.0 Multijet",
-          "year_from": 2016,
-          "year_to": 2024
-        },
-        {
           "brand": "Volkswagen",
           "model": "Gol",
           "engine_code": "1.6 MSI",
@@ -186068,13 +186300,6 @@
           "model": "Virtus",
           "engine_code": "1.6 MSI",
           "year_from": 2018,
-          "year_to": 2024
-        },
-        {
-          "brand": "Volkswagen",
-          "model": "T-Cross",
-          "engine_code": "1.0 TSI",
-          "year_from": 2019,
           "year_to": 2024
         },
         {
@@ -186212,13 +186437,6 @@
         },
         {
           "brand": "Toyota",
-          "model": "Corolla",
-          "engine_code": "1.8 2ZR",
-          "year_from": 2015,
-          "year_to": 2024
-        },
-        {
-          "brand": "Toyota",
           "model": "Hilux",
           "engine_code": "2.8 1GD",
           "year_from": 2016,
@@ -186240,13 +186458,6 @@
         },
         {
           "brand": "Nissan",
-          "model": "Kicks",
-          "engine_code": "1.6 HR16",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
-          "brand": "Nissan",
           "model": "Frontier",
           "engine_code": "2.3 YS23",
           "year_from": 2018,
@@ -186260,25 +186471,11 @@
           "year_to": 2022
         },
         {
-          "brand": "Hyundai",
-          "model": "Creta",
-          "engine_code": "1.6 Gamma",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
           "brand": "Kia",
           "model": "Rio",
           "engine_code": "1.6 Gamma",
           "year_from": 2012,
           "year_to": 2020
-        },
-        {
-          "brand": "Kia",
-          "model": "Sportage",
-          "engine_code": "2.0 Nu",
-          "year_from": 2016,
-          "year_to": 2023
         },
         {
           "brand": "Suzuki",
@@ -186309,62 +186506,6 @@
           "year_to": 2024
         },
         {
-          "brand": "Chery",
-          "model": "Tiggo 4",
-          "engine_code": "1.5 TGDI",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chery",
-          "model": "Tiggo 7",
-          "engine_code": "1.5 TGDI",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "BYD",
-          "model": "Song Pro DM-i",
-          "engine_code": "1.5 Xiaoyun",
-          "year_from": 2022,
-          "year_to": 2024
-        },
-        {
-          "brand": "BYD",
-          "model": "King DM-i",
-          "engine_code": "1.5 Xiaoyun",
-          "year_from": 2023,
-          "year_to": 2024
-        },
-        {
-          "brand": "GAC",
-          "model": "GS3",
-          "engine_code": "1.5 4A15J1",
-          "year_from": 2021,
-          "year_to": 2024
-        },
-        {
-          "brand": "GAC",
-          "model": "GS4",
-          "engine_code": "1.5 4A15J1",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Clase A",
-          "engine_code": "1.3 M282",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Clase C",
-          "engine_code": "2.0 M264",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
           "brand": "Mercedes-Benz",
           "model": "Sprinter",
           "engine_code": "2.2 OM651",
@@ -186372,74 +186513,11 @@
           "year_to": 2023
         },
         {
-          "brand": "BMW",
-          "model": "Serie 1",
-          "engine_code": "1.5 B38",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "X1",
-          "engine_code": "1.5 B38",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "Serie 3",
-          "engine_code": "2.0 B48",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "Audi",
-          "model": "A3",
-          "engine_code": "1.4 TFSI",
-          "year_from": 2014,
-          "year_to": 2020
-        },
-        {
-          "brand": "Audi",
-          "model": "Q3",
-          "engine_code": "1.4 TFSI",
-          "year_from": 2015,
-          "year_to": 2020
-        },
-        {
-          "brand": "Geely",
-          "model": "Coolray",
-          "engine_code": "1.5 3G15TD",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Geely",
-          "model": "Emgrand",
-          "engine_code": "1.5 JL4G15",
-          "year_from": 2022,
-          "year_to": 2024
-        },
-        {
           "brand": "Mitsubishi",
           "model": "L200",
           "engine_code": "2.4 4N15",
           "year_from": 2016,
           "year_to": 2024
-        },
-        {
-          "brand": "Mitsubishi",
-          "model": "Outlander",
-          "engine_code": "2.0 4B11",
-          "year_from": 2015,
-          "year_to": 2021
-        },
-        {
-          "brand": "Mitsubishi",
-          "model": "ASX",
-          "engine_code": "2.0 4B11",
-          "year_from": 2013,
-          "year_to": 2021
         },
         {
           "brand": "Honda",
@@ -186456,32 +186534,11 @@
           "year_to": 2022
         },
         {
-          "brand": "Honda",
-          "model": "HR-V",
-          "engine_code": "1.8 R18",
-          "year_from": 2016,
-          "year_to": 2022
-        },
-        {
-          "brand": "Honda",
-          "model": "Civic",
-          "engine_code": "2.0 K20C",
-          "year_from": 2017,
-          "year_to": 2021
-        },
-        {
           "brand": "Jeep",
           "model": "Renegade",
           "engine_code": "1.8 E.torQ",
           "year_from": 2016,
           "year_to": 2021
-        },
-        {
-          "brand": "Jeep",
-          "model": "Compass",
-          "engine_code": "1.3 T270",
-          "year_from": 2022,
-          "year_to": 2024
         },
         {
           "brand": "JAC",
@@ -186502,20 +186559,6 @@
           "model": "Mazda2",
           "engine_code": "1.5 Skyactiv-G",
           "year_from": 2015,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mazda",
-          "model": "Mazda3",
-          "engine_code": "2.0 Skyactiv-G",
-          "year_from": 2014,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mazda",
-          "model": "CX-5",
-          "engine_code": "2.0 Skyactiv-G",
-          "year_from": 2017,
           "year_to": 2024
         }
       ]
@@ -187815,10 +187858,17 @@
           "year_to": 2023
         },
         {
-          "brand": "Chevrolet",
-          "model": "S10",
-          "engine_code": "2.8 Duramax",
-          "year_from": 2012,
+          "brand": "Fiat",
+          "model": "Cronos",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Fiat",
+          "model": "Argo",
+          "engine_code": "1.3 Firefly",
+          "year_from": 2018,
           "year_to": 2024
         },
         {
@@ -187871,32 +187921,11 @@
           "year_to": 2023
         },
         {
-          "brand": "Volkswagen",
-          "model": "Amarok",
-          "engine_code": "2.0 TDI",
-          "year_from": 2011,
-          "year_to": 2024
-        },
-        {
           "brand": "Ford",
-          "model": "Fiesta",
-          "engine_code": "1.6 Sigma",
-          "year_from": 2011,
-          "year_to": 2019
-        },
-        {
-          "brand": "Ford",
-          "model": "Focus",
-          "engine_code": "2.0 Duratec",
-          "year_from": 2009,
-          "year_to": 2018
-        },
-        {
-          "brand": "Ford",
-          "model": "Ranger",
-          "engine_code": "3.2 Duratorq",
-          "year_from": 2012,
-          "year_to": 2022
+          "model": "Ka",
+          "engine_code": "1.5 Dragon",
+          "year_from": 2018,
+          "year_to": 2023
         },
         {
           "brand": "Renault",
@@ -187928,6 +187957,13 @@
         },
         {
           "brand": "Renault",
+          "model": "Kwid",
+          "engine_code": "1.0 SCe",
+          "year_from": 2018,
+          "year_to": 2024
+        },
+        {
+          "brand": "Renault",
           "model": "Kangoo",
           "engine_code": "1.6 K7M",
           "year_from": 2008,
@@ -187935,24 +187971,10 @@
         },
         {
           "brand": "Peugeot",
-          "model": "208",
-          "engine_code": "1.6 EC5",
-          "year_from": 2013,
-          "year_to": 2021
-        },
-        {
-          "brand": "Peugeot",
           "model": "Partner",
           "engine_code": "1.6 HDi",
           "year_from": 2010,
           "year_to": 2020
-        },
-        {
-          "brand": "Citroen",
-          "model": "C3",
-          "engine_code": "1.6 EC5",
-          "year_from": 2013,
-          "year_to": 2021
         },
         {
           "brand": "Citroen",
@@ -187969,13 +187991,6 @@
           "year_to": 2022
         },
         {
-          "brand": "Toyota",
-          "model": "Corolla",
-          "engine_code": "1.8 2ZR",
-          "year_from": 2015,
-          "year_to": 2024
-        },
-        {
           "brand": "Nissan",
           "model": "March",
           "engine_code": "1.6 HR16",
@@ -187990,18 +188005,11 @@
           "year_to": 2024
         },
         {
-          "brand": "Hyundai",
-          "model": "HB20",
-          "engine_code": "1.6 Gamma",
-          "year_from": 2013,
-          "year_to": 2022
-        },
-        {
-          "brand": "Kia",
-          "model": "Rio",
-          "engine_code": "1.6 Gamma",
-          "year_from": 2012,
-          "year_to": 2020
+          "brand": "Suzuki",
+          "model": "Swift",
+          "engine_code": "1.2 K12M",
+          "year_from": 2018,
+          "year_to": 2024
         },
         {
           "brand": "Suzuki",
@@ -188011,66 +188019,31 @@
           "year_to": 2024
         },
         {
-          "brand": "Mercedes-Benz",
-          "model": "Sprinter",
-          "engine_code": "2.2 OM651",
-          "year_from": 2012,
-          "year_to": 2023
-        },
-        {
-          "brand": "Audi",
-          "model": "A3",
-          "engine_code": "1.4 TFSI",
-          "year_from": 2014,
-          "year_to": 2020
-        },
-        {
-          "brand": "Audi",
-          "model": "Q3",
-          "engine_code": "1.4 TFSI",
-          "year_from": 2015,
-          "year_to": 2020
-        },
-        {
-          "brand": "Mitsubishi",
-          "model": "Outlander",
-          "engine_code": "2.0 4B11",
-          "year_from": 2015,
-          "year_to": 2021
-        },
-        {
-          "brand": "Mitsubishi",
-          "model": "ASX",
-          "engine_code": "2.0 4B11",
-          "year_from": 2013,
-          "year_to": 2021
-        },
-        {
-          "brand": "Honda",
-          "model": "Fit",
-          "engine_code": "1.5 L15",
-          "year_from": 2015,
-          "year_to": 2020
-        },
-        {
-          "brand": "Honda",
-          "model": "City",
-          "engine_code": "1.5 L15",
-          "year_from": 2015,
-          "year_to": 2022
-        },
-        {
-          "brand": "Mazda",
-          "model": "Mazda2",
-          "engine_code": "1.5 Skyactiv-G",
-          "year_from": 2015,
+          "brand": "Suzuki",
+          "model": "Vitara",
+          "engine_code": "1.6 M16A",
+          "year_from": 2016,
           "year_to": 2024
         },
         {
-          "brand": "Mazda",
-          "model": "Mazda3",
-          "engine_code": "2.0 Skyactiv-G",
-          "year_from": 2014,
+          "brand": "Chery",
+          "model": "Tiggo 2",
+          "engine_code": "1.5 Acteco",
+          "year_from": 2017,
+          "year_to": 2024
+        },
+        {
+          "brand": "JAC",
+          "model": "S2",
+          "engine_code": "1.5 HFC4GA3",
+          "year_from": 2016,
+          "year_to": 2022
+        },
+        {
+          "brand": "JAC",
+          "model": "T8",
+          "engine_code": "2.0 HFC4DA",
+          "year_from": 2019,
           "year_to": 2024
         }
       ]
@@ -188111,13 +188084,6 @@
       "compatibilities": [
         {
           "brand": "Chevrolet",
-          "model": "Onix",
-          "engine_code": "1.0 Turbo",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chevrolet",
           "model": "Cruze",
           "engine_code": "1.4 Turbo",
           "year_from": 2017,
@@ -188125,23 +188091,9 @@
         },
         {
           "brand": "Chevrolet",
-          "model": "Tracker",
-          "engine_code": "1.2 Turbo",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Fiat",
-          "model": "Cronos",
-          "engine_code": "1.3 Firefly",
-          "year_from": 2018,
-          "year_to": 2024
-        },
-        {
-          "brand": "Fiat",
-          "model": "Argo",
-          "engine_code": "1.3 Firefly",
-          "year_from": 2018,
+          "model": "S10",
+          "engine_code": "2.8 Duramax",
+          "year_from": 2012,
           "year_to": 2024
         },
         {
@@ -188167,17 +188119,24 @@
         },
         {
           "brand": "Volkswagen",
-          "model": "T-Cross",
-          "engine_code": "1.0 TSI",
-          "year_from": 2019,
+          "model": "Amarok",
+          "engine_code": "2.0 TDI",
+          "year_from": 2011,
           "year_to": 2024
         },
         {
           "brand": "Ford",
-          "model": "Ka",
-          "engine_code": "1.5 Dragon",
-          "year_from": 2018,
-          "year_to": 2023
+          "model": "Fiesta",
+          "engine_code": "1.6 Sigma",
+          "year_from": 2011,
+          "year_to": 2019
+        },
+        {
+          "brand": "Ford",
+          "model": "Focus",
+          "engine_code": "2.0 Duratec",
+          "year_from": 2009,
+          "year_to": 2018
         },
         {
           "brand": "Ford",
@@ -188187,11 +188146,18 @@
           "year_to": 2022
         },
         {
-          "brand": "Renault",
-          "model": "Kwid",
-          "engine_code": "1.0 SCe",
-          "year_from": 2018,
-          "year_to": 2024
+          "brand": "Ford",
+          "model": "Ranger",
+          "engine_code": "3.2 Duratorq",
+          "year_from": 2012,
+          "year_to": 2022
+        },
+        {
+          "brand": "Peugeot",
+          "model": "208",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
         },
         {
           "brand": "Peugeot",
@@ -188199,6 +188165,13 @@
           "engine_code": "1.6 EC5",
           "year_from": 2016,
           "year_to": 2022
+        },
+        {
+          "brand": "Citroen",
+          "model": "C3",
+          "engine_code": "1.6 EC5",
+          "year_from": 2013,
+          "year_to": 2021
         },
         {
           "brand": "Toyota",
@@ -188216,17 +188189,17 @@
         },
         {
           "brand": "Nissan",
-          "model": "Kicks",
-          "engine_code": "1.6 HR16",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
-          "brand": "Nissan",
           "model": "Frontier",
           "engine_code": "2.3 YS23",
           "year_from": 2018,
           "year_to": 2024
+        },
+        {
+          "brand": "Hyundai",
+          "model": "HB20",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2013,
+          "year_to": 2022
         },
         {
           "brand": "Hyundai",
@@ -188237,122 +188210,24 @@
         },
         {
           "brand": "Kia",
+          "model": "Rio",
+          "engine_code": "1.6 Gamma",
+          "year_from": 2012,
+          "year_to": 2020
+        },
+        {
+          "brand": "Kia",
           "model": "Sportage",
           "engine_code": "2.0 Nu",
           "year_from": 2016,
           "year_to": 2023
         },
         {
-          "brand": "Suzuki",
-          "model": "Swift",
-          "engine_code": "1.2 K12M",
-          "year_from": 2018,
-          "year_to": 2024
-        },
-        {
-          "brand": "Suzuki",
-          "model": "Vitara",
-          "engine_code": "1.6 M16A",
-          "year_from": 2016,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chery",
-          "model": "Tiggo 2",
-          "engine_code": "1.5 Acteco",
-          "year_from": 2017,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chery",
-          "model": "Tiggo 4",
-          "engine_code": "1.5 TGDI",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Chery",
-          "model": "Tiggo 7",
-          "engine_code": "1.5 TGDI",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "BYD",
-          "model": "Song Pro DM-i",
-          "engine_code": "1.5 Xiaoyun",
-          "year_from": 2022,
-          "year_to": 2024
-        },
-        {
-          "brand": "BYD",
-          "model": "King DM-i",
-          "engine_code": "1.5 Xiaoyun",
-          "year_from": 2023,
-          "year_to": 2024
-        },
-        {
-          "brand": "GAC",
-          "model": "GS3",
-          "engine_code": "1.5 4A15J1",
-          "year_from": 2021,
-          "year_to": 2024
-        },
-        {
-          "brand": "GAC",
-          "model": "GS4",
-          "engine_code": "1.5 4A15J1",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
           "brand": "Mercedes-Benz",
-          "model": "Clase A",
-          "engine_code": "1.3 M282",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "Mercedes-Benz",
-          "model": "Clase C",
-          "engine_code": "2.0 M264",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "Serie 1",
-          "engine_code": "1.5 B38",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "X1",
-          "engine_code": "1.5 B38",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "BMW",
-          "model": "Serie 3",
-          "engine_code": "2.0 B48",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
-          "brand": "Geely",
-          "model": "Coolray",
-          "engine_code": "1.5 3G15TD",
-          "year_from": 2020,
-          "year_to": 2024
-        },
-        {
-          "brand": "Geely",
-          "model": "Emgrand",
-          "engine_code": "1.5 JL4G15",
-          "year_from": 2022,
-          "year_to": 2024
+          "model": "Sprinter",
+          "engine_code": "2.2 OM651",
+          "year_from": 2012,
+          "year_to": 2023
         },
         {
           "brand": "Mitsubishi",
@@ -188363,17 +188238,17 @@
         },
         {
           "brand": "Honda",
-          "model": "HR-V",
-          "engine_code": "1.8 R18",
-          "year_from": 2016,
-          "year_to": 2022
+          "model": "Fit",
+          "engine_code": "1.5 L15",
+          "year_from": 2015,
+          "year_to": 2020
         },
         {
           "brand": "Honda",
-          "model": "Civic",
-          "engine_code": "2.0 K20C",
-          "year_from": 2017,
-          "year_to": 2021
+          "model": "City",
+          "engine_code": "1.5 L15",
+          "year_from": 2015,
+          "year_to": 2022
         },
         {
           "brand": "Jeep",
@@ -188383,31 +188258,10 @@
           "year_to": 2021
         },
         {
-          "brand": "Jeep",
-          "model": "Compass",
-          "engine_code": "1.3 T270",
-          "year_from": 2022,
-          "year_to": 2024
-        },
-        {
-          "brand": "JAC",
-          "model": "S2",
-          "engine_code": "1.5 HFC4GA3",
-          "year_from": 2016,
-          "year_to": 2022
-        },
-        {
-          "brand": "JAC",
-          "model": "T8",
-          "engine_code": "2.0 HFC4DA",
-          "year_from": 2019,
-          "year_to": 2024
-        },
-        {
           "brand": "Mazda",
-          "model": "CX-5",
-          "engine_code": "2.0 Skyactiv-G",
-          "year_from": 2017,
+          "model": "Mazda2",
+          "engine_code": "1.5 Skyactiv-G",
+          "year_from": 2015,
           "year_to": 2024
         }
       ]

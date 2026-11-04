@@ -6,7 +6,10 @@
       "engine_code": "1.4 8V",
       "year_from": 2013,
       "year_to": 2019,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Chevrolet",
@@ -14,7 +17,10 @@
       "engine_code": "1.0 Turbo",
       "year_from": 2020,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": null,
+      "cylinders": 3
     },
     {
       "brand": "Chevrolet",
@@ -22,7 +28,10 @@
       "engine_code": "1.4 8V",
       "year_from": 2013,
       "year_to": 2019,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Chevrolet",
@@ -30,7 +39,10 @@
       "engine_code": "1.6 8V",
       "year_from": 2000,
       "year_to": 2010,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Chevrolet",
@@ -38,7 +50,10 @@
       "engine_code": "1.8 8V",
       "year_from": 2013,
       "year_to": 2023,
-      "segment": "minivan"
+      "segment": "minivan",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Chevrolet",
@@ -46,7 +61,10 @@
       "engine_code": "1.4 Turbo",
       "year_from": 2017,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "automatic",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Chevrolet",
@@ -54,7 +72,10 @@
       "engine_code": "1.2 Turbo",
       "year_from": 2020,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 3
     },
     {
       "brand": "Chevrolet",
@@ -62,7 +83,10 @@
       "engine_code": "2.8 Duramax",
       "year_from": 2012,
       "year_to": 2024,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Fiat",
@@ -70,7 +94,10 @@
       "engine_code": "1.3 Firefly",
       "year_from": 2018,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Fiat",
@@ -78,7 +105,10 @@
       "engine_code": "1.3 Firefly",
       "year_from": 2018,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Fiat",
@@ -86,7 +116,10 @@
       "engine_code": "1.4 Fire",
       "year_from": 2004,
       "year_to": 2016,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Fiat",
@@ -94,7 +127,10 @@
       "engine_code": "1.4 Fire",
       "year_from": 2004,
       "year_to": 2016,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Fiat",
@@ -102,7 +138,10 @@
       "engine_code": "1.4 Fire",
       "year_from": 2010,
       "year_to": 2021,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Fiat",
@@ -110,7 +149,10 @@
       "engine_code": "1.4 Fire",
       "year_from": 2009,
       "year_to": 2020,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Fiat",
@@ -118,7 +160,10 @@
       "engine_code": "2.0 Multijet",
       "year_from": 2016,
       "year_to": 2024,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "automatic",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Volkswagen",
@@ -126,7 +171,10 @@
       "engine_code": "1.6 MSI",
       "year_from": 2013,
       "year_to": 2023,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Volkswagen",
@@ -134,7 +182,10 @@
       "engine_code": "1.6 MSI",
       "year_from": 2013,
       "year_to": 2022,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Volkswagen",
@@ -142,7 +193,10 @@
       "engine_code": "1.6 MSI",
       "year_from": 2010,
       "year_to": 2023,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Volkswagen",
@@ -150,7 +204,10 @@
       "engine_code": "1.6 MSI",
       "year_from": 2018,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Volkswagen",
@@ -158,7 +215,10 @@
       "engine_code": "1.6 MSI",
       "year_from": 2018,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Volkswagen",
@@ -166,7 +226,10 @@
       "engine_code": "1.0 TSI",
       "year_from": 2019,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 3
     },
     {
       "brand": "Volkswagen",
@@ -174,7 +237,10 @@
       "engine_code": "2.0 TDI",
       "year_from": 2011,
       "year_to": 2024,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Ford",
@@ -182,7 +248,10 @@
       "engine_code": "1.6 Sigma",
       "year_from": 2011,
       "year_to": 2019,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Ford",
@@ -190,7 +259,10 @@
       "engine_code": "2.0 Duratec",
       "year_from": 2009,
       "year_to": 2018,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Ford",
@@ -198,7 +270,10 @@
       "engine_code": "1.5 Dragon",
       "year_from": 2018,
       "year_to": 2023,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 3
     },
     {
       "brand": "Ford",
@@ -206,7 +281,10 @@
       "engine_code": "1.5 Dragon",
       "year_from": 2018,
       "year_to": 2022,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 3
     },
     {
       "brand": "Ford",
@@ -214,7 +292,10 @@
       "engine_code": "3.2 Duratorq",
       "year_from": 2012,
       "year_to": 2022,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 5
     },
     {
       "brand": "Renault",
@@ -222,7 +303,10 @@
       "engine_code": "1.6 K4M",
       "year_from": 2012,
       "year_to": 2020,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Renault",
@@ -230,7 +314,10 @@
       "engine_code": "1.6 K4M",
       "year_from": 2010,
       "year_to": 2020,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Renault",
@@ -238,7 +325,10 @@
       "engine_code": "1.6 K4M",
       "year_from": 2013,
       "year_to": 2020,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Renault",
@@ -246,7 +336,10 @@
       "engine_code": "1.6 K4M",
       "year_from": 2012,
       "year_to": 2021,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Renault",
@@ -254,7 +347,10 @@
       "engine_code": "1.0 SCe",
       "year_from": 2018,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 3
     },
     {
       "brand": "Renault",
@@ -262,7 +358,10 @@
       "engine_code": "1.6 K7M",
       "year_from": 2008,
       "year_to": 2019,
-      "segment": "van"
+      "segment": "van",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Peugeot",
@@ -270,7 +369,10 @@
       "engine_code": "1.6 EC5",
       "year_from": 2013,
       "year_to": 2021,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Peugeot",
@@ -278,7 +380,10 @@
       "engine_code": "1.6 EC5",
       "year_from": 2016,
       "year_to": 2022,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Peugeot",
@@ -286,7 +391,10 @@
       "engine_code": "1.6 HDi",
       "year_from": 2010,
       "year_to": 2020,
-      "segment": "van"
+      "segment": "van",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Citroen",
@@ -294,7 +402,10 @@
       "engine_code": "1.6 EC5",
       "year_from": 2013,
       "year_to": 2021,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Citroen",
@@ -302,7 +413,10 @@
       "engine_code": "1.6 HDi",
       "year_from": 2010,
       "year_to": 2020,
-      "segment": "van"
+      "segment": "van",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Toyota",
@@ -310,7 +424,10 @@
       "engine_code": "1.5 2NR",
       "year_from": 2013,
       "year_to": 2022,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Toyota",
@@ -318,7 +435,10 @@
       "engine_code": "1.5 2NR",
       "year_from": 2018,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Toyota",
@@ -326,7 +446,10 @@
       "engine_code": "1.8 2ZR",
       "year_from": 2015,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Toyota",
@@ -334,7 +457,10 @@
       "engine_code": "2.8 1GD",
       "year_from": 2016,
       "year_to": 2024,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Nissan",
@@ -342,7 +468,10 @@
       "engine_code": "1.6 HR16",
       "year_from": 2011,
       "year_to": 2020,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Nissan",
@@ -350,7 +479,10 @@
       "engine_code": "1.6 HR16",
       "year_from": 2015,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Nissan",
@@ -358,7 +490,10 @@
       "engine_code": "1.6 HR16",
       "year_from": 2017,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Nissan",
@@ -366,7 +501,10 @@
       "engine_code": "2.3 YS23",
       "year_from": 2018,
       "year_to": 2024,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Hyundai",
@@ -374,7 +512,10 @@
       "engine_code": "1.6 Gamma",
       "year_from": 2013,
       "year_to": 2022,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Hyundai",
@@ -382,7 +523,10 @@
       "engine_code": "1.6 Gamma",
       "year_from": 2017,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Kia",
@@ -390,7 +534,10 @@
       "engine_code": "1.6 Gamma",
       "year_from": 2012,
       "year_to": 2020,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Kia",
@@ -398,7 +545,10 @@
       "engine_code": "2.0 Nu",
       "year_from": 2016,
       "year_to": 2023,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Suzuki",
@@ -406,7 +556,10 @@
       "engine_code": "1.2 K12M",
       "year_from": 2018,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Suzuki",
@@ -414,7 +567,10 @@
       "engine_code": "1.0 K10B",
       "year_from": 2015,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 3
     },
     {
       "brand": "Suzuki",
@@ -422,7 +578,10 @@
       "engine_code": "1.6 M16A",
       "year_from": 2016,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Chery",
@@ -430,7 +589,10 @@
       "engine_code": "1.5 Acteco",
       "year_from": 2017,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Chery",
@@ -438,7 +600,10 @@
       "engine_code": "1.5 TGDI",
       "year_from": 2020,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Chery",
@@ -446,7 +611,10 @@
       "engine_code": "1.5 TGDI",
       "year_from": 2020,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "BYD",
@@ -454,7 +622,10 @@
       "engine_code": "1.5 Xiaoyun",
       "year_from": 2022,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "BYD",
@@ -462,7 +633,10 @@
       "engine_code": "1.5 Xiaoyun",
       "year_from": 2023,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "GAC",
@@ -470,7 +644,10 @@
       "engine_code": "1.5 4A15J1",
       "year_from": 2021,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "GAC",
@@ -478,7 +655,10 @@
       "engine_code": "1.5 4A15J1",
       "year_from": 2020,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Mercedes-Benz",
@@ -486,7 +666,10 @@
       "engine_code": "1.3 M282",
       "year_from": 2019,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Mercedes-Benz",
@@ -494,7 +677,10 @@
       "engine_code": "2.0 M264",
       "year_from": 2019,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Mercedes-Benz",
@@ -502,7 +688,10 @@
       "engine_code": "2.2 OM651",
       "year_from": 2012,
       "year_to": 2023,
-      "segment": "van"
+      "segment": "van",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "BMW",
@@ -510,7 +699,10 @@
       "engine_code": "1.5 B38",
       "year_from": 2019,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 3
     },
     {
       "brand": "BMW",
@@ -518,7 +710,10 @@
       "engine_code": "1.5 B38",
       "year_from": 2020,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 3
     },
     {
       "brand": "BMW",
@@ -526,7 +721,10 @@
       "engine_code": "2.0 B48",
       "year_from": 2019,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Audi",
@@ -534,7 +732,10 @@
       "engine_code": "1.4 TFSI",
       "year_from": 2014,
       "year_to": 2020,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Audi",
@@ -542,7 +743,10 @@
       "engine_code": "1.4 TFSI",
       "year_from": 2015,
       "year_to": 2020,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Geely",
@@ -550,7 +754,10 @@
       "engine_code": "1.5 3G15TD",
       "year_from": 2020,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 3
     },
     {
       "brand": "Geely",
@@ -558,7 +765,10 @@
       "engine_code": "1.5 JL4G15",
       "year_from": 2022,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Mitsubishi",
@@ -566,7 +776,10 @@
       "engine_code": "2.4 4N15",
       "year_from": 2016,
       "year_to": 2024,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Mitsubishi",
@@ -574,7 +787,10 @@
       "engine_code": "2.0 4B11",
       "year_from": 2015,
       "year_to": 2021,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Mitsubishi",
@@ -582,7 +798,10 @@
       "engine_code": "2.0 4B11",
       "year_from": 2013,
       "year_to": 2021,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Honda",
@@ -590,7 +809,10 @@
       "engine_code": "1.5 L15",
       "year_from": 2015,
       "year_to": 2020,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Honda",
@@ -598,7 +820,10 @@
       "engine_code": "1.5 L15",
       "year_from": 2015,
       "year_to": 2022,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Honda",
@@ -606,7 +831,10 @@
       "engine_code": "1.8 R18",
       "year_from": 2016,
       "year_to": 2022,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Honda",
@@ -614,7 +842,10 @@
       "engine_code": "2.0 K20C",
       "year_from": 2017,
       "year_to": 2021,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Jeep",
@@ -622,7 +853,10 @@
       "engine_code": "1.8 E.torQ",
       "year_from": 2016,
       "year_to": 2021,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Jeep",
@@ -630,7 +864,10 @@
       "engine_code": "1.3 T270",
       "year_from": 2022,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "JAC",
@@ -638,7 +875,10 @@
       "engine_code": "1.5 HFC4GA3",
       "year_from": 2016,
       "year_to": 2022,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "JAC",
@@ -646,7 +886,10 @@
       "engine_code": "2.0 HFC4DA",
       "year_from": 2019,
       "year_to": 2024,
-      "segment": "pickup"
+      "segment": "pickup",
+      "transmission": "manual",
+      "headlamp": "H4",
+      "cylinders": 4
     },
     {
       "brand": "Mazda",
@@ -654,7 +897,10 @@
       "engine_code": "1.5 Skyactiv-G",
       "year_from": 2015,
       "year_to": 2024,
-      "segment": "hatchback"
+      "segment": "hatchback",
+      "transmission": "manual",
+      "headlamp": "H7",
+      "cylinders": 4
     },
     {
       "brand": "Mazda",
@@ -662,7 +908,10 @@
       "engine_code": "2.0 Skyactiv-G",
       "year_from": 2014,
       "year_to": 2024,
-      "segment": "sedan"
+      "segment": "sedan",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     },
     {
       "brand": "Mazda",
@@ -670,7 +919,10 @@
       "engine_code": "2.0 Skyactiv-G",
       "year_from": 2017,
       "year_to": 2024,
-      "segment": "suv"
+      "segment": "suv",
+      "transmission": "automatic",
+      "headlamp": null,
+      "cylinders": 4
     }
   ]
 }
