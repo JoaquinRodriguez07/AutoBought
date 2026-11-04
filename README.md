@@ -205,7 +205,7 @@ La clave se pasa como variable de entorno y nunca se sube al repositorio. Opcion
 | `ana.perez@autobought.com` | `Repuestos2026` | 2 direcciones, una compra pagada en el historial |
 | `martin.rodriguez@autobought.com` | `Motor2026x` | Dirección en Maldonado |
 | `lucia.fernandez@autobought.com` | `Frenos2026x` | Dirección en el interior con apartamento y S/N |
-| `vendedor@autobought.com` | `Ventas2026x` | Vendedor: con el mismo login entra a `/dashboard` en vez de a la tienda |
+| `vendedor@autobought.com` | `Ventas2026x` | Vendedor administrador: con el mismo login entra a `/dashboard` en vez de a la tienda, y en "Equipo" da de alta y de baja vendedores |
 
 ### Historial de pedidos
 

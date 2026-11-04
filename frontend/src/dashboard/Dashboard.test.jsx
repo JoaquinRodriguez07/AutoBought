@@ -101,11 +101,11 @@ function DetalleFalso() {
   return <p>Detalle del repuesto {useParams().id}</p>;
 }
 
-function renderDashboard(ruta = "/dashboard") {
+function renderDashboard(ruta = "/dashboard", usuario = { email: "vendedor@example.com" }) {
   return render(
     <MemoryRouter initialEntries={[ruta]}>
       <Routes>
-        <Route path="/dashboard" element={<Dashboard usuario={{ email: "vendedor@example.com" }} />} />
+        <Route path="/dashboard" element={<Dashboard usuario={usuario} />} />
         <Route path="/dashboard/repuestos/:id" element={<DetalleFalso />} />
       </Routes>
     </MemoryRouter>
@@ -458,3 +458,27 @@ it("shows the error and retries", async () => {
 
   expect(await screen.findByRole("figure", { name: /Evolución de ventas/ })).toBeInTheDocument();
 });
+
+describe("sección Equipo (SCRUM-175)", () => {
+  // Un JWT de mentira: el portal solo lee el payload.
+  const sesionDe = (payload) => ({
+    email: "vendedor@example.com",
+    userType: "employee",
+    token: `x.${btoa(JSON.stringify({ sub: "1", user_type: "employee", ...payload }))}.y`,
+  });
+
+  test("an admin sees Equipo in the menu and is told they're an admin", async () => {
+    renderDashboard("/dashboard", sesionDe({ admin: true }));
+
+    expect(within(menu()).getByRole("button", { name: "Equipo" })).toBeInTheDocument();
+    expect(screen.getAllByText("Administrador").length).toBeGreaterThan(0);
+  });
+
+  test("a regular seller doesn't see Equipo and ?vista=equipo leads to the summary", async () => {
+    renderDashboard("/dashboard?vista=equipo", sesionDe({}));
+
+    expect(within(menu()).queryByRole("button", { name: "Equipo" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
+  });
+});
+

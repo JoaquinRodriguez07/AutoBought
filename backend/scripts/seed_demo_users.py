@@ -17,7 +17,7 @@ antes, para que haya repuestos con los que armar la compra de ejemplo.
 | ana.perez@autobought.com        | Repuestos2026 | 2 direcciones, una compra pagada               |
 | martin.rodriguez@autobought.com | Motor2026x    | Dirección en Maldonado                         |
 | lucia.fernandez@autobought.com  | Frenos2026x   | Dirección en el interior con apto. y S/N       |
-| vendedor@autobought.com         | Ventas2026x   | Vendedor (rol employee): entra a /dashboard    |
+| vendedor@autobought.com         | Ventas2026x   | Vendedor administrador: /dashboard y "Equipo"  |
 
 Los pagos se hacen en Mercado Pago, con las tarjetas de prueba de la
 cuenta de prueba: la tienda no guarda tarjetas.
@@ -86,12 +86,14 @@ USUARIOS = [
 
 # Vendedores (rol employee). La contraseña pasa por la misma regla que la de
 # los clientes (no puede contener la parte local del correo, por eso no es
-# "Vendedor...").
+# "Vendedor..."). El de prueba es administrador: ve la sección "Equipo" y
+# puede dar de alta y de baja vendedores.
 VENDEDORES = [
     {
         "name": "Vendedor AutoBought",
         "email": "vendedor@autobought.com",
         "password": "Ventas2026x",
+        "is_admin": True,
     },
 ]
 
@@ -155,8 +157,10 @@ def crear_vendedor(db, datos: dict) -> str:
         name=datos["name"],
         email=email,
         password_hash=hash_password(password),
+        is_admin=datos.get("is_admin", False),
     )
-    return f"{email} / {password}: vendedor."
+    rol = "vendedor administrador" if datos.get("is_admin") else "vendedor"
+    return f"{email} / {password}: {rol}."
 
 
 def main():
