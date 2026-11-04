@@ -12,3 +12,13 @@ export function textoPlazoPago(fecha, ahora = new Date()) {
   const dia = vence.toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit" });
   return `el ${dia} a las ${hora}`;
 }
+
+/**
+ * "Pagalo antes de las 22:45" o "Pagalo antes del 30/10 a las 00:15"
+ * ("de" + "el" se contrae en "del"). Vacío si no hay plazo.
+ */
+export function pagaloAntesDe(fecha, ahora = new Date()) {
+  const plazo = textoPlazoPago(fecha, ahora);
+  if (!plazo) return "";
+  return plazo.startsWith("el ") ? `Pagalo antes del ${plazo.slice(3)}` : `Pagalo antes de ${plazo}`;
+}

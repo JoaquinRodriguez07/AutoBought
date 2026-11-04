@@ -1,8 +1,9 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
 import PedidosEnCursoInicio from "./PedidosEnCursoInicio";
+import { ordenarPorAvance } from "./seguimientoPedido";
 import { PedidosProvider } from "./context/PedidosContext";
 import Footer from "./Footer";
 import Navbar from "./Navbar";
@@ -10,7 +11,7 @@ import { obtenerHistorialCompras } from "./api";
 import { obtenerSesion } from "./auth";
 
 // Los pedidos en curso fuera de «Mis pedidos»: el ícono de la barra, el
-// la sección del inicio y el link del pie de página.
+// la tarjeta del inicio y el link del pie de página.
 
 jest.mock("./api", () => ({ obtenerHistorialCompras: jest.fn() }));
 jest.mock("./auth", () => ({
@@ -50,67 +51,82 @@ beforeEach(() => {
 
 const enCaminoConItems = { ...enCamino, total: 2600, items: [{ cantidad: 4, precio: 650 }] };
 
-describe("sección del inicio", () => {
-  const seccion = () => screen.findByRole("region", { name: "Tus pedidos en curso" });
+function renderInicio() {
+  renderConPedidos(<PedidosEnCursoInicio />);
+}
+
+describe("tarjeta de pedidos en curso del inicio", () => {
+  const tarjeta = () => screen.findByRole("region", { name: "Tus pedidos en curso" });
+  const pedidosDe = (region) => within(region).getAllByRole("button", { name: /Ver el seguimiento del pedido/ });
 
   test("shows the orders in progress, the most advanced first, with their progress", async () => {
     const user = userEvent.setup();
-    obtenerHistorialCompras.mockResolvedValue([entregado, empaquetando, enCaminoConItems]);
-    renderConPedidos(<PedidosEnCursoInicio />);
+    obtenerHistorialCompras.mockResolvedValue([entregado, sinPagar, empaquetando, enCaminoConItems]);
+    renderInicio();
 
-    const tarjetas = within(await seccion()).getAllByRole("button", { name: /Ver el seguimiento del pedido/ });
-    expect(tarjetas).toHaveLength(2);
-    expect(tarjetas[0]).toHaveTextContent("Está en camino");
-    expect(tarjetas[0]).toHaveTextContent("Pedido #1 · 4 productos");
-    expect(tarjetas[1]).toHaveTextContent("Lo estamos empaquetando");
-    expect(within(tarjetas[0]).getByRole("list", { name: /Progreso del pedido #1/ })).toBeInTheDocument();
+    const pedidos = pedidosDe(await tarjeta());
+    expect(pedidos.map((pedido) => pedido.textContent)).toEqual([
+      expect.stringContaining("En camino"),
+      expect.stringContaining("Empaquetando"),
+      expect.stringContaining("Falta pagar"),
+    ]);
+    expect(within(pedidos[0]).getByRole("img", { name: "Progreso del pedido #1: 3 de 4 etapas" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Ver el seguimiento del pedido #1: Está en camino" }));
+    await user.click(pedidos[0]);
     expect(screen.getByTestId("ruta")).toHaveTextContent("/pedidos/1");
   });
 
-  test("shows at most two and links to all of them", async () => {
+  test("shows at most three and links to all of them", async () => {
     const user = userEvent.setup();
-    obtenerHistorialCompras.mockResolvedValue([sinPagar, empaquetando, enCamino]);
-    renderConPedidos(<PedidosEnCursoInicio />);
+    const otro = { ...empaquetando, id: 5 };
+    obtenerHistorialCompras.mockResolvedValue([sinPagar, empaquetando, enCamino, otro]);
+    renderInicio();
 
-    const lista = await seccion();
-    expect(within(lista).getAllByRole("button", { name: /Ver el seguimiento del pedido/ })).toHaveLength(2);
+    const region = await tarjeta();
+    expect(pedidosDe(region)).toHaveLength(3);
     // El que falta pagar es el que queda afuera.
-    expect(lista).not.toHaveTextContent("Falta pagar");
+    expect(region).not.toHaveTextContent("Falta pagar");
 
-    await user.click(within(lista).getByRole("button", { name: "Ver los 3 →" }));
+    await user.click(within(region).getByRole("button", { name: "Ver los 4 →" }));
     expect(screen.getByTestId("ruta")).toHaveTextContent(/^\/pedidos$/);
   });
 
-  test("an unpaid order invites to pay instead of showing the progress", async () => {
+  test("an unpaid order shows the deadline instead of the progress", async () => {
     obtenerHistorialCompras.mockResolvedValue([{ ...sinPagar, vencePago: "2026-01-03T00:15:00.000Z" }]);
-    renderConPedidos(<PedidosEnCursoInicio />);
+    renderInicio();
 
-    const lista = await seccion();
-    expect(lista).toHaveTextContent("Falta pagar");
-    expect(lista).toHaveTextContent("Pagar →");
-    expect(lista).toHaveTextContent("Tus repuestos quedan reservados hasta");
-    expect(within(lista).queryByRole("list", { name: /Progreso/ })).not.toBeInTheDocument();
-    expect(within(lista).getByRole("button", { name: "Ver mis pedidos →" })).toBeInTheDocument();
+    const region = await tarjeta();
+    expect(region).toHaveTextContent("Falta pagar");
+    expect(region).toHaveTextContent(/Pagalo antes de/);
+    expect(within(region).queryByRole("img", { name: /Progreso/ })).not.toBeInTheDocument();
+    expect(within(region).getByRole("button", { name: "Ver mis pedidos →" })).toBeInTheDocument();
   });
 
-  test("doesn't show without orders in progress", async () => {
+  test("without orders in progress it doesn't show", async () => {
     obtenerHistorialCompras.mockResolvedValue([entregado]);
-    renderConPedidos(<PedidosEnCursoInicio />);
+    renderInicio();
 
+    await waitFor(() => expect(obtenerHistorialCompras).toHaveBeenCalled());
     await screen.findByTestId("ruta");
-    expect(obtenerHistorialCompras).toHaveBeenCalled();
-    expect(screen.queryByRole("region", { name: "Tus pedidos en curso" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region")).not.toBeInTheDocument();
   });
 
-  test("doesn't ask for orders without a session or for a seller", () => {
+  test("without a session it doesn't show nor ask for orders", () => {
     obtenerSesion.mockReturnValue(null);
-    renderConPedidos(<PedidosEnCursoInicio />);
-    obtenerSesion.mockReturnValue({ ...cliente, userType: "employee" });
-    renderConPedidos(<PedidosEnCursoInicio />);
+    renderInicio();
 
+    expect(screen.queryByRole("region")).not.toBeInTheDocument();
     expect(obtenerHistorialCompras).not.toHaveBeenCalled();
+  });
+
+  test("ordenarPorAvance: shipped, packing, preparing, unpaid; newest first among equals", () => {
+    const viejo = { id: 10, estado: "packing", estadoPago: "approved", fecha: "2026-01-01" };
+    const nuevo = { id: 11, estado: "packing", estadoPago: "approved", fecha: "2026-01-05" };
+    const preparando = { id: 12, estado: "confirmed", estadoPago: "approved" };
+
+    expect(ordenarPorAvance([sinPagar, viejo, preparando, enCamino, nuevo]).map((p) => p.id)).toEqual([
+      enCamino.id, 11, 10, 12, sinPagar.id,
+    ]);
   });
 });
 

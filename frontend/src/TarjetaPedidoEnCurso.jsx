@@ -1,6 +1,6 @@
 import { IconoCheck } from "./Iconos";
 import { imagenDeRepuesto, usarImagenGenerica } from "./mapearRepuesto";
-import { textoPlazoPago } from "./plazoPago";
+import { pagaloAntesDe } from "./plazoPago";
 import {
   NOMBRE_ESTADO,
   faltaPagar,
@@ -98,7 +98,7 @@ export default function TarjetaPedidoEnCurso({
   ocupado = false,
 }) {
   const sinPagar = faltaPagar(compra);
-  const plazo = sinPagar && compra.vencePago ? `Pagalo antes de ${textoPlazoPago(compra.vencePago)}` : "";
+  const plazo = sinPagar && compra.vencePago ? pagaloAntesDe(compra.vencePago) : "";
 
   return (
     <li className="border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition">

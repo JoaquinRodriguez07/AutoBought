@@ -1,27 +1,47 @@
 import { useNavigate } from "react-router-dom";
 
 import { usePedidos } from "./context/PedidosContext";
-import { textoPlazoPago } from "./plazoPago";
-import { faltaPagar, formatearPrecio, fraseDelEstado } from "./seguimientoPedido";
-import { BarraProgreso } from "./TarjetaPedidoEnCurso";
+import { IconoCaja, IconoCamion, IconoCheck, IconoTarjeta } from "./Iconos";
+import { pagaloAntesDe } from "./plazoPago";
+import {
+  faltaPagar,
+  formatearPrecio,
+  fraseCorta,
+  fraseDelEstado,
+  ordenarPorAvance,
+  pasosDeSeguimiento,
+} from "./seguimientoPedido";
 
-// Cuántos pedidos se muestran en el inicio; el resto, en «Mis pedidos».
-const MAXIMO = 2;
+// Cuántos pedidos entran en la tarjeta; el resto, en «Mis pedidos».
+const MAXIMO = 3;
 
-// Primero los que están más cerca de llegar; los que falta pagar, al final.
-const PRIORIDAD = { shipped: 0, packing: 1, confirmed: 2 };
-const prioridad = (pedido) => (faltaPagar(pedido) ? 9 : PRIORIDAD[pedido.estado] ?? 5);
+function iconoDe(pedido) {
+  if (faltaPagar(pedido)) return IconoTarjeta;
+  return { shipped: IconoCamion, packing: IconoCaja }[pedido.estado] ?? IconoCheck;
+}
 
-function cantidadDeProductos(pedido) {
-  const unidades = (pedido.items || []).reduce((total, item) => total + (item.cantidad || 0), 0);
-  if (!unidades) return "";
-  return unidades === 1 ? "1 producto" : `${unidades} productos`;
+/** Las cuatro etapas en segmentos: las hechas en naranja. */
+function Progreso({ pedido }) {
+  const pasos = pasosDeSeguimiento(pedido);
+  const hechos = pasos.filter((paso) => paso.hecho).length;
+  return (
+    <div
+      role="img"
+      aria-label={`Progreso del pedido #${pedido.id}: ${hechos} de ${pasos.length} etapas`}
+      className="mt-3 grid grid-cols-4 gap-1"
+    >
+      {pasos.map((paso) => (
+        <span key={paso.estado} className={`h-1.5 rounded-full ${paso.hecho ? "bg-orange-500" : "bg-white/10"}`} />
+      ))}
+    </div>
+  );
 }
 
 /**
- * Sección del inicio con los pedidos en curso del cliente (como "Las
- * mejores marcas", con su encabezado): qué pasa con cada uno y su
- * progreso. Sin pedidos en curso no se muestra.
+ * Los pedidos en curso del cliente, en el banner del inicio: debajo del
+ * selector de auto y con su mismo estilo oscuro, hasta 3 pedidos del más
+ * avanzado al menos. Sin sesión o sin pedidos en
+ * curso no se muestra.
  */
 export default function PedidosEnCursoInicio() {
   const { enCurso } = usePedidos();
@@ -29,67 +49,77 @@ export default function PedidosEnCursoInicio() {
 
   if (enCurso.length === 0) return null;
 
-  const pedidos = [...enCurso].sort((a, b) => prioridad(a) - prioridad(b)).slice(0, MAXIMO);
+  const pedidos = ordenarPorAvance(enCurso).slice(0, MAXIMO);
+  const columnas = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3" }[pedidos.length];
 
   return (
-    <section aria-labelledby="titulo-pedidos-en-curso" className="bg-white border-b border-gray-100">
-      <div className="max-w-[1100px] mx-auto px-6 md:px-10 pt-10 pb-10">
-        <div className="flex items-end justify-between gap-4 mb-5">
-          <div>
-            <p className="text-orange-500 text-xs font-black tracking-[4px]">SEGUÍ TU COMPRA</p>
-            <h2 id="titulo-pedidos-en-curso" className="text-xl md:text-2xl font-black italic uppercase mt-1">
-              Tus pedidos en curso
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate("/pedidos")}
-            className="text-orange-500 text-sm font-bold hover:underline whitespace-nowrap"
-          >
-            {enCurso.length > MAXIMO ? `Ver los ${enCurso.length} →` : "Ver mis pedidos →"}
-          </button>
+    // Dentro del banner, debajo del selector y con su mismo estilo oscuro.
+    <section
+      aria-labelledby="titulo-pedidos-en-curso"
+      className="mt-4 bg-[#151719]/95 border border-white/10 rounded-xl shadow-2xl"
+    >
+      <div className="flex items-center justify-between gap-4 px-5 md:px-6 pt-5">
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <p className="text-orange-500 text-[11px] font-black tracking-[3px]">SEGUÍ TU COMPRA</p>
+          <h2 id="titulo-pedidos-en-curso" className="text-sm font-black text-white">
+            Tus pedidos en curso
+          </h2>
         </div>
-
-        <ul className={`grid grid-cols-1 gap-4 ${pedidos.length > 1 ? "md:grid-cols-2" : ""}`}>
-          {pedidos.map((pedido) => {
-            const sinPagar = faltaPagar(pedido);
-            const detalle = [`Pedido #${pedido.id}`, cantidadDeProductos(pedido), formatearPrecio(pedido.total)]
-              .filter(Boolean)
-              .join(" · ");
-            return (
-              <li key={pedido.id}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/pedidos/${pedido.id}`)}
-                  aria-label={`Ver el seguimiento del pedido #${pedido.id}: ${fraseDelEstado(pedido)}`}
-                  className="w-full text-left rounded-xl border border-gray-200 bg-white p-5 transition hover:border-orange-300 hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className={`text-lg font-black ${sinPagar ? "text-amber-700" : "text-gray-900"}`}>
-                        {fraseDelEstado(pedido)}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-0.5">{detalle}</p>
-                    </div>
-                    <span className="text-sm font-bold text-orange-500 whitespace-nowrap">
-                      {sinPagar ? "Pagar →" : "Ver seguimiento →"}
-                    </span>
-                  </div>
-                  {sinPagar ? (
-                    pedido.vencePago && (
-                      <p className="mt-4 text-sm text-gray-600">
-                        Tus repuestos quedan reservados hasta {textoPlazoPago(pedido.vencePago)}.
-                      </p>
-                    )
-                  ) : (
-                    <BarraProgreso compra={pedido} />
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <button
+          type="button"
+          onClick={() => navigate("/pedidos")}
+          className="text-orange-400 text-sm font-bold hover:text-orange-300 whitespace-nowrap"
+        >
+          {enCurso.length > MAXIMO ? `Ver los ${enCurso.length} →` : "Ver mis pedidos →"}
+        </button>
       </div>
+
+      <ul className={`grid grid-cols-1 ${columnas} divide-y md:divide-y-0 md:divide-x divide-white/10 mt-2`}>
+        {pedidos.map((pedido) => {
+          const sinPagar = faltaPagar(pedido);
+          const Icono = iconoDe(pedido);
+          return (
+            <li key={pedido.id}>
+              <button
+                type="button"
+                onClick={() => navigate(`/pedidos/${pedido.id}`)}
+                aria-label={`Ver el seguimiento del pedido #${pedido.id}: ${fraseDelEstado(pedido)}`}
+                className="group w-full h-full text-left px-5 md:px-6 py-4 rounded-xl hover:bg-white/[0.04] transition"
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
+                      sinPagar ? "bg-amber-400/10 text-amber-300" : "bg-orange-500/15 text-orange-400"
+                    }`}
+                  >
+                    <Icono className="w-5 h-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`font-black ${sinPagar ? "text-amber-300" : "text-white"}`}>
+                        {fraseCorta(pedido)}
+                      </p>
+                      <span aria-hidden="true" className="text-gray-500 group-hover:text-orange-400 transition">
+                        →
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Pedido #{pedido.id} · {formatearPrecio(pedido.total)}
+                    </p>
+                    {sinPagar ? (
+                      pedido.vencePago && (
+                        <p className="text-xs text-amber-200/90 mt-3">{pagaloAntesDe(pedido.vencePago)}</p>
+                      )
+                    ) : (
+                      <Progreso pedido={pedido} />
+                    )}
+                  </div>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

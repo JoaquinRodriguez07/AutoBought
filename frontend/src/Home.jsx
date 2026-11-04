@@ -20,6 +20,7 @@ import {
   IconoEngranaje,
   IconoEscape,
   IconoEscobilla,
+  IconoEscudo,
   IconoFiltro,
   IconoGota,
   IconoRayo,
@@ -71,6 +72,13 @@ const ICONOS_CATEGORIA = {
 // (con las 14 categorías de hoy, 4 + 5 + 5: todas las filas completas).
 const CATEGORIAS_DESTACADAS = ["Frenos", "Filtros", "Motor", "Suspensión"];
 
+// Lo que da confianza, debajo del título del banner.
+const CONFIANZA = [
+  [IconoCamion, "Envíos a todo el país"],
+  [IconoEscudo, "Pago seguro"],
+  [IconoDisco, "Marcas reconocidas"],
+];
+
 // Los pasos de "Cómo comprar".
 const PASOS_COMPRA = [
   [IconoAuto, "Elegí tu auto", "Marca, modelo y año: te mostramos solo los repuestos que le sirven."],
@@ -105,6 +113,7 @@ export default function Home({
 
   const { vehiculoActivo, activarVehiculo, limpiarVehiculo } =
     useVehicle();
+
 
   const buscarRepuestos = (vehiculo) => {
     activarVehiculo(vehiculo);
@@ -244,30 +253,49 @@ export default function Home({
       <section className="relative overflow-hidden bg-black">
 
         {/* Oscurecida y corrida hacia abajo para que no se vean las
-            partes blancas de la foto. */}
+            partes blancas de la foto. Se acerca muy despacio al entrar. */}
         <img
           src={repuestos}
           alt="Repuestos para vehículos"
           className="absolute inset-0 w-full h-full object-cover object-bottom"
         />
 
-        <div className="absolute inset-0 bg-black/60" />
-        <div className="absolute inset-0 bg-linear-to-r from-black/85 via-black/60 to-black/50" />
+        <div className="absolute inset-0 bg-black/55" />
+        <div className="absolute inset-0 bg-linear-to-r from-black/90 via-black/65 to-black/35" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black/70 to-transparent" />
 
-        <div className="relative z-10 max-w-[1100px] mx-auto px-6 md:px-10 pt-36 pb-12">
+        <div className="relative z-10 max-w-[1100px] mx-auto px-6 md:px-10 pt-32 md:pt-36 pb-12">
 
-          <p className="text-orange-500 text-xs font-black tracking-[4px]">
-            REPUESTOS PARA TU AUTO
-          </p>
+          {/* TÍTULO */}
+          <div>
+            <p className="text-orange-500 text-xs font-black tracking-[4px]">
+              REPUESTOS PARA TU AUTO
+            </p>
 
-          <h1 className="text-white text-4xl md:text-6xl font-black italic uppercase leading-none mt-4 max-w-[680px]">
-            REPUESTOS QUE TE MANTIENEN EN MOVIMIENTO
-          </h1>
+            <h1 className="text-white text-4xl md:text-6xl font-black italic uppercase leading-[0.95] mt-4 max-w-[640px]">
+              {["Repuestos que te", "mantienen en", "movimiento"].map((linea, indice) => (
+                <span key={linea} className={`block ${indice === 2 ? "text-orange-500" : ""}`}>
+                  {linea}{" "}
+                </span>
+              ))}
+            </h1>
 
-          <p className="text-gray-300 text-base mt-5 max-w-[520px] leading-relaxed">
-            Elegí tu auto y te mostramos los repuestos que le sirven,
-            de las mejores marcas.
-          </p>
+            <p className="text-gray-300 text-base md:text-lg mt-6 max-w-[520px] leading-relaxed">
+              Elegí tu auto y te mostramos los repuestos que le sirven,
+              de las mejores marcas.
+            </p>
+
+            <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-3">
+              {CONFIANZA.map(([Icono, texto]) => (
+                <li key={texto} className="flex items-center gap-2 text-sm text-gray-200">
+                  <span className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center">
+                    <Icono className="w-4 h-4 text-orange-400" />
+                  </span>
+                  {texto}
+                </li>
+              ))}
+            </ul>
+          </div>
 
           {/* SELECTOR DE VEHÍCULO */}
 
@@ -284,6 +312,9 @@ export default function Home({
 
           </div>
 
+          {/* PEDIDOS EN CURSO: solo con sesión y pedidos en curso */}
+          <PedidosEnCursoInicio />
+
         </div>
 
       </section>
@@ -291,14 +322,6 @@ export default function Home({
       {/* =====================================================
           ASISTENTE DE COMPRA (IA)
       ====================================================== */}
-
-      {/* =====================================================
-          PEDIDOS EN CURSO
-          Solo si el cliente tiene algo en camino: justo debajo del
-          banner, para que lo vea apenas entra.
-      ====================================================== */}
-
-      <PedidosEnCursoInicio />
 
       <InvitacionAsistente />
 

@@ -326,13 +326,13 @@ export default function Navbar({
 
         <div
           ref={menuRef}
-          className="relative"
+          className="relative flex"
         >
 
           <button
             type="button"
             onClick={manejarUsuario}
-            className={`transition ${
+            className={`flex items-center transition ${
               paginaActual === "login" ||
               paginaActual === "perfil" ||
               paginaActual === "direcciones" ||

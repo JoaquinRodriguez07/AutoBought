@@ -1890,8 +1890,10 @@ describe("Login", () => {
 
     const password = screen.getByPlaceholderText("••••••••");
     expect(password).toHaveAttribute("type", "password");
-    await user.click(screen.getByRole("button", { name: "○" }));
+    await user.click(screen.getByRole("button", { name: "Mostrar contraseña" }));
     expect(password).toHaveAttribute("type", "text");
+    await user.click(screen.getByRole("button", { name: "Ocultar contraseña" }));
+    expect(password).toHaveAttribute("type", "password");
 
     const remember = screen.getByRole("checkbox");
     await user.click(remember);

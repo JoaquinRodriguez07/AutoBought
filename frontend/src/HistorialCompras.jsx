@@ -5,7 +5,7 @@ import { usePedidos } from "./context/PedidosContext";
 import CuentaLayout from "./CuentaLayout";
 import DetallePedido, { EstadoPedido } from "./DetallePedido";
 import { IconoCaja } from "./Iconos";
-import { textoPlazoPago } from "./plazoPago";
+import { pagaloAntesDe } from "./plazoPago";
 import { irA } from "./redirigir";
 import {
   canceladoPorLaTienda,
@@ -25,7 +25,7 @@ function notaPago(compra) {
   if (vencioSinPagar(compra)) return "No se completó el pago a tiempo";
   if (canceladoPorLaTienda(compra)) return "Lo canceló la tienda";
   if (!faltaPagar(compra)) return "";
-  const plazo = compra.vencePago ? `Pagalo antes de ${textoPlazoPago(compra.vencePago)}` : "";
+  const plazo = compra.vencePago ? pagaloAntesDe(compra.vencePago) : "";
   if (compra.estadoPago === "rejected") return plazo ? `Pago rechazado · ${plazo}` : "Pago rechazado";
   return plazo;
 }
