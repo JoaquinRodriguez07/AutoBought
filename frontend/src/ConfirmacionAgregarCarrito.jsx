@@ -161,14 +161,14 @@ function ContenidoAgregado({
         <button
           type="button"
           onClick={onCerrar}
-          className="flex-1 rounded-md border border-white/20 py-2 text-xs font-black text-gray-200 hover:border-orange-500 hover:text-orange-400 transition"
+          className="flex-1 rounded-md border border-white/20 py-2 text-sm font-bold text-gray-200 hover:border-orange-500 hover:text-orange-400 transition"
         >
           Seguir comprando
         </button>
         <button
           type="button"
           onClick={onVerCarrito}
-          className="flex-1 rounded-md bg-orange-500 py-2 text-xs font-black text-white hover:bg-orange-600 transition"
+          className="flex-1 rounded-md bg-orange-500 py-2 text-sm font-bold text-white hover:bg-orange-600 transition"
         >
           Ver carrito
         </button>
@@ -197,7 +197,7 @@ function ContenidoLogin({ onIniciarSesion, onCerrar }) {
       <button
         type="button"
         onClick={onIniciarSesion}
-        className="mt-3 w-full rounded-md bg-orange-500 py-2 text-xs font-black text-white hover:bg-orange-600 transition"
+        className="mt-3 w-full rounded-md bg-orange-500 py-2 text-sm font-bold text-white hover:bg-orange-600 transition"
       >
         Iniciar sesión
       </button>

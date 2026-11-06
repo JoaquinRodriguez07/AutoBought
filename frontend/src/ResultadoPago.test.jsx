@@ -77,7 +77,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
 
     renderResultado("/pago?pedido=42&collection_status=null&payment_id=null");
 
-    expect(await screen.findByRole("button", { name: "REINTENTAR PAGO" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Reintentar pago" })).toBeInTheDocument();
     expect(verificarPago).not.toHaveBeenCalled();
   });
 
@@ -92,13 +92,13 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
       renderResultado("/pago?pedido=42&collection_status=approved");
 
       expect(await screen.findByText("Estamos confirmando tu pago...")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "REINTENTAR PAGO" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Reintentar pago" })).not.toBeInTheDocument();
       await act(async () => {
         jest.advanceTimersByTime(3000);
       });
 
       expect(await screen.findByText(/¡Pago aprobado!/)).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "REINTENTAR PAGO" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Reintentar pago" })).not.toBeInTheDocument();
     } finally {
       jest.useRealTimers();
     }
@@ -112,7 +112,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     renderResultado("/pago?pedido=42&collection_status=rejected");
 
     expect(await screen.findByRole("alert")).toHaveTextContent("El pago no se pudo completar");
-    await user.click(screen.getByRole("button", { name: "REINTENTAR PAGO" }));
+    await user.click(screen.getByRole("button", { name: "Reintentar pago" }));
 
     expect(crearLinkPago).toHaveBeenCalledWith("42");
     expect(irA).toHaveBeenCalledWith("https://mercadopago.test/pagar");
@@ -123,7 +123,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
 
     renderResultado("/pago?pedido=42&collection_status=null");
 
-    expect(await screen.findByRole("button", { name: "REINTENTAR PAGO" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Reintentar pago" })).toBeInTheDocument();
     expect(obtenerDetalleCompra).toHaveBeenCalledTimes(1);
   });
 

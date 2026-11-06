@@ -3,6 +3,7 @@ import Navbar from "./Navbar";
 import { login, obtenerPerfil } from "./api";
 import { decodeToken, esVendedor } from "./auth";
 import repuestos from "./assets/repuestos.jpg";
+import { CampoPassword } from "./PantallaAcceso";
 
 export default function Login({
   onHome,
@@ -20,7 +21,6 @@ export default function Login({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
 
   const [error, setError] = useState("");
@@ -111,7 +111,7 @@ export default function Login({
             className="p-8 md:p-12 flex flex-col justify-center"
           >
 
-            <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
+            <p className="text-orange-500 text-xs font-black tracking-[4px]">
               AUTOBOUGHT
             </p>
 
@@ -119,7 +119,7 @@ export default function Login({
               INICIAR SESIÓN
             </h1>
 
-            <p className="text-gray-400 text-[10px] mt-3">
+            <p className="text-gray-500 text-sm mt-3">
               Accedé a tu cuenta para continuar.
             </p>
 
@@ -128,7 +128,7 @@ export default function Login({
             ================================================== */}
 
             {error && (
-              <div className="mt-5 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-[9px] font-semibold">
+              <div role="alert" className="mt-5 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-sm font-semibold">
                 {error}
               </div>
             )}
@@ -139,16 +139,18 @@ export default function Login({
 
             <div className="mt-8">
 
-              <label className="text-[9px] font-bold text-gray-700">
+              <label htmlFor="login-email" className="text-xs font-bold text-gray-700">
                 CORREO ELECTRÓNICO
               </label>
 
               <input
+                id="login-email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@email.com"
-                className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
+                className="w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-sm outline-hidden focus:border-orange-500 transition"
               />
 
             </div>
@@ -161,40 +163,29 @@ export default function Login({
 
               <div className="flex justify-between items-center">
 
-                <label className="text-[9px] font-bold text-gray-700">
+                <label htmlFor="login-password" className="text-xs font-bold text-gray-700">
                   CONTRASEÑA
                 </label>
 
                 <button
                   type="button"
                   onClick={onOlvidePassword}
-                  className="text-[8px] text-orange-500 font-bold hover:underline"
+                  className="text-xs text-orange-500 font-bold hover:underline"
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
 
               </div>
 
-              <div className="relative">
-
-                <input
-                  type={showPassword ? "text" : "password"}
+              <div className="mt-2">
+                <CampoPassword
+                  id="login-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full mt-2 h-11 px-4 pr-12 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition"
+                  autoComplete="current-password"
+                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-sm outline-hidden focus:border-orange-500 transition"
                 />
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowPassword(!showPassword)
-                  }
-                  className="absolute right-3 top-[20px] text-gray-400 hover:text-orange-500 transition"
-                >
-                  {showPassword ? "◉" : "○"}
-                </button>
-
               </div>
 
             </div>
@@ -214,7 +205,7 @@ export default function Login({
                 className="accent-orange-500"
               />
 
-              <span className="text-[9px] text-gray-500">
+              <span className="text-sm text-gray-500">
                 Recordarme
               </span>
 
@@ -227,32 +218,16 @@ export default function Login({
             <button
               type="submit"
               disabled={cargando}
-              className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[10px] font-black mt-6 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-sm font-black mt-6 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {cargando ? "INICIANDO SESIÓN..." : "INICIAR SESIÓN"}
+              {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
-
-            {/* =================================================
-                SEPARADOR
-            ================================================== */}
-
-            <div className="flex items-center gap-3 my-6">
-
-              <div className="flex-1 h-px bg-gray-200" />
-
-              <span className="text-[8px] text-gray-400">
-                O
-              </span>
-
-              <div className="flex-1 h-px bg-gray-200" />
-
-            </div>
 
             {/* =================================================
                 REGISTRO
             ================================================== */}
 
-            <p className="text-center text-[9px] text-gray-500">
+            <p className="text-center text-sm text-gray-500 mt-6">
 
               ¿Todavía no tenés una cuenta?
 
@@ -286,7 +261,7 @@ export default function Login({
 
             <div className="absolute bottom-10 left-8 right-8">
 
-              <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
+              <p className="text-orange-500 text-xs font-black tracking-[4px]">
                 REPUESTOS PARA SEGUIR AVANZANDO
               </p>
 
@@ -300,7 +275,7 @@ export default function Login({
 
               <div className="w-10 h-[2px] bg-orange-500 mt-5" />
 
-              <p className="text-white/60 text-[9px] mt-4">
+              <p className="text-white/60 text-sm mt-4">
                 Siempre contigo.
               </p>
 

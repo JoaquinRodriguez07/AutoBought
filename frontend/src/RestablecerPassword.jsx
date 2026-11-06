@@ -60,11 +60,11 @@ export default function RestablecerPassword({
   if (listo) {
     return (
       <TarjetaCuenta titulo="Contraseña actualizada" {...propsNavbar}>
-        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-[10px] font-semibold">
+        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-xs font-semibold">
           Listo, ya podés iniciar sesión con tu contraseña nueva.
         </div>
         <button type="button" onClick={onIniciarSesion} className={claseBotonCuenta}>
-          INICIAR SESIÓN
+          Iniciar sesión
         </button>
       </TarjetaCuenta>
     );
@@ -77,19 +77,19 @@ export default function RestablecerPassword({
       {...propsNavbar}
     >
       {error && (
-        <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-[9px] font-semibold">
+        <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-xs font-semibold">
           {error}
         </div>
       )}
 
       {enlaceInvalido ? (
         <button type="button" onClick={onPedirOtroEnlace} className={claseBotonCuenta}>
-          PEDIR OTRO ENLACE
+          Pedir otro enlace
         </button>
       ) : (
         <form onSubmit={guardar} noValidate className="mt-6">
 
-          <label htmlFor="restablecer-nueva" className="text-[9px] font-bold text-gray-700">
+          <label htmlFor="restablecer-nueva" className="text-xs font-bold text-gray-700">
             NUEVA CONTRASEÑA
           </label>
           <input
@@ -104,7 +104,7 @@ export default function RestablecerPassword({
           />
           <ErrorCampo campo="nueva" mensaje={errores.nueva} />
 
-          <label htmlFor="restablecer-repetir" className="block mt-5 text-[9px] font-bold text-gray-700">
+          <label htmlFor="restablecer-repetir" className="block mt-5 text-xs font-bold text-gray-700">
             REPETIR NUEVA CONTRASEÑA
           </label>
           <input
@@ -120,13 +120,13 @@ export default function RestablecerPassword({
           <ErrorCampo campo="repetir" mensaje={errores.repetir} />
 
           <button type="submit" disabled={guardando} className={claseBotonCuenta}>
-            {guardando ? "GUARDANDO..." : "GUARDAR CONTRASEÑA"}
+            {guardando ? "Guardando..." : "Guardar contraseña"}
           </button>
 
         </form>
       )}
 
-      <p className="text-center text-[9px] text-gray-500 mt-6">
+      <p className="text-center text-xs text-gray-500 mt-6">
         <button type="button" onClick={onIniciarSesion} className={claseEnlaceCuenta}>
           Volver a iniciar sesión
         </button>

@@ -3,10 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { confirmarRecepcion, crearLinkPago, obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
 import { usePedidos } from "./context/PedidosContext";
+import CuentaLayout from "./CuentaLayout";
 import DetallePedido from "./DetallePedido";
-import EncabezadoPagina from "./EncabezadoPagina";
 import { IconoCamion } from "./Iconos";
-import Navbar from "./Navbar";
+import PestanasCompras from "./PestanasCompras";
 import { irA } from "./redirigir";
 import { estaEnCurso, formatearFecha } from "./seguimientoPedido";
 import TarjetaPedidoEnCurso from "./TarjetaPedidoEnCurso";
@@ -16,7 +16,7 @@ function Cargando({ texto }) {
     <div role="status" className="space-y-4">
       <span className="sr-only">{texto}</span>
       {[0, 1].map((i) => (
-        <div key={i} aria-hidden="true" className="border border-gray-200 rounded-xl p-5 animate-pulse">
+        <div key={i} aria-hidden="true" className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse">
           <div className="h-5 w-48 bg-gray-100 rounded" />
           <div className="h-3 w-full bg-gray-100 rounded mt-6" />
           <div className="flex gap-2 mt-6">
@@ -30,11 +30,11 @@ function Cargando({ texto }) {
 }
 
 /**
- * «Mis pedidos» (/pedidos, el ícono de la barra): los pedidos que todavía
- * no terminaron, con qué pasa ahora con cada uno, su progreso y lo que se
- * puede hacer (pagar o avisar que llegó). Las compras que ya terminaron
- * están en «Historial de compras» (/historial). El detalle de un pedido
- * está en /pedidos/:id.
+ * «Mis compras › En curso» (/pedidos, el ícono de la barra): los pedidos
+ * que todavía no terminaron, con qué pasa ahora con cada uno, su progreso
+ * y lo que se puede hacer (pagar o avisar que llegó). Las que ya
+ * terminaron están en la otra pestaña, «Anteriores» (/historial). El
+ * detalle de un pedido está en /pedidos/:id.
  */
 export default function MisPedidos(propsNavbar) {
   const { id } = useParams();
@@ -134,28 +134,26 @@ export default function MisPedidos(propsNavbar) {
   };
 
   const enCurso = compras.filter(estaEnCurso);
-  const irAlHistorial = () => propsNavbar.onHistorial?.();
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 font-sans">
-      <Navbar paginaActual="pedidos" {...propsNavbar} />
+    <CuentaLayout
+      {...propsNavbar}
+      seccion="compras"
+      migas={
+        id
+          ? [
+              { texto: "Inicio", ir: propsNavbar.onHome },
+              { texto: "Mi cuenta", ir: () => navigate("/cuenta") },
+              { texto: "Mis compras", ir: () => navigate("/pedidos") },
+              `Pedido #${id}`,
+            ]
+          : undefined
+      }
+      titulo={id ? `Pedido #${id}` : "Mis compras"}
+      descripcion={id && compraSeleccionada ? `Realizado el ${formatearFecha(compraSeleccionada.fecha)}` : undefined}
+    >
+          {!id && <PestanasCompras actual="enCurso" />}
 
-      <main>
-        <EncabezadoPagina
-          migas={
-            id
-              ? [{ texto: "Inicio", ir: propsNavbar.onHome }, { texto: "Mis pedidos", ir: () => navigate("/pedidos") }, `Pedido #${id}`]
-              : [{ texto: "Inicio", ir: propsNavbar.onHome }, "Mis pedidos"]
-          }
-          titulo={id ? `Pedido #${id}` : "Mis pedidos"}
-          descripcion={
-            id
-              ? compraSeleccionada && `Realizado el ${formatearFecha(compraSeleccionada.fecha)}`
-              : "Lo que compraste y todavía no te llegó."
-          }
-        />
-
-        <div className="max-w-[1100px] mx-auto px-5 md:px-10 pt-8 pb-16 box-content">
           {id ? (
             errorDetalle ? (
               <>
@@ -163,14 +161,14 @@ export default function MisPedidos(propsNavbar) {
                   {errorDetalle}
                 </p>
                 <button type="button" onClick={() => navigate("/pedidos")} className="text-orange-500 text-sm font-bold hover:underline">
-                  ← Volver a mis pedidos
+                  ← Volver a mis compras
                 </button>
               </>
             ) : compraSeleccionada ? (
               <DetallePedido
                 key={compraSeleccionada.id}
                 compra={compraSeleccionada}
-                textoVolver="← Volver a mis pedidos"
+                textoVolver="← Volver a mis compras"
                 onVolver={() => navigate("/pedidos")}
                 onActualizado={(entregada) => {
                   setDetalle(entregada);
@@ -193,7 +191,7 @@ export default function MisPedidos(propsNavbar) {
               {entregadoId !== null && (
                 <p role="status" className="bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-sm font-bold mb-6">
                   ¡Listo! Marcamos el pedido #{entregadoId} como entregado. Te mandamos un mail con el resumen.
-                  Lo vas a encontrar en tu historial de compras.
+                  Lo vas a encontrar en «Anteriores».
                 </p>
               )}
 
@@ -214,31 +212,22 @@ export default function MisPedidos(propsNavbar) {
                 </ul>
               ) : (
                 !error && (
-                  <div className="text-center py-16 border border-dashed border-gray-200 rounded-xl">
+                  <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-xl">
                     <IconoCamion className="w-10 h-10 mx-auto text-gray-300 mb-4" />
                     <p className="text-gray-500 text-sm font-bold">No tenés pedidos en curso.</p>
                     <p className="text-gray-400 text-xs mt-2">Cuando compres algo, vas a poder seguirlo acá.</p>
                     <button
                       type="button"
                       onClick={() => propsNavbar.onCatalogo?.()}
-                      className="mt-6 h-10 px-5 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-xs font-black transition"
+                      className="mt-6 h-10 px-5 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition"
                     >
-                      VER REPUESTOS
+                      Ver repuestos
                     </button>
                   </div>
                 )
               )}
-
-              <p className="mt-8 text-sm text-gray-500">
-                ¿Buscás una compra que ya te llegó o se canceló?{" "}
-                <button type="button" onClick={irAlHistorial} className="font-bold text-orange-500 hover:underline">
-                  Ver historial de compras →
-                </button>
-              </p>
             </>
           )}
-        </div>
-      </main>
-    </div>
+    </CuentaLayout>
   );
 }

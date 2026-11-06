@@ -1,8 +1,9 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
 import PedidosEnCursoInicio from "./PedidosEnCursoInicio";
+import { ordenarPorAvance } from "./seguimientoPedido";
 import { PedidosProvider } from "./context/PedidosContext";
 import Footer from "./Footer";
 import Navbar from "./Navbar";
@@ -10,7 +11,7 @@ import { obtenerHistorialCompras } from "./api";
 import { obtenerSesion } from "./auth";
 
 // Los pedidos en curso fuera de «Mis pedidos»: el ícono de la barra, el
-// la sección del inicio y el link del pie de página.
+// la tarjeta del inicio y el link del pie de página.
 
 jest.mock("./api", () => ({ obtenerHistorialCompras: jest.fn() }));
 jest.mock("./auth", () => ({
@@ -50,67 +51,82 @@ beforeEach(() => {
 
 const enCaminoConItems = { ...enCamino, total: 2600, items: [{ cantidad: 4, precio: 650 }] };
 
-describe("sección del inicio", () => {
-  const seccion = () => screen.findByRole("region", { name: "Tus pedidos en curso" });
+function renderInicio() {
+  renderConPedidos(<PedidosEnCursoInicio />);
+}
+
+describe("tarjeta de pedidos en curso del inicio", () => {
+  const tarjeta = () => screen.findByRole("region", { name: "Tus pedidos en curso" });
+  const pedidosDe = (region) => within(region).getAllByRole("button", { name: /Ver el seguimiento del pedido/ });
 
   test("shows the orders in progress, the most advanced first, with their progress", async () => {
     const user = userEvent.setup();
-    obtenerHistorialCompras.mockResolvedValue([entregado, empaquetando, enCaminoConItems]);
-    renderConPedidos(<PedidosEnCursoInicio />);
+    obtenerHistorialCompras.mockResolvedValue([entregado, sinPagar, empaquetando, enCaminoConItems]);
+    renderInicio();
 
-    const tarjetas = within(await seccion()).getAllByRole("button", { name: /Ver el seguimiento del pedido/ });
-    expect(tarjetas).toHaveLength(2);
-    expect(tarjetas[0]).toHaveTextContent("Está en camino");
-    expect(tarjetas[0]).toHaveTextContent("Pedido #1 · 4 productos");
-    expect(tarjetas[1]).toHaveTextContent("Lo estamos empaquetando");
-    expect(within(tarjetas[0]).getByRole("list", { name: /Progreso del pedido #1/ })).toBeInTheDocument();
+    const pedidos = pedidosDe(await tarjeta());
+    expect(pedidos.map((pedido) => pedido.textContent)).toEqual([
+      expect.stringContaining("En camino"),
+      expect.stringContaining("Empaquetando"),
+      expect.stringContaining("Falta pagar"),
+    ]);
+    expect(within(pedidos[0]).getByRole("img", { name: "Progreso del pedido #1: 3 de 4 etapas" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Ver el seguimiento del pedido #1: Está en camino" }));
+    await user.click(pedidos[0]);
     expect(screen.getByTestId("ruta")).toHaveTextContent("/pedidos/1");
   });
 
-  test("shows at most two and links to all of them", async () => {
+  test("shows at most three and links to all of them", async () => {
     const user = userEvent.setup();
-    obtenerHistorialCompras.mockResolvedValue([sinPagar, empaquetando, enCamino]);
-    renderConPedidos(<PedidosEnCursoInicio />);
+    const otro = { ...empaquetando, id: 5 };
+    obtenerHistorialCompras.mockResolvedValue([sinPagar, empaquetando, enCamino, otro]);
+    renderInicio();
 
-    const lista = await seccion();
-    expect(within(lista).getAllByRole("button", { name: /Ver el seguimiento del pedido/ })).toHaveLength(2);
+    const region = await tarjeta();
+    expect(pedidosDe(region)).toHaveLength(3);
     // El que falta pagar es el que queda afuera.
-    expect(lista).not.toHaveTextContent("Falta pagar");
+    expect(region).not.toHaveTextContent("Falta pagar");
 
-    await user.click(within(lista).getByRole("button", { name: "Ver los 3 →" }));
+    await user.click(within(region).getByRole("button", { name: "Ver los 4 →" }));
     expect(screen.getByTestId("ruta")).toHaveTextContent(/^\/pedidos$/);
   });
 
-  test("an unpaid order invites to pay instead of showing the progress", async () => {
+  test("an unpaid order shows the deadline instead of the progress", async () => {
     obtenerHistorialCompras.mockResolvedValue([{ ...sinPagar, vencePago: "2026-01-03T00:15:00.000Z" }]);
-    renderConPedidos(<PedidosEnCursoInicio />);
+    renderInicio();
 
-    const lista = await seccion();
-    expect(lista).toHaveTextContent("Falta pagar");
-    expect(lista).toHaveTextContent("Pagar →");
-    expect(lista).toHaveTextContent("Tus repuestos quedan reservados hasta");
-    expect(within(lista).queryByRole("list", { name: /Progreso/ })).not.toBeInTheDocument();
-    expect(within(lista).getByRole("button", { name: "Ver mis pedidos →" })).toBeInTheDocument();
+    const region = await tarjeta();
+    expect(region).toHaveTextContent("Falta pagar");
+    expect(region).toHaveTextContent(/Pagalo antes de/);
+    expect(within(region).queryByRole("img", { name: /Progreso/ })).not.toBeInTheDocument();
+    expect(within(region).getByRole("button", { name: "Ver todo →" })).toBeInTheDocument();
   });
 
-  test("doesn't show without orders in progress", async () => {
+  test("without orders in progress it doesn't show", async () => {
     obtenerHistorialCompras.mockResolvedValue([entregado]);
-    renderConPedidos(<PedidosEnCursoInicio />);
+    renderInicio();
 
+    await waitFor(() => expect(obtenerHistorialCompras).toHaveBeenCalled());
     await screen.findByTestId("ruta");
-    expect(obtenerHistorialCompras).toHaveBeenCalled();
-    expect(screen.queryByRole("region", { name: "Tus pedidos en curso" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region")).not.toBeInTheDocument();
   });
 
-  test("doesn't ask for orders without a session or for a seller", () => {
+  test("without a session it doesn't show nor ask for orders", () => {
     obtenerSesion.mockReturnValue(null);
-    renderConPedidos(<PedidosEnCursoInicio />);
-    obtenerSesion.mockReturnValue({ ...cliente, userType: "employee" });
-    renderConPedidos(<PedidosEnCursoInicio />);
+    renderInicio();
 
+    expect(screen.queryByRole("region")).not.toBeInTheDocument();
     expect(obtenerHistorialCompras).not.toHaveBeenCalled();
+  });
+
+  test("ordenarPorAvance: shipped, packing, preparing, unpaid; newest first among equals", () => {
+    const viejo = { id: 10, estado: "packing", estadoPago: "approved", fecha: "2026-01-01" };
+    const nuevo = { id: 11, estado: "packing", estadoPago: "approved", fecha: "2026-01-05" };
+    const preparando = { id: 12, estado: "confirmed", estadoPago: "approved" };
+
+    expect(ordenarPorAvance([sinPagar, viejo, preparando, enCamino, nuevo]).map((p) => p.id)).toEqual([
+      enCamino.id, 11, 10, 12, sinPagar.id,
+    ]);
   });
 });
 
@@ -120,7 +136,7 @@ describe("ícono de Mis pedidos en la barra", () => {
     obtenerHistorialCompras.mockResolvedValue([enCamino, sinPagar, entregado]);
     renderConPedidos(<Navbar usuario={cliente} onHistorial={jest.fn()} />);
 
-    const icono = await screen.findByRole("button", { name: "Mis pedidos (2 en curso)" });
+    const icono = await screen.findByRole("button", { name: "Mis compras (2 en curso)" });
     expect(icono).toHaveTextContent("2");
 
     await user.click(icono);
@@ -132,28 +148,29 @@ describe("ícono de Mis pedidos en la barra", () => {
     renderConPedidos(<Navbar usuario={cliente} />);
 
     await screen.findByTestId("ruta");
-    expect(screen.getByRole("button", { name: "Mis pedidos" })).not.toHaveTextContent(/\d/);
+    expect(screen.getByRole("button", { name: "Mis compras" })).not.toHaveTextContent(/\d/);
   });
 
-  test("the account menu has Mis pedidos (with the count) and the purchase history", async () => {
+  test("the account menu has a single Mis compras (with the count) and the rest of the account", async () => {
     const user = userEvent.setup();
-    const onHistorial = jest.fn();
     obtenerHistorialCompras.mockResolvedValue([enCamino]);
-    renderConPedidos(<Navbar usuario={cliente} onHistorial={onHistorial} />);
-    await screen.findByRole("button", { name: "Mis pedidos (1 en curso)" });
+    renderConPedidos(<Navbar usuario={cliente} />);
+    await screen.findByRole("button", { name: "Mis compras (1 en curso)" });
 
     await user.click(screen.getByTitle("Mi cuenta"));
     const menu = screen.getByText("ana@example.com").closest("div.absolute");
-    expect(within(menu).getByRole("button", { name: /Mis pedidos/ })).toHaveTextContent("1 en curso");
+    expect(within(menu).getByRole("button", { name: /Mis compras/ })).toHaveTextContent("1 en curso");
+    // Las compras anteriores van en una pestaña de Mis compras, no aparte.
+    expect(within(menu).queryByRole("button", { name: /Historial/ })).not.toBeInTheDocument();
 
-    await user.click(within(menu).getByRole("button", { name: "Historial de compras" }));
-    expect(onHistorial).toHaveBeenCalled();
+    await user.click(within(menu).getByRole("button", { name: "Ver toda mi cuenta" }));
+    expect(screen.getByTestId("ruta")).toHaveTextContent(/^\/cuenta$/);
   });
 
   test("a seller doesn't see it", () => {
     renderConPedidos(<Navbar usuario={{ ...cliente, userType: "employee" }} />);
 
-    expect(screen.queryByTitle("Mis pedidos")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Mis compras")).not.toBeInTheDocument();
   });
 
   test("an anonymous visitor sees it, like the cart and favorites, and it leads to the login", async () => {
@@ -162,7 +179,7 @@ describe("ícono de Mis pedidos en la barra", () => {
     obtenerSesion.mockReturnValue(null);
     renderConPedidos(<Navbar usuario={null} onLogin={onLogin} />);
 
-    await user.click(screen.getByTitle("Mis pedidos"));
+    await user.click(screen.getByTitle("Mis compras"));
 
     expect(onLogin).toHaveBeenCalled();
     expect(screen.getByTestId("ruta")).toHaveTextContent(/^\/$/);
@@ -172,17 +189,20 @@ describe("ícono de Mis pedidos en la barra", () => {
 });
 
 describe("link del pie de página", () => {
-  test("'Mis pedidos' opens the orders in progress, or the login without a session", async () => {
+  test("'Mis compras' and 'Mi cuenta' open the account, or the login without a session", async () => {
     const user = userEvent.setup();
-    const props = { onPedidos: jest.fn(), onLogin: jest.fn() };
+    const props = { onPedidos: jest.fn(), onCuenta: jest.fn(), onLogin: jest.fn() };
     const { unmount } = render(<Footer usuario={cliente} {...props} />);
 
-    await user.click(screen.getByRole("button", { name: "Mis pedidos" }));
+    await user.click(screen.getByRole("button", { name: "Mis compras" }));
+    await user.click(screen.getByRole("button", { name: "Mi cuenta" }));
     expect(props.onPedidos).toHaveBeenCalled();
+    expect(props.onCuenta).toHaveBeenCalled();
     unmount();
 
     render(<Footer usuario={null} {...props} />);
-    await user.click(screen.getByRole("button", { name: "Mis pedidos" }));
-    expect(props.onLogin).toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Mis compras" }));
+    await user.click(screen.getByRole("button", { name: "Mi cuenta" }));
+    expect(props.onLogin).toHaveBeenCalledTimes(2);
   });
 });

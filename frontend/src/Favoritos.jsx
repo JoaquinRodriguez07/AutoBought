@@ -13,7 +13,7 @@ export default function Favoritos({
   const precio = (v) => `$${v.toLocaleString("es-UY")}`;
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 font-sans">
+    <div className="min-h-screen bg-[#f5f5f5] text-gray-900 font-sans">
       <Navbar paginaActual="favoritos" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
         usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
@@ -30,7 +30,7 @@ export default function Favoritos({
         <div className="max-w-[1100px] mx-auto px-5 md:px-10 pb-14 box-content">
 
           {favoritos.length === 0 ? (
-            <div className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-16 text-center">
+            <div className="mt-8 bg-white border border-gray-200 rounded-xl px-6 py-16 md:p-16 text-center">
               <span className="mx-auto mb-4 w-16 h-16 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
                 <IconoCorazon className="w-8 h-8" />
               </span>
@@ -38,13 +38,13 @@ export default function Favoritos({
               <p className="text-sm text-gray-400 mt-2">Tocá el corazón de un producto para guardarlo.</p>
               <button onClick={() => onCatalogo()}
                 className="mt-6 bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-md text-sm font-black">
-                EXPLORAR REPUESTOS
+                Explorar repuestos
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
               {favoritos.map((producto) => (
-                <div key={producto.id} className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition">
+                <div key={producto.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition">
                   <div className="relative h-[190px] bg-white">
                     <img onError={usarImagenGenerica} src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-3" />
                     <button onClick={() => onAlternarFavorito(producto)}
@@ -54,15 +54,15 @@ export default function Favoritos({
                     </button>
                   </div>
                   <div className="p-4">
-                    <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">{producto.fabricante}</p>
+                    <p className="text-xs uppercase tracking-wide text-orange-500 font-black">{producto.fabricante}</p>
                     <button onClick={() => onDetalle(producto)} className="text-left text-sm font-bold mt-1 hover:text-orange-500">
                       {producto.nombre}
                     </button>
                     <p className="text-lg font-black mt-3">{precio(producto.precio)}</p>
-                    <BotonAgregarCarrito producto={producto} textoSinStock="SIN STOCK"
-                      className="w-full mt-4 flex items-center justify-center gap-2 rounded-md py-2.5 text-xs font-black">
+                    <BotonAgregarCarrito producto={producto} textoSinStock="Sin stock"
+                      className="w-full mt-4 flex items-center justify-center gap-2 rounded-md py-2.5 text-sm font-bold">
                       <IconoCarrito />
-                      AGREGAR AL CARRITO
+                      Agregar al carrito
                     </BotonAgregarCarrito>
                   </div>
                 </div>

@@ -67,6 +67,9 @@ import Marcas from "./Marcas";
 import ModelDropdown from "./ModelDropdown";
 import Navbar from "./Navbar";
 import Perfil from "./Perfil";
+import InicioCuenta from "./InicioCuenta";
+import Notificaciones from "./Notificaciones";
+import Seguridad from "./Seguridad";
 import Registro from "./Registro";
 import Direcciones from "./Direcciones";
 import HistorialCompras from "./HistorialCompras";
@@ -374,13 +377,30 @@ describe("Navbar", () => {
 
     await user.click(screen.getByRole("button", { name: "Abrir menú" }));
     const menu = document.getElementById("navbar-menu-celular");
-    expect(within(menu).getByRole("button", { name: "Home" })).toHaveClass("text-orange-500");
+    expect(within(menu).getByRole("button", { name: "Inicio" })).toHaveClass("text-orange-500");
 
     await user.click(within(menu).getByRole("button", { name: "Marcas" }));
 
     expect(props.onMarcas).toHaveBeenCalledTimes(1);
     expect(document.getElementById("navbar-menu-celular")).toBeNull();
     expect(screen.getByRole("button", { name: "Abrir menú" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("the mobile menu also has the orders, favorites and the account", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    render(<Navbar paginaActual="home" {...props} />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    const menu = document.getElementById("navbar-menu-celular");
+    expect(within(menu).getByRole("button", { name: "Mis compras" })).toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "Favoritos" }));
+    expect(props.onFavoritos).toHaveBeenCalled();
+
+    // Sin sesión, la cuenta lleva al login.
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    await user.click(within(document.getElementById("navbar-menu-celular")).getByRole("button", { name: "Iniciar sesión" }));
+    expect(props.onLogin).toHaveBeenCalled();
   });
 
   it("closes the mobile menu on an outside click or when the search opens", async () => {
@@ -428,7 +448,7 @@ describe("Navbar", () => {
 
     render(<Navbar paginaActual="home" {...props} />);
 
-    await user.click(screen.getByRole("button", { name: "Home" }));
+    await user.click(screen.getByRole("button", { name: "Inicio" }));
     await user.click(screen.getByRole("button", { name: "Marcas" }));
     await user.click(screen.getByRole("button", { name: "Repuestos" }));
     await user.click(screen.getByTitle("Iniciar sesión"));
@@ -447,41 +467,40 @@ describe("Navbar", () => {
   it("opens the authenticated account menu and closes it outside the menu", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onPerfil = jest.fn();
-    props.onDirecciones = jest.fn();
-    props.onHistorial = jest.fn();
     props.onCerrarSesion = jest.fn();
 
     render(
-      <Navbar
-        paginaActual="home"
-        usuario={{ nombre: "Ana", apellido: "Perez", email: "ana@example.com" }}
-        {...props}
-      />
+      <>
+        <Navbar
+          paginaActual="home"
+          usuario={{ nombre: "Ana", apellido: "Perez", email: "ana@example.com" }}
+          {...props}
+        />
+        <RutaActual />
+      </>
     );
 
     await user.click(screen.getByTitle("Mi cuenta"));
     expect(screen.getByText("Ana Perez")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mi perfil" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Mi perfil" }));
-    expect(props.onPerfil).toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "Mi perfil" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Mis datos" }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/perfil");
+    expect(screen.queryByRole("button", { name: "Mis datos" })).not.toBeInTheDocument();
 
     await user.click(screen.getByTitle("Mi cuenta"));
     await user.click(screen.getByRole("button", { name: "Direcciones" }));
-    expect(props.onDirecciones).toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "Métodos de pago" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/direcciones");
     await user.click(screen.getByTitle("Mi cuenta"));
-    await user.click(screen.getByRole("button", { name: "Historial de compras" }));
-    expect(props.onHistorial).toHaveBeenCalled();
+    const desplegable = screen.getByRole("button", { name: "Ver toda mi cuenta" }).closest("div.absolute");
+    await user.click(within(desplegable).getByRole("button", { name: "Mis compras" }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/pedidos");
     await user.click(screen.getByTitle("Mi cuenta"));
     await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
     expect(props.onCerrarSesion).toHaveBeenCalled();
 
     await user.click(screen.getByTitle("Mi cuenta"));
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByRole("button", { name: "Mi perfil" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mis datos" })).not.toBeInTheDocument();
   });
 });
 
@@ -507,12 +526,23 @@ describe("Home", () => {
     expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
     expect(screen.getByText("¿Qué auto tenés?")).toBeInTheDocument();
     // Sin auto elegido no se puede buscar ni hay nada para borrar.
-    const buscar = screen.getByRole("button", { name: "BUSCAR REPUESTOS" });
+    const buscar = screen.getByRole("button", { name: "Buscar repuestos" });
     expect(buscar).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "BORRAR FILTROS" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Borrar filtros" })).not.toBeInTheDocument();
     await user.click(buscar);
 
     expect(props.onCatalogo).not.toHaveBeenCalled();
+  });
+
+  it("has an arrow at the bottom of the banner that scrolls down", async () => {
+    const user = userEvent.setup();
+    const scrollTo = jest.spyOn(window, "scrollTo").mockImplementation(() => {});
+    render(<Home {...navigationProps()} />);
+
+    await user.click(screen.getByRole("button", { name: "Ver más del inicio" }));
+
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: "smooth" }));
+    scrollTo.mockRestore();
   });
 
   it("loads model and year options and searches with the selected vehicle", async () => {
@@ -609,7 +639,8 @@ describe("Home", () => {
       .toBeInTheDocument();
     // Arriba va el fabricante, no la marca del auto.
     expect(screen.getAllByText("Bosch").length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "VER REPUESTO" }));
+    // Toda la tarjeta lleva al repuesto: el nombre es el botón.
+    await user.click(screen.getByRole("button", { name: catalogProducts[0].nombre }));
 
     expect(props.onDetalle).toHaveBeenCalledWith(catalogProducts[0]);
   });
@@ -751,10 +782,10 @@ describe("Catalogo", () => {
     expect(screen.queryByText("Repuesto número 24")).not.toBeInTheDocument();
     expect(screen.getByText("Mostrando 24 de 30 repuestos")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "VER MÁS REPUESTOS" }));
+    await user.click(screen.getByRole("button", { name: "Ver más repuestos" }));
 
     expect(screen.getByText("Repuesto número 29")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "VER MÁS REPUESTOS" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ver más repuestos" })).not.toBeInTheDocument();
   });
 
   it("keeps the desktop filters sticky and scrollable within the viewport", () => {
@@ -1438,6 +1469,28 @@ describe("DetalleProducto", () => {
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
   });
 
+  it("shows the first compatible cars and the rest on demand", async () => {
+    const user = userEvent.setup();
+    const aceite = mapearRepuesto({
+      id: 376,
+      name: "Aceite de motor 5W30 4L Castrol",
+      compatibilities: Array.from({ length: 10 }, (_, i) => ({
+        brand: "Chevrolet", model: `Modelo ${i + 1}`, year_from: 2010, year_to: 2020,
+      })),
+    });
+    render(<DetalleProducto {...navigationProps()} producto={aceite} />);
+
+    const tarjeta = within(screen.getByTestId("compatibility-card"));
+    expect(tarjeta.getByText("Chevrolet Modelo 6")).toBeInTheDocument();
+    expect(tarjeta.queryByText("Chevrolet Modelo 7")).not.toBeInTheDocument();
+
+    await user.click(tarjeta.getByRole("button", { name: "Ver los 10 autos compatibles" }));
+    expect(tarjeta.getByText("Chevrolet Modelo 10")).toBeInTheDocument();
+
+    await user.click(tarjeta.getByRole("button", { name: "Ver menos" }));
+    expect(tarjeta.queryByText("Chevrolet Modelo 7")).not.toBeInTheDocument();
+  });
+
   it("shows unavailable when no compatibility records exist", () => {
     const productWithoutCompatibility = mapearRepuesto({
       id: 18,
@@ -1524,7 +1577,7 @@ describe("DetalleProducto", () => {
     expect(selectorPanel.querySelector(".sm\\:grid-cols-3")).toBeInTheDocument();
     expect(selectorPanel.className).not.toMatch(/absolute|fixed/);
     expect(vehicleCard).not.toHaveClass("relative", "absolute", "fixed");
-    expect(vehicleCard.closest("section")).toContainElement(screen.getByRole("heading", { level: 1 }));
+    expect(vehicleCard.closest("section")).toContainElement(screen.getByRole("navigation", { name: "Estás en" }));
     expect(screen.getAllByLabelText("MARCA")).toHaveLength(1);
     expect(screen.queryByText("Compatibilidad de vehículo")).not.toBeInTheDocument();
 
@@ -1787,7 +1840,8 @@ describe("Favoritos", () => {
 
     render(<Favoritos {...props} favoritos={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Inicio" }));
+    const migas = screen.getByRole("navigation", { name: "Estás en" });
+    await user.click(within(migas).getByRole("button", { name: "Inicio" }));
     expect(props.onHome).toHaveBeenCalled();
     // La página actual es texto, no link.
     expect(screen.getByText("Favoritos", { selector: "span" }).closest("button")).toBeNull();
@@ -1890,8 +1944,10 @@ describe("Login", () => {
 
     const password = screen.getByPlaceholderText("••••••••");
     expect(password).toHaveAttribute("type", "password");
-    await user.click(screen.getByRole("button", { name: "○" }));
+    await user.click(screen.getByRole("button", { name: "Mostrar contraseña" }));
     expect(password).toHaveAttribute("type", "text");
+    await user.click(screen.getByRole("button", { name: "Ocultar contraseña" }));
+    expect(password).toHaveAttribute("type", "password");
 
     const remember = screen.getByRole("checkbox");
     await user.click(remember);
@@ -1911,13 +1967,13 @@ describe("Login", () => {
     });
 
     render(<Login {...props} onRegistro={jest.fn()} />);
-    await user.click(screen.getByRole("button", { name: "INICIAR SESIÓN" }));
+    await user.click(within(document.querySelector("form")).getByRole("button", { name: "Iniciar sesión" }));
     expect(screen.getByText("Completá el correo electrónico y la contraseña.")).toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText("tu@email.com"), "client@example.com");
     await user.type(screen.getByPlaceholderText("••••••••"), "secret");
     await user.click(screen.getByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: "INICIAR SESIÓN" }));
+    await user.click(within(document.querySelector("form")).getByRole("button", { name: "Iniciar sesión" }));
 
     await waitFor(() => expect(props.onIniciarSesion).toHaveBeenCalledWith(
       expect.objectContaining({ email: "client@example.com", userId: "7" }),
@@ -1936,7 +1992,7 @@ describe("Login", () => {
     render(<Login {...props} onRegistro={jest.fn()} />);
     await user.type(screen.getByPlaceholderText("tu@email.com"), "Lucia@Example.com");
     await user.type(screen.getByPlaceholderText("••••••••"), "secreto123");
-    await user.click(screen.getByRole("button", { name: "INICIAR SESIÓN" }));
+    await user.click(within(document.querySelector("form")).getByRole("button", { name: "Iniciar sesión" }));
     return props;
   };
 
@@ -1985,7 +2041,7 @@ describe("Login", () => {
     render(<Login {...props} />);
     await user.type(screen.getByPlaceholderText("tu@email.com"), "wrong@example.com");
     await user.type(screen.getByPlaceholderText("••••••••"), "wrong");
-    await user.click(screen.getByRole("button", { name: "INICIAR SESIÓN" }));
+    await user.click(within(document.querySelector("form")).getByRole("button", { name: "Iniciar sesión" }));
 
     expect(await screen.findByText("Credenciales inválidas")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Registrate" }));
@@ -2041,7 +2097,7 @@ describe("App", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole("contentinfo")).toHaveTextContent("Mis pedidos");
+    expect(screen.getByRole("contentinfo")).toHaveTextContent("Mis compras");
     await user.click(screen.getByTitle("Iniciar sesión"));
     expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
   });
@@ -2108,7 +2164,7 @@ describe("App y Pit", () => {
     renderEn("/");
 
     expect(screen.queryByRole("button", { name: /Abrir Pit/ })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "HABLAR CON PIT" }));
+    await user.click(screen.getByRole("button", { name: "Consultar a Pit" }));
     expect(screen.getByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
   });
 
@@ -2117,7 +2173,7 @@ describe("App y Pit", () => {
     localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
     renderEn("/");
 
-    await user.click(screen.getByRole("button", { name: "HABLAR CON PIT" }));
+    await user.click(screen.getByRole("button", { name: "Consultar a Pit" }));
 
     expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
@@ -2155,7 +2211,7 @@ describe("Accesos a Pit", () => {
     conSesion();
     render(<><InvitacionAsistente variante="sinResultados" termino="ruido al frenar" /><PanelPit /></>);
 
-    expect(screen.getByText("¿Y si se lo contás a Pit?")).toBeInTheDocument();
+    expect(screen.getByText("¿Buscabas por un problema del auto?")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Preguntarle a Pit" }));
 
     expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
@@ -2360,7 +2416,7 @@ describe("App sesión", () => {
         <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
-    await user.click(await screen.findByRole("button", { name: "EDITAR" }));
+    await user.click(await screen.findByRole("button", { name: "Editar" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
     await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
     responder({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
@@ -2433,7 +2489,7 @@ describe("App rutas", () => {
     obtenerRepuesto.mockResolvedValue(catalogProduct);
 
     renderEn("/catalogo");
-    await user.click(await screen.findByRole("button", { name: "Ver detalle" }));
+    await user.click(await screen.findByRole("button", { name: /^Ver detalle de / }));
 
     expect(await screen.findByRole("heading", { level: 1, name: catalogProduct.nombre })).toBeInTheDocument();
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/pastillas-de-freno-delanteras-bosch-21");
@@ -2454,7 +2510,7 @@ describe("App rutas", () => {
     renderEn("/no-existe");
 
     expect(screen.getByRole("heading", { name: "Esta página no existe" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "VOLVER AL INICIO" }));
+    await user.click(screen.getByRole("button", { name: "Volver al inicio" }));
 
     expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
   });
@@ -2703,15 +2759,13 @@ describe("Perfil", () => {
     });
 
     render(<Perfil {...props} usuario={usuario} />);
-    expect(screen.getByRole("heading", { name: "Información personal" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    expect(screen.getByRole("heading", { name: "Mis datos" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Editar" }));
     expect(screen.queryByText("APELLIDO")).not.toBeInTheDocument();
     const nameInput = screen.getByDisplayValue("Ana Perez");
     await user.clear(nameInput);
     await user.type(nameInput, "Ana Maria Perez");
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
-    await user.click(screen.getByRole("button", { name: /direcciones/i }));
-    await user.click(screen.getByRole("button", { name: /historial de compra/i }));
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));
 
     expect(actualizarPerfil).toHaveBeenCalledWith(
@@ -2720,8 +2774,6 @@ describe("Perfil", () => {
     expect(props.onActualizarUsuario).toHaveBeenCalledWith(
       expect.objectContaining({ id: 1, nombre: "Ana Maria Perez" })
     );
-    expect(props.onDirecciones).toHaveBeenCalled();
-    expect(props.onHistorial).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
   });
 
@@ -2734,7 +2786,7 @@ describe("Perfil", () => {
     );
 
     render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
-    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
     expect(
@@ -2748,7 +2800,7 @@ describe("Perfil", () => {
     const user = userEvent.setup();
     render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
 
-    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.clear(screen.getByDisplayValue("099 123 456"));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
@@ -2764,7 +2816,7 @@ describe("Perfil", () => {
     obtenerPerfil.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
 
     render(<Perfil {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
-    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.type(screen.getByDisplayValue("Ana"), " Maria");
     responder({ nombre: "Ana vieja", apellido: "", email: "ana@example.com", telefono: "" });
     await waitFor(() => expect(obtenerPerfil).toHaveBeenCalled());
@@ -2788,7 +2840,7 @@ describe("Perfil", () => {
     actualizarPerfil.mockRejectedValue(new Error("Revisá el nombre y el teléfono (ej: 099 123 456)."));
     render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
 
-    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
     expect(await screen.findByText("Revisá el nombre y el teléfono (ej: 099 123 456).")).toBeInTheDocument();
 
@@ -2823,40 +2875,79 @@ describe("Perfil", () => {
     expect(screen.getByText("Verificado")).toBeInTheDocument();
   });
 
-  it("links to favorites and the cart from the profile", async () => {
+  it("the account menu has every section and opens each one", async () => {
     const user = userEvent.setup();
-    const props = { ...navigationProps(), onFavoritos: jest.fn(), onCarrito: jest.fn() };
-    render(<Perfil {...props} cantidadFavoritos={1} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    render(
+      <>
+        <Perfil {...navigationProps()} usuario={{ nombre: "Ana", apellido: "Pérez", email: "ana@example.com" }} />
+        <RutaActual />
+      </>
+    );
 
-    await user.click(screen.getByRole("button", { name: /Favoritos.*1 producto guardado/ }));
-    await user.click(screen.getByRole("button", { name: /Carrito.*en tu carrito/ }));
+    const menu = screen.getByRole("navigation", { name: "Mi cuenta" });
+    expect(within(menu).getByRole("button", { name: "Mis datos" })).toHaveAttribute("aria-current", "page");
+    // El nombre y el correo, arriba del menú.
+    expect(within(menu.closest("aside")).getByText("Ana Pérez")).toBeInTheDocument();
 
-    expect(props.onFavoritos).toHaveBeenCalled();
-    expect(props.onCarrito).toHaveBeenCalled();
+    for (const [seccion, ruta] of [
+      ["Mis compras", "/pedidos"],
+      ["Direcciones", "/direcciones"],
+      ["Seguridad", "/seguridad"],
+      ["Notificaciones", "/notificaciones"],
+    ]) {
+      await user.click(within(menu).getByRole("button", { name: seccion }));
+      expect(screen.getByTestId("ruta-actual")).toHaveTextContent(ruta);
+    }
+  });
+
+  it("the password and the mails have their own sections", () => {
+    const usuario = { nombre: "Ana", email: "ana@example.com", recibeMarketing: true };
+    const { unmount } = render(<Seguridad {...navigationProps()} usuario={usuario} />);
+    expect(screen.getByRole("heading", { name: "Seguridad" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cambiar contraseña" })).toBeInTheDocument();
+    unmount();
+
+    render(<Notificaciones {...navigationProps()} usuario={usuario} />);
+    expect(screen.getByRole("heading", { name: "Notificaciones" })).toBeInTheDocument();
+    expect(screen.getByText("Ofertas y recordatorios por mail")).toBeInTheDocument();
+  });
+
+  it("/cuenta lists every section of the account", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <InicioCuenta {...navigationProps()} usuario={{ nombre: "Ana Pérez", email: "ana@example.com" }} />
+        <RutaActual />
+      </>
+    );
+
+    expect(screen.getByRole("heading", { name: "Hola, Ana" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Seguridad.*Cambiá la contraseña/ }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/seguridad");
   });
 
   it("cancels profile edits and restores the saved values", async () => {
     const user = userEvent.setup();
     const usuario = { nombre: "Ana", email: "ana@example.com" };
     render(<Perfil {...navigationProps()} usuario={usuario} />);
-    await user.click(screen.getByRole("button", { name: "EDITAR" }));
+    await user.click(screen.getByRole("button", { name: "Editar" }));
     const nameInput = screen.getByDisplayValue("Ana");
     await user.clear(nameInput);
     await user.type(nameInput, "Cambio temporal");
-    await user.click(screen.getByRole("button", { name: "CANCELAR" }));
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
-    expect(screen.getByRole("button", { name: "EDITAR" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar" })).toBeInTheDocument();
     expect(screen.queryByDisplayValue("Cambio temporal")).not.toBeInTheDocument();
   });
 });
 
 describe("CambiarPassword", () => {
   const completar = async (user, { actual, nueva, repetir }) => {
-    await user.click(screen.getByRole("button", { name: "CAMBIAR CONTRASEÑA" }));
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
     if (actual) await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), actual);
     if (nueva) await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), nueva);
     if (repetir) await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), repetir);
-    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+    await user.click(screen.getByRole("button", { name: "Guardar contraseña" }));
   };
 
   const respuesta = { access_token: "jwt-nuevo", token_type: "bearer" };
@@ -2985,10 +3076,10 @@ describe("CambiarPassword", () => {
     const user = userEvent.setup();
     render(<CambiarPassword />);
 
-    await user.click(screen.getByRole("button", { name: "CAMBIAR CONTRASEÑA" }));
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
     await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), "secreto123");
-    await user.click(screen.getByRole("button", { name: "CANCELAR" }));
-    await user.click(screen.getByRole("button", { name: "CAMBIAR CONTRASEÑA" }));
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
 
     expect(screen.getByLabelText("CONTRASEÑA ACTUAL")).toHaveValue("");
   });
@@ -3236,37 +3327,38 @@ describe("Direcciones", () => {
 
   it("shows the account menu with the current section marked and a log out", async () => {
     const user = userEvent.setup();
-    const props = { ...navigationProps(), onHistorial: jest.fn(), onCerrarSesion: jest.fn() };
+    const props = { ...navigationProps(), onCerrarSesion: jest.fn() };
     obtenerDirecciones.mockResolvedValue([]);
 
     render(<Direcciones {...props} usuario={{ nombre: "Ana Pérez" }} />);
 
     const menu = screen.getByRole("navigation", { name: "Mi cuenta" });
     expect(within(menu).getByRole("button", { name: "Direcciones" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("Hola, Ana")).toBeInTheDocument();
+    expect(screen.getByText("Ana Pérez")).toBeInTheDocument();
 
     expect(within(menu).queryByRole("button", { name: "Métodos de pago" })).not.toBeInTheDocument();
-    await user.click(within(menu).getByRole("button", { name: "Historial de compras" }));
-    await user.click(within(menu).getByRole("button", { name: "Cerrar sesión" }));
+    await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
 
-    expect(props.onHistorial).toHaveBeenCalled();
     expect(props.onCerrarSesion).toHaveBeenCalled();
   });
 
   it("opens the account menu from the navbar also inside the account pages", async () => {
     const user = userEvent.setup();
-    const props = { ...navigationProps(), onHistorial: jest.fn() };
     obtenerDirecciones.mockResolvedValue([]);
 
-    render(<Direcciones {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+    render(
+      <>
+        <Direcciones {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com" }} />
+        <RutaActual />
+      </>
+    );
 
     await user.click(screen.getByTitle("Mi cuenta"));
-    // "Mi perfil" está solo en el menú desplegable (el menú de la
-    // izquierda dice "Información personal").
-    const desplegable = screen.getByRole("button", { name: "Mi perfil" }).closest("div.absolute");
-    await user.click(within(desplegable).getByRole("button", { name: "Historial de compras" }));
+    // "Ver toda mi cuenta" está solo en el menú desplegable.
+    const desplegable = screen.getByRole("button", { name: "Ver toda mi cuenta" }).closest("div.absolute");
+    await user.click(within(desplegable).getByRole("button", { name: /Mis compras/ }));
 
-    expect(props.onHistorial).toHaveBeenCalled();
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/pedidos");
   });
 
   it("can cancel deleting an address", async () => {
@@ -3298,7 +3390,12 @@ describe("Direcciones", () => {
         principal: address.id === id,
       }));
     });
-    render(<Direcciones {...navigationProps()} onPerfil={onPerfil} />);
+    render(
+      <>
+        <Direcciones {...navigationProps()} onPerfil={onPerfil} />
+        <RutaActual />
+      </>
+    );
 
     await user.click(await screen.findByRole("button", { name: "Usar como principal" }));
     expect(await screen.findAllByText("Principal")).toHaveLength(1);
@@ -3308,8 +3405,8 @@ describe("Direcciones", () => {
         .toHaveTextContent("Oficina")
     );
     // El menú de la cuenta reemplaza al viejo "Volver a mi perfil".
-    await user.click(screen.getByRole("button", { name: "Información personal" }));
-    expect(onPerfil).toHaveBeenCalled();
+    await user.click(within(screen.getByRole("navigation", { name: "Mi cuenta" })).getByRole("button", { name: "Mis datos" }));
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/perfil");
     expect(marcarDireccionPrincipal).toHaveBeenCalledWith(2);
   });
 });
@@ -3319,13 +3416,14 @@ describe("HistorialCompras", () => {
     const props = navigationProps();
     render(<HistorialCompras {...props} onPerfil={jest.fn()} />);
     expect(
-      await screen.findByText("Todavía no realizaste ninguna compra.")
+      await screen.findByText("Todavía no tenés compras terminadas.")
     ).toBeInTheDocument();
 
     obtenerHistorialCompras.mockResolvedValue([
       {
         id: "ORD-1",
         fecha: "2026-01-15T00:00:00.000Z",
+        estado: "delivered",
         total: 2500,
         items: [],
       },

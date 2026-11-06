@@ -1,17 +1,40 @@
 import { useState } from "react";
-import Navbar from "./Navbar";
 import { registrar as registrarEnApi } from "./api";
 import { decodeToken } from "./auth";
 import ErrorCampo from "./ErrorCampo";
 import { conError, propsError } from "./erroresCampo";
+import { claseBotonPrincipal, claseCampo } from "./estilosAcceso";
+import { fuerzaPassword } from "./fuerzaPassword";
+import PantallaAcceso, { AvisoError, Campo, CampoPassword, EncabezadoAcceso } from "./PantallaAcceso";
 import { formatearTelefonoUY, normalizarTelefonoUY } from "./telefono";
 import { NOMBRE_MAX, limpiar, validarRegistro } from "./validaciones";
 
 // Campos del backend → campos del formulario, para mostrar sus errores 422.
 const CAMPOS_API = { name: "nombre", email: "email", phone: "telefono", password: "password" };
 
-const claseInput =
-  "w-full mt-2 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md text-[10px] outline-hidden focus:border-orange-500 transition";
+// Los errores de las pantallas de acceso, con letra legible.
+const claseError = "text-xs mt-1.5";
+
+// Barrita de "qué tan segura es" debajo de la contraseña.
+function IndicadorFuerza({ password }) {
+  const fuerza = fuerzaPassword(password);
+  if (!fuerza) return <span>Al menos 8 caracteres, con una letra y un número.</span>;
+  return (
+    <div aria-live="polite">
+      <div className="grid grid-cols-4 gap-1" aria-hidden="true">
+        {[1, 2, 3, 4].map((segmento) => (
+          <span
+            key={segmento}
+            className={`h-1 rounded-full transition-colors ${segmento <= Math.max(fuerza.puntos, 1) ? fuerza.color : "bg-gray-200"}`}
+          />
+        ))}
+      </div>
+      <span className="mt-1 block">
+        Seguridad: <strong className="text-gray-700">{fuerza.texto}</strong>
+      </span>
+    </div>
+  );
+}
 
 export default function Registro({
   onHome,
@@ -35,6 +58,17 @@ export default function Registro({
   const [error, setError] = useState("");
   const [errores, setErrores] = useState({});
   const [cargando, setCargando] = useState(false);
+
+  const valores = { nombre, apellido, email, telefono, password, confirmarPassword, aceptaTerminos };
+
+  // Al salir de un campo con algo escrito se muestra su error, sin esperar
+  // a "Crear cuenta".
+  const revisar = (campo) => () => {
+    const valor = valores[campo];
+    if (typeof valor === "string" && !valor.trim()) return;
+    const encontrado = validarRegistro(valores)[campo];
+    setErrores((actuales) => ({ ...actuales, [campo]: encontrado }));
+  };
 
   // Al editar un campo se borra su error.
   const cambiar = (campo, setter) => (e) => {
@@ -97,215 +131,105 @@ export default function Registro({
     }
   };
 
+  const propsNavbar = {
+    onHome,
+    onCatalogo,
+    onLogin,
+    onMarcas,
+    onCarrito,
+    onFavoritos,
+    cantidadCarrito,
+    cantidadFavoritos,
+  };
+
+  // Lo común a cada campo: valor, cambio, salida, borde y accesibilidad.
+  const propsCampo = (campo, valor, setter) => ({
+    id: `registro-${campo}`,
+    value: valor,
+    onChange: cambiar(campo, setter),
+    onBlur: revisar(campo),
+    className: conError(claseCampo, errores[campo]),
+    ...propsError(campo, errores[campo]),
+  });
+
+  const errorDe = (campo) => <ErrorCampo campo={campo} mensaje={errores[campo]} className={claseError} />;
+
   return (
-    <div
-      className="min-h-screen flex flex-col font-sans"
-      style={{
-        backgroundImage:
-          "linear-gradient(rgba(0,0,0,1), rgb(73, 34, 2))",
-      }}
+    <PantallaAcceso
+      propsNavbar={propsNavbar}
+      etiqueta="CREÁ TU CUENTA GRATIS"
+      titulo={["Tu auto,", "siempre en", "movimiento."]}
+      beneficios={[
+        "Repuestos que le sirven a tu auto",
+        "Seguimiento de cada pedido",
+        "Avisos cuando vuelve el stock",
+        "Recordatorios de mantenimiento",
+      ]}
+      ancho="max-w-[960px]"
     >
-      <Navbar
-        paginaActual="login"
-        onHome={onHome}
-        onCatalogo={onCatalogo}
-        onLogin={onLogin}
-        onMarcas={onMarcas}
-        onCarrito={onCarrito}
-        onFavoritos={onFavoritos}
-        cantidadCarrito={cantidadCarrito}
-        cantidadFavoritos={cantidadFavoritos}
-      />
+      <form onSubmit={registrar} noValidate>
+        <EncabezadoAcceso titulo="CREAR CUENTA" bajada="Registrate para comprar, seguir tus pedidos y guardar tus repuestos." />
 
-      <main className="min-h-screen flex items-center justify-center px-5 pt-24 pb-10">
+        <AvisoError>{error}</AvisoError>
 
-        <div className="w-full max-w-[900px] bg-white rounded-2xl overflow-hidden shadow-2xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 mt-6">
+          <Campo id="registro-nombre" etiqueta="Nombre" error={errorDe("nombre")}>
+            <input type="text" placeholder="Tu nombre" maxLength={NOMBRE_MAX} autoComplete="given-name" {...propsCampo("nombre", nombre, setNombre)} />
+          </Campo>
 
-          <form
-            onSubmit={registrar}
-            noValidate
-            className="p-8 md:p-12"
+          <Campo id="registro-apellido" etiqueta="Apellido" error={errorDe("apellido")}>
+            <input type="text" placeholder="Tu apellido" maxLength={NOMBRE_MAX} autoComplete="family-name" {...propsCampo("apellido", apellido, setApellido)} />
+          </Campo>
+
+          <Campo id="registro-email" etiqueta="Correo electrónico" error={errorDe("email")}>
+            <input type="email" placeholder="tu@email.com" maxLength={254} autoComplete="email" {...propsCampo("email", email, setEmail)} />
+          </Campo>
+
+          <Campo id="registro-telefono" etiqueta="Teléfono" error={errorDe("telefono")}>
+            <input type="tel" placeholder="099 123 456" maxLength={30} autoComplete="tel" {...propsCampo("telefono", telefono, setTelefono)} />
+          </Campo>
+
+          <Campo
+            id="registro-password"
+            etiqueta="Contraseña"
+            error={errores.password ? errorDe("password") : null}
+            ayuda={<IndicadorFuerza password={password} />}
           >
+            <CampoPassword placeholder="Mínimo 8 caracteres" autoComplete="new-password" {...propsCampo("password", password, setPassword)} />
+          </Campo>
 
-            <p className="text-orange-500 text-[9px] font-black tracking-[4px]">
-              AUTOBOUGHT
-            </p>
-
-            <h1 className="text-3xl font-black italic uppercase mt-2">
-              CREAR CUENTA
-            </h1>
-
-            <p className="text-gray-400 text-[10px] mt-3">
-              Registrate para poder comprar y guardar tus productos.
-            </p>
-
-            {error && (
-              <div className="mt-5 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-[9px] font-semibold">
-                {error}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8">
-
-              <div>
-                <label className="text-[9px] font-bold text-gray-700">
-                  NOMBRE
-                </label>
-
-                <input
-                  type="text"
-                  value={nombre}
-                  onChange={cambiar("nombre", setNombre)}
-                  placeholder="Tu nombre"
-                  maxLength={NOMBRE_MAX}
-                  autoComplete="given-name"
-                  className={conError(claseInput, errores.nombre)}
-                  {...propsError("nombre", errores.nombre)}
-                />
-                <ErrorCampo campo="nombre" mensaje={errores.nombre} />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-bold text-gray-700">
-                  APELLIDO
-                </label>
-
-                <input
-                  type="text"
-                  value={apellido}
-                  onChange={cambiar("apellido", setApellido)}
-                  placeholder="Tu apellido"
-                  maxLength={NOMBRE_MAX}
-                  autoComplete="family-name"
-                  className={conError(claseInput, errores.apellido)}
-                  {...propsError("apellido", errores.apellido)}
-                />
-                <ErrorCampo campo="apellido" mensaje={errores.apellido} />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-bold text-gray-700">
-                  CORREO ELECTRÓNICO
-                </label>
-
-                <input
-                  type="email"
-                  value={email}
-                  onChange={cambiar("email", setEmail)}
-                  placeholder="tu@email.com"
-                  maxLength={254}
-                  autoComplete="email"
-                  className={conError(claseInput, errores.email)}
-                  {...propsError("email", errores.email)}
-                />
-                <ErrorCampo campo="email" mensaje={errores.email} />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-bold text-gray-700">
-                  TELÉFONO
-                </label>
-
-                <input
-                  type="tel"
-                  value={telefono}
-                  onChange={cambiar("telefono", setTelefono)}
-                  placeholder="099 123 456"
-                  maxLength={30}
-                  autoComplete="tel"
-                  className={conError(claseInput, errores.telefono)}
-                  {...propsError("telefono", errores.telefono)}
-                />
-                <ErrorCampo campo="telefono" mensaje={errores.telefono} />
-              </div>
-
-              <div>
-                <label className="text-[9px] font-bold text-gray-700">
-                  CONTRASEÑA
-                </label>
-
-                <input
-                  type="password"
-                  value={password}
-                  onChange={cambiar("password", setPassword)}
-                  placeholder="Mínimo 8 caracteres"
-                  autoComplete="new-password"
-                  className={conError(claseInput, errores.password)}
-                  {...propsError("password", errores.password)}
-                />
-                {errores.password ? (
-                  <ErrorCampo campo="password" mensaje={errores.password} />
-                ) : (
-                  <p className="text-gray-400 text-[8px] mt-1">
-                    Al menos una letra y un número.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="text-[9px] font-bold text-gray-700">
-                  CONFIRMAR CONTRASEÑA
-                </label>
-
-                <input
-                  type="password"
-                  value={confirmarPassword}
-                  onChange={cambiar("confirmarPassword", setConfirmarPassword)}
-                  placeholder="Repetí tu contraseña"
-                  autoComplete="new-password"
-                  className={conError(claseInput, errores.confirmarPassword)}
-                  {...propsError("confirmarPassword", errores.confirmarPassword)}
-                />
-                <ErrorCampo campo="confirmarPassword" mensaje={errores.confirmarPassword} />
-              </div>
-
-            </div>
-
-            <label className="flex items-center gap-2 mt-6 cursor-pointer">
-
-              <input
-                type="checkbox"
-                checked={aceptaTerminos}
-                onChange={cambiar("terminos", setAceptaTerminos)}
-                className="accent-orange-500"
-                {...propsError("terminos", errores.terminos)}
-              />
-
-              <span className="text-[9px] text-gray-500">
-                Acepto los términos y condiciones.
-              </span>
-
-            </label>
-
-            <ErrorCampo campo="terminos" mensaje={errores.terminos} />
-
-            <button
-              type="submit"
-              disabled={cargando}
-              className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[10px] font-black mt-6 transition disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {cargando ? "CREANDO CUENTA..." : "CREAR CUENTA"}
-            </button>
-
-            <p className="text-center text-[9px] text-gray-500 mt-6">
-
-              ¿Ya tenés una cuenta?
-
-              <button
-                type="button"
-                onClick={onLogin}
-                className="text-orange-500 font-bold ml-1 hover:underline"
-              >
-                Iniciá sesión
-              </button>
-
-            </p>
-
-          </form>
-
+          <Campo id="registro-confirmarPassword" etiqueta="Confirmar contraseña" error={errorDe("confirmarPassword")}>
+            <CampoPassword
+              placeholder="Repetí tu contraseña"
+              autoComplete="new-password"
+              {...propsCampo("confirmarPassword", confirmarPassword, setConfirmarPassword)}
+            />
+          </Campo>
         </div>
 
-      </main>
-    </div>
+        <label className="flex items-start gap-2.5 mt-5 cursor-pointer select-none w-fit">
+          <input
+            type="checkbox"
+            checked={aceptaTerminos}
+            onChange={cambiar("terminos", setAceptaTerminos)}
+            className="w-4 h-4 mt-0.5 accent-orange-500"
+            {...propsError("terminos", errores.terminos)}
+          />
+          <span className="text-sm text-gray-600">Acepto los términos y condiciones.</span>
+        </label>
+        {errorDe("terminos")}
+
+        <button type="submit" disabled={cargando} className={`${claseBotonPrincipal} mt-6`}>
+          {cargando ? "Creando cuenta..." : "Crear cuenta"}
+        </button>
+
+        <p className="text-center text-sm text-gray-500 mt-5">
+          ¿Ya tenés una cuenta?
+          <button type="button" onClick={onLogin} className="text-orange-500 font-bold ml-1 hover:underline">
+            Iniciá sesión
+          </button>
+        </p>
+      </form>
+    </PantallaAcceso>
   );
 }

@@ -1,6 +1,6 @@
 import { IconoCheck } from "./Iconos";
 import { imagenDeRepuesto, usarImagenGenerica } from "./mapearRepuesto";
-import { textoPlazoPago } from "./plazoPago";
+import { pagaloAntesDe } from "./plazoPago";
 import {
   NOMBRE_ESTADO,
   faltaPagar,
@@ -71,7 +71,7 @@ export function BarraProgreso({ compra }) {
           >
             {paso.hecho && <IconoCheck className="w-3 h-3" />}
           </span>
-          <span className={`mt-1.5 text-[11px] leading-tight ${paso.hecho ? "font-bold text-gray-900" : "text-gray-400"}`}>
+          <span className={`mt-1.5 px-0.5 text-xs sm:text-xs leading-tight break-words ${paso.hecho ? "font-bold text-gray-900" : "text-gray-500"}`}>
             {NOMBRE_ESTADO[paso.estado]}
           </span>
         </li>
@@ -81,7 +81,7 @@ export function BarraProgreso({ compra }) {
 }
 
 const botonPrincipal =
-  "h-10 px-5 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-xs font-black transition whitespace-nowrap disabled:opacity-40";
+  "h-10 px-5 rounded-md bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition whitespace-nowrap disabled:opacity-40";
 
 /**
  * Un pedido que todavía no terminó, en «Mis pedidos»: qué pasa ahora con
@@ -98,13 +98,15 @@ export default function TarjetaPedidoEnCurso({
   ocupado = false,
 }) {
   const sinPagar = faltaPagar(compra);
-  const plazo = sinPagar && compra.vencePago ? `Pagalo antes de ${textoPlazoPago(compra.vencePago)}` : "";
+  const plazo = sinPagar && compra.vencePago ? pagaloAntesDe(compra.vencePago) : "";
 
   return (
-    <li className="border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className={`text-lg font-black ${sinPagar ? "text-amber-700" : "text-gray-900"}`}>
+    <li className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs hover:border-gray-300 transition">
+      {/* Sin flex-wrap: el precio queda siempre arriba a la derecha y,
+          si no entra, la frase baja de renglón. */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`text-base sm:text-lg font-black leading-snug ${sinPagar ? "text-amber-700" : "text-gray-900"}`}>
             {fraseDelEstado(compra)}
           </p>
           <p className="text-sm text-gray-500 mt-0.5">
@@ -113,7 +115,7 @@ export default function TarjetaPedidoEnCurso({
             {formatearFecha(compra.fecha)}
           </p>
         </div>
-        <p className="text-lg font-black">{formatearPrecio(compra.total)}</p>
+        <p className="shrink-0 text-base sm:text-lg font-black whitespace-nowrap">{formatearPrecio(compra.total)}</p>
       </div>
 
       {sinPagar ? (
@@ -135,7 +137,7 @@ export default function TarjetaPedidoEnCurso({
               aria-label={`Pagar el pedido #${compra.id} con Mercado Pago`}
               className={botonPrincipal}
             >
-              {pagando ? "ABRIENDO..." : "PAGAR"}
+              {pagando ? "Abriendo..." : "Pagar"}
             </button>
           )}
           {compra.estado === "shipped" && (
@@ -146,7 +148,7 @@ export default function TarjetaPedidoEnCurso({
               aria-label={`Ya recibí el pedido #${compra.id}`}
               className={botonPrincipal}
             >
-              {confirmando ? "CONFIRMANDO..." : "YA LO RECIBÍ"}
+              {confirmando ? "Confirmando..." : "Ya lo recibí"}
             </button>
           )}
           <button

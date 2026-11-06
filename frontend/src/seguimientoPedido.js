@@ -110,3 +110,20 @@ export const NOMBRE_ESTADO = {
   delivered: "Entregado",
   cancelled: "Cancelado",
 };
+
+/** La frase en corto, para lugares chicos (la tarjeta del inicio). */
+export function fraseCorta(compra) {
+  if (faltaPagar(compra)) return compra.estadoPago === "rejected" ? "Pago rechazado" : "Falta pagar";
+  return { confirmed: "Preparando", packing: "Empaquetando", shipped: "En camino" }[compra.estado] ?? fraseDelEstado(compra);
+}
+
+// Del más avanzado al menos: enviado, empaquetando, preparando y, al
+// final, los que falta pagar. Entre iguales, el más nuevo primero.
+const ORDEN = { shipped: 0, packing: 1, confirmed: 2 };
+const posicion = (pedido) => (faltaPagar(pedido) ? 9 : ORDEN[pedido.estado] ?? 5);
+
+export function ordenarPorAvance(pedidos) {
+  return [...pedidos].sort(
+    (a, b) => posicion(a) - posicion(b) || new Date(b.fecha || 0) - new Date(a.fecha || 0)
+  );
+}

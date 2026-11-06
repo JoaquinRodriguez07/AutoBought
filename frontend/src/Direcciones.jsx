@@ -150,7 +150,7 @@ export default function Direcciones(navegacion) {
     <button
       type="button"
       onClick={alternarFormulario}
-      className="min-h-[180px] w-full border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-orange-300 hover:text-orange-600 transition"
+      className="min-h-[180px] w-full bg-white border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:border-orange-300 hover:text-orange-600 transition"
     >
       <span aria-hidden="true" className="text-2xl leading-none">+</span>
       <span className="text-sm font-bold">Agregar dirección</span>
@@ -247,10 +247,10 @@ export default function Direcciones(navegacion) {
 
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
             <button type="button" onClick={alternarFormulario} className={claseBotonCancelar}>
-              CANCELAR
+              Cancelar
             </button>
             <button type="submit" className={claseBotonGuardar}>
-              GUARDAR DIRECCIÓN
+              Guardar dirección
             </button>
           </div>
         </form>
@@ -269,7 +269,7 @@ export default function Direcciones(navegacion) {
         <div role="status" className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <span className="sr-only">Cargando direcciones...</span>
           {[0, 1].map((i) => (
-            <div key={i} aria-hidden="true" className="border border-gray-200 rounded-xl p-5 animate-pulse">
+            <div key={i} aria-hidden="true" className="bg-white border border-gray-200 rounded-xl p-5 animate-pulse">
               <div className="flex gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-100" />
                 <div className="flex-1 space-y-2">
@@ -291,7 +291,7 @@ export default function Direcciones(navegacion) {
       ) : direcciones.length === 0 ? (
 
         mostrarFormulario ? null : (
-          <div className="border border-dashed border-gray-200 rounded-xl text-center px-6 py-14">
+          <div className="bg-white border border-dashed border-gray-300 rounded-xl text-center px-6 py-14">
             <IconoUbicacion className="w-10 h-10 mx-auto text-gray-300" />
             <p className="text-gray-700 text-sm font-bold mt-4">
               Todavía no tenés direcciones guardadas.
@@ -330,7 +330,7 @@ export default function Direcciones(navegacion) {
                   <h3 className="text-sm font-black text-gray-900 flex flex-wrap items-center gap-2">
                     {direccion.nombre}
                     {direccion.principal && (
-                      <span className="rounded-full px-2 py-0.5 text-[11px] font-bold bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200">
+                      <span className="rounded-full px-2 py-0.5 text-xs font-bold bg-orange-50 text-orange-700 ring-1 ring-inset ring-orange-200">
                         Principal
                       </span>
                     )}

@@ -23,6 +23,9 @@ import Perfil from "./Perfil";
 import Direcciones from "./Direcciones";
 import HistorialCompras from "./HistorialCompras";
 import MisPedidos from "./MisPedidos";
+import InicioCuenta from "./InicioCuenta";
+import Notificaciones from "./Notificaciones";
+import Seguridad from "./Seguridad";
 import ResultadoPago from "./ResultadoPago";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
@@ -563,11 +566,14 @@ function App() {
 
     onPerfil: () => navigate("/perfil"),
 
+    // «Mi cuenta» (/cuenta): el menú de la cuenta (en celular, su página).
+    onCuenta: () => navigate("/cuenta"),
+
     onDirecciones: () => navigate("/direcciones"),
 
     onHistorial: () => navigate("/historial"),
 
-    // «Mis pedidos»: los pedidos en curso (el link del pie de página).
+    // «Mis compras»: las que están en curso (el ícono de la barra).
     onPedidos: () => navigate("/pedidos"),
 
     onCerrarSesion: cerrarSesion,
@@ -796,6 +802,27 @@ function App() {
           }
         />
 
+        {/* MI CUENTA: el menú (en celular, su propia página), la
+            contraseña y los mails. */}
+
+        <Route path="/cuenta" element={<InicioCuenta {...propsNavbar} />} />
+
+        <Route
+          path="/seguridad"
+          element={usuario ? <Seguridad {...propsNavbar} /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/notificaciones"
+          element={
+            usuario ? (
+              <Notificaciones {...propsNavbar} onActualizarUsuario={actualizarUsuario} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
         {/* DIRECCIONES */}
 
         <Route
@@ -820,13 +847,13 @@ function App() {
           }
         />
 
-        {/* MIS PEDIDOS: los que están en curso (el ícono de la barra) y
-            el detalle de cada uno */}
+        {/* MIS COMPRAS: las que están en curso (el ícono de la barra) y
+            el detalle de cada una; las anteriores, en /historial. */}
 
         <Route path="/pedidos" element={<MisPedidos {...propsNavbar} />} />
         <Route path="/pedidos/:id" element={<MisPedidos {...propsNavbar} />} />
 
-        {/* HISTORIAL DE COMPRAS */}
+        {/* MIS COMPRAS › ANTERIORES (las que ya terminaron) */}
 
         <Route
           path="/historial"

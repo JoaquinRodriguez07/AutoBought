@@ -44,7 +44,8 @@ export default function SuelenComprarseJuntos({ producto, onDetalle }) {
           Suelen comprarse juntos
         </h2>
 
-        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-6">
+        {/* Con 3 sugerencias, 3 columnas: con 4 quedaba un hueco a la derecha. */}
+        <ul className={`grid grid-cols-1 sm:grid-cols-2 ${visibles.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-5 mt-6`}>
           {visibles.map((sugerencia) => (
             <li
               key={sugerencia.id}
@@ -66,7 +67,7 @@ export default function SuelenComprarseJuntos({ producto, onDetalle }) {
               </button>
 
               <div className="flex flex-col flex-1 p-4">
-                <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">
+                <p className="text-xs uppercase tracking-wide text-orange-500 font-black">
                   {sugerencia.fabricante}
                 </p>
                 <h3 className="text-sm font-bold mt-1 leading-snug">{sugerencia.nombre}</h3>
