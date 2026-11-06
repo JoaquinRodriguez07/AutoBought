@@ -59,6 +59,7 @@ MESES_MANTENIMIENTO = {
 DIAS_VENTANA_MANTENIMIENTO = 7
 
 _ESTADOS = {
+    OrderStatus.PACKING: ("se está preparando", "Lo estamos empaquetando. Te avisamos cuando salga para tu dirección."),
     OrderStatus.SHIPPED: ("fue enviado", "Ya está en camino a tu dirección."),
     OrderStatus.DELIVERED: ("fue entregado", "Esperamos que todo esté bien. ¡Gracias por comprar en AutoBought!"),
 }
@@ -158,7 +159,7 @@ def notificar_cambio_de_estado(order: Order, background_tasks: BackgroundTasks |
             order.client.email,
             f"Cancelamos tu pedido #{order.order_id}",
             "cancelacion_pedido",
-            datos,
+            {**datos, "motivo": order.cancellation_reason},
         )
         return
 

@@ -9,6 +9,7 @@ import { irA } from "./redirigir";
 
 const ESTADOS_PEDIDO = {
   confirmed: { texto: "Confirmado", clase: "bg-blue-50 text-blue-700 ring-blue-200" },
+  packing: { texto: "Empaquetando", clase: "bg-violet-50 text-violet-700 ring-violet-200" },
   shipped: { texto: "Enviado", clase: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
   delivered: { texto: "Entregado", clase: "bg-green-50 text-green-700 ring-green-200" },
   cancelled: { texto: "Cancelado", clase: "bg-gray-50 text-gray-500 ring-gray-200" },
@@ -36,6 +37,7 @@ function vencioSinPagar(compra) {
 
 // La línea chica al lado del estado: cuánto queda para pagar, o por qué se canceló.
 function notaPago(compra) {
+  if (compra.estado === "cancelled" && compra.motivoCancelacion) return "Cancelado por la tienda";
   if (vencioSinPagar(compra)) return "No se completó el pago a tiempo";
   if (!faltaPagar(compra)) return "";
   const plazo = compra.vencePago ? `Pagalo antes de ${textoPlazoPago(compra.vencePago)}` : "";
@@ -272,6 +274,16 @@ export default function HistorialCompras(navegacion) {
               </p>
               <p className="text-sm text-gray-600 mt-1">
                 No se te cobró nada. Si todavía querés los repuestos, podés volver a comprarlos desde el catálogo.
+              </p>
+            </div>
+          )}
+
+          {compraSeleccionada.estado === "cancelled" && compraSeleccionada.motivoCancelacion && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
+              <p className="text-sm font-black text-gray-900">La tienda canceló este pedido</p>
+              <p className="text-sm text-gray-600 mt-1">Motivo: {compraSeleccionada.motivoCancelacion}</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Te devolvimos el dinero en Mercado Pago. El reintegro puede tardar unos días en verse en tu estado de cuenta.
               </p>
             </div>
           )}

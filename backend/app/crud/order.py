@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import MINUTOS_PARA_PAGAR
@@ -186,6 +186,163 @@ def reactivate_paid_order(db: Session, order: Order) -> bool:
     _cambiar_stock(db, order, -1)
     order.status = OrderStatus.CONFIRMED
     return True
+
+
+# =====================================================
+# Estado del pedido (portal del vendedor)
+# =====================================================
+
+# Lo que puede hacer el vendedor: avanzar de a un paso...
+NEXT_STATUS = {
+    OrderStatus.CONFIRMED: OrderStatus.PACKING,
+    OrderStatus.PACKING: OrderStatus.SHIPPED,
+    OrderStatus.SHIPPED: OrderStatus.DELIVERED,
+}
+# ...o cancelar, si todavía no se entregó. Es algo excepcional: pide motivo
+# y devuelve el pago (ver el endpoint).
+CANCELLABLE = set(NEXT_STATUS)
+
+_NOMBRES = {
+    OrderStatus.CONFIRMED: "confirmado",
+    OrderStatus.PACKING: "empaquetando",
+    OrderStatus.SHIPPED: "enviado",
+    OrderStatus.DELIVERED: "entregado",
+    OrderStatus.CANCELLED: "cancelado",
+}
+
+
+class InvalidStatusChange(ValueError):
+    """El cambio de estado no se puede hacer; el mensaje es para el vendedor."""
+
+
+def next_status(order: Order) -> OrderStatus | None:
+    """A qué estado lo puede pasar el vendedor ahora; None si no hay (no se
+    pagó, ya se entregó o se canceló)."""
+    return NEXT_STATUS.get(order.status) if order.is_paid else None
+
+
+def can_cancel(order: Order) -> bool:
+    return order.is_paid and order.status in CANCELLABLE
+
+
+def check_status_change(order: Order, new_status: OrderStatus) -> None:
+    """InvalidStatusChange si el vendedor no puede pasar el pedido a `new_status`."""
+    actual = _NOMBRES[order.status]
+    if order.status == new_status:
+        raise InvalidStatusChange(f"El pedido ya está {actual}.")
+    if order.status not in CANCELLABLE:
+        raise InvalidStatusChange(f"El pedido ya está {actual}: no se puede cambiar.")
+    if not order.is_paid:
+        # Sin pagar no se prepara ni se cancela a mano: si no se paga a
+        # tiempo se cancela solo (cancel_expired_orders) y el stock vuelve.
+        # Cancelarlo antes dejaría vivo el link de pago, y pagarlo lo reactivaría.
+        raise InvalidStatusChange(
+            "El pedido todavía no está pagado. Si no se paga en "
+            f"{MINUTOS_PARA_PAGAR} minutos desde la compra, se cancela solo y el stock vuelve."
+        )
+    if new_status == OrderStatus.CANCELLED:
+        return
+    siguiente = NEXT_STATUS[order.status]
+    if new_status != siguiente:
+        raise InvalidStatusChange(
+            f"Un pedido {actual} solo puede pasar a {_NOMBRES[siguiente]} (o cancelarse)."
+        )
+
+
+def get_order_for_update(db: Session, order_id: int) -> Order | None:
+    """El pedido, bloqueado hasta el commit: dos vendedores (o dos clics) no
+    lo cambian a la vez, y el stock de una cancelación vuelve una sola vez."""
+    query = (
+        select(Order)
+        .where(Order.order_id == order_id)
+        .options(
+            selectinload(Order.items).selectinload(OrderItem.part),
+            selectinload(Order.payment),
+            selectinload(Order.client),
+        )
+        .with_for_update(of=Order)
+    )
+    return db.scalar(query)
+
+
+def apply_status_change(
+    db: Session, order: Order, new_status: OrderStatus, reason: str | None = None
+) -> None:
+    """Cambia el estado (ya validado con check_status_change). Al cancelar,
+    guarda el motivo y devuelve el stock. No hace commit: lo hace quien llama,
+    después de devolver el pago."""
+    order.status = new_status
+    if new_status == OrderStatus.CANCELLED:
+        order.cancellation_reason = reason
+        _cambiar_stock(db, order, +1)
+
+
+def _pagado():
+    # = crud.payment.is_paid_order(), que no se importa porque crud.payment
+    # importa este módulo. Pide un outer join con Payment.
+    return or_(Payment.payment_id.is_(None), Payment.status == PaymentStatus.APPROVED)
+
+
+def list_orders_for_seller(
+    db: Session,
+    status: OrderStatus | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    paid_only: bool = False,
+) -> tuple[list[Order], int]:
+    """Los pedidos de todos los clientes, para el portal del vendedor, y
+    cuántos hay con ese filtro. Los que están en curso, del más viejo al
+    más nuevo (el que lleva más esperando, primero); los cerrados, al revés.
+    Con `paid_only`, solo los pagados (los que se pueden preparar)."""
+    query = select(Order)
+    if status is not None:
+        query = query.where(Order.status == status)
+    if paid_only:
+        query = query.outerjoin(Payment, Payment.order_id == Order.order_id).where(_pagado())
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+
+    en_curso = status in NEXT_STATUS
+    orden = Order.created_at.asc() if en_curso else Order.created_at.desc()
+    orders = db.scalars(
+        query.options(
+            selectinload(Order.items).selectinload(OrderItem.part),
+            selectinload(Order.payment),
+            selectinload(Order.client),
+        )
+        .order_by(orden, Order.order_id)
+        .limit(limit)
+        .offset(offset)
+    ).all()
+    return list(orders), total
+
+
+def get_order_for_seller(db: Session, order_id: int) -> Order | None:
+    """Cualquier pedido, con lo que muestra su detalle en el portal."""
+    query = (
+        select(Order)
+        .where(Order.order_id == order_id)
+        .options(
+            selectinload(Order.items).selectinload(OrderItem.part),
+            selectinload(Order.payment),
+            selectinload(Order.client),
+        )
+    )
+    return db.scalar(query)
+
+
+def count_orders_by_status(db: Session) -> dict[OrderStatus, int]:
+    rows = db.execute(select(Order.status, func.count()).group_by(Order.status)).all()
+    return {status: rows_count for status, rows_count in rows}
+
+
+def count_orders_to_prepare(db: Session) -> int:
+    """Pedidos pagados que todavía nadie empezó a preparar."""
+    return db.scalar(
+        select(func.count())
+        .select_from(Order)
+        .outerjoin(Payment, Payment.order_id == Order.order_id)
+        .where(Order.status == OrderStatus.CONFIRMED, _pagado())
+    )
 
 
 def list_order_by_client(db: Session, client_id: int) -> list[Order]:

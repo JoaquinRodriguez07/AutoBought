@@ -13,6 +13,7 @@ Las responsabilidades quedan separadas:
 |---|---|
 | `0001` baseline | Crea todas las tablas tal como las dejaban `create_all` y `add_missing_columns` antes de Alembic. |
 | `0002` part_code único | Agrega `UNIQUE (part_code)` en `part` (`uq_part_part_code`). Si hay códigos repetidos, falla sin tocar nada y los lista. |
+| `0003` estado empaquetando | Agrega `packing` al ENUM `order_status` (entre `confirmed` y `shipped`) y la columna `order.cancellation_reason`. Necesita Postgres 12 o más. El downgrade recrea el ENUM sin `packing` y pasa esos pedidos a `confirmed`. |
 
 ### `DATABASE_URL`
 
@@ -55,7 +56,7 @@ docker exec backend uv run python -m scripts.db_baseline completar
 # 3. Marcarla en la baseline (vuelve a verificar; si no coincide, no hace nada).
 docker exec backend uv run python -m scripts.db_baseline stamp
 
-# 4. Aplicar las migraciones que siguen (0002: part_code único) y cargar datos.
+# 4. Aplicar las migraciones que siguen (0002: part_code único; 0003: estado empaquetando) y cargar datos.
 docker exec backend uv run alembic upgrade head
 docker exec backend uv run python -m scripts.seed
 ```

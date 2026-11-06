@@ -1,5 +1,7 @@
 Hola {{ nombre }}, tu pedido #{{ pedido }} quedó cancelado.
-
+{% if motivo %}
+Motivo: {{ motivo }}
+{% endif %}
 Si pagaste con tarjeta, el reintegro puede tardar unos días en verse en tu estado de cuenta.
 
 {% include "_detalle_pedido.txt" %}

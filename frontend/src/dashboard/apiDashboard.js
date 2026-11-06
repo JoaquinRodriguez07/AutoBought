@@ -247,6 +247,78 @@ export async function ajustarStock(id, stock) {
 }
 
 /* =====================================================
+   PEDIDOS (SCRUM-171)
+====================================================== */
+
+function mapearPedidoVendedor(p) {
+  return {
+    id: p.order_id,
+    fecha: p.created_at,
+    estado: p.status,
+    // "pending" | "approved" | "rejected"; null en los de antes de Mercado Pago (ya cobrados).
+    estadoPago: p.payment_status ?? null,
+    total: p.total,
+    metodoPago: p.payment_method,
+    idPagoMP: p.mp_payment_id ?? null,
+    cliente: { nombre: p.client_name, email: p.client_email, telefono: p.client_phone ?? null },
+    // A dónde se envía: la copia guardada al comprar (no cambia si el cliente edita su perfil).
+    envio: {
+      // El nombre que el cliente le puso a la dirección ("Casa", "Trabajo"), no quién recibe.
+      nombreDireccion: p.shipping_address.personal_name,
+      calle: p.shipping_address.street,
+      numero: p.shipping_address.number,
+      apartamento: p.shipping_address.apartment ?? null,
+      ciudad: p.shipping_address.city,
+      departamento: p.shipping_address.department,
+      codigoPostal: p.shipping_address.postal_code ?? null,
+    },
+    items: p.items.map((item) => ({
+      repuestoId: item.part_id,
+      codigo: item.part_code,
+      nombre: item.name,
+      cantidad: item.quantity,
+      precio: item.frozen_price,
+    })),
+    // Lo decide el backend: a qué estado se puede pasar (null si no se puede) y si se puede cancelar.
+    siguienteEstado: p.next_status ?? null,
+    sePuedeCancelar: Boolean(p.can_cancel),
+    motivoCancelacion: p.cancellation_reason ?? null,
+  };
+}
+
+/** GET /orders/seller: los pedidos de todos los clientes, filtrados por estado. */
+export async function obtenerPedidos({ estado, limite = 50, desde = 0, soloPagados = false } = {}) {
+  const data = await pedir("/orders/seller", {
+    params: { status: estado, limit: limite, offset: desde, paid_only: soloPagados ? "true" : undefined },
+    mensajeError: "No pudimos cargar los pedidos.",
+  });
+  return {
+    pedidos: data.orders.map(mapearPedidoVendedor),
+    total: data.total,
+    porEstado: data.counts,
+    paraPreparar: data.to_prepare,
+  };
+}
+
+/** GET /orders/seller/{id}: el detalle de un pedido. */
+export async function obtenerPedido(id) {
+  const data = await pedir(`/orders/seller/${encodeURIComponent(id)}`, {
+    mensajeError: "No pudimos cargar el pedido.",
+  });
+  return mapearPedidoVendedor(data);
+}
+
+/** PATCH /orders/{id}/status. Para cancelar, `motivo` es obligatorio (le llega al cliente). */
+export async function cambiarEstadoPedido(id, estado, motivo) {
+  const data = await pedir(`/orders/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(estado === "cancelled" ? { status: estado, reason: motivo } : { status: estado }),
+    mensajeError: "No pudimos cambiar el estado del pedido.",
+  });
+  return mapearPedidoVendedor(data);
+}
+
+/* =====================================================
    DASHBOARD CON IA (HU 6.3 y 6.4)
    El backend todavía no tiene estas rutas: las pantallas ya
    están listas y, mientras tanto, dicen "En desarrollo".

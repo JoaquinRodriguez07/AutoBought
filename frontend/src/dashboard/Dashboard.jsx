@@ -10,12 +10,14 @@ import EvolucionVentas from "./EvolucionVentas";
 import FormularioRepuesto from "./FormularioRepuesto";
 import LayoutVendedor, { VISTAS, nombreDelVendedor } from "./LayoutVendedor";
 import MasVendidos from "./MasVendidos";
+import PedidosParaPreparar from "./PedidosParaPreparar";
+import PedidosVendedor from "./PedidosVendedor";
 import PreguntarDashboard from "./PreguntarDashboard";
 import ProyeccionDemanda from "./ProyeccionDemanda";
 import ResumenIA from "./ResumenIA";
 import RiesgoAgotamiento from "./RiesgoAgotamiento";
 import StockActual from "./StockActual";
-import { obtenerEvolucionVentas, obtenerRiesgoAgotamiento, obtenerStock } from "./apiDashboard";
+import { obtenerEvolucionVentas, obtenerPedidos, obtenerRiesgoAgotamiento, obtenerStock } from "./apiDashboard";
 import { PERIODOS, PERIODO_POR_DEFECTO, formatearMes, formatearNumero, formatearPesos, variacion } from "./formato";
 import { Cambio, Indicador, Panel } from "./piezas";
 import { useConsulta } from "./useConsulta";
@@ -25,6 +27,7 @@ const PREGUNTAR_DISPONIBLE = false;
 
 // Qué cuenta cada sección, debajo del título.
 const DESCRIPCIONES = {
+  pedidos: "Avanzá cada pedido pagado: Confirmado → Empaquetando → Enviado → Entregado.",
   ventas: "Unidades y facturación de cada mes, y lo que se espera vender el mes que viene.",
   "mas-vendidos": "Los repuestos que más salen. Conviene que nunca falten.",
   proyeccion: "Cuánto se espera vender de cada repuesto el mes que viene, según los últimos 12 meses.",
@@ -65,6 +68,8 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
     () => obtenerEvolucionVentas(filtros),
     `${filtros.categoria}|${filtros.busqueda}|${filtros.meses}`
   );
+  // Solo para el número del menú (pedidos pagados sin empezar a preparar).
+  const pedidos = useConsulta(() => obtenerPedidos({ limite: 1 }), `pedidos|${version}`);
 
   useEffect(() => {
     obtenerCategorias()
@@ -103,6 +108,8 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
   };
 
   const irAlDetalle = (id) => navigate(`/dashboard/repuestos/${id}`, { state: { desde: location.search } });
+  // Al volver del detalle del pedido, queda donde estaba (el resumen o el listado con su filtro).
+  const irAlPedido = (id) => navigate(`/dashboard/pedidos/${id}`, { state: { desde: location.search } });
 
   const alReponer = () => {
     setAReponer(null);
@@ -125,7 +132,7 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
       onVista={cambiarVista}
       onTienda={onHome}
       onCerrarSesion={onCerrarSesion}
-      avisos={{ riesgo: paraReponer }}
+      avisos={{ riesgo: paraReponer, pedidos: pedidos.datos?.paraPreparar ?? 0 }}
       titulo={titulo}
       descripcion={descripcion}
       acciones={
@@ -136,7 +143,8 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
       }
       barra={
         // Preguntarle al dashboard no usa los filtros: la pregunta los dice.
-        vista !== "preguntar" && (
+        // Los pedidos tienen su propio filtro (por estado).
+        !["preguntar", "pedidos"].includes(vista) && (
           <BarraFiltros
             filtros={filtros}
             categorias={categorias}
@@ -156,10 +164,19 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
           version={version}
           onVista={cambiarVista}
           onDetalle={irAlDetalle}
+          onPedido={irAlPedido}
           onReponer={setAReponer}
         />
       )}
 
+      {vista === "pedidos" && (
+        <PedidosVendedor
+          key={parametros.get("estado") || "todos"}
+          estadoInicial={parametros.get("estado") || "todos"}
+          onCambio={() => setVersion((v) => v + 1)}
+          onDetalle={irAlPedido}
+        />
+      )}
       {vista === "ventas" && (
         <Panel titulo={`Evolución de ventas · últimos ${filtros.meses} meses`} id="titulo-evolucion">
           <EvolucionVentas filtros={filtros} consulta={ventas} />
@@ -224,7 +241,7 @@ const soloMes = (mes) => formatearMes(mes, { largo: true }).replace(/ de \d+$/, 
 
 // Pantalla de entrada: los números del momento, qué reponer, cómo vienen
 // las ventas y qué se vende más.
-function Resumen({ filtros, stock, alertas, ventas, version, onVista, onDetalle, onReponer }) {
+function Resumen({ filtros, stock, alertas, ventas, version, onVista, onDetalle, onPedido, onReponer }) {
   const { ultimo, anterior } = mesesParaComparar(ventas.datos?.meses);
   const textoAnterior = anterior ? `vs. ${soloMes(anterior.mes)}` : "";
 
@@ -278,7 +295,12 @@ function Resumen({ filtros, stock, alertas, ventas, version, onVista, onDetalle,
           <EvolucionVentas filtros={filtros} consulta={ventas} compacto />
         </Panel>
         {/* En celular va primero: es lo que hay que hacer. */}
-        <div className="order-first xl:order-none">
+        <div className="order-first xl:order-none flex flex-col gap-6">
+          <PedidosParaPreparar
+            version={version}
+            onDetalle={onPedido}
+            onVerTodos={() => onVista("pedidos", { estado: "confirmed" })}
+          />
           <AlertasReposicion
             consulta={alertas}
             limite={5}

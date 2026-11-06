@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   BoxesIcon,
   ChartLineIcon,
+  ClipboardListIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   MenuIcon,
@@ -19,7 +20,13 @@ import logo from "../assets/logo.png";
 // Secciones del portal, agrupadas por tarea, en el orden del menú. El
 // valor va en la URL (?vista=), salvo "resumen", que es la de entrada.
 export const GRUPOS = [
-  { titulo: null, vistas: [{ valor: "resumen", texto: "Resumen", Icono: LayoutDashboardIcon }] },
+  {
+    titulo: null,
+    vistas: [
+      { valor: "resumen", texto: "Resumen", Icono: LayoutDashboardIcon },
+      { valor: "pedidos", texto: "Pedidos", Icono: ClipboardListIcon },
+    ],
+  },
   {
     titulo: "Ventas",
     vistas: [
