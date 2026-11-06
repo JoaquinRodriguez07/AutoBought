@@ -67,13 +67,16 @@ export const IMAGEN_PLACEHOLDER = imagenPlaceholder;
 /**
  * onError de las <img> de repuestos: si la imagen no carga (por ejemplo,
  * la de un tipo de repuesto nuevo que todavía no se generó), muestra la
- * genérica en vez del ícono de imagen rota. Una sola vez, para no entrar
- * en un bucle si la genérica también fallara.
+ * genérica en vez del ícono de imagen rota.
+ *
+ * El freno contra el bucle (si la genérica también fallara) se decide por
+ * lo que el <img> muestra AHORA, no por una marca que quede guardada en el
+ * elemento: si el mismo <img> pasa a otra imagen (React reutiliza el
+ * elemento al cambiar `src`) y esa falla, vuelve a caer en la genérica.
  */
 export function usarImagenGenerica(evento) {
   const imagen = evento.currentTarget;
-  if (imagen.dataset.generica) return;
-  imagen.dataset.generica = "true";
+  if (imagen.getAttribute("src") === IMAGEN_PLACEHOLDER) return;
   imagen.src = IMAGEN_PLACEHOLDER;
 }
 

@@ -3,12 +3,19 @@ import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import { IconoCarrito } from "./Iconos";
 import { obtenerRecomendaciones } from "./api";
 import { usarImagenGenerica } from "./mapearRepuesto";
+import { useVehicle } from "./context/VehicleContext";
+import { productoEsCompatible } from "./compatibilidad";
 
 /**
  * "Suelen comprarse juntos", al final del detalle de un repuesto: los
  * complementarios para los mismos autos (las mismas recomendaciones que
  * el carrito, GET /api/v1/recommendations). Si no hay o el servicio
  * falla, la sección no se muestra.
+ *
+ * Con un Vehículo Activo, solo se muestran las que son compatibles con
+ * ese auto (la misma regla de la tarjeta de compatibilidad del detalle):
+ * el backend sugiere para cualquiera de los autos del repuesto, y puede
+ * traer uno de otro auto. Sin vehículo activo no se filtra.
  */
 
 const MAX_SUGERENCIAS = 4;
@@ -17,6 +24,7 @@ const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
 
 export default function SuelenComprarseJuntos({ producto, onDetalle }) {
   const [sugerencias, setSugerencias] = useState({ partId: null, lista: [] });
+  const { vehiculoActivo } = useVehicle();
   const partId = producto?.partId;
 
   useEffect(() => {
@@ -33,7 +41,12 @@ export default function SuelenComprarseJuntos({ producto, onDetalle }) {
   }, [partId]);
 
   // Las de otro repuesto (mientras cargan las del nuevo) no se muestran.
-  const visibles = sugerencias.partId === partId ? sugerencias.lista.slice(0, MAX_SUGERENCIAS) : [];
+  const delRepuesto = sugerencias.partId === partId ? sugerencias.lista : [];
+  const visibles = (
+    vehiculoActivo?.brand
+      ? delRepuesto.filter((sugerencia) => productoEsCompatible(sugerencia, vehiculoActivo) === true)
+      : delRepuesto
+  ).slice(0, MAX_SUGERENCIAS);
   if (visibles.length === 0) return null;
 
   return (
