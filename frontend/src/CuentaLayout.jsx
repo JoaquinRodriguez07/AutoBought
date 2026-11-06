@@ -2,6 +2,7 @@ import Navbar from "./Navbar";
 import EncabezadoPagina from "./EncabezadoPagina";
 import {
   IconoCaja,
+  IconoBasura,
   IconoSalir,
   IconoUbicacion,
   IconoUsuario,
@@ -12,8 +13,8 @@ import {
  * ==========================================
  * El armado común de "Mi cuenta" (perfil, direcciones, métodos de pago e
  * historial): la franja de arriba, el menú de la izquierda con la
- * sección actual marcada y "Cerrar sesión" al final. Cada página solo
- * pone su título y su contenido.
+ * sección actual marcada y las acciones para cerrar sesión o borrar la
+ * cuenta al final. Cada página solo pone su título y su contenido.
  *
  * Props:
  *  - seccion     ("perfil" | "direcciones" | "historial")
@@ -41,6 +42,7 @@ export default function CuentaLayout({
   onDirecciones,
   onHistorial,
   onCerrarSesion,
+  onBorrarCuenta,
 }) {
   const secciones = [
     { clave: "perfil", texto: "Información personal", Icono: IconoUsuario, ir: onPerfil },
@@ -65,6 +67,7 @@ export default function CuentaLayout({
         onDirecciones={onDirecciones}
         onHistorial={onHistorial}
         onCerrarSesion={onCerrarSesion}
+        onBorrarCuenta={onBorrarCuenta}
       />
 
       <main>
@@ -115,7 +118,7 @@ export default function CuentaLayout({
                         {texto}
                       </button>
                     </li>
-                  );
+                    );
                 })}
 
                 <li className="shrink-0 lg:border-t lg:border-gray-100 lg:mt-3 lg:pt-3">
@@ -126,6 +129,16 @@ export default function CuentaLayout({
                   >
                     <IconoSalir className="w-4 h-4 shrink-0" />
                     Cerrar sesión
+                  </button>
+                </li>
+                <li className="shrink-0">
+                  <button
+                    type="button"
+                    onClick={onBorrarCuenta}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-left whitespace-nowrap text-red-600 hover:bg-red-50 transition"
+                  >
+                    <IconoBasura className="w-4 h-4 shrink-0" />
+                    Borrar mi cuenta
                   </button>
                 </li>
               </ul>

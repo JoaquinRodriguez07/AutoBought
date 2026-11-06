@@ -286,7 +286,7 @@ npx playwright test               # todos los recorridos
 npx playwright test --ui          # para verlos paso a paso
 ```
 
-Ojo: en local usan tu base. Cada recorrido deja las cosas como estaban (deshace lo que agrega al carrito y a favoritos), pero la compra vacía el carrito de Ana antes de empezar y queda en su historial, y el registro crea un usuario `e2e-…@autobought.com` nuevo en cada corrida.
+Ojo: en local usan tu base. La compra vacía el carrito de Ana antes de empezar y queda en su historial; los recorridos de registro y baja crean usuarios `e2e-…@autobought.com`, y la prueba de pedido pendiente deja una reserva que vence automáticamente. La prueba de pedido pendiente necesita `MERCADOPAGO_ACCESS_TOKEN`; sin esa variable, solo ese recorrido se omite.
 
 ## Asistente de compra con IA
 

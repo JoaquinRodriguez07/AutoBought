@@ -15,6 +15,7 @@ import {
   crearLinkPago,
   verificarPago,
   eliminarDireccionAPI,
+  eliminarCuenta,
   eliminarItemCarrito,
   login,
   marcarDireccionPrincipal,
@@ -152,6 +153,7 @@ describe("registrar", () => {
         password: "secreto123",
       }),
     });
+
   });
 
   it("surfaces the 409 message, and a generic one for 422 lists or other errors", async () => {
@@ -169,6 +171,53 @@ describe("registrar", () => {
     fetch.mockRejectedValue(new TypeError("Failed to fetch"));
 
     await expect(registrar(datos)).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("eliminarCuenta", () => {
+  it("deletes the authenticated account with the password in the request body", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204 }));
+
+    await expect(eliminarCuenta("secreto123")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/users/me`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer jwt-token",
+      },
+      body: JSON.stringify({ password: "secreto123" }),
+    });
+  });
+
+  it("translates incorrect password and ongoing-order responses to the requested messages", async () => {
+    fetch
+      .mockResolvedValueOnce(
+        response({ detail: "La contraseña es incorrecta." }, { ok: false, status: 403 })
+      )
+      .mockResolvedValueOnce(
+        response(
+          { detail: "Tenés que esperar a que se entregue tu pedido." },
+          { ok: false, status: 409 }
+        )
+      );
+
+    await expect(eliminarCuenta("incorrecta")).rejects.toThrow("Contraseña equivocada.");
+    await expect(eliminarCuenta("secreto123")).rejects.toThrow(
+      "Aún hay pedidos pendientes. Esperá a que se completen o cancelalos para poder borrar tu cuenta."
+    );
+  });
+
+  it("surfaces backend and network errors", async () => {
+    fetch
+      .mockResolvedValueOnce(
+        response({ detail: "No pudimos borrar la cuenta." }, { ok: false, status: 500 })
+      )
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    await expect(eliminarCuenta("secreto123")).rejects.toThrow("No pudimos borrar la cuenta.");
+    await expect(eliminarCuenta("secreto123")).rejects.toThrow(
+      "No pudimos conectar con el servidor."
+    );
   });
 });
 
@@ -1040,4 +1089,3 @@ describe("assistant API", () => {
       .rejects.toMatchObject({ status: 503, message: "El asistente no está disponible." });
   });
 });
-
