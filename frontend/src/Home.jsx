@@ -42,6 +42,7 @@ import PeugeotLogo from "./assets/Logos Vehiculos/Peugeot.webp";
 import RenaultLogo from "./assets/Logos Vehiculos/Renault.png";
 import SuzukiLogo from "./assets/Logos Vehiculos/Suzuki.png";
 import VolkswagenLogo from "./assets/Logos Vehiculos/Volkswagen.webp";
+import PedidosEnCursoInicio from "./PedidosEnCursoInicio";
 
 // Los fabricantes principales del catálogo (ver MANUFACTURERS en
 // backend/scripts/generate_dataset.py).
@@ -290,6 +291,14 @@ export default function Home({
       {/* =====================================================
           ASISTENTE DE COMPRA (IA)
       ====================================================== */}
+
+      {/* =====================================================
+          PEDIDOS EN CURSO
+          Solo si el cliente tiene algo en camino: justo debajo del
+          banner, para que lo vea apenas entra.
+      ====================================================== */}
+
+      <PedidosEnCursoInicio />
 
       <InvitacionAsistente />
 

@@ -1,104 +1,33 @@
 import { useEffect, useState } from "react";
 
 import { crearLinkPago, obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
+import { usePedidos } from "./context/PedidosContext";
 import CuentaLayout from "./CuentaLayout";
-import { IconoAlerta, IconoCaja } from "./Iconos";
-import { imagenDeRepuesto, usarImagenGenerica } from "./mapearRepuesto";
+import DetallePedido, { EstadoPedido } from "./DetallePedido";
+import { IconoCaja } from "./Iconos";
 import { textoPlazoPago } from "./plazoPago";
 import { irA } from "./redirigir";
-
-const ESTADOS_PEDIDO = {
-  confirmed: { texto: "Confirmado", clase: "bg-blue-50 text-blue-700 ring-blue-200" },
-  shipped: { texto: "Enviado", clase: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
-  delivered: { texto: "Entregado", clase: "bg-green-50 text-green-700 ring-green-200" },
-  cancelled: { texto: "Cancelado", clase: "bg-gray-50 text-gray-500 ring-gray-200" },
-};
-
-const PENDIENTE_DE_PAGO = { texto: "Pendiente de pago", clase: "bg-amber-50 text-amber-800 ring-amber-200" };
-
-// Pedidos con Mercado Pago que todavía no se pagaron.
-const PAGO_SIN_COMPLETAR = {
-  pending: "pendiente",
-  rejected: "rechazado",
-};
+import {
+  canceladoPorLaTienda,
+  faltaPagar,
+  formatearFecha,
+  formatearPrecio,
+  textoProductos,
+  vencioSinPagar,
+} from "./seguimientoPedido";
+import { FotoProducto } from "./TarjetaPedidoEnCurso";
 
 // Cuántas fotos de productos se ven en cada pedido de la lista.
 const MINIATURAS = 3;
 
-function faltaPagar(compra) {
-  return Boolean(PAGO_SIN_COMPLETAR[compra.estadoPago]) && compra.estado !== "cancelled";
-}
-
-// Se canceló solo porque venció el plazo sin pagarse (el stock volvió).
-function vencioSinPagar(compra) {
-  return Boolean(PAGO_SIN_COMPLETAR[compra.estadoPago]) && compra.estado === "cancelled";
-}
-
 // La línea chica al lado del estado: cuánto queda para pagar, o por qué se canceló.
 function notaPago(compra) {
   if (vencioSinPagar(compra)) return "No se completó el pago a tiempo";
+  if (canceladoPorLaTienda(compra)) return "Lo canceló la tienda";
   if (!faltaPagar(compra)) return "";
   const plazo = compra.vencePago ? `Pagalo antes de ${textoPlazoPago(compra.vencePago)}` : "";
   if (compra.estadoPago === "rejected") return plazo ? `Pago rechazado · ${plazo}` : "Pago rechazado";
   return plazo;
-}
-
-function textoDireccion(d) {
-  const apartamento = d.apartamento ? ` apto ${d.apartamento}` : "";
-  return `${d.calle} ${d.numero}${apartamento}, ${d.ciudad}, ${d.departamento}`;
-}
-
-function textoProductos(items) {
-  if (items.length === 0) return "";
-  const primero = items[0].nombre || "Producto";
-  if (items.length === 1) return primero;
-  const resto = items.length - 1;
-  return `${primero} y ${resto} ${resto === 1 ? "producto más" : "productos más"}`;
-}
-
-const formatearPrecio = (precio) =>
-  new Intl.NumberFormat("es-UY", {
-    style: "currency",
-    currency: "UYU",
-    maximumFractionDigits: 0,
-  }).format(Number(precio) || 0);
-
-const formatearFecha = (fecha) => {
-  if (!fecha) return "Fecha no disponible";
-
-  return new Date(fecha).toLocaleDateString("es-UY", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
-
-/**
- * La etiqueta del pedido. Mientras no se pagó, eso es lo que importa: el
- * estado del envío ("Confirmado") se ve recién con el pago aprobado.
- */
-function EstadoPedido({ compra }) {
-  const { texto, clase } = faltaPagar(compra)
-    ? PENDIENTE_DE_PAGO
-    : ESTADOS_PEDIDO[compra.estado] ?? { texto: "Sin estado", clase: "bg-gray-50 text-gray-500 ring-gray-200" };
-  return (
-    <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap ring-1 ring-inset ${clase}`}>
-      {texto}
-    </span>
-  );
-}
-
-function FotoProducto({ producto, clase }) {
-  return (
-    <div className={`shrink-0 bg-gray-50 border border-gray-100 rounded-md overflow-hidden ${clase}`}>
-      <img
-        onError={usarImagenGenerica}
-        src={imagenDeRepuesto(producto.nombre || "")}
-        alt=""
-        className="w-full h-full object-contain p-1"
-      />
-    </div>
-  );
 }
 
 function CargandoHistorial() {
@@ -131,6 +60,16 @@ export default function HistorialCompras(navegacion) {
   const [errorDetalle, setErrorDetalle] = useState("");
   // El pedido cuyo link de Mercado Pago se está pidiendo.
   const [pagandoId, setPagandoId] = useState(null);
+  const { establecer } = usePedidos();
+
+  // Después de «Ya lo recibí»: el pedido entregado reemplaza al de la lista
+  // (y el número de pedidos en curso de la barra baja).
+  const actualizarCompra = (entregada) => {
+    setCompraSeleccionada(entregada);
+    const lista = compras.map((anterior) => (anterior.id === entregada.id ? entregada : anterior));
+    setCompras(lista);
+    establecer(lista);
+  };
 
   useEffect(() => {
     let cancelado = false;
@@ -229,112 +168,15 @@ export default function HistorialCompras(navegacion) {
 
         /* DETALLE */
 
-        <section aria-label={`Detalle del pedido ${compraSeleccionada.id}`}>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-            <button
-              type="button"
-              onClick={() => {
-                setCompraSeleccionada(null);
-                setErrorDetalle("");
-              }}
-              className="text-orange-500 text-sm font-bold hover:underline"
-            >
-              ← Volver al historial
-            </button>
-            <EstadoPedido compra={compraSeleccionada} />
-          </div>
-
-          {faltaPagar(compraSeleccionada) && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex gap-3">
-                <IconoAlerta className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
-                <div>
-                  <p className="text-sm font-black text-gray-900">
-                    {compraSeleccionada.estadoPago === "rejected"
-                      ? "El pago fue rechazado"
-                      : "Este pedido todavía no está pagado"}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {compraSeleccionada.vencePago
-                      ? `Tus repuestos quedan reservados hasta ${textoPlazoPago(compraSeleccionada.vencePago)}. Si no se paga, el pedido se cancela solo.`
-                      : "Tus repuestos quedan reservados mientras completás el pago."}
-                  </p>
-                </div>
-              </div>
-              {botonPagar(compraSeleccionada, "PAGAR CON MERCADO PAGO", true)}
-            </div>
-          )}
-
-          {vencioSinPagar(compraSeleccionada) && (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
-              <p className="text-sm font-black text-gray-900">
-                Este pedido se canceló porque no se completó el pago a tiempo
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                No se te cobró nada. Si todavía querés los repuestos, podés volver a comprarlos desde el catálogo.
-              </p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-            <div className="border border-gray-200 rounded-xl">
-              <h3 className="text-xs font-black uppercase text-gray-500 px-5 pt-5">
-                Productos
-              </h3>
-              <ul className="divide-y divide-gray-100 px-5">
-                {(compraSeleccionada.items || []).map((producto, index) => (
-                  <li key={producto.partId || index} className="flex items-center gap-4 py-4">
-                    <FotoProducto producto={producto} clase="w-16 h-16" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900">
-                        {producto.nombre || "Producto"}
-                      </p>
-                      {producto.codigo && (
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Código: {producto.codigo}
-                        </p>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {`Cantidad: ${producto.cantidad} · ${formatearPrecio(producto.precio)} c/u`}
-                      </p>
-                    </div>
-                    <p className="text-sm font-black whitespace-nowrap">
-                      {formatearPrecio(producto.precio * producto.cantidad)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <aside className="bg-gray-50 border border-gray-200 rounded-xl p-5 h-fit space-y-5">
-              {compraSeleccionada.direccion && (
-                <div>
-                  <p className="text-xs font-black uppercase text-gray-500">Envío</p>
-                  <p className="text-sm text-gray-700 mt-1">
-                    {textoDireccion(compraSeleccionada.direccion)}
-                  </p>
-                </div>
-              )}
-              {compraSeleccionada.metodoPago && (
-                <div>
-                  <p className="text-xs font-black uppercase text-gray-500">Pago</p>
-                  <p className="text-sm text-gray-700 mt-1">
-                    {compraSeleccionada.metodoPago}
-                    {faltaPagar(compraSeleccionada) &&
-                      ` (${PAGO_SIN_COMPLETAR[compraSeleccionada.estadoPago]})`}
-                    {vencioSinPagar(compraSeleccionada) && " (no se completó)"}
-                  </p>
-                </div>
-              )}
-              <div className="border-t border-gray-200 pt-4 flex justify-between items-end">
-                <span className="text-sm font-bold">Total</span>
-                <span className="text-2xl font-black text-orange-500">
-                  {formatearPrecio(compraSeleccionada.total)}
-                </span>
-              </div>
-            </aside>
-          </div>
-        </section>
+        <DetallePedido
+          compra={compraSeleccionada}
+          textoVolver="← Volver al historial"
+          onVolver={() => {
+            setCompraSeleccionada(null);
+            setErrorDetalle("");
+          }}
+          onActualizado={actualizarCompra}
+        />
       ) : cargandoDetalle ? (
         <CargandoHistorial />
       ) : error ? null : compras.length === 0 ? (

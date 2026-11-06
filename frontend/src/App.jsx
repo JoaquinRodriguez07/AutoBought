@@ -22,6 +22,7 @@ import Registro from "./Registro";
 import Perfil from "./Perfil";
 import Direcciones from "./Direcciones";
 import HistorialCompras from "./HistorialCompras";
+import MisPedidos from "./MisPedidos";
 import ResultadoPago from "./ResultadoPago";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
@@ -30,6 +31,7 @@ import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
 import PanelPit from "./PanelPit";
 import { usePit } from "./context/PitContext";
+import { usePedidos } from "./context/PedidosContext";
 import ProtectedRoute from "./ProtectedRoute";
 import Footer from "./Footer";
 import EmployeeRoute from "./EmployeeRoute";
@@ -71,6 +73,13 @@ function App() {
   const { cargarCarrito, limpiarCarritoLocal } = useCart();
   const { activarVehiculo } = useVehicle();
   const { olvidar: olvidarCharlaPit } = usePit();
+  const { recargar: recargarPedidos, limpiar: limpiarPedidos } = usePedidos();
+
+  // Al volver al inicio se actualizan los pedidos en curso (el aviso del
+  // banner y el número de la barra): un pedido pudo cambiar de estado.
+  useEffect(() => {
+    if (pathname === "/") recargarPedidos();
+  }, [pathname, recargarPedidos]);
 
 
   // null = sin filtro de categoría (el catálogo muestra todos los
@@ -295,6 +304,7 @@ function App() {
     }
 
     cargarCarrito();
+    recargarPedidos();
     navigate("/");
   };
 
@@ -358,6 +368,7 @@ function App() {
     olvidarCharlaPit();
     setFavoritos([]);
     setAvisosStock([]);
+    limpiarPedidos();
     navigate("/");
   };
 
@@ -555,6 +566,9 @@ function App() {
     onDirecciones: () => navigate("/direcciones"),
 
     onHistorial: () => navigate("/historial"),
+
+    // «Mis pedidos»: los pedidos en curso (el link del pie de página).
+    onPedidos: () => navigate("/pedidos"),
 
     onCerrarSesion: cerrarSesion,
 
@@ -805,6 +819,12 @@ function App() {
             <ResultadoPago {...propsNavbar} />
           }
         />
+
+        {/* MIS PEDIDOS: los que están en curso (el ícono de la barra) y
+            el detalle de cada uno */}
+
+        <Route path="/pedidos" element={<MisPedidos {...propsNavbar} />} />
+        <Route path="/pedidos/:id" element={<MisPedidos {...propsNavbar} />} />
 
         {/* HISTORIAL DE COMPRAS */}
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { crearLinkPago, obtenerDetalleCompra, verificarPago } from "./api";
+import { usePedidos } from "./context/PedidosContext";
 import { irA } from "./redirigir";
 import TarjetaCuenta, { claseBotonCuenta } from "./TarjetaCuenta";
 
@@ -20,8 +21,10 @@ const SIN_PAGAR = ["rejected", "cancelled", "null"];
  * Muestra el estado del pago según el backend y, si no se pudo pagar,
  * deja reintentar.
  */
-export default function ResultadoPago({ onHistorial, ...propsNavbar }) {
+export default function ResultadoPago(propsNavbar) {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { recargar: recargarPedidos } = usePedidos();
   const pedidoId = searchParams.get("pedido") || "";
   const estadoMP = searchParams.get("collection_status") || searchParams.get("status") || "";
   const pagoMP = searchParams.get("payment_id") || searchParams.get("collection_id") || "";
@@ -30,6 +33,12 @@ export default function ResultadoPago({ onHistorial, ...propsNavbar }) {
   const [estado, setEstado] = useState(pedidoId ? "consultando" : "error");
   const [error, setError] = useState(pedidoId ? "" : "No encontramos ese pedido.");
   const [reintentando, setReintentando] = useState(false);
+
+  // Con el pago resuelto, el número de pedidos en curso de la barra se
+  // actualiza (un pedido pagado sigue en curso; uno nuevo se suma).
+  useEffect(() => {
+    if (estado !== "consultando") recargarPedidos();
+  }, [estado, recargarPedidos]);
 
   useEffect(() => {
     if (!pedidoId) return;
@@ -131,10 +140,10 @@ export default function ResultadoPago({ onHistorial, ...propsNavbar }) {
       {estado !== "consultando" && (
         <button
           type="button"
-          onClick={estado === "error" ? () => propsNavbar.onCatalogo() : onHistorial}
+          onClick={estado === "error" ? () => propsNavbar.onCatalogo() : () => navigate(`/pedidos/${pedidoId}`)}
           className="w-full mt-3 py-2 text-[11px] font-bold text-gray-500 hover:text-orange-500"
         >
-          {estado === "error" ? "Ir a la tienda" : "Ver mis compras"}
+          {estado === "error" ? "Ir a la tienda" : "Seguir mi pedido"}
         </button>
       )}
     </TarjetaCuenta>

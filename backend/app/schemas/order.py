@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.order import Order, OrderStatus
+from app.models.order_status_history import CancelReason
 from app.models.payment import PaymentStatus
 
 
@@ -53,6 +54,12 @@ class OrderShippingAddressOut(BaseModel):
     postal_code: str | None
 
 
+class OrderStatusStepOut(BaseModel):
+    status: OrderStatus
+    # None si no se sabe (pedidos de antes del historial de estados).
+    changed_at: datetime | None
+
+
 class OrderDetailOut(BaseModel):
     order_id: int
     created_at: datetime
@@ -65,10 +72,41 @@ class OrderDetailOut(BaseModel):
     payment_due_at: datetime | None
     total: int
     items: list[OrderItemDetailOut]
+    # Los estados por los que pasó, del primero al actual.
+    status_history: list[OrderStatusStepOut]
+    # Solo en los cancelados, si se sabe por qué.
+    cancel_reason: CancelReason | None
 
 
 class OrderListOut(BaseModel):
     orders: list[OrderDetailOut]
+
+
+def linea_de_tiempo(order: Order) -> list[OrderStatusStepOut]:
+    """Los estados por los que pasó el pedido. Los de antes del historial
+    (o los del seed) no tienen filas: se arma con la compra y el estado
+    actual, que no se sabe cuándo cambió."""
+    if order.status_history:
+        return [
+            OrderStatusStepOut(status=fila.status, changed_at=fila.changed_at)
+            for fila in order.status_history
+        ]
+    pasos = [OrderStatusStepOut(status=OrderStatus.CONFIRMED, changed_at=order.created_at)]
+    if order.status != OrderStatus.CONFIRMED:
+        pasos.append(OrderStatusStepOut(status=order.status, changed_at=None))
+    return pasos
+
+
+def motivo_de_cancelacion(order: Order) -> CancelReason | None:
+    if order.status != OrderStatus.CANCELLED:
+        return None
+    if order.status_history:
+        motivo = order.status_history[-1].reason
+        return CancelReason(motivo) if motivo else None
+    # Sin historial: si el pago nunca se aprobó, venció sin pagarse.
+    if order.payment is not None and order.payment.status != PaymentStatus.APPROVED:
+        return CancelReason.EXPIRED
+    return None
 
 
 def build_order_detail_out(order: Order) -> OrderDetailOut:
@@ -103,4 +141,6 @@ def build_order_detail_out(order: Order) -> OrderDetailOut:
         payment_due_at=order.payment.due_at if order.payment else None,
         total=order.total,
         items=items,
+        status_history=linea_de_tiempo(order),
+        cancel_reason=motivo_de_cancelacion(order),
     )

@@ -2,10 +2,11 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import HistorialCompras from "./HistorialCompras";
-import { crearLinkPago, obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
+import { confirmarRecepcion, crearLinkPago, obtenerDetalleCompra, obtenerHistorialCompras } from "./api";
 import { irA } from "./redirigir";
 
 jest.mock("./api", () => ({
+  confirmarRecepcion: jest.fn(),
   crearLinkPago: jest.fn(),
   obtenerDetalleCompra: jest.fn(),
   obtenerHistorialCompras: jest.fn(),
@@ -108,7 +109,8 @@ describe("HistorialCompras", () => {
     expect(screen.getByText(/Cantidad: 2 · .*900 c\/u/)).toBeInTheDocument();
     // El subtotal del producto: 2 × 900.
     expect(screen.getByText(/1[.]800|1,800/)).toBeInTheDocument();
-    expect(screen.getByText("Confirmado")).toBeInTheDocument();
+    // En la etiqueta del pedido y en la línea de tiempo.
+    expect(screen.getAllByText("Confirmado")).toHaveLength(2);
     expect(
       screen.getByText("Av. Italia 1234, Montevideo, Montevideo")
     ).toBeInTheDocument();
@@ -146,7 +148,7 @@ describe("HistorialCompras", () => {
     await user.click(await screen.findByRole("button", { name: "Ver detalle del pedido #42" }));
 
     expect(await screen.findByText("Mercado Pago")).toBeInTheDocument();
-    expect(screen.getByText("Confirmado")).toBeInTheDocument();
+    expect(screen.getAllByText("Confirmado")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: /Pagar el pedido/ })).not.toBeInTheDocument();
   });
 
@@ -291,5 +293,117 @@ describe("HistorialCompras", () => {
     expect(
       screen.getByRole("list", { name: "Compras realizadas" })
     ).toBeInTheDocument();
+  });
+
+  describe("seguimiento en el detalle (SCRUM-172)", () => {
+    const enviado = {
+      ...compras[1],
+      metodoPago: "Mercado Pago",
+      estadoPago: "approved",
+      seguimiento: [
+        { estado: "confirmed", fecha: "2026-01-02T10:00:00.000Z" },
+        { estado: "packing", fecha: "2026-01-02T15:00:00.000Z" },
+        { estado: "shipped", fecha: "2026-01-03T09:30:00.000Z" },
+      ],
+    };
+
+    async function abrirDetalle(detalle) {
+      const user = userEvent.setup();
+      obtenerHistorialCompras.mockResolvedValue(compras);
+      obtenerDetalleCompra.mockResolvedValue(detalle);
+      renderHistorial();
+      await user.click(await screen.findByRole("button", { name: `Ver detalle del pedido #${detalle.id}` }));
+      return user;
+    }
+
+    test("shows the timeline with the date of each stage and the ones still pending", async () => {
+      await abrirDetalle(enviado);
+
+      const linea = await screen.findByRole("list", { name: "Seguimiento del pedido" });
+      const pasos = within(linea).getAllByRole("listitem");
+      expect(pasos.map((paso) => paso.querySelector("p").textContent)).toEqual([
+        "Confirmado",
+        "Empaquetando",
+        "Enviado",
+        "Entregado",
+      ]);
+      const fecha = /\d{2}\/\d{2}\/\d{4}/;
+      expect(within(pasos[0]).getByText(fecha)).toBeInTheDocument();
+      expect(within(pasos[2]).getByText(fecha)).toBeInTheDocument();
+      expect(within(pasos[3]).getByText("Pendiente")).toBeInTheDocument();
+      expect(pasos[2]).toHaveAttribute("aria-current", "step");
+    });
+
+    test("an unpaid order shows no timeline", async () => {
+      await abrirDetalle({ ...compras[0], estadoPago: "pending", seguimiento: [{ estado: "confirmed", fecha: null }] });
+
+      await screen.findByRole("button", { name: /Pagar el pedido/ });
+      expect(screen.queryByRole("list", { name: "Seguimiento del pedido" })).not.toBeInTheDocument();
+    });
+
+    test("'Ya lo recibí' marks a shipped order as delivered", async () => {
+      const entregado = {
+        ...enviado,
+        estado: "delivered",
+        seguimiento: [...enviado.seguimiento, { estado: "delivered", fecha: "2026-01-05T12:00:00.000Z" }],
+      };
+      confirmarRecepcion.mockResolvedValue(entregado);
+      const user = await abrirDetalle(enviado);
+
+      await user.click(await screen.findByRole("button", { name: "YA LO RECIBÍ" }));
+
+      expect(confirmarRecepcion).toHaveBeenCalledWith(17);
+      expect(await screen.findByRole("status")).toHaveTextContent("Marcamos el pedido como entregado");
+      expect(screen.queryByRole("button", { name: "YA LO RECIBÍ" })).not.toBeInTheDocument();
+      const pasos = within(screen.getByRole("list", { name: "Seguimiento del pedido" })).getAllByRole("listitem");
+      expect(within(pasos[3]).queryByText("Pendiente")).not.toBeInTheDocument();
+    });
+
+    test("shows the error if the arrival can't be confirmed", async () => {
+      confirmarRecepcion.mockRejectedValue(new Error("Solo se puede confirmar la llegada de un pedido enviado."));
+      const user = await abrirDetalle(enviado);
+
+      await user.click(await screen.findByRole("button", { name: "YA LO RECIBÍ" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Solo se puede confirmar la llegada");
+      expect(screen.getByRole("button", { name: "YA LO RECIBÍ" })).toBeEnabled();
+    });
+
+    test.each(["confirmed", "packing", "delivered"])("a %s order has no 'Ya lo recibí' button", async (estado) => {
+      await abrirDetalle({ ...enviado, estado });
+
+      await screen.findByRole("list", { name: "Seguimiento del pedido" });
+      expect(screen.queryByRole("button", { name: "YA LO RECIBÍ" })).not.toBeInTheDocument();
+    });
+
+    test("an order cancelled by the store says so", async () => {
+      await abrirDetalle({
+        ...enviado,
+        estado: "cancelled",
+        motivoCancelacion: "store",
+        seguimiento: [...enviado.seguimiento.slice(0, 2), { estado: "cancelled", fecha: "2026-01-02T18:00:00.000Z" }],
+      });
+
+      expect(await screen.findByText("La tienda canceló este pedido")).toBeInTheDocument();
+      expect(screen.queryByText(/no se completó el pago a tiempo/)).not.toBeInTheDocument();
+    });
+
+    test("an expired order says it wasn't paid in time", async () => {
+      await abrirDetalle({ ...compras[0], estado: "cancelled", estadoPago: "pending", motivoCancelacion: "expired" });
+
+      expect(await screen.findByText(/no se completó el pago a tiempo/)).toBeInTheDocument();
+      expect(screen.queryByText("La tienda canceló este pedido")).not.toBeInTheDocument();
+    });
+
+    test("the list shows a 'packing' order and why an order was cancelled by the store", async () => {
+      obtenerHistorialCompras.mockResolvedValue([
+        { ...compras[0], estado: "packing" },
+        { ...compras[1], estado: "cancelled", motivoCancelacion: "store" },
+      ]);
+      renderHistorial();
+
+      expect(await screen.findByText("Empaquetando")).toBeInTheDocument();
+      expect(screen.getByText("Lo canceló la tienda")).toBeInTheDocument();
+    });
   });
 });

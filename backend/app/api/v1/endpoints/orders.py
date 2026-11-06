@@ -1,10 +1,11 @@
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_client, get_db
 from app.core.mercadopago import mercadopago_configurado
+from app.core.notificaciones import notificar_cambio_de_estado
 from app.crud import order as crud_order
 from app.crud import part as crud_part
 from app.models.client import Client
@@ -142,4 +143,29 @@ def get_order(
             detail="Pedido no encontrado.",
         )
 
+    return build_order_detail_out(order)
+
+
+@router.post("/{order_id}/recibido", response_model=OrderDetailOut)
+def confirm_received(
+    order_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client),
+):
+    """«Ya lo recibí»: el cliente confirma que le llegó un pedido enviado.
+    Pasa a «Entregado» y le llega el mail de la entrega."""
+    order = crud_order.get_order_for_client(db, order_id, client.user_id)
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pedido no encontrado.",
+        )
+    if not crud_order.confirm_received(db, order):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Solo se puede confirmar la llegada de un pedido enviado.",
+        )
+
+    notificar_cambio_de_estado(order, background_tasks)
     return build_order_detail_out(order)

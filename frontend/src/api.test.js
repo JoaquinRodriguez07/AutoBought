@@ -12,6 +12,7 @@ import {
   agregarItemCarrito,
   crearDireccion,
   confirmarCompra,
+  confirmarRecepcion,
   crearLinkPago,
   verificarPago,
   eliminarDireccionAPI,
@@ -934,6 +935,48 @@ describe("orders and Mercado Pago API", () => {
     fetch.mockResolvedValue(response({ ...backendOrder, payment_method: "Visa •••• 1234", payment_status: null }));
 
     await expect(obtenerDetalleCompra(42)).resolves.toMatchObject({ estadoPago: null });
+  });
+
+  it("maps the order tracking and the cancel reason", async () => {
+    fetch.mockResolvedValue(response({
+      ...backendOrder,
+      status: "cancelled",
+      status_history: [
+        { status: "confirmed", changed_at: "2026-01-02T10:00:00Z" },
+        { status: "cancelled", changed_at: null },
+      ],
+      cancel_reason: "store",
+    }));
+
+    await expect(obtenerDetalleCompra(42)).resolves.toMatchObject({
+      seguimiento: [
+        { estado: "confirmed", fecha: "2026-01-02T10:00:00Z" },
+        { estado: "cancelled", fecha: null },
+      ],
+      motivoCancelacion: "store",
+    });
+  });
+
+  it("confirms the arrival of an order and returns it delivered", async () => {
+    fetch.mockResolvedValue(response({ ...backendOrder, status: "delivered" }));
+
+    await expect(confirmarRecepcion(42)).resolves.toMatchObject({ id: backendOrder.order_id, estado: "delivered" });
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/orders/42/recibido`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("uses the backend detail when the arrival can't be confirmed", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Solo se puede confirmar la llegada de un pedido enviado." }, { ok: false, status: 409 }))
+      .mockResolvedValueOnce(response({}, { ok: false, status: 404 }));
+
+    await expect(confirmarRecepcion(42)).rejects.toMatchObject({
+      message: "Solo se puede confirmar la llegada de un pedido enviado.",
+      status: 409,
+    });
+    await expect(confirmarRecepcion(42)).rejects.toMatchObject({ message: "No encontramos ese pedido.", status: 404 });
   });
 
   it("asks for the Mercado Pago link of an order", async () => {
