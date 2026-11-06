@@ -78,6 +78,17 @@ class PasswordChange(BaseModel):
         return validators.password_segura(value)
 
 
+class DeleteAccountRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    password: str = Field(min_length=1)
+
+    @field_validator("password")
+    @classmethod
+    def password_cabe_en_bcrypt(cls, value: str) -> str:
+        return _cabe_en_bcrypt(value)
+
+
 class EmailPreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

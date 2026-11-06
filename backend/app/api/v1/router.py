@@ -1,10 +1,22 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, brands, parts, models, years, cart, shipping_address, orders, pagos
+from app.api.v1.endpoints import (
+    auth,
+    brands,
+    parts,
+    models,
+    years,
+    cart,
+    shipping_address,
+    orders,
+    pagos,
+    users,
+)
 from app.api.v1.endpoints import favorites, recommendations, stock_alerts, analytics, asistente, tareas
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
+api_router.include_router(users.router)
 api_router.include_router(brands.router)
 api_router.include_router(parts.router)
 api_router.include_router(models.router)

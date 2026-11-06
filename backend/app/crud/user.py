@@ -1,12 +1,28 @@
 import re
 import secrets
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.security import verify_password
+from app.models.cart import Cart
+from app.models.cart_item import CartItem
 from app.models.client import Client
 from app.models.employee import Employee
+from app.models.favorite import Favorite
+from app.models.order import Order, OrderStatus
+from app.models.payment import Payment, PaymentStatus
+from app.models.shipping_address import ShippingAddress
+from app.models.stock_alert import StockAlert
 from app.models.user import User
+
+
+class IncorrectAccountPassword(Exception):
+    pass
+
+
+class OngoingOrders(Exception):
+    pass
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -101,3 +117,58 @@ def set_marketing_emails(db: Session, client: Client, value: bool) -> Client:
     db.commit()
     db.refresh(client)
     return client
+
+
+def delete_client_account(db: Session, client_id: int, password: str) -> None:
+    """Anonymize a client while retaining closed orders for sales analytics."""
+    with db.begin():
+        client = db.scalar(
+            select(Client).where(Client.user_id == client_id).with_for_update()
+        )
+        if client is None:
+            return
+        if not verify_password(password, client.password):
+            raise IncorrectAccountPassword
+
+        ongoing_order = db.scalar(
+            select(Order.order_id)
+            .join(Payment, Payment.order_id == Order.order_id)
+            .where(
+                Order.client_id == client_id,
+                Order.status.notin_([OrderStatus.DELIVERED, OrderStatus.CANCELLED]),
+                Payment.status.in_([PaymentStatus.PENDING, PaymentStatus.APPROVED]),
+            )
+            .limit(1)
+        )
+        if ongoing_order is not None:
+            raise OngoingOrders
+
+        anonymous_name = f"Cliente eliminado {client_id}-{secrets.token_hex(6)}"
+        client.name = anonymous_name
+        client.email = f"eliminado-{client_id}@autobought.invalid"
+        client.phone = None
+        client.email_verified = False
+        client.marketing_emails = False
+        client.session_version += 1
+
+        db.execute(
+            update(Order)
+            .where(Order.client_id == client_id)
+            .values(
+                shipping_address_id=None,
+                ship_personal_name=anonymous_name,
+                ship_street="Eliminado",
+                ship_number="0",
+                ship_apartment=None,
+                ship_city="Eliminado",
+                ship_department="Eliminado",
+                ship_postal_code=None,
+            )
+        )
+        db.execute(delete(StockAlert).where(StockAlert.client_id == client_id))
+        db.execute(delete(Favorite).where(Favorite.client_id == client_id))
+        db.execute(delete(CartItem).where(CartItem.cart_id == client_id))
+        db.execute(delete(Cart).where(Cart.client_id == client_id))
+        db.execute(
+            delete(ShippingAddress).where(ShippingAddress.client_id == client_id)
+        )
