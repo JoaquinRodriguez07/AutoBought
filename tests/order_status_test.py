@@ -4,6 +4,8 @@ Mercado Pago está simulado (ClienteMPFalso) y los mails van a la lista del
 fixture `mails` (SMTP falso, ver conftest.py).
 """
 
+from datetime import datetime, timezone
+
 import pytest
 
 from app.core.mercadopago import MercadoPagoNoDisponible, get_cliente_mp
@@ -125,8 +127,9 @@ def test_avanza_de_a_un_paso_hasta_entregado_con_un_mail_en_cada_uno(client, db_
     [
         (OrderStatus.CONFIRMED, "delivered"),
         (OrderStatus.CONFIRMED, "shipped"),
-        (OrderStatus.PACKING, "confirmed"),
-        (OrderStatus.SHIPPED, "packing"),
+        (OrderStatus.SHIPPED, "confirmed"),  # volver, solo de a un paso
+        (OrderStatus.DELIVERED, "packing"),
+        (OrderStatus.CANCELLED, "shipped"),  # un cancelado no se reabre
         (OrderStatus.PACKING, "packing"),
     ],
 )
@@ -382,3 +385,171 @@ def test_el_listado_puede_traer_solo_los_pagados_para_preparar(client, db_sessio
 
     assert [o["order_id"] for o in respuesta["orders"]] == [pagado, viejo]
     assert respuesta["total"] == 2 == respuesta["to_prepare"]
+
+
+def test_el_listado_se_ordena_por_fecha_cliente_o_total(client, db_session, mp, vendedor, pastillas):
+    bruno = make_client(db_session, username="bruno", email="bruno@example.com")
+    bruno.name = "bruno Díaz"  # en minúscula: el orden no distingue mayúsculas
+    carla = make_client(db_session, username="carla", email="carla@example.com")
+    carla.name = "Carla Pérez"
+    ana = make_client(db_session, username="ana2", email="ana2@example.com")  # se llama "Ana"
+    db_session.commit()
+    # Total: 1 × 1500, 3 × 1500 y 2 × 1500.
+    de_bruno = hacer_pedido(db_session, bruno, pastillas, cantidad=1)
+    de_carla = hacer_pedido(db_session, carla, pastillas, cantidad=3)
+    de_ana = hacer_pedido(db_session, ana, pastillas, cantidad=2)
+    for order_id, dia in ((de_bruno, 3), (de_carla, 1), (de_ana, 2)):
+        db_session.get(Order, order_id).created_at = datetime(2026, 11, dia, tzinfo=timezone.utc)
+    db_session.commit()
+
+    def ids(orden):
+        respuesta = client.get(f"{ORDERS}/seller", headers=vendedor, params={"sort": orden})
+        assert respuesta.status_code == 200
+        return [o["order_id"] for o in respuesta.json()["orders"]]
+
+    assert ids("newest") == [de_bruno, de_ana, de_carla]
+    assert ids("oldest") == [de_carla, de_ana, de_bruno]
+    assert ids("client_asc") == [de_ana, de_bruno, de_carla]
+    assert ids("client_desc") == [de_carla, de_bruno, de_ana]
+    assert ids("total_desc") == [de_carla, de_ana, de_bruno]
+    assert ids("total_asc") == [de_bruno, de_ana, de_carla]
+    # Sin `sort`, como siempre: con el filtro de un estado en curso, el que más espera primero.
+    sin_orden = client.get(f"{ORDERS}/seller", headers=vendedor, params={"status": "confirmed"}).json()
+    assert [o["order_id"] for o in sin_orden["orders"]] == [de_carla, de_ana, de_bruno]
+
+
+def test_un_orden_que_no_existe_da_422(client, vendedor):
+    assert client.get(f"{ORDERS}/seller", headers=vendedor, params={"sort": "precio"}).status_code == 422
+
+
+# =====================================================
+# Volver un paso atrás
+# =====================================================
+
+
+@pytest.mark.parametrize(
+    ("desde", "hacia"),
+    [
+        (OrderStatus.PACKING, OrderStatus.CONFIRMED),
+        (OrderStatus.SHIPPED, OrderStatus.PACKING),
+        (OrderStatus.DELIVERED, OrderStatus.SHIPPED),
+    ],
+)
+def test_volver_un_paso_atras_corrige_sin_mandar_mail(client, db_session, mp, vendedor, cliente, pastillas, mails, desde, hacia):
+    order_id = hacer_pedido(db_session, cliente, pastillas, estado=desde)
+    assert client.get(f"{ORDERS}/seller/{order_id}", headers=vendedor).json()["previous_status"] == hacia.value
+
+    respuesta = cambiar(client, vendedor, order_id, hacia.value)
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["status"] == hacia.value
+    assert estado(db_session, order_id) == hacia
+    assert stock(db_session, pastillas) == 3  # el stock no se toca
+    assert mails == []
+
+
+def test_no_hay_a_donde_volver_si_esta_confirmado_cancelado_o_sin_pagar(client, db_session, mp, vendedor, cliente, pastillas):
+    confirmado = hacer_pedido(db_session, cliente, pastillas)
+    cancelado = hacer_pedido(db_session, cliente, pastillas, estado=OrderStatus.CANCELLED)
+    sin_pagar = hacer_pedido(db_session, cliente, pastillas, estado=OrderStatus.PACKING, pago=PaymentStatus.PENDING)
+
+    for order_id in (confirmado, cancelado, sin_pagar):
+        assert client.get(f"{ORDERS}/seller/{order_id}", headers=vendedor).json()["previous_status"] is None
+    assert cambiar(client, vendedor, sin_pagar, "confirmed").status_code == 409
+
+
+# =====================================================
+# Editar el pedido: dirección de envío y nota interna
+# =====================================================
+
+DIRECCION_NUEVA = {
+    "personal_name": "Casa",
+    "street": "Bv. Artigas",
+    "number": "1500",
+    "apartment": "302",
+    "city": "Montevideo",
+    "department": "Montevideo",
+    "postal_code": "11300",
+}
+
+
+def editar(client, headers, order_id, body):
+    return client.patch(f"{ORDERS}/seller/{order_id}", headers=headers, json=body)
+
+
+@pytest.mark.parametrize("desde", [OrderStatus.CONFIRMED, OrderStatus.PACKING])
+def test_el_vendedor_corrige_la_direccion_mientras_no_se_envio(client, db_session, mp, vendedor, cliente, pastillas, mails, desde):
+    order_id = hacer_pedido(db_session, cliente, pastillas, estado=desde)
+
+    respuesta = editar(client, vendedor, order_id, {"shipping_address": DIRECCION_NUEVA})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["shipping_address"] == DIRECCION_NUEVA
+    assert respuesta.json()["can_edit_shipping"] is True
+    # El cliente ve la dirección corregida en su historial.
+    pedido = client.get(f"{ORDERS}/{order_id}", headers=auth_headers(cliente)).json()
+    assert pedido["shipping_address"]["street"] == "Bv. Artigas"
+    assert estado(db_session, order_id) == desde
+    assert mails == []
+
+
+@pytest.mark.parametrize("desde", [OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.CANCELLED])
+def test_la_direccion_no_se_cambia_si_el_pedido_ya_salio(client, db_session, mp, vendedor, cliente, pastillas, desde):
+    order_id = hacer_pedido(db_session, cliente, pastillas, estado=desde)
+
+    respuesta = editar(client, vendedor, order_id, {"shipping_address": DIRECCION_NUEVA})
+
+    assert respuesta.status_code == 409
+    db_session.expire_all()
+    assert db_session.get(Order, order_id).ship_street == "Av. Italia"
+    assert client.get(f"{ORDERS}/seller/{order_id}", headers=vendedor).json()["can_edit_shipping"] is False
+
+
+@pytest.mark.parametrize(
+    "cambio",
+    [
+        {"street": ""},
+        {"department": "Atlántida"},
+        {"city": "Salto", "department": "Montevideo"},  # una ciudad que es otro departamento
+    ],
+)
+def test_una_direccion_invalida_da_422(client, db_session, mp, vendedor, cliente, pastillas, cambio):
+    order_id = hacer_pedido(db_session, cliente, pastillas)
+
+    respuesta = editar(client, vendedor, order_id, {"shipping_address": {**DIRECCION_NUEVA, **cambio}})
+
+    assert respuesta.status_code == 422
+    db_session.expire_all()
+    assert db_session.get(Order, order_id).ship_street == "Av. Italia"
+
+
+def test_la_nota_interna_se_guarda_y_el_cliente_no_la_ve(client, db_session, mp, vendedor, cliente, pastillas):
+    order_id = hacer_pedido(db_session, cliente, pastillas, estado=OrderStatus.DELIVERED)
+
+    respuesta = editar(client, vendedor, order_id, {"internal_note": "  Pidió que se entregue de tarde.  "})
+
+    assert respuesta.status_code == 200
+    assert respuesta.json()["internal_note"] == "Pidió que se entregue de tarde."
+    assert client.get(f"{ORDERS}/seller/{order_id}", headers=vendedor).json()["internal_note"] == "Pidió que se entregue de tarde."
+    historial = client.get(f"{ORDERS}/{order_id}", headers=auth_headers(cliente)).json()
+    assert "internal_note" not in historial
+    assert "Pidió que se entregue" not in str(client.get(ORDERS, headers=auth_headers(cliente)).json())
+
+    # Vacía, se borra.
+    assert editar(client, vendedor, order_id, {"internal_note": "   "}).json()["internal_note"] is None
+
+
+def test_editar_sin_nada_o_borrando_la_direccion_da_422(client, db_session, mp, vendedor, cliente, pastillas):
+    order_id = hacer_pedido(db_session, cliente, pastillas)
+
+    assert editar(client, vendedor, order_id, {}).status_code == 422
+    assert editar(client, vendedor, order_id, {"shipping_address": None}).status_code == 422
+    assert editar(client, vendedor, order_id, {"internal_note": "x" * 501}).status_code == 422
+
+
+def test_editar_es_solo_para_vendedores_y_de_pedidos_que_existen(client, db_session, mp, vendedor, cliente, pastillas):
+    order_id = hacer_pedido(db_session, cliente, pastillas)
+
+    assert editar(client, auth_headers(cliente), order_id, {"internal_note": "hola"}).status_code == 403
+    assert editar(client, {}, order_id, {"internal_note": "hola"}).status_code == 401
+    assert editar(client, vendedor, 999, {"internal_note": "hola"}).status_code == 404

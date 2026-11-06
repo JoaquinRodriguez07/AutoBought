@@ -2,9 +2,10 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.crud.order import can_cancel, next_status
+from app.crud.order import can_cancel, can_edit_shipping, next_status, previous_status
 from app.models.order import Order, OrderStatus
 from app.models.payment import PaymentStatus
+from app.schemas.shipping_address import ShippingAddressCreate
 
 
 class OrderItemCreate(BaseModel):
@@ -99,6 +100,35 @@ class OrderStatusUpdate(BaseModel):
         return self
 
 
+NOTA_MAX = 500
+
+
+class OrderShippingAddressIn(ShippingAddressCreate):
+    """La dirección corregida por el vendedor: las mismas reglas que cuando
+    el cliente la carga en su perfil (sin "principal", que acá no aplica)."""
+
+    is_primary: bool = Field(default=False, exclude=True)
+
+
+class SellerOrderUpdate(BaseModel):
+    """Body de PATCH /orders/seller/{id}: lo que el vendedor corrige a pedido
+    del cliente. Lo que no se manda queda igual."""
+
+    shipping_address: OrderShippingAddressIn | None = None
+    # Vacía o solo espacios: se borra la nota.
+    internal_note: str | None = Field(default=None, max_length=NOTA_MAX)
+
+    @model_validator(mode="after")
+    def algo_para_cambiar(self):
+        if not self.model_fields_set & {"shipping_address", "internal_note"}:
+            raise ValueError("Mandá la dirección de envío o la nota interna.")
+        if "shipping_address" in self.model_fields_set and self.shipping_address is None:
+            raise ValueError("La dirección de envío no se puede borrar.")
+        if self.internal_note is not None:
+            self.internal_note = self.internal_note.strip() or None
+        return self
+
+
 class SellerOrderOut(OrderDetailOut):
     """Un pedido en el portal del vendedor: con el cliente y lo que se
     puede hacer con él (así la regla queda solo en el backend)."""
@@ -111,7 +141,13 @@ class SellerOrderOut(OrderDetailOut):
     mp_payment_id: str | None
     # El estado del botón "Pasar a ..."; None si no se puede avanzar.
     next_status: OrderStatus | None
+    # A dónde vuelve si el vendedor se equivocó; None si no se puede volver.
+    previous_status: OrderStatus | None
     can_cancel: bool
+    # La dirección se corrige mientras el pedido no salió.
+    can_edit_shipping: bool
+    # Solo para la tienda: no va en OrderDetailOut (lo que ve el cliente).
+    internal_note: str | None
 
 
 class SellerOrderListOut(BaseModel):
@@ -132,7 +168,10 @@ def build_seller_order_out(order: Order) -> SellerOrderOut:
         client_phone=order.client.phone,
         mp_payment_id=order.payment.mp_payment_id if order.payment else None,
         next_status=next_status(order),
+        previous_status=previous_status(order),
         can_cancel=can_cancel(order),
+        can_edit_shipping=can_edit_shipping(order),
+        internal_note=order.internal_note,
     )
 
 

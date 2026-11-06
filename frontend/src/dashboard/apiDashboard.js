@@ -281,15 +281,25 @@ function mapearPedidoVendedor(p) {
     })),
     // Lo decide el backend: a qué estado se puede pasar (null si no se puede) y si se puede cancelar.
     siguienteEstado: p.next_status ?? null,
+    // A dónde vuelve si el vendedor se equivocó (null si no se puede volver).
+    anteriorEstado: p.previous_status ?? null,
     sePuedeCancelar: Boolean(p.can_cancel),
+    // La dirección se corrige mientras el pedido no salió.
+    sePuedeEditarEnvio: Boolean(p.can_edit_shipping),
     motivoCancelacion: p.cancellation_reason ?? null,
+    // Solo la ve la tienda.
+    notaInterna: p.internal_note ?? null,
   };
 }
 
-/** GET /orders/seller: los pedidos de todos los clientes, filtrados por estado. */
-export async function obtenerPedidos({ estado, limite = 50, desde = 0, soloPagados = false } = {}) {
+/**
+ * GET /orders/seller: los pedidos de todos los clientes, filtrados por
+ * estado. `orden`: un valor de ORDENES_PEDIDO (pedidos.js); sin él, el
+ * backend pone primero los que más esperan.
+ */
+export async function obtenerPedidos({ estado, limite = 50, desde = 0, soloPagados = false, orden } = {}) {
   const data = await pedir("/orders/seller", {
-    params: { status: estado, limit: limite, offset: desde, paid_only: soloPagados ? "true" : undefined },
+    params: { status: estado, limit: limite, offset: desde, paid_only: soloPagados ? "true" : undefined, sort: orden },
     mensajeError: "No pudimos cargar los pedidos.",
   });
   return {
@@ -314,6 +324,33 @@ export async function cambiarEstadoPedido(id, estado, motivo) {
     method: "PATCH",
     body: JSON.stringify(estado === "cancelled" ? { status: estado, reason: motivo } : { status: estado }),
     mensajeError: "No pudimos cambiar el estado del pedido.",
+  });
+  return mapearPedidoVendedor(data);
+}
+
+/**
+ * PATCH /orders/seller/{id}: el vendedor corrige el pedido a pedido del
+ * cliente. Se manda solo lo que cambia: `envio` (mismo formato que
+ * `pedido.envio`) y/o `notaInterna` ("" la borra).
+ */
+export async function editarPedido(id, { envio, notaInterna } = {}) {
+  const body = {};
+  if (envio) {
+    body.shipping_address = {
+      personal_name: envio.nombreDireccion,
+      street: envio.calle,
+      number: envio.numero,
+      apartment: envio.apartamento || null,
+      city: envio.ciudad,
+      department: envio.departamento,
+      postal_code: envio.codigoPostal || null,
+    };
+  }
+  if (notaInterna !== undefined) body.internal_note = notaInterna;
+  const data = await pedir(`/orders/seller/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    mensajeError: "No pudimos guardar los cambios del pedido.",
   });
   return mapearPedidoVendedor(data);
 }

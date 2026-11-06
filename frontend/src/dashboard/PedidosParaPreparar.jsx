@@ -39,19 +39,19 @@ export default function PedidosParaPreparar({ limite = 5, version, onDetalle, on
             <SinDatos>No hay pedidos pagados esperando. ¡Todo al día!</SinDatos>
           ) : (
             <>
-              <ul aria-label="Pedidos para preparar" className="-mx-2 flex flex-col">
+              <ul aria-label="Pedidos para preparar" className="-mx-1 flex flex-col divide-y">
                 {pedidos.map((pedido) => (
                   <li key={pedido.id}>
                     <button
                       type="button"
                       onClick={() => onDetalle(pedido.id)}
                       aria-label={`Ver el detalle del pedido #${pedido.id} de ${pedido.cliente.nombre}`}
-                      className="group flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-orange-50/60"
+                      className="group flex w-full items-center gap-3 px-1 py-3 text-left"
                     >
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline justify-between gap-3">
-                          <span className="truncate text-sm font-medium">
-                            <span className="tabular-nums text-orange-600">#{pedido.id}</span> · {pedido.cliente.nombre}
+                          <span className="truncate text-sm font-medium group-hover:text-orange-600 group-hover:underline underline-offset-2">
+                            <span className="tabular-nums">#{pedido.id}</span> · {pedido.cliente.nombre}
                           </span>
                           <span className="shrink-0 text-sm font-semibold tabular-nums">{formatearPesos(pedido.total)}</span>
                         </span>

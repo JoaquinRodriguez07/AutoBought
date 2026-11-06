@@ -27,7 +27,8 @@ const PREGUNTAR_DISPONIBLE = false;
 
 // Qué cuenta cada sección, debajo del título.
 const DESCRIPCIONES = {
-  pedidos: "Avanzá cada pedido pagado: Confirmado → Empaquetando → Enviado → Entregado.",
+  pedidos:
+    "Avanzá cada pedido pagado: Confirmado → Empaquetando → Enviado → Entregado. Tocá uno para ver el detalle; cada cambio le llega al cliente por mail.",
   ventas: "Unidades y facturación de cada mes, y lo que se espera vender el mes que viene.",
   "mas-vendidos": "Los repuestos que más salen. Conviene que nunca falten.",
   proyeccion: "Cuánto se espera vender de cada repuesto el mes que viene, según los últimos 12 meses.",
@@ -290,10 +291,32 @@ function Resumen({ filtros, stock, alertas, ventas, version, onVista, onDetalle,
         />
       </div>
 
+      {/* Dos columnas parejas: a la izquierda, cómo vienen las ventas; a la
+          derecha, lo que hay que hacer. Así ninguna deja un hueco abajo. */}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start">
-        <Panel titulo={`Ventas · últimos ${filtros.meses} meses`} id="titulo-ventas-resumen" className="min-w-0">
-          <EvolucionVentas filtros={filtros} consulta={ventas} compacto />
-        </Panel>
+        <div className="flex min-w-0 flex-col gap-6">
+          <Panel titulo={`Ventas · últimos ${filtros.meses} meses`} id="titulo-ventas-resumen" className="min-w-0">
+            <EvolucionVentas filtros={filtros} consulta={ventas} compacto />
+          </Panel>
+          <Panel
+            titulo="Lo que más se vende"
+            id="titulo-top-resumen"
+            detalle={`Últimos ${filtros.meses} meses, por unidades`}
+            accion={
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onVista("mas-vendidos")}
+                className="text-xs text-orange-600 hover:text-orange-700"
+              >
+                Ver ranking
+                <ChevronRightIcon />
+              </Button>
+            }
+          >
+            <MasVendidos key={version} filtros={filtros} onDetalle={onDetalle} limite={5} />
+          </Panel>
+        </div>
         {/* En celular va primero: es lo que hay que hacer. */}
         <div className="order-first xl:order-none flex flex-col gap-6">
           <PedidosParaPreparar
@@ -310,25 +333,6 @@ function Resumen({ filtros, stock, alertas, ventas, version, onVista, onDetalle,
           />
         </div>
       </div>
-
-      <Panel
-        titulo="Lo que más se vende"
-        id="titulo-top-resumen"
-        detalle={`Últimos ${filtros.meses} meses, por unidades`}
-        accion={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onVista("mas-vendidos")}
-            className="text-xs text-orange-600 hover:text-orange-700"
-          >
-            Ver ranking
-            <ChevronRightIcon />
-          </Button>
-        }
-      >
-        <MasVendidos key={version} filtros={filtros} onDetalle={onDetalle} limite={5} />
-      </Panel>
     </div>
   );
 }

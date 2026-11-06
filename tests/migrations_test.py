@@ -81,10 +81,12 @@ def model_diff(engine):
 def legacy_schema(engine):
     """Una base como las de antes de Alembic: create_all con los modelos, sin
     lo que llegó después con las migraciones: la restricción de part_code
-    (0002), el estado 'packing' y order.cancellation_reason (0003)."""
+    (0002), el estado 'packing' y order.cancellation_reason (0003) y
+    order.internal_note (0004)."""
     Base.metadata.create_all(bind=engine)
     with engine.begin() as connection:
         connection.execute(text('ALTER TABLE "order" DROP COLUMN cancellation_reason'))
+        connection.execute(text('ALTER TABLE "order" DROP COLUMN internal_note'))
         if engine.dialect.name == "postgresql":
             connection.execute(text("ALTER TABLE part DROP CONSTRAINT uq_part_part_code"))
             connection.execute(text('ALTER TABLE "order" ALTER COLUMN status DROP DEFAULT'))
@@ -121,7 +123,7 @@ def add_data(engine, part_code="FIL-0001"):
     db.flush()
     # El pedido va con SQL y solo con columnas de la baseline: con el modelo
     # se insertarían también las que llegaron después (cancellation_reason,
-    # 0003), que una base de antes de Alembic todavía no tiene.
+    # 0003; internal_note, 0004), que una base de antes de Alembic todavía no tiene.
     order_id = db.execute(text(
         'INSERT INTO "order" (client_id, ship_personal_name, ship_street, ship_number, '
         "ship_city, ship_department, payment_method_label) "
@@ -213,7 +215,7 @@ def sqlite_engine():
 def test_base_vacia_queda_con_todas_las_tablas(sqlite_engine):
     migrate(sqlite_engine)
 
-    assert revision_of(sqlite_engine) == head_revision() == "0003"
+    assert revision_of(sqlite_engine) == head_revision() == "0004"
     tables = set(inspect(sqlite_engine).get_table_names())
     assert tables == set(Base.metadata.tables) | {"alembic_version"}
     assert part_unique_constraints(sqlite_engine) == {"uq_part_part_code": ["part_code"]}
@@ -228,6 +230,8 @@ def test_las_migraciones_coinciden_con_los_modelos_en_sqlite(sqlite_engine):
 def test_downgrade_deshace_cada_migracion(sqlite_engine):
     migrate(sqlite_engine)
 
+    downgrade(sqlite_engine, "0003")
+    assert "internal_note" not in order_columns(sqlite_engine)
     downgrade(sqlite_engine, "0002")
     assert "cancellation_reason" not in order_columns(sqlite_engine)
     downgrade(sqlite_engine, "0001")
@@ -236,7 +240,7 @@ def test_downgrade_deshace_cada_migracion(sqlite_engine):
     assert set(inspect(sqlite_engine).get_table_names()) == {"alembic_version"}
 
     migrate(sqlite_engine)
-    assert revision_of(sqlite_engine) == "0003"
+    assert revision_of(sqlite_engine) == "0004"
 
 
 def test_insertar_un_codigo_nuevo_funciona(sqlite_engine):
@@ -266,7 +270,7 @@ def test_base_existente_se_incorpora_sin_perder_datos(sqlite_engine):
     stamp(sqlite_engine, "0001")
     migrate(sqlite_engine)
 
-    assert revision_of(sqlite_engine) == "0003"
+    assert revision_of(sqlite_engine) == "0004"
     assert counts(sqlite_engine) == antes
     assert part_unique_constraints(sqlite_engine) == {"uq_part_part_code": ["part_code"]}
     assert_relations_intact(sqlite_engine)
@@ -442,7 +446,7 @@ def test_pg_base_existente_se_incorpora_sin_recrear_tablas(pg_engine):
     assert revision_of(pg_engine) == "0001"
     migrate(pg_engine)
 
-    assert revision_of(pg_engine) == "0003"
+    assert revision_of(pg_engine) == "0004"
     assert table_oids(pg_engine) == {**oids, "alembic_version": table_oids(pg_engine)["alembic_version"]}
     assert counts(pg_engine) == antes
     assert part_unique_constraints(pg_engine) == {"uq_part_part_code": ["part_code"]}
@@ -484,7 +488,7 @@ def test_pg_stamp_se_niega_si_el_esquema_no_coincide(pg_engine):
     assert db_baseline.main(["stamp", "--permitir-sobrantes"]) == 0
     migrate(pg_engine)
 
-    assert revision_of(pg_engine) == "0003"
+    assert revision_of(pg_engine) == "0004"
     # Autogenerate no propone borrar lo heredado (ni nada más).
     assert model_diff(pg_engine) == []
     with pg_engine.connect() as connection:
@@ -531,7 +535,7 @@ def test_pg_base_vacia_o_ya_migrada_no_necesita_stamp(pg_engine):
 
     migrate(pg_engine)
     assert db_baseline.main(["stamp"]) == 0
-    assert revision_of(pg_engine) == "0003"
+    assert revision_of(pg_engine) == "0004"
 
 
 @postgres

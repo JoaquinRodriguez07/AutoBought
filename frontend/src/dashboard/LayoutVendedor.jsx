@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { decodeToken } from "../auth";
 import logo from "../assets/logo.png";
+import logoBlanco from "../assets/logo-blanco.png";
 
 // Secciones del portal, agrupadas por tarea, en el orden del menú. El
 // valor va en la URL (?vista=), salvo "resumen", que es la de entrada.
@@ -65,9 +66,12 @@ function iniciales(usuario) {
   return letras.toUpperCase() || "V";
 }
 
-// El mismo logo que el Navbar de la tienda.
-function Marca() {
-  return <img src={logo} alt="AutoBought" className="h-10 w-auto object-contain" />;
+// El logo de la tienda: el del Navbar sobre fondo claro y, sobre el oscuro
+// del menú, su versión con "Auto" en blanco.
+function Marca({ oscura = false }) {
+  return (
+    <img src={oscura ? logoBlanco : logo} alt="AutoBought" className={cn("w-auto object-contain", oscura ? "mx-auto h-12" : "h-10")} />
+  );
 }
 
 // `avisos`: un número al lado de una sección (por ejemplo, cuántos
@@ -75,17 +79,18 @@ function Marca() {
 function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
   return (
     <div className="flex h-full flex-col">
-      {/* Arriba a la izquierda, alineado con los íconos del menú. */}
-      <div className="px-6 pt-6 pb-6">
-        <Marca />
-        <p className="mt-2 text-[10px] font-bold tracking-[3px] text-gray-500 uppercase">Portal del vendedor</p>
+      {/* Arriba, centrado en el menú. */}
+      <div className="px-6 pt-6 pb-6 text-center">
+        <Marca oscura />
+        {/* El tracking deja espacio a la derecha de la última letra: el pl lo compensa. */}
+        <p className="mt-2 pl-[3px] text-[10px] font-bold tracking-[3px] text-gray-500 uppercase">Portal del vendedor</p>
       </div>
 
       <nav aria-label="Secciones del dashboard" className="flex-1 overflow-y-auto px-3 flex flex-col gap-5">
         {GRUPOS.map((grupo) => (
           <div key={grupo.titulo ?? "inicio"}>
             {grupo.titulo && (
-              <p className="px-3 mb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">{grupo.titulo}</p>
+              <p className="px-3 mb-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">{grupo.titulo}</p>
             )}
             <ul className="flex flex-col gap-0.5">
               {grupo.vistas.map(({ valor, texto, Icono, enDesarrollo }) => {
@@ -100,26 +105,26 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
                       className={cn(
                         "group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition",
                         activa
-                          ? "bg-orange-50 text-orange-700 font-medium"
-                          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                          ? "bg-orange-500/15 text-orange-400 font-medium"
+                          : "text-gray-300 hover:bg-white/5 hover:text-white"
                       )}
                     >
                       {activa && (
                         <span className="absolute -left-3 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-orange-500" aria-hidden="true" />
                       )}
                       <Icono
-                        className={cn("size-4 shrink-0", activa ? "text-orange-600" : "text-gray-500 group-hover:text-gray-700")}
+                        className={cn("size-4 shrink-0", activa ? "text-orange-400" : "text-gray-400 group-hover:text-white")}
                         aria-hidden="true"
                       />
                       <span className="flex-1 truncate">{texto}</span>
                       {aviso > 0 && (
-                        <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-red-700">
+                        <span className="rounded-full bg-red-500/20 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-red-300">
                           <span className="sr-only">: </span>
                           {aviso}
                         </span>
                       )}
                       {enDesarrollo && (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700">
+                        <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-300">
                           En desarrollo
                         </span>
                       )}
@@ -132,16 +137,16 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
         ))}
       </nav>
 
-      <div className="border-t p-3 flex flex-col gap-1">
+      <div className="border-t border-white/10 p-3 flex flex-col gap-1">
         <button
           type="button"
           onClick={onTienda}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
         >
           <StoreIcon className="size-4" aria-hidden="true" />
           Ver la tienda
         </button>
-        <div className="mt-1 flex items-center gap-3 rounded-lg border bg-gray-50 px-3 py-2.5">
+        <div className="mt-1 flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5">
           <span
             aria-hidden="true"
             className="grid size-8 shrink-0 place-items-center rounded-full bg-orange-500 text-xs font-bold text-white"
@@ -149,15 +154,15 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
             {iniciales(usuario)}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium">{nombreDelVendedor(usuario)}</p>
-            <p className="text-xs text-muted-foreground">Vendedor</p>
+            <p className="truncate text-xs font-medium text-white">{nombreDelVendedor(usuario)}</p>
+            <p className="text-xs text-gray-400">Vendedor</p>
           </div>
           <button
             type="button"
             onClick={onCerrarSesion}
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
-            className="rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            className="rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
           >
             <LogOutIcon className="size-4" />
           </button>
@@ -205,7 +210,7 @@ export default function LayoutVendedor({
 
   return (
     <div className="min-h-screen bg-gray-50 text-foreground font-sans antialiased">
-      <aside className="hidden lg:block fixed inset-y-0 left-0 z-30 w-64 border-r bg-white">
+      <aside className="hidden lg:block fixed inset-y-0 left-0 z-30 w-64 bg-[#151719]">
         <Menu {...propsMenu} />
       </aside>
 
@@ -217,12 +222,12 @@ export default function LayoutVendedor({
             onClick={() => setMenuAbierto(false)}
             className="absolute inset-0 bg-gray-900/40"
           />
-          <div role="dialog" aria-modal="true" aria-label="Menú" className="absolute inset-y-0 left-0 w-72 max-w-[85%] bg-white shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="Menú" className="absolute inset-y-0 left-0 w-72 max-w-[85%] bg-[#151719] shadow-2xl">
             <button
               type="button"
               aria-label="Cerrar menú"
               onClick={() => setMenuAbierto(false)}
-              className="absolute top-5 right-3 rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              className="absolute top-5 right-3 rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
             >
               <XIcon className="size-5" />
             </button>
@@ -247,12 +252,13 @@ export default function LayoutVendedor({
 
         <main className="px-4 sm:px-6 lg:px-10 py-6 lg:py-9 max-w-[1320px]">
           {antesDelTitulo}
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
+          {/* Una descripción larga pasa a dos líneas; las acciones quedan a la derecha. */}
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="min-w-0 sm:flex-1">
               <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight">{titulo}</h1>
-              {descripcion && <p className="text-sm text-muted-foreground mt-1">{descripcion}</p>}
+              {descripcion && <p className="text-sm text-muted-foreground mt-1 max-w-3xl">{descripcion}</p>}
             </div>
-            {acciones && <div className="flex flex-wrap gap-2">{acciones}</div>}
+            {acciones && <div className="flex flex-wrap gap-2 sm:shrink-0">{acciones}</div>}
           </div>
           {barra}
           <div className="mt-6">{children}</div>

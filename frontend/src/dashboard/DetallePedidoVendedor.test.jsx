@@ -6,7 +6,8 @@ jest.mock("./apiDashboard");
 jest.mock("react-hot-toast", () => ({ __esModule: true, default: { success: jest.fn(), error: jest.fn() } }));
 
 import DetallePedidoVendedor from "./DetallePedidoVendedor";
-import { cambiarEstadoPedido, obtenerPedido } from "./apiDashboard";
+import toast from "react-hot-toast";
+import { cambiarEstadoPedido, editarPedido, obtenerPedido } from "./apiDashboard";
 
 const pedido = (extra = {}) => ({
   id: 42,
@@ -31,8 +32,11 @@ const pedido = (extra = {}) => ({
     { repuestoId: 9, codigo: "FIL-002", nombre: "Filtro de aceite", cantidad: 1, precio: 1300 },
   ],
   siguienteEstado: "packing",
+  anteriorEstado: null,
   sePuedeCancelar: true,
+  sePuedeEditarEnvio: true,
   motivoCancelacion: null,
+  notaInterna: null,
   ...extra,
 });
 
@@ -172,4 +176,123 @@ it("shows the error if the order does not exist", async () => {
   renderDetalle();
 
   expect(await screen.findByText("Pedido no encontrado.")).toBeInTheDocument();
+});
+
+describe("volver un paso atrás", () => {
+  it("asks before going back and says the client gets no mail", async () => {
+    const user = userEvent.setup();
+    obtenerPedido.mockResolvedValue(pedido({ estado: "shipped", siguienteEstado: "delivered", anteriorEstado: "packing" }));
+    cambiarEstadoPedido.mockResolvedValue(pedido({ estado: "packing", siguienteEstado: "shipped", anteriorEstado: "confirmed" }));
+    renderDetalle();
+    await screen.findByRole("table");
+
+    await user.click(screen.getByRole("button", { name: "Volver el pedido #42 a Empaquetando" }));
+    const dialogo = screen.getByRole("dialog", { name: "¿Volver el pedido #42 a Empaquetando?" });
+    expect(dialogo).toHaveTextContent("Al cliente no le llega mail");
+
+    // "No" no cambia nada.
+    await user.click(within(dialogo).getByRole("button", { name: "No, dejarlo así" }));
+    expect(cambiarEstadoPedido).not.toHaveBeenCalled();
+
+    obtenerPedido.mockResolvedValue(pedido({ estado: "packing", siguienteEstado: "shipped", anteriorEstado: "confirmed" }));
+    await user.click(screen.getByRole("button", { name: "Volver el pedido #42 a Empaquetando" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Volver a Empaquetando" }));
+
+    expect(cambiarEstadoPedido).toHaveBeenCalledWith(42, "packing");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(toast.success).toHaveBeenCalledWith("Pedido #42: volvió a Empaquetando. Al cliente no le llega mail.");
+    expect(await screen.findByRole("button", { name: "Volver el pedido #42 a Confirmado" })).toBeInTheDocument();
+  });
+
+  it("does not offer going back when there is nowhere to go", async () => {
+    renderDetalle();
+    await screen.findByRole("table");
+
+    expect(screen.queryByRole("button", { name: /^Volver el pedido/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("editar la dirección de envío", () => {
+  it("fixes the address with the same rules as the client's profile", async () => {
+    const user = userEvent.setup();
+    editarPedido.mockResolvedValue(pedido());
+    renderDetalle();
+    await screen.findByRole("table");
+
+    await user.click(within(panel("Envío")).getByRole("button", { name: "Editar la dirección de envío" }));
+    const dialogo = screen.getByRole("dialog", { name: "Dirección de envío del pedido #42" });
+    expect(within(dialogo).getByLabelText("Calle")).toHaveValue("Av. Italia");
+
+    await user.clear(within(dialogo).getByLabelText("Calle"));
+    await user.click(within(dialogo).getByRole("button", { name: "Guardar dirección" }));
+    expect(within(dialogo).getByText("La calle no puede estar vacía.")).toBeInTheDocument();
+    expect(editarPedido).not.toHaveBeenCalled();
+
+    await user.type(within(dialogo).getByLabelText("Calle"), "  Bv. Artigas ");
+    await user.selectOptions(within(dialogo).getByLabelText("Departamento"), "Canelones");
+    await user.clear(within(dialogo).getByLabelText("Ciudad"));
+    await user.type(within(dialogo).getByLabelText("Ciudad"), "Pando");
+    await user.clear(within(dialogo).getByLabelText("Apto. (opcional)"));
+    await user.click(within(dialogo).getByRole("button", { name: "Guardar dirección" }));
+
+    expect(editarPedido).toHaveBeenCalledWith(42, {
+      envio: {
+        nombreDireccion: "Casa",
+        calle: "Bv. Artigas",
+        numero: "1234",
+        apartamento: null,
+        ciudad: "Pando",
+        departamento: "Canelones",
+        codigoPostal: "11300",
+      },
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(toast.success).toHaveBeenCalledWith("Dirección de envío actualizada.");
+    expect(obtenerPedido).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let the address change once the order was shipped", async () => {
+    obtenerPedido.mockResolvedValue(pedido({ estado: "shipped", sePuedeEditarEnvio: false }));
+    renderDetalle();
+    await screen.findByRole("table");
+
+    expect(within(panel("Envío")).queryByRole("button", { name: /Editar/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("nota interna", () => {
+  it("saves a note that only the store sees", async () => {
+    const user = userEvent.setup();
+    editarPedido.mockResolvedValue(pedido({ notaInterna: "Entregar de tarde." }));
+    renderDetalle();
+    await screen.findByRole("table");
+
+    const nota = within(panel("Nota interna"));
+    expect(panel("Nota interna")).toHaveTextContent("Solo la ve la tienda");
+    const guardar = nota.getByRole("button", { name: "Guardar nota" });
+    expect(guardar).toBeDisabled();
+
+    obtenerPedido.mockResolvedValue(pedido({ notaInterna: "Entregar de tarde." }));
+    await user.type(nota.getByRole("textbox", { name: "Nota interna" }), "Entregar de tarde.");
+    await user.click(guardar);
+
+    expect(editarPedido).toHaveBeenCalledWith(42, { notaInterna: "Entregar de tarde." });
+    expect(toast.success).toHaveBeenCalledWith("Nota guardada.");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Nota interna" })).toHaveValue("Entregar de tarde."));
+    expect(within(panel("Nota interna")).getByRole("button", { name: "Guardar nota" })).toBeDisabled();
+  });
+
+  it("shows the saved note, clears it, and shows the error if it could not be saved", async () => {
+    const user = userEvent.setup();
+    obtenerPedido.mockResolvedValue(pedido({ notaInterna: "Llamar antes." }));
+    editarPedido.mockRejectedValue(new Error("No pudimos guardar los cambios del pedido."));
+    renderDetalle();
+
+    expect(await screen.findByRole("textbox", { name: "Nota interna" })).toHaveValue("Llamar antes.");
+    await user.clear(screen.getByRole("textbox", { name: "Nota interna" }));
+    await user.click(screen.getByRole("button", { name: "Guardar nota" }));
+
+    expect(editarPedido).toHaveBeenCalledWith(42, { notaInterna: "" });
+    expect(await screen.findByText("No pudimos guardar los cambios del pedido.")).toBeInTheDocument();
+  });
 });

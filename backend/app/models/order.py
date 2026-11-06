@@ -59,6 +59,10 @@ class Order(Base):
     # demás pedidos, incluidos los que se cancelaron solos por no pagarse.
     cancellation_reason = Column(String(200))
 
+    # Nota de la tienda sobre el pedido ("entregar de tarde"). Solo la ve el
+    # portal del vendedor: no va en el historial ni en los mails del cliente.
+    internal_note = Column(String(500))
+
     client = relationship("Client", back_populates="orders")
     items = relationship(
         "OrderItem",

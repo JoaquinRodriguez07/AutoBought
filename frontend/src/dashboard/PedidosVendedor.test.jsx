@@ -75,6 +75,25 @@ describe("listado de pedidos", () => {
     expect(obtenerPedidos).toHaveBeenLastCalledWith({ estado: "packing", limite: 50 });
   });
 
+  it("sorts by date, client or total, asking the backend from the first page", async () => {
+    const user = userEvent.setup();
+    obtenerPedidos.mockResolvedValue(respuesta([pedido(1), pedido(2)], { total: 120 }));
+    render(<PedidosVendedor estadoInicial="confirmed" />);
+    await screen.findByText("Cliente 1");
+    await user.click(screen.getByRole("button", { name: "Mostrar 50 más" }));
+    await waitFor(() => expect(obtenerPedidos).toHaveBeenLastCalledWith({ estado: "confirmed", limite: 100 }));
+
+    const orden = screen.getByRole("combobox", { name: "Ordenar por" });
+    expect(orden).toHaveTextContent("Recomendado");
+    await user.click(orden);
+    await user.click(await screen.findByRole("option", { name: "Cliente (A–Z)" }));
+
+    await waitFor(() =>
+      expect(obtenerPedidos).toHaveBeenLastCalledWith({ estado: "confirmed", limite: 50, orden: "client_asc" })
+    );
+    expect(screen.getByRole("combobox", { name: "Ordenar por" })).toHaveTextContent("Cliente (A–Z)");
+  });
+
   it("starts on the status that comes in the URL", async () => {
     render(<PedidosVendedor estadoInicial="cancelled" />);
     await screen.findByText("Cliente 1");

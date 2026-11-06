@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
@@ -198,9 +199,13 @@ NEXT_STATUS = {
     OrderStatus.PACKING: OrderStatus.SHIPPED,
     OrderStatus.SHIPPED: OrderStatus.DELIVERED,
 }
+# ...volver un paso atrás, para corregir un error (sin mail al cliente)...
+PREVIOUS_STATUS = {siguiente: actual for actual, siguiente in NEXT_STATUS.items()}
 # ...o cancelar, si todavía no se entregó. Es algo excepcional: pide motivo
 # y devuelve el pago (ver el endpoint).
 CANCELLABLE = set(NEXT_STATUS)
+# La dirección de envío se puede corregir mientras el pedido no salió.
+SHIPPING_EDITABLE = {OrderStatus.CONFIRMED, OrderStatus.PACKING}
 
 _NOMBRES = {
     OrderStatus.CONFIRMED: "confirmado",
@@ -221,8 +226,22 @@ def next_status(order: Order) -> OrderStatus | None:
     return NEXT_STATUS.get(order.status) if order.is_paid else None
 
 
+def previous_status(order: Order) -> OrderStatus | None:
+    """A qué estado lo puede devolver el vendedor si se equivocó; None si no
+    hay (no se pagó, está confirmado o se canceló)."""
+    return PREVIOUS_STATUS.get(order.status) if order.is_paid else None
+
+
+def is_step_back(order: Order, new_status: OrderStatus) -> bool:
+    return new_status == previous_status(order)
+
+
 def can_cancel(order: Order) -> bool:
     return order.is_paid and order.status in CANCELLABLE
+
+
+def can_edit_shipping(order: Order) -> bool:
+    return order.status in SHIPPING_EDITABLE
 
 
 def check_status_change(order: Order, new_status: OrderStatus) -> None:
@@ -230,7 +249,12 @@ def check_status_change(order: Order, new_status: OrderStatus) -> None:
     actual = _NOMBRES[order.status]
     if order.status == new_status:
         raise InvalidStatusChange(f"El pedido ya está {actual}.")
+    if is_step_back(order, new_status):
+        return
     if order.status not in CANCELLABLE:
+        anterior = previous_status(order)
+        if anterior is not None:
+            raise InvalidStatusChange(f"El pedido ya está {actual}: solo puede volver a {_NOMBRES[anterior]}.")
         raise InvalidStatusChange(f"El pedido ya está {actual}: no se puede cambiar.")
     if not order.is_paid:
         # Sin pagar no se prepara ni se cancela a mano: si no se paga a
@@ -244,8 +268,10 @@ def check_status_change(order: Order, new_status: OrderStatus) -> None:
         return
     siguiente = NEXT_STATUS[order.status]
     if new_status != siguiente:
+        anterior = previous_status(order)
+        volver = f", volver a {_NOMBRES[anterior]}" if anterior else ""
         raise InvalidStatusChange(
-            f"Un pedido {actual} solo puede pasar a {_NOMBRES[siguiente]} (o cancelarse)."
+            f"Un pedido {actual} solo puede pasar a {_NOMBRES[siguiente]}{volver} (o cancelarse)."
         )
 
 
@@ -263,6 +289,19 @@ def get_order_for_update(db: Session, order_id: int) -> Order | None:
         .with_for_update(of=Order)
     )
     return db.scalar(query)
+
+
+def update_shipping_address(order: Order, address) -> None:
+    """Corrige la copia de la dirección guardada en el pedido (ya validada:
+    las mismas reglas que una dirección del perfil). No toca la del perfil
+    del cliente ni hace commit."""
+    order.ship_personal_name = address.personal_name
+    order.ship_street = address.street
+    order.ship_number = address.number
+    order.ship_apartment = address.apartment
+    order.ship_city = address.city
+    order.ship_department = address.department.value
+    order.ship_postal_code = address.postal_code
 
 
 def apply_status_change(
@@ -283,17 +322,32 @@ def _pagado():
     return or_(Payment.payment_id.is_(None), Payment.status == PaymentStatus.APPROVED)
 
 
+SellerOrderSort = Literal["priority", "newest", "oldest", "client_asc", "client_desc", "total_desc", "total_asc"]
+
+
+def _total_del_pedido():
+    # El total no se guarda: es la suma de los productos al precio de la compra.
+    return (
+        select(func.coalesce(func.sum(OrderItem.frozen_price * OrderItem.quantity), 0))
+        .where(OrderItem.order_id == Order.order_id)
+        .correlate(Order)
+        .scalar_subquery()
+    )
+
+
 def list_orders_for_seller(
     db: Session,
     status: OrderStatus | None = None,
     limit: int = 50,
     offset: int = 0,
     paid_only: bool = False,
+    sort: SellerOrderSort = "priority",
 ) -> tuple[list[Order], int]:
     """Los pedidos de todos los clientes, para el portal del vendedor, y
-    cuántos hay con ese filtro. Los que están en curso, del más viejo al
-    más nuevo (el que lleva más esperando, primero); los cerrados, al revés.
-    Con `paid_only`, solo los pagados (los que se pueden preparar)."""
+    cuántos hay con ese filtro. Con `paid_only`, solo los pagados (los que
+    se pueden preparar). `sort="priority"`: los que están en curso, del más
+    viejo al más nuevo (el que lleva más esperando, primero); los cerrados,
+    al revés. Si no, por fecha, por nombre del cliente o por total."""
     query = select(Order)
     if status is not None:
         query = query.where(Order.status == status)
@@ -301,8 +355,17 @@ def list_orders_for_seller(
         query = query.outerjoin(Payment, Payment.order_id == Order.order_id).where(_pagado())
     total = db.scalar(select(func.count()).select_from(query.subquery()))
 
-    en_curso = status in NEXT_STATUS
-    orden = Order.created_at.asc() if en_curso else Order.created_at.desc()
+    if sort == "priority":
+        orden = Order.created_at.asc() if status in NEXT_STATUS else Order.created_at.desc()
+    elif sort in ("newest", "oldest"):
+        orden = Order.created_at.desc() if sort == "newest" else Order.created_at.asc()
+    elif sort in ("client_asc", "client_desc"):
+        query = query.join(Client, Client.user_id == Order.client_id)
+        nombre = func.lower(Client.name)
+        orden = nombre.asc() if sort == "client_asc" else nombre.desc()
+    else:
+        orden = _total_del_pedido().desc() if sort == "total_desc" else _total_del_pedido().asc()
+
     orders = db.scalars(
         query.options(
             selectinload(Order.items).selectinload(OrderItem.part),

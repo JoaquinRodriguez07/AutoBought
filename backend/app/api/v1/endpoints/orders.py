@@ -24,6 +24,7 @@ from app.schemas.order import (
     OrderStatusUpdate,
     SellerOrderListOut,
     SellerOrderOut,
+    SellerOrderUpdate,
     build_order_detail_out,
     build_seller_order_out,
 )
@@ -157,12 +158,17 @@ def list_orders_for_seller(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     paid_only: bool = Query(default=False, description="Solo los pagados (los que se pueden preparar)."),
+    sort: crud_order.SellerOrderSort = Query(
+        default="priority",
+        description="priority: en curso, el que más espera primero; cerrados, el más nuevo. "
+        "O por fecha (newest, oldest), cliente (client_asc, client_desc) o total (total_desc, total_asc).",
+    ),
     db: Session = Depends(get_db),
 ):
     """Los pedidos de todos los clientes. Va antes de /{order_id}: si no,
     FastAPI tomaría "seller" como un número de pedido."""
     crud_order.cancel_expired_orders(db)
-    orders, total = crud_order.list_orders_for_seller(db, status_filter, limit, offset, paid_only)
+    orders, total = crud_order.list_orders_for_seller(db, status_filter, limit, offset, paid_only, sort)
     return SellerOrderListOut(
         orders=[build_seller_order_out(order) for order in orders],
         total=total,
@@ -186,6 +192,36 @@ def get_order_for_seller(order_id: int, db: Session = Depends(get_db)):
     return build_seller_order_out(order)
 
 
+@router.patch("/seller/{order_id}", response_model=SellerOrderOut)
+def update_order_for_seller(
+    order_id: int,
+    body: SellerOrderUpdate,
+    db: Session = Depends(get_db),
+    employee: Employee = Depends(get_current_employee),
+):
+    """El vendedor corrige un pedido a pedido del cliente: la dirección de
+    envío (mientras no salió) y la nota interna (siempre). Productos y
+    cantidades no se tocan: el pago ya se cobró por ese total."""
+    order = crud_order.get_order_for_update(db, order_id)
+    if order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pedido no encontrado.")
+
+    if body.shipping_address is not None:
+        if not crud_order.can_edit_shipping(order):
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="La dirección solo se puede cambiar antes de que el pedido se envíe.",
+            )
+        crud_order.update_shipping_address(order, body.shipping_address)
+    if "internal_note" in body.model_fields_set:
+        order.internal_note = body.internal_note
+
+    db.commit()
+    logger.info("El vendedor %s editó el pedido %s.", employee.user_id, order_id)
+    return build_seller_order_out(order)
+
+
 @router.patch("/{order_id}/status", response_model=SellerOrderOut)
 def change_order_status(
     order_id: int,
@@ -195,9 +231,11 @@ def change_order_status(
     employee: Employee = Depends(get_current_employee),
     cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
 ):
-    """El vendedor avanza el pedido un paso (solo si está pagado) o lo
-    cancela con un motivo (solo si no se entregó). Cancelar devuelve el pago
-    en Mercado Pago y el stock. El cliente recibe un mail en cada cambio."""
+    """El vendedor avanza el pedido un paso (solo si está pagado), lo vuelve
+    un paso atrás si se equivocó, o lo cancela con un motivo (solo si no se
+    entregó). Cancelar devuelve el pago en Mercado Pago y el stock. El
+    cliente recibe un mail al avanzar o cancelar; al volver atrás no, porque
+    es corregir un error de la tienda."""
     order = crud_order.get_order_for_update(db, order_id)
     if order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pedido no encontrado.")
@@ -208,15 +246,19 @@ def change_order_status(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error))
 
+    volver = crud_order.is_step_back(order, body.status)
     if body.status == OrderStatus.CANCELLED:
         _devolver_pago(db, order, cliente_mp)
 
     crud_order.apply_status_change(db, order, body.status, body.reason)
     db.commit()
     logger.info(
-        "El vendedor %s pasó el pedido %s a %s.", employee.user_id, order_id, body.status.value
+        "El vendedor %s %s el pedido %s a %s.",
+        employee.user_id, "volvió" if volver else "pasó", order_id, body.status.value,
     )
 
+    if volver:
+        return build_seller_order_out(order)
     if body.status == OrderStatus.CANCELLED:
         # Si algún repuesto estaba agotado, avisa a quienes lo esperaban.
         for item in order.items:
