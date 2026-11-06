@@ -53,6 +53,15 @@ export function esVendedor(sesion) {
   return sesion?.userType === TIPO_VENDEDOR;
 }
 
+/**
+ * true si el vendedor es administrador (el token trae `admin`): ve la
+ * sección "Equipo". La API lo vuelve a verificar en cada pedido.
+ */
+export function esAdmin(sesion) {
+  if (!esVendedor(sesion) || !sesion?.token) return false;
+  return decodeToken(sesion.token)?.admin === true;
+}
+
 export function haySesionActiva() {
   return sesionValida(obtenerSesion());
 }

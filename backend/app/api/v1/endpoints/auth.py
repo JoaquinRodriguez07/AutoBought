@@ -2,7 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_client, get_current_user, get_db
+from app.api.deps import esta_activo, get_current_client, get_current_user, get_db
 from app.core import validators
 from app.core.auth_attempts import clear_failures, is_blocked, register_failure
 from app.core.config import FRONTEND_URL
@@ -71,10 +71,12 @@ def _token_de_sesion(user: User) -> Token:
     """Token de sesión con el rol, la versión de sesión vigentes y el nombre
     del usuario (el portal del vendedor saluda con él: el vendedor no tiene
     perfil propio como el cliente en /me)."""
-    access_token = create_access_token(
-        subject=str(user.user_id),
-        extra_claims={"user_type": user.user_type, "sv": user.session_version, "name": user.name},
-    )
+    claims = {"user_type": user.user_type, "sv": user.session_version, "name": user.name}
+    # El portal muestra la sección "Equipo" solo a los administradores (la
+    # API lo vuelve a verificar en cada pedido).
+    if getattr(user, "is_admin", False):
+        claims["admin"] = True
+    access_token = create_access_token(subject=str(user.user_id), extra_claims=claims)
     return Token(access_token=access_token)
 
 
@@ -93,6 +95,12 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo electrónico o contraseña incorrectos.",
+        )
+
+    if not esta_activo(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu cuenta de vendedor fue dada de baja. Si es un error, hablá con un administrador.",
         )
 
     clear_failures(db, user.email)
@@ -164,7 +172,8 @@ def forgot_password(
     """Responde siempre lo mismo, exista o no el correo, para no revelar
     quién tiene cuenta."""
     user = crud_user.get_user_by_email(db, data.email)
-    if user is not None:
+    # A un vendedor dado de baja no se le manda nada (como si no existiera).
+    if user is not None and esta_activo(user):
         token = create_purpose_token(
             str(user.user_id),
             RECUPERAR_PASSWORD,
@@ -192,7 +201,7 @@ def reset_password(
     user = _usuario_del_token(db, payload)
     # Si la contraseña ya cambió (por este enlace o de otra forma), la
     # huella no coincide: así el enlace sirve una sola vez.
-    if user is None or payload.get("pwd") != huella_password(user.password):
+    if user is None or not esta_activo(user) or payload.get("pwd") != huella_password(user.password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=ENLACE_INVALIDO)
 
     try:

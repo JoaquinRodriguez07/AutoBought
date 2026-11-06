@@ -8,7 +8,9 @@ import BarraFiltros from "./BarraFiltros";
 import DialogoAjustarStock from "./DialogoAjustarStock";
 import EvolucionVentas from "./EvolucionVentas";
 import FormularioRepuesto from "./FormularioRepuesto";
-import LayoutVendedor, { VISTAS, nombreDelVendedor } from "./LayoutVendedor";
+import Equipo from "./Equipo";
+import LayoutVendedor, { nombreDelVendedor } from "./LayoutVendedor";
+import { vistasDe } from "./secciones";
 import MasVendidos from "./MasVendidos";
 import PreguntarDashboard from "./PreguntarDashboard";
 import ProyeccionDemanda from "./ProyeccionDemanda";
@@ -31,7 +33,11 @@ const DESCRIPCIONES = {
   stock: "Cuántas unidades quedan de cada repuesto. Desde acá se ajusta el stock.",
   riesgo: "Qué repuestos se van a quedar sin stock primero, al ritmo de venta proyectado.",
   preguntar: "Preguntá en tus palabras sobre tus ventas y tu stock.",
+  equipo: "Quiénes pueden entrar al portal. Sumá a alguien nuevo o dalo de baja.",
 };
+
+// Secciones sin los filtros ni "Nuevo repuesto".
+const SIN_FILTROS = ["preguntar", "equipo"];
 
 // Secciones que usan el período (las de stock muestran el presente).
 const CON_PERIODO = ["resumen", "ventas", "mas-vendidos"];
@@ -55,7 +61,10 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
     busqueda: parametros.get("q") || "",
     meses: PERIODOS.includes(periodo) ? periodo : PERIODO_POR_DEFECTO,
   };
-  const vista = VISTAS.some(({ valor }) => valor === parametros.get("vista")) ? parametros.get("vista") : "resumen";
+  // Una sección que no existe (o "Equipo" para quien no es administrador)
+  // lleva al resumen.
+  const vistas = vistasDe(usuario);
+  const vista = vistas.some(({ valor }) => valor === parametros.get("vista")) ? parametros.get("vista") : "resumen";
   const claveStock = `${filtros.categoria}|${filtros.busqueda}|${version}`;
 
   // Lo que usan varias secciones (y el menú) se pide una sola vez acá.
@@ -111,7 +120,7 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
 
   // Saluda con el primer nombre ("Hola, Ana").
   const nombre = nombreDelVendedor(usuario).split(/\s+/)[0];
-  const titulo = VISTAS.find((v) => v.valor === vista).texto;
+  const titulo = vistas.find((v) => v.valor === vista).texto;
   const descripcion =
     vista === "resumen" ? `Hola${nombre ? `, ${nombre}` : ""}. Esto es lo más importante de hoy.` : DESCRIPCIONES[vista];
 
@@ -129,14 +138,17 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
       titulo={titulo}
       descripcion={descripcion}
       acciones={
-        <Button onClick={() => setFormularioAbierto(true)} className="h-9 px-4 hover:bg-orange-600">
-          <PlusIcon />
-          Nuevo repuesto
-        </Button>
+        vista !== "equipo" && (
+          <Button onClick={() => setFormularioAbierto(true)} className="h-9 px-4 hover:bg-orange-600">
+            <PlusIcon />
+            Nuevo repuesto
+          </Button>
+        )
       }
       barra={
-        // Preguntarle al dashboard no usa los filtros: la pregunta los dice.
-        vista !== "preguntar" && (
+        // Preguntarle al dashboard no usa los filtros (la pregunta los dice),
+        // y el equipo tampoco.
+        !SIN_FILTROS.includes(vista) && (
           <BarraFiltros
             filtros={filtros}
             categorias={categorias}
@@ -188,6 +200,7 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
         <RiesgoAgotamiento key={version} filtros={filtros} onDetalle={irAlDetalle} onReponer={setAReponer} />
       )}
       {vista === "preguntar" && <PreguntarDashboard disponible={PREGUNTAR_DISPONIBLE} />}
+      {vista === "equipo" && <Equipo usuario={usuario} />}
 
       <DialogoAjustarStock
         abierto={aReponer !== null}

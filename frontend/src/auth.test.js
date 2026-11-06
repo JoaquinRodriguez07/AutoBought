@@ -1,5 +1,6 @@
 import {
   MARGEN_RENOVACION_MS,
+  esAdmin,
   esVendedor,
   guardarSesion,
   msHastaRenovacion,
@@ -66,5 +67,19 @@ describe("esVendedor", () => {
     expect(esVendedor(null)).toBe(false);
     expect(esVendedor(undefined)).toBe(false);
     expect(esVendedor({ nombre: "Ana" })).toBe(false);
+  });
+});
+
+describe("esAdmin", () => {
+  // El portal solo lee el payload del token.
+  const crearToken = (claims) => `x.${btoa(JSON.stringify({ sub: "1", ...claims }))}.y`;
+
+  it("is true only for a seller whose token says admin", () => {
+    expect(esAdmin({ userType: "employee", token: crearToken({ admin: true }) })).toBe(true);
+    expect(esAdmin({ userType: "employee", token: crearToken({}) })).toBe(false);
+    // Un cliente nunca, aunque el token dijera otra cosa.
+    expect(esAdmin({ userType: "client", token: crearToken({ admin: true }) })).toBe(false);
+    expect(esAdmin({ userType: "employee" })).toBe(false);
+    expect(esAdmin(null)).toBe(false);
   });
 });

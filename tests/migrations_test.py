@@ -82,6 +82,8 @@ def model_diff(engine):
 # Tablas que llegaron con migraciones posteriores a la baseline: las bases
 # de antes de Alembic no las tienen.
 TABLAS_POSTERIORES = {"order_status_history"}
+# Y columnas que llegaron después (tabla, columna).
+COLUMNAS_POSTERIORES = {("employee", "is_admin"), ("employee", "active")}
 
 
 def legacy_schema(engine):
@@ -92,6 +94,9 @@ def legacy_schema(engine):
         bind=engine,
         tables=[tabla for nombre, tabla in Base.metadata.tables.items() if nombre not in TABLAS_POSTERIORES],
     )
+    with engine.begin() as connection:
+        for tabla, columna in sorted(COLUMNAS_POSTERIORES):
+            connection.execute(text(f'ALTER TABLE "{tabla}" DROP COLUMN {columna}'))
     with engine.begin() as connection:
         if engine.dialect.name == "postgresql":
             connection.execute(text("ALTER TABLE part DROP CONSTRAINT uq_part_part_code"))
@@ -194,7 +199,7 @@ def sqlite_engine():
 def test_base_vacia_queda_con_todas_las_tablas(sqlite_engine):
     migrate(sqlite_engine)
 
-    assert revision_of(sqlite_engine) == head_revision() == "0003"
+    assert revision_of(sqlite_engine) == head_revision() == "0004"
     tables = set(inspect(sqlite_engine).get_table_names())
     assert tables == set(Base.metadata.tables) | {"alembic_version"}
     assert part_unique_constraints(sqlite_engine) == {"uq_part_part_code": ["part_code"]}
@@ -215,7 +220,7 @@ def test_downgrade_deshace_cada_migracion(sqlite_engine):
     assert set(inspect(sqlite_engine).get_table_names()) == {"alembic_version"}
 
     migrate(sqlite_engine)
-    assert revision_of(sqlite_engine) == "0003"
+    assert revision_of(sqlite_engine) == "0004"
 
 
 def downgrade_0003_con_un_pedido_empaquetando(engine):
@@ -240,6 +245,23 @@ def downgrade_0003_con_un_pedido_empaquetando(engine):
 def test_deshacer_la_0003_pasa_los_empaquetando_a_confirmado(sqlite_engine):
     assert downgrade_0003_con_un_pedido_empaquetando(sqlite_engine) == "confirmed"
     assert revision_of(sqlite_engine) == "0002"
+
+
+def test_la_0004_hace_administrador_al_vendedor_mas_antiguo(sqlite_engine):
+    migrate(sqlite_engine, "0003")
+    with sqlite_engine.begin() as connection:
+        for user_id, email in [(7, "primero@mail.com"), (9, "segundo@mail.com")]:
+            connection.execute(text(
+                'INSERT INTO "user" (user_id, user_type, username, password, name, email) '
+                "VALUES (:id, 'employee', :email, 'x', 'Vendedor', :email)"
+            ), {"id": user_id, "email": email})
+            connection.execute(text("INSERT INTO employee (user_id) VALUES (:id)"), {"id": user_id})
+
+    migrate(sqlite_engine)
+
+    with sqlite_engine.connect() as connection:
+        filas = connection.execute(text("SELECT user_id, is_admin, active FROM employee ORDER BY user_id")).all()
+    assert [tuple(fila) for fila in filas] == [(7, 1, 1), (9, 0, 1)]
 
 
 def test_insertar_un_codigo_nuevo_funciona(sqlite_engine):
