@@ -39,6 +39,7 @@ import RestablecerPassword from "./RestablecerPassword";
 import VerificarCorreo from "./VerificarCorreo";
 import AvisoVerificarCorreo from "./AvisoVerificarCorreo";
 import DarseDeBaja from "./DarseDeBaja";
+import EliminarCuentaDialog from "./EliminarCuentaDialog";
 
 // El dashboard (con Recharts y Base UI) se descarga recién cuando entra un
 // vendedor: un cliente nunca baja ese código.
@@ -87,6 +88,7 @@ function App() {
     const sesion = obtenerSesion();
     return sesionValida(sesion) ? sesion : null;
   });
+  const [dialogoBorrarCuentaAbierto, setDialogoBorrarCuentaAbierto] = useState(false);
 
   /* =====================================================
      FAVORITOS
@@ -361,6 +363,13 @@ function App() {
     navigate("/");
   };
 
+  const cuentaEliminada = () => {
+    setDialogoBorrarCuentaAbierto(false);
+    setDirecciones([]);
+    setHistorialCompras([]);
+    cerrarSesion();
+  };
+
   /* =====================================================
      RENOVACIÓN AUTOMÁTICA DE LA SESIÓN
      Un rato antes de que venza el token se pide uno nuevo y
@@ -558,6 +567,8 @@ function App() {
 
     onCerrarSesion: cerrarSesion,
 
+    onBorrarCuenta: () => setDialogoBorrarCuentaAbierto(true),
+
     // ==========================================
     // CONTADORES
     // (cantidadCarrito ya no se pasa por prop: Navbar la
@@ -589,6 +600,11 @@ function App() {
   return (
     <>
     <AvisoVerificarCorreo usuario={usuario} onVerificado={marcarCorreoVerificado} />
+    <EliminarCuentaDialog
+      open={dialogoBorrarCuentaAbierto}
+      onOpenChange={setDialogoBorrarCuentaAbierto}
+      onDeleted={cuentaEliminada}
+    />
     <div className={conFooter ? "min-h-screen flex flex-col" : undefined}>
     <div className={conFooter ? "flex-1 flex flex-col *:flex-1 *:min-h-0!" : undefined}>
     <Routes>

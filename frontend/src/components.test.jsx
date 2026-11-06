@@ -11,6 +11,7 @@ jest.mock("./api", () => ({
   renovarToken: jest.fn(),
   alSesionInvalida: jest.fn(),
   actualizarPerfil: jest.fn(),
+  eliminarCuenta: jest.fn(),
   cambiarPassword: jest.fn(),
   obtenerRepuestos: jest.fn(),
   obtenerRepuesto: jest.fn(),
@@ -88,6 +89,7 @@ import {
   buscarTexto,
   agregarFavoritoAPI,
   actualizarPerfil,
+  eliminarCuenta,
   cambiarPassword,
   agregarItemCarrito,
   actualizarItemCarrito,
@@ -482,6 +484,35 @@ describe("Navbar", () => {
     await user.click(screen.getByTitle("Mi cuenta"));
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole("button", { name: "Mi perfil" })).not.toBeInTheDocument();
+  });
+
+  it("places the account deletion action beneath sign-out in the account menu", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.onBorrarCuenta = jest.fn();
+    props.onCerrarSesion = jest.fn();
+
+    render(
+      <Navbar
+        paginaActual="home"
+        usuario={{ nombre: "Ana", email: "ana@example.com" }}
+        {...props}
+      />
+    );
+
+    await user.click(screen.getByTitle("Mi cuenta"));
+    const menu = screen.getByRole("button", { name: "Cerrar sesión" }).parentElement.parentElement;
+    const botones = within(menu).getAllByRole("button");
+    expect(botones.map((boton) => boton.textContent.trim())).toEqual([
+      "Mi perfil",
+      "Direcciones",
+      "Historial de compras",
+      "Cerrar sesión",
+      "Borrar mi cuenta",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Borrar mi cuenta" }));
+    expect(props.onBorrarCuenta).toHaveBeenCalled();
   });
 });
 
@@ -2343,6 +2374,51 @@ describe("App favoritos", () => {
 });
 
 describe("App sesión", () => {
+  it("opens account deletion from the navbar and logs out after successful deletion", async () => {
+    const user = userEvent.setup();
+    const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+    const token = `x.${payload}.y`;
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({
+        userId: "1",
+        nombre: "Ana",
+        email: "ana@example.com",
+        token,
+      })
+    );
+    localStorage.setItem("autobought-direcciones", JSON.stringify([{ street: "Goes" }]));
+    localStorage.setItem("autobought-historial-compras", JSON.stringify([{ order_id: 17 }]));
+    obtenerPerfil.mockResolvedValue({
+      nombre: "Ana",
+      apellido: "",
+      email: "ana@example.com",
+      telefono: "",
+    });
+    eliminarCuenta.mockResolvedValue();
+
+    renderBase(
+      <MemoryRouter initialEntries={["/perfil"]}>
+        <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByTitle("Mi cuenta"));
+    await user.click(screen.getAllByRole("button", { name: "Borrar mi cuenta" })[0]);
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("CONTRASEÑA"), "secreto123");
+    await user.click(screen.getByRole("button", { name: "Borrar Cuenta" }));
+
+    await waitFor(() => expect(eliminarCuenta).toHaveBeenCalledWith("secreto123"));
+    await waitFor(() => {
+      expect(localStorage.getItem("autobought-sesion")).toBeNull();
+      expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+      expect(JSON.parse(localStorage.getItem("autobought-direcciones"))).toEqual([]);
+      expect(JSON.parse(localStorage.getItem("autobought-historial-compras"))).toEqual([]);
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("does not restore the session when a save finishes after logging out", async () => {
     const user = userEvent.setup();
     const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
@@ -2681,6 +2757,18 @@ describe("Direcciones ante un 401", () => {
 });
 
 describe("Perfil", () => {
+  it("exposes the delete-account action with a trashcan icon", async () => {
+    const props = navigationProps();
+    const user = userEvent.setup();
+    props.onBorrarCuenta = jest.fn();
+    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com" }} />);
+
+    const deleteButton = screen.getByRole("button", { name: "Borrar mi cuenta" });
+    expect(deleteButton.querySelector("svg")).toBeInTheDocument();
+    await user.click(deleteButton);
+    expect(props.onBorrarCuenta).toHaveBeenCalled();
+  });
+
   it("edits personal information and exposes profile actions", async () => {
     const user = userEvent.setup();
     const props = navigationProps();

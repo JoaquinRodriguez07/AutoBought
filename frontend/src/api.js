@@ -318,6 +318,50 @@ export async function cambiarPassword(actual, nueva) {
   throw error;
 }
 
+/** DELETE /api/v1/users/me — verifies the password and anonymizes the account. */
+export async function eliminarCuenta(password) {
+  const sesion = obtenerSesion();
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sesion?.token}`,
+      },
+      body: JSON.stringify({ password }),
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
+
+  if (response.ok) return;
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (response.status === 401) avisarSesionInvalida(sesion?.token);
+
+  const mensaje =
+    response.status === 401
+      ? "Tu sesión venció. Iniciá sesión de nuevo."
+      : response.status === 403
+        ? "Contraseña equivocada."
+        : response.status === 409
+          ? "Aún hay pedidos pendientes. Esperá a que se completen o cancelalos para poder borrar tu cuenta."
+          : typeof data?.detail === "string"
+            ? data.detail
+            : "No pudimos borrar tu cuenta. Intentá de nuevo.";
+  const error = new Error(mensaje);
+  error.status = response.status;
+  throw error;
+}
+
 /* =====================================================
    MAILS DE CUENTA
    Verificar el correo y recuperar la contraseña. Los enlaces

@@ -36,6 +36,7 @@ export default function Navbar({
   onDirecciones,
   onHistorial,
   onCerrarSesion,
+  onBorrarCuenta,
   cantidadFavoritos = 0,
   usuario,
 }) {
@@ -474,6 +475,13 @@ export default function Navbar({
                     className="w-full text-left px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 transition"
                   >
                     Cerrar sesión
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => ejecutarAccion(onBorrarCuenta)}
+                    className="w-full text-left px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 transition"
+                  >
+                    Borrar mi cuenta
                   </button>
 
                 </div>
