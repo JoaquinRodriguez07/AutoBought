@@ -205,3 +205,152 @@ describe("Carrito: dirección de envío", () => {
     expect(confirmarCompra).not.toHaveBeenCalled();
   });
 });
+
+describe("Carrito: errores y acciones de la compra", () => {
+  test("Si no cargan las direcciones muestra el error y no deja confirmar", async () => {
+    const user = userEvent.setup();
+    conCarrito([pastillas]);
+    obtenerDirecciones.mockRejectedValue(new Error("Sin conexión."));
+
+    renderCarrito();
+    const dialogo = await abrirConfirmacion(user);
+
+    expect(within(dialogo).getByRole("alert")).toHaveTextContent("Sin conexión.");
+    expect(within(dialogo).getByRole("button", { name: "IR A PAGAR" })).toBeDisabled();
+  });
+
+  test("Usa un mensaje propio si el error de direcciones no trae uno", async () => {
+    const user = userEvent.setup();
+    conCarrito([pastillas]);
+    obtenerDirecciones.mockRejectedValue(new Error(""));
+
+    renderCarrito();
+    const dialogo = await abrirConfirmacion(user);
+
+    expect(within(dialogo).getByRole("alert")).toHaveTextContent("No pudimos cargar tus direcciones.");
+  });
+
+  test("Usa un mensaje propio si la compra falla sin explicación", async () => {
+    const user = userEvent.setup();
+    const cargarCarrito = conCarrito([pastillas]);
+    confirmarCompra.mockRejectedValue(new Error(""));
+
+    renderCarrito();
+    const dialogo = await abrirConfirmacion(user);
+    await user.click(within(dialogo).getByRole("button", { name: "IR A PAGAR" }));
+
+    expect(await within(dialogo).findByRole("alert")).toHaveTextContent("No pudimos confirmar la compra.");
+    expect(cargarCarrito).not.toHaveBeenCalled();
+    expect(crearLinkPago).not.toHaveBeenCalled();
+  });
+
+  test("Usa un mensaje propio si Mercado Pago falla sin explicación, sin crear otro pedido", async () => {
+    const user = userEvent.setup();
+    conCarrito([pastillas]);
+    confirmarCompra.mockResolvedValue({ id: 42 });
+    crearLinkPago.mockRejectedValue(new Error(""));
+
+    renderCarrito();
+    const dialogo = await abrirConfirmacion(user);
+    await user.click(within(dialogo).getByRole("button", { name: "IR A PAGAR" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos abrir Mercado Pago.");
+    expect(screen.getByText("Tus repuestos quedan reservados mientras pagás.")).toBeInTheDocument();
+    expect(confirmarCompra).toHaveBeenCalledTimes(1);
+    expect(irA).not.toHaveBeenCalled();
+  });
+
+  test("Cancelar cierra la confirmación sin crear el pedido", async () => {
+    const user = userEvent.setup();
+    conCarrito([pastillas]);
+
+    renderCarrito();
+    const dialogo = await abrirConfirmacion(user);
+    await user.click(within(dialogo).getByRole("button", { name: "CANCELAR" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(confirmarCompra).not.toHaveBeenCalled();
+  });
+
+  test("No se puede cancelar mientras se está creando el pedido", async () => {
+    const user = userEvent.setup();
+    conCarrito([pastillas]);
+    confirmarCompra.mockReturnValue(new Promise(() => {}));
+
+    renderCarrito();
+    const dialogo = await abrirConfirmacion(user);
+    await user.click(within(dialogo).getByRole("button", { name: "IR A PAGAR" }));
+
+    expect(within(dialogo).getByRole("button", { name: "CANCELAR" })).toBeDisabled();
+  });
+
+  test("Muestra el apartamento en la dirección a elegir", async () => {
+    const user = userEvent.setup();
+    conCarrito([pastillas]);
+    obtenerDirecciones.mockResolvedValue([{ ...direccion(1, "Av. Italia", true), apartamento: "5B" }]);
+
+    renderCarrito();
+    const dialogo = await abrirConfirmacion(user);
+
+    expect(within(dialogo).getByRole("option", { name: "Av. Italia 1234 apto 5B, Montevideo" })).toBeInTheDocument();
+  });
+});
+
+describe("Carrito: resumen y navegación", () => {
+  test("Habla de una unidad en singular", () => {
+    conCarrito([itemCarrito(1, "Pastillas de freno", 1000, 1)]);
+
+    renderCarrito();
+
+    expect(screen.getByText("Subtotal (1 unidad)")).toBeInTheDocument();
+  });
+
+  test("Habla de varias unidades en plural", () => {
+    conCarrito([pastillas]);
+
+    renderCarrito();
+
+    expect(screen.getByText("Subtotal (2 unidades)")).toBeInTheDocument();
+  });
+
+  test("Avisa cuando una línea llegó al stock máximo", () => {
+    conCarrito([itemCarrito(1, "Pastillas de freno", 1000, 3, 3)]);
+
+    renderCarrito();
+
+    expect(screen.getByText("Stock máximo")).toBeInTheDocument();
+  });
+
+  test("No avisa del stock máximo si quedan unidades", () => {
+    conCarrito([pastillas]);
+
+    renderCarrito();
+
+    expect(screen.queryByText("Stock máximo")).not.toBeInTheDocument();
+  });
+
+  test("Seguir comprando vuelve al catálogo", async () => {
+    const user = userEvent.setup();
+    const onCatalogo = jest.fn();
+    conCarrito([pastillas]);
+
+    renderCarrito({ onCatalogo });
+    await user.click(screen.getByRole("button", { name: "Seguir comprando" }));
+
+    expect(onCatalogo).toHaveBeenCalledTimes(1);
+  });
+
+  test("La foto y el nombre llevan al detalle del repuesto", async () => {
+    const user = userEvent.setup();
+    const onDetalle = jest.fn();
+    conCarrito([pastillas]);
+
+    renderCarrito({ onDetalle });
+    const [foto, nombre] = screen.getAllByRole("button", { name: "Pastillas de freno" });
+    await user.click(foto);
+    await user.click(nombre);
+
+    expect(onDetalle).toHaveBeenCalledTimes(2);
+    expect(onDetalle).toHaveBeenCalledWith(pastillas);
+  });
+});

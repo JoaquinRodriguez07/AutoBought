@@ -4,6 +4,8 @@ jest.mock("./auth", () => ({
 
 import {
   alSesionInvalida,
+  buscarTexto,
+  obtenerHistorialCompras,
   actualizarItemCarrito,
   consultarAsistente,
   agregarFavoritoAPI,
@@ -1041,3 +1043,246 @@ describe("assistant API", () => {
   });
 });
 
+
+describe("historial de compras", () => {
+  const pedido = {
+    order_id: 42,
+    created_at: "2026-11-01T10:00:00Z",
+    status: "paid",
+    shipping_address: {
+      personal_name: "Ana Pérez",
+      street: "18 de Julio",
+      number: "1234",
+      apartment: null,
+      city: "Montevideo",
+      department: "Montevideo",
+      postal_code: null,
+    },
+    payment_method: "mercado_pago",
+    payment_status: "pending",
+    payment_due_at: "2026-11-02T10:00:00Z",
+    total: 4900,
+    items: [{ part_id: 21, part_code: "DF-21", name: "Disco de freno", quantity: 2, frozen_price: 2450 }],
+  };
+
+  it("maps every order with its address, payment deadline and frozen prices", async () => {
+    fetch.mockResolvedValue(response({ orders: [pedido] }));
+
+    await expect(obtenerHistorialCompras()).resolves.toEqual([
+      {
+        id: 42,
+        fecha: "2026-11-01T10:00:00Z",
+        estado: "paid",
+        direccion: {
+          nombre: "Ana Pérez",
+          calle: "18 de Julio",
+          numero: "1234",
+          apartamento: "",
+          ciudad: "Montevideo",
+          departamento: "Montevideo",
+          codigoPostal: "",
+        },
+        metodoPago: "mercado_pago",
+        estadoPago: "pending",
+        vencePago: "2026-11-02T10:00:00Z",
+        total: 4900,
+        items: [{ partId: 21, codigo: "DF-21", nombre: "Disco de freno", cantidad: 2, precio: 2450 }],
+      },
+    ]);
+    expect(fetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/v1/orders`);
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBe("Bearer jwt-token");
+  });
+
+  it("fills the gaps of an old order without address, payment or items", async () => {
+    fetch.mockResolvedValue(response({ orders: [{ order_id: 7, created_at: "2025-01-01", status: "shipped" }] }));
+
+    await expect(obtenerHistorialCompras()).resolves.toEqual([
+      {
+        id: 7,
+        fecha: "2025-01-01",
+        estado: "shipped",
+        direccion: null,
+        metodoPago: "",
+        estadoPago: null,
+        vencePago: null,
+        total: 0,
+        items: [],
+      },
+    ]);
+  });
+
+  it("keeps a line of an order when the part lost its code or name", async () => {
+    fetch.mockResolvedValue(
+      response({ orders: [{ order_id: 8, items: [{ part_id: 1, quantity: 1, frozen_price: 10 }] }] })
+    );
+
+    const [compra] = await obtenerHistorialCompras();
+
+    expect(compra.items).toEqual([{ partId: 1, codigo: "", nombre: "", cantidad: 1, precio: 10 }]);
+  });
+
+  it("fails when the answer has no list of orders", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(obtenerHistorialCompras()).rejects.toThrow("No pudimos cargar tu historial de compras.");
+  });
+
+  it("explains an expired session", async () => {
+    fetch.mockResolvedValue(response({}, { status: 401, ok: false }));
+
+    await expect(obtenerHistorialCompras()).rejects.toMatchObject({
+      status: 401,
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+    });
+  });
+});
+
+describe("confirmarCompra sin dirección elegida", () => {
+  it("lets the backend use the primary address", async () => {
+    fetch.mockResolvedValue(response({ order_id: 1, items: [] }));
+
+    await confirmarCompra();
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ shipping_address_id: null });
+  });
+
+  it("explains missing stock, the most delicate rejection of a purchase", async () => {
+    fetch.mockResolvedValue(response({}, { status: 409, ok: false }));
+
+    await expect(confirmarCompra({ direccionId: 3 })).rejects.toMatchObject({
+      status: 409,
+      message: "No hay stock suficiente para completar la compra.",
+    });
+  });
+
+  it("prefers the backend detail over the generic message", async () => {
+    fetch.mockResolvedValue(response({ detail: "Sin stock de DF-21." }, { status: 409, ok: false }));
+
+    await expect(confirmarCompra()).rejects.toThrow("Sin stock de DF-21.");
+  });
+
+  it("does not report a purchase as confirmed when the answer cannot be read", async () => {
+    fetch.mockResolvedValue(response(null, { jsonError: new SyntaxError("vacío") }));
+
+    await expect(confirmarCompra()).rejects.toThrow("No pudimos leer la respuesta del servidor.");
+  });
+
+  it("does not offer a field error when a failed answer cannot be read", async () => {
+    fetch.mockResolvedValue(response(null, { status: 500, ok: false, jsonError: new SyntaxError("vacío") }));
+
+    await expect(confirmarCompra()).rejects.toMatchObject({
+      status: 500,
+      message: "No pudimos confirmar la compra.",
+      campos: {},
+    });
+  });
+});
+
+describe("carrito con respuestas rotas", () => {
+  it("does not take an unreadable answer as a valid cart", async () => {
+    fetch.mockResolvedValue(response(null, { jsonError: new SyntaxError("vacío") }));
+
+    await expect(obtenerCarrito()).rejects.toMatchObject({
+      status: 200,
+      message: "No pudimos leer la respuesta del carrito.",
+    });
+  });
+
+  it("uses a generic message when a failed answer cannot be read", async () => {
+    fetch.mockResolvedValue(response(null, { status: 500, ok: false, jsonError: new SyntaxError("vacío") }));
+
+    await expect(obtenerCarrito()).rejects.toMatchObject({
+      status: 500,
+      message: "No pudimos actualizar el carrito.",
+    });
+  });
+
+  it("treats a cart without items or total as empty", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(obtenerCarrito()).resolves.toEqual({ items: [], total: 0 });
+  });
+
+  it("sends no Authorization header without a session", async () => {
+    obtenerSesion.mockReturnValue(null);
+    fetch.mockResolvedValue(response({ items: [], total: 0 }));
+
+    await obtenerCarrito();
+
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBeUndefined();
+  });
+});
+
+describe("buscarTexto", () => {
+  it("sends the encoded text and maps the parts with their entities", async () => {
+    const entities = { part: "pastillas", brand: "Chevrolet", model: "Onix", year: 2020, fuel: null };
+    fetch.mockResolvedValue(response({ parts: [backendPart], entities }));
+
+    await expect(buscarTexto("pastillas & onix")).resolves.toEqual({ parts: [uiPart], entities });
+    expect(fetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/v1/parts?q=pastillas+%26+onix`);
+  });
+
+  it("returns empty entities when the backend sends none", async () => {
+    fetch.mockResolvedValue(response({ parts: [] }));
+
+    await expect(buscarTexto("nada")).resolves.toEqual({
+      parts: [],
+      entities: { part: null, brand: null, model: null, year: null, fuel: null },
+    });
+  });
+
+  it("fails when the answer has no list of parts", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(buscarTexto("nada")).rejects.toThrow("No pudimos realizar la búsqueda.");
+  });
+});
+
+describe("respuestas incompletas", () => {
+  it.each([
+    ["an array", []],
+    ["a part without id", { name: "Disco" }],
+    ["an empty body", null],
+  ])("rejects %s as a part", async (_nombre, cuerpo) => {
+    fetch.mockResolvedValue(response(cuerpo));
+
+    await expect(obtenerRepuesto(21)).rejects.toThrow("No pudimos cargar el repuesto.");
+  });
+
+  it("treats missing brands and models as empty lists", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(obtenerMarcas()).resolves.toEqual([]);
+    await expect(obtenerModelos("Fiat")).resolves.toEqual([]);
+  });
+
+  it("asks for no recommendations without real part ids", async () => {
+    await expect(obtenerRecomendaciones(null)).resolves.toEqual([]);
+    await expect(obtenerRecomendaciones([undefined, null])).resolves.toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("does not create a session when the registration brings no token", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(
+      registrar({ nombre: "Ana", apellido: "Pérez", email: "ana@test.com", telefono: "", password: "x" })
+    ).rejects.toThrow("No pudimos crear tu cuenta. Intentá de nuevo.");
+  });
+
+  it("gives the assistant answer safe defaults", async () => {
+    fetch.mockResolvedValue(response({ recomendaciones: [{ tipo: "cambio", motivo: "Desgaste" }] }));
+
+    await expect(consultarAsistente({ texto: "ruido", marca: "A", modelo: "B", anio: 2016 })).resolves.toEqual({
+      diagnostico: "",
+      urgencia: "baja",
+      aviso: null,
+      pregunta: null,
+      opciones: [],
+      fueraDeTema: false,
+      recomendaciones: [{ tipo: "cambio", motivo: "Desgaste", repuestos: [] }],
+      historial: [],
+      firma: null,
+    });
+  });
+});

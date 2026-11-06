@@ -293,3 +293,129 @@ describe("HistorialCompras", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("HistorialCompras: datos parciales", () => {
+  const unPedido = (extra) => [{ ...compras[0], ...extra }];
+  const listaDePedidos = () => screen.findByRole("list", { name: "Compras realizadas" });
+
+  test("a rejected payment without a deadline only says it was rejected", async () => {
+    obtenerHistorialCompras.mockResolvedValue(unPedido({ estadoPago: "rejected" }));
+
+    renderHistorial();
+
+    expect(within(await listaDePedidos()).getByText("Pago rechazado")).toBeInTheDocument();
+  });
+
+  test("a pending order without a deadline shows no note in the list", async () => {
+    obtenerHistorialCompras.mockResolvedValue(unPedido({ estadoPago: "pending" }));
+
+    renderHistorial();
+
+    const lista = await listaDePedidos();
+    expect(within(lista).queryByText(/Pagalo antes/)).not.toBeInTheDocument();
+    expect(within(lista).getByRole("button", { name: /Pagar el pedido/ })).toBeInTheDocument();
+  });
+
+  test("the detail of a pending order without a deadline says the parts stay reserved", async () => {
+    const pedido = unPedido({ estadoPago: "pending" })[0];
+    obtenerHistorialCompras.mockResolvedValue([pedido]);
+    obtenerDetalleCompra.mockResolvedValue(pedido);
+
+    renderHistorial();
+    await userEvent.click(await screen.findByRole("button", { name: "Ver detalle del pedido #42" }));
+
+    expect(
+      await screen.findByText("Tus repuestos quedan reservados mientras completás el pago.")
+    ).toBeInTheDocument();
+  });
+
+  test.each([
+    [[{ partId: 1, nombre: "Disco" }], "Disco"],
+    [[{ partId: 1, nombre: "" }], "Producto"],
+    [[{ partId: 1, nombre: "Disco" }, { partId: 2, nombre: "Pastillas" }], "Disco y 1 producto más"],
+    [
+      [
+        { partId: 1, nombre: "Disco" },
+        { partId: 2, nombre: "Pastillas" },
+        { partId: 3, nombre: "Aceite" },
+      ],
+      "Disco y 2 productos más",
+    ],
+  ])("summarises the products %#", async (items, texto) => {
+    obtenerHistorialCompras.mockResolvedValue(unPedido({ items }));
+
+    renderHistorial();
+
+    expect(within(await listaDePedidos()).getByText(texto)).toBeInTheDocument();
+  });
+
+  test("counts the products that do not fit as thumbnails", async () => {
+    const items = [1, 2, 3, 4, 5].map((partId) => ({ partId, nombre: `Repuesto ${partId}` }));
+    obtenerHistorialCompras.mockResolvedValue(unPedido({ items }));
+
+    renderHistorial();
+
+    expect(within(await listaDePedidos()).getByText("+2")).toBeInTheDocument();
+  });
+
+  test("tolerates an order without date, total or items", async () => {
+    obtenerHistorialCompras.mockResolvedValue(unPedido({ fecha: null, total: null, items: undefined }));
+
+    renderHistorial();
+
+    const lista = await listaDePedidos();
+    expect(within(lista).getByText("Fecha no disponible")).toBeInTheDocument();
+    expect(within(lista).getByText(/\$\s*0/)).toBeInTheDocument();
+  });
+
+  test("uses a default message when the history fails without one", async () => {
+    obtenerHistorialCompras.mockRejectedValue(new Error(""));
+
+    renderHistorial();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos cargar tu historial de compras.");
+  });
+
+  test("uses a default message when the detail fails without one", async () => {
+    obtenerHistorialCompras.mockResolvedValue(compras);
+    obtenerDetalleCompra.mockRejectedValue(new Error(""));
+
+    renderHistorial();
+    await userEvent.click(await screen.findByRole("button", { name: "Ver detalle del pedido #42" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos cargar el detalle de la compra.");
+  });
+
+  test("uses a default message when the payment link fails without one", async () => {
+    obtenerHistorialCompras.mockResolvedValue(unPedido({ estadoPago: "pending" }));
+    crearLinkPago.mockRejectedValue(new Error(""));
+
+    renderHistorial();
+    await userEvent.click(await screen.findByRole("button", { name: /Pagar el pedido/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos abrir Mercado Pago.");
+    expect(irA).not.toHaveBeenCalled();
+  });
+
+  test("shows the apartment and a nameless product in the detail, and goes back to the list", async () => {
+    const pedido = {
+      ...compras[0],
+      direccion: { calle: "18 de Julio", numero: "1234", apartamento: "5B", ciudad: "Montevideo", departamento: "Montevideo" },
+      items: [{ partId: 1, nombre: "", codigo: "", cantidad: 1, precio: 100 }],
+    };
+    obtenerHistorialCompras.mockResolvedValue([pedido]);
+    obtenerDetalleCompra.mockResolvedValue(pedido);
+
+    renderHistorial();
+    await userEvent.click(await screen.findByRole("button", { name: "Ver detalle del pedido #42" }));
+
+    const detalle = await screen.findByRole("region", { name: "Detalle del pedido 42" });
+    expect(within(detalle).getByText("18 de Julio 1234 apto 5B, Montevideo, Montevideo")).toBeInTheDocument();
+    expect(within(detalle).getByText("Producto")).toBeInTheDocument();
+    expect(within(detalle).queryByText(/Código:/)).not.toBeInTheDocument();
+
+    await userEvent.click(within(detalle).getByRole("button", { name: /Volver/ }));
+
+    expect(await listaDePedidos()).toBeInTheDocument();
+  });
+});
