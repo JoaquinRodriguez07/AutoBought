@@ -26,7 +26,7 @@ export default function BusquedaCabecera({ inputRef, onSearch, onEscape }) {
 
   return (
     // Mismo estilo que el buscador del catálogo (SearchBar).
-    <div className="flex w-full bg-white rounded-lg overflow-hidden border border-gray-100">
+    <div className="flex w-full bg-white rounded-lg overflow-hidden border border-gray-100 focus-within:ring-2 focus-within:ring-orange-500 transition">
       <input
         ref={inputRef}
         type="text"
@@ -42,7 +42,7 @@ export default function BusquedaCabecera({ inputRef, onSearch, onEscape }) {
         type="button"
         onClick={realizarBusqueda}
         aria-label="Buscar"
-        className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition"
+        className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
       >
         <IconoLupa className="w-5 h-5" />
       </button>

@@ -2,7 +2,15 @@ jest.mock("../api", () => ({ API_BASE_URL: "http://api", avisarSesionInvalida: j
 jest.mock("../auth", () => ({ obtenerSesion: () => ({ token: "token-vendedor" }) }));
 
 import { avisarSesionInvalida } from "../api";
-import { ajustarStock, crearRepuesto, obtenerEvolucionVentas, obtenerStock } from "./apiDashboard";
+import {
+  agregarVendedor,
+  ajustarStock,
+  crearRepuesto,
+  darDeBajaVendedor,
+  obtenerEvolucionVentas,
+  obtenerStock,
+  obtenerVendedores,
+} from "./apiDashboard";
 
 const responder = (status, body) =>
   jest.fn().mockResolvedValue({ ok: status < 400, status, json: () => Promise.resolve(body) });
@@ -88,3 +96,44 @@ it("sends a new part with its compatible vehicles", async () => {
     compatibilities: [{ car_model_id: 2, year_from: 2015, year_to: 2022 }],
   });
 });
+
+describe("equipo (SCRUM-175)", () => {
+  it("lists the sellers in the UI shape", async () => {
+    global.fetch = responder(200, { employees: [{ id: 1, name: "Ana", email: "ana@example.com", is_admin: true }] });
+
+    expect(await obtenerVendedores()).toEqual([{ id: 1, nombre: "Ana", email: "ana@example.com", esAdmin: true }]);
+    expect(global.fetch.mock.calls[0][0]).toBe("http://api/api/v1/employees");
+  });
+
+  it("adds a seller with the name and mail trimmed", async () => {
+    global.fetch = responder(201, { id: 3, name: "Caro", email: "caro@example.com", is_admin: false });
+
+    expect(await agregarVendedor({ nombre: " Caro ", email: " caro@example.com " })).toEqual({
+      id: 3,
+      nombre: "Caro",
+      email: "caro@example.com",
+      esAdmin: false,
+    });
+    const [, opciones] = global.fetch.mock.calls[0];
+    expect(opciones.method).toBe("POST");
+    expect(JSON.parse(opciones.body)).toEqual({ name: "Caro", email: "caro@example.com" });
+  });
+
+  it("uses the backend message when the mail is taken", async () => {
+    global.fetch = responder(409, { detail: "Ya hay una cuenta con ese correo." });
+
+    await expect(agregarVendedor({ nombre: "Beto", email: "beto@example.com" })).rejects.toThrow(
+      "Ya hay una cuenta con ese correo."
+    );
+  });
+
+  it("drops a seller (the 204 has no body)", async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 204, json: () => Promise.reject(new Error("sin body")) });
+
+    await expect(darDeBajaVendedor(2)).resolves.toBeUndefined();
+    const [url, opciones] = global.fetch.mock.calls[0];
+    expect(url).toBe("http://api/api/v1/employees/2");
+    expect(opciones.method).toBe("DELETE");
+  });
+});
+

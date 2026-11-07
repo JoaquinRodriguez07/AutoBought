@@ -11,10 +11,11 @@ import {
   StoreIcon,
   TrendingUpIcon,
   TrophyIcon,
+  UsersIcon,
   XIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { decodeToken } from "../auth";
+import { decodeToken, esAdmin } from "../auth";
 import logo from "../assets/logo.png";
 import logoBlanco from "../assets/logo-blanco.png";
 
@@ -47,9 +48,21 @@ export const GRUPOS = [
     titulo: "Asistente",
     vistas: [{ valor: "preguntar", texto: "Preguntar", Icono: MessageCircleQuestionIcon, enDesarrollo: true }],
   },
+  // Solo la ven los administradores (SCRUM-175).
+  {
+    titulo: "Administración",
+    vistas: [{ valor: "equipo", texto: "Equipo", Icono: UsersIcon, soloAdmin: true }],
+  },
 ];
 
 export const VISTAS = GRUPOS.flatMap((grupo) => grupo.vistas);
+
+function gruposDe(usuario) {
+  const admin = esAdmin(usuario);
+  return GRUPOS.map((grupo) => ({ ...grupo, vistas: grupo.vistas.filter((v) => !v.soloAdmin || admin) })).filter(
+    (grupo) => grupo.vistas.length > 0
+  );
+}
 
 // Nombre del vendedor: viene en el token de sesión (el vendedor no tiene
 // perfil en /me como el cliente). Una sesión vieja, sin nombre en el token,
@@ -87,7 +100,7 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
       </div>
 
       <nav aria-label="Secciones del dashboard" className="flex-1 overflow-y-auto px-3 flex flex-col gap-5">
-        {GRUPOS.map((grupo) => (
+        {gruposDe(usuario).map((grupo) => (
           <div key={grupo.titulo ?? "inicio"}>
             {grupo.titulo && (
               <p className="px-3 mb-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">{grupo.titulo}</p>
@@ -155,7 +168,7 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium text-white">{nombreDelVendedor(usuario)}</p>
-            <p className="text-xs text-gray-400">Vendedor</p>
+            <p className="text-xs text-gray-400">{esAdmin(usuario) ? "Administrador" : "Vendedor"}</p>
           </div>
           <button
             type="button"

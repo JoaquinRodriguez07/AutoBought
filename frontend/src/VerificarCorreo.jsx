@@ -38,26 +38,26 @@ export default function VerificarCorreo({ onVerificado, onIrALaTienda, ...propsN
   return (
     <TarjetaCuenta titulo="Verificar correo" {...propsNavbar}>
       {estado === "verificando" && (
-        <p role="status" className="mt-6 text-[10px] text-gray-500">
+        <p role="status" className="mt-6 text-xs text-gray-500">
           Verificando tu correo...
         </p>
       )}
 
       {estado === "listo" && (
-        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-[10px] font-semibold">
+        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-xs font-semibold">
           ¡Listo! Tu correo quedó verificado y ya podés confirmar compras.
         </div>
       )}
 
       {estado === "error" && (
-        <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-[9px] font-semibold">
+        <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-xs font-semibold">
           {error} Con la sesión iniciada, podés reenviarlo desde el aviso de abajo.
         </div>
       )}
 
       {estado !== "verificando" && (
         <button type="button" onClick={onIrALaTienda} className={claseBotonCuenta}>
-          IR A LA TIENDA
+          Ir a la tienda
         </button>
       )}
     </TarjetaCuenta>

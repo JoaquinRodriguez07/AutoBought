@@ -120,7 +120,7 @@ export default function AvisoVerificarCorreo({ usuario, onVerificado }) {
     <div
       role="region"
       aria-label="Verificación del correo"
-      className="fixed bottom-0 inset-x-0 z-50 bg-orange-500 text-white pl-4 pr-10 py-2 text-[10px] flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
+      className="fixed bottom-0 inset-x-0 z-50 bg-orange-500 text-white pl-4 pr-10 py-2 text-xs flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
     >
       <span>
         <strong>Verificá tu correo</strong> para poder confirmar compras. Te mandamos un enlace a {usuario.email}.
@@ -135,7 +135,7 @@ export default function AvisoVerificarCorreo({ usuario, onVerificado }) {
           disabled={estado === "enviando"}
           className="font-black underline hover:no-underline disabled:opacity-60"
         >
-          {estado === "enviando" ? "ENVIANDO..." : "REENVIAR MAIL"}
+          {estado === "enviando" ? "Enviando..." : "Reenviar mail"}
         </button>
       )}
 

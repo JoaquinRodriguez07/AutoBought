@@ -101,7 +101,7 @@ describe("DarseDeBaja", () => {
     expect(darseDeBaja).toHaveBeenCalledTimes(1);
     expect(darseDeBaja).toHaveBeenCalledWith("tok-baja");
 
-    await user.click(screen.getByRole("button", { name: "IR A LA TIENDA" }));
+    await user.click(screen.getByRole("button", { name: "Ir a la tienda" }));
     expect(onIrALaTienda).toHaveBeenCalled();
   });
 

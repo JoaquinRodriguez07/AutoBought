@@ -145,15 +145,34 @@ describe("mapearCategoria", () => {
 });
 
 describe("usarImagenGenerica", () => {
-  it("swaps a broken image for the generic one, only once", () => {
+  it("swaps a broken image for the generic one", () => {
     const imagen = document.createElement("img");
     imagen.src = "/repuestos/no-existe.webp";
 
     usarImagenGenerica({ currentTarget: imagen });
+
+    expect(imagen.getAttribute("src")).toBe(IMAGEN_PLACEHOLDER);
+  });
+
+  it("does not loop when the generic image itself fails", () => {
+    const imagen = document.createElement("img");
+    imagen.src = IMAGEN_PLACEHOLDER;
+
+    usarImagenGenerica({ currentTarget: imagen });
+
+    expect(imagen.getAttribute("src")).toBe(IMAGEN_PLACEHOLDER);
+  });
+
+  it("protects again when the same <img> switches to another image that also fails", () => {
+    const imagen = document.createElement("img");
+    imagen.src = "/repuestos/no-existe.webp";
+    usarImagenGenerica({ currentTarget: imagen });
     expect(imagen.getAttribute("src")).toBe(IMAGEN_PLACEHOLDER);
 
-    imagen.src = "/otra.webp";
+    // React reutiliza el <img> y le cambia el src a otra imagen rota.
+    imagen.src = "/repuestos/otra-que-no-existe.webp";
     usarImagenGenerica({ currentTarget: imagen });
-    expect(imagen.getAttribute("src")).toBe("/otra.webp");
+
+    expect(imagen.getAttribute("src")).toBe(IMAGEN_PLACEHOLDER);
   });
 });

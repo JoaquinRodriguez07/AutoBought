@@ -46,19 +46,19 @@ export default function RecuperarPassword({ onVolverAlLogin, ...propsNavbar }) {
       {...propsNavbar}
     >
       {enviado ? (
-        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-[10px] font-semibold">
+        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-xs font-semibold">
           {enviado} Revisá también la carpeta de spam.
         </div>
       ) : (
         <form onSubmit={enviar} noValidate className="mt-6">
 
           {error && (
-            <div role="alert" className="mb-5 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-[9px] font-semibold">
+            <div role="alert" className="mb-5 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-xs font-semibold">
               {error}
             </div>
           )}
 
-          <label htmlFor="recuperar-email" className="text-[9px] font-bold text-gray-700">
+          <label htmlFor="recuperar-email" className="text-xs font-bold text-gray-700">
             CORREO ELECTRÓNICO
           </label>
           <input
@@ -77,13 +77,13 @@ export default function RecuperarPassword({ onVolverAlLogin, ...propsNavbar }) {
           <ErrorCampo campo="email" mensaje={errorEmail} />
 
           <button type="submit" disabled={enviando} className={claseBotonCuenta}>
-            {enviando ? "ENVIANDO..." : "ENVIAR ENLACE"}
+            {enviando ? "Enviando..." : "Enviar enlace"}
           </button>
 
         </form>
       )}
 
-      <p className="text-center text-[9px] text-gray-500 mt-6">
+      <p className="text-center text-xs text-gray-500 mt-6">
         <button type="button" onClick={onVolverAlLogin} className={claseEnlaceCuenta}>
           Volver a iniciar sesión
         </button>

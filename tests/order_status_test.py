@@ -270,6 +270,21 @@ def test_el_cliente_ve_el_motivo_en_su_historial(client, db_session, mp, vendedo
 
     assert pedido["status"] == "cancelled"
     assert pedido["cancellation_reason"] == "Sin stock real en el depósito"
+    # En el historial queda como cancelado por la tienda (no como vencido).
+    assert pedido["cancel_reason"] == "store"
+    assert pedido["status_history"][-1]["status"] == "cancelled"
+
+
+def test_cada_paso_del_vendedor_queda_en_la_linea_de_tiempo_del_cliente(client, db_session, mp, vendedor, cliente, pastillas):
+    order_id = hacer_pedido(db_session, cliente, pastillas)
+    cambiar(client, vendedor, order_id, "packing")
+    cambiar(client, vendedor, order_id, "shipped")
+
+    pedido = client.get(f"{ORDERS}/{order_id}", headers=auth_headers(cliente)).json()
+
+    pasos = [paso["status"] for paso in pedido["status_history"]]
+    assert pasos[-2:] == ["packing", "shipped"]
+    assert all(paso["changed_at"] for paso in pedido["status_history"][-2:])
 
 
 # =====================================================

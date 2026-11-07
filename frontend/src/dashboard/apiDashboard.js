@@ -37,6 +37,9 @@ async function pedir(ruta, { params, mensajeError, ...opciones } = {}) {
     throw new Error(mensajeError);
   }
 
+  // 204 (ej. dar de baja a un vendedor): no hay nada que leer.
+  if (response.status === 204) return null;
+
   let data = null;
   try {
     data = await response.json();
@@ -401,4 +404,41 @@ export async function preguntarAlDashboard(pregunta) {
     respuesta: data.answer,
     datos: data.data ? { columnas: data.data.columns, filas: data.data.rows } : null,
   };
+}
+
+/* =====================================================
+   EQUIPO (SCRUM-175)
+   Solo para administradores: la API le responde 403 a un
+   vendedor común.
+====================================================== */
+
+function mapearVendedor(e) {
+  return { id: e.id, nombre: e.name, email: e.email, esAdmin: Boolean(e.is_admin) };
+}
+
+/** GET /employees — los vendedores que siguen en el equipo. */
+export async function obtenerVendedores() {
+  const data = await pedir("/employees", { mensajeError: "No pudimos cargar el equipo." });
+  return (data.employees || []).map(mapearVendedor);
+}
+
+/**
+ * POST /employees — suma un vendedor. Le llega un mail para elegir su
+ * contraseña. 409 si el correo ya tiene cuenta.
+ */
+export async function agregarVendedor({ nombre, email }) {
+  const data = await pedir("/employees", {
+    method: "POST",
+    body: JSON.stringify({ name: nombre.trim(), email: email.trim() }),
+    mensajeError: "No pudimos agregar al vendedor.",
+  });
+  return mapearVendedor(data);
+}
+
+/** DELETE /employees/{id} — lo da de baja y cierra sus sesiones. */
+export async function darDeBajaVendedor(id) {
+  await pedir(`/employees/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    mensajeError: "No pudimos dar de baja al vendedor.",
+  });
 }

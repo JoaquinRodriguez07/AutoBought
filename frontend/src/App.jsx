@@ -22,6 +22,10 @@ import Registro from "./Registro";
 import Perfil from "./Perfil";
 import Direcciones from "./Direcciones";
 import HistorialCompras from "./HistorialCompras";
+import MisPedidos from "./MisPedidos";
+import InicioCuenta from "./InicioCuenta";
+import Notificaciones from "./Notificaciones";
+import Seguridad from "./Seguridad";
 import ResultadoPago from "./ResultadoPago";
 import Catalogo from "./Catalogo";
 import DetalleProducto from "./DetalleProducto";
@@ -30,6 +34,7 @@ import Carrito from "./Carrito";
 import Favoritos from "./Favoritos";
 import PanelPit from "./PanelPit";
 import { usePit } from "./context/PitContext";
+import { usePedidos } from "./context/PedidosContext";
 import ProtectedRoute from "./ProtectedRoute";
 import Footer from "./Footer";
 import EmployeeRoute from "./EmployeeRoute";
@@ -72,6 +77,13 @@ function App() {
   const { cargarCarrito, limpiarCarritoLocal } = useCart();
   const { activarVehiculo } = useVehicle();
   const { olvidar: olvidarCharlaPit } = usePit();
+  const { recargar: recargarPedidos, limpiar: limpiarPedidos } = usePedidos();
+
+  // Al volver al inicio se actualizan los pedidos en curso (el aviso del
+  // banner y el número de la barra): un pedido pudo cambiar de estado.
+  useEffect(() => {
+    if (pathname === "/") recargarPedidos();
+  }, [pathname, recargarPedidos]);
 
 
   // null = sin filtro de categoría (el catálogo muestra todos los
@@ -296,6 +308,7 @@ function App() {
     }
 
     cargarCarrito();
+    recargarPedidos();
     navigate("/");
   };
 
@@ -359,6 +372,7 @@ function App() {
     olvidarCharlaPit();
     setFavoritos([]);
     setAvisosStock([]);
+    limpiarPedidos();
     navigate("/");
   };
 
@@ -553,9 +567,15 @@ function App() {
 
     onPerfil: () => navigate("/perfil"),
 
+    // «Mi cuenta» (/cuenta): el menú de la cuenta (en celular, su página).
+    onCuenta: () => navigate("/cuenta"),
+
     onDirecciones: () => navigate("/direcciones"),
 
     onHistorial: () => navigate("/historial"),
+
+    // «Mis compras»: las que están en curso (el ícono de la barra).
+    onPedidos: () => navigate("/pedidos"),
 
     onCerrarSesion: cerrarSesion,
 
@@ -783,6 +803,27 @@ function App() {
           }
         />
 
+        {/* MI CUENTA: el menú (en celular, su propia página), la
+            contraseña y los mails. */}
+
+        <Route path="/cuenta" element={<InicioCuenta {...propsNavbar} />} />
+
+        <Route
+          path="/seguridad"
+          element={usuario ? <Seguridad {...propsNavbar} /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/notificaciones"
+          element={
+            usuario ? (
+              <Notificaciones {...propsNavbar} onActualizarUsuario={actualizarUsuario} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
         {/* DIRECCIONES */}
 
         <Route
@@ -807,7 +848,13 @@ function App() {
           }
         />
 
-        {/* HISTORIAL DE COMPRAS */}
+        {/* MIS COMPRAS: las que están en curso (el ícono de la barra) y
+            el detalle de cada una; las anteriores, en /historial. */}
+
+        <Route path="/pedidos" element={<MisPedidos {...propsNavbar} />} />
+        <Route path="/pedidos/:id" element={<MisPedidos {...propsNavbar} />} />
+
+        {/* MIS COMPRAS › ANTERIORES (las que ya terminaron) */}
 
         <Route
           path="/historial"

@@ -9,18 +9,19 @@ La base tiene que estar preparada con las migraciones (`alembic upgrade
 head`): el seed carga datos, no crea ni cambia tablas, y si la base no está
 al día no corre.
 
-Se puede correr las veces que haga falta, también dos a la vez: agrega solo
+Se puede correr las veces que haga falta, también dos a la vez: agrega
 lo que falta (modelos de auto, repuestos y compatibilidades nuevas, por
 ejemplo de una marca agregada) y actualiza los repuestos que ya existen
 (por su código) con lo que cambió en parts.json (nombre, descripción,
 especificaciones y garantía), sin tocar precios, stock, pedidos, carritos
-ni favoritos.
+ni favoritos. También elimina compatibilidades obsoletas de los códigos
+que están en parts.json, sin borrar productos ni datos transaccionales.
 """
 
 import json
 from pathlib import Path
 
-from sqlalchemy import insert, text
+from sqlalchemy import delete, insert, text, tuple_
 from sqlalchemy.dialects import postgresql, sqlite
 
 from app.db.migrations import require_head
@@ -166,11 +167,43 @@ def add_missing_catalog(db, car_models_data, parts_data):
     return len(new_models), added_parts
 
 
+
+def remove_obsolete_compatibilities(db, car_models_data, parts_data):
+    """Sincroniza las asociaciones de los repuestos administrados por parts.json.
+
+    Solo borra filas de compatibility; nunca Part, OrderItem, Cart ni Favorite.
+    Usa la misma transacción y bloqueo que la inserción previa.
+    """
+    codes = {p["part_code"] for p in parts_data}
+    ids = dict(db.query(Part.part_code, Part.id).filter(Part.part_code.in_(codes))) if codes else {}
+    models = {
+        (m.brand, m.model, m.engine_code): m.id for m in db.query(CarModel)
+    }
+    wanted = {
+        (ids[p["part_code"]], models[(c["brand"], c["model"], c["engine_code"])])
+        for p in parts_data for c in p["compatibilities"]
+    }
+    managed_ids = set(ids.values())
+    stale = [
+        (part_id, model_id)
+        for part_id, model_id in db.query(Compatibility.part_id, Compatibility.car_model_id)
+        if part_id in managed_ids and (part_id, model_id) not in wanted
+    ]
+    # 2 parámetros por fila; lotes cortos para cumplir el límite de SQLite.
+    for start in range(0, len(stale), 400):
+        db.execute(delete(Compatibility).where(
+            tuple_(Compatibility.part_id, Compatibility.car_model_id).in_(stale[start:start + 400])
+        ))
+    db.flush()
+    return len(stale)
+
+
 def seed_catalog(db, car_models_data, parts_data):
-    """Agrega lo que falta y actualiza los detalles, en una sola transacción."""
+    """Agrega, actualiza detalles y elimina asociaciones obsoletas atómicamente."""
     try:
         added = add_missing_catalog(db, car_models_data, parts_data)
         updated = update_details(db, parts_data)
+        remove_obsolete_compatibilities(db, car_models_data, parts_data)
         db.commit()
     except Exception:
         db.rollback()

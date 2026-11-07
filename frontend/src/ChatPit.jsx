@@ -379,11 +379,11 @@ function TarjetaRepuesto({ producto, onAgregar, onDetalle }) {
         <img onError={usarImagenGenerica} src={producto.imagen} alt="" className="w-full h-full object-contain p-2" />
       </button>
       <div className="p-3 flex flex-col flex-1">
-        <p className="text-[11px] font-black uppercase text-orange-700">{producto.fabricante}</p>
+        <p className="text-xs font-black uppercase text-orange-700">{producto.fabricante}</p>
         <p className="text-sm font-bold leading-snug mt-0.5">{producto.nombre}</p>
         <div className="mt-auto pt-2 flex items-baseline justify-between gap-2">
           <span className="text-base font-black">{precio(producto.precio)}</span>
-          <span className={`text-[11px] font-bold ${conStock ? "text-green-700" : "text-red-600"}`}>
+          <span className={`text-xs font-bold ${conStock ? "text-green-700" : "text-red-600"}`}>
             {conStock ? `${producto.stock} en stock` : "Sin stock"}
           </span>
         </div>
@@ -392,7 +392,7 @@ function TarjetaRepuesto({ producto, onAgregar, onDetalle }) {
           onClick={() => onAgregar(producto)}
           disabled={!conStock}
           aria-label={`Agregar ${producto.nombre} al carrito`}
-          className="mt-2 h-9 rounded-lg bg-[#151719] hover:bg-black disabled:bg-gray-200 disabled:text-gray-500 text-white text-xs font-black"
+          className="mt-2 h-9 rounded-lg bg-[#151719] hover:bg-black disabled:bg-gray-200 disabled:text-gray-500 text-white text-sm font-bold"
         >
           Agregar
         </button>

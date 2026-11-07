@@ -306,3 +306,28 @@ def get_order(
         )
 
     return build_order_detail_out(order)
+
+
+@router.post("/{order_id}/recibido", response_model=OrderDetailOut)
+def confirm_received(
+    order_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client),
+):
+    """«Ya lo recibí»: el cliente confirma que le llegó un pedido enviado.
+    Pasa a «Entregado» y le llega el mail de la entrega."""
+    order = crud_order.get_order_for_client(db, order_id, client.user_id)
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pedido no encontrado.",
+        )
+    if not crud_order.confirm_received(db, order):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Solo se puede confirmar la llegada de un pedido enviado.",
+        )
+
+    notificar_cambio_de_estado(order, background_tasks)
+    return build_order_detail_out(order)

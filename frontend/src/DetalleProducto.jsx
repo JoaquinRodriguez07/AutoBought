@@ -12,6 +12,7 @@ import { IconoAuto } from "./Iconos";
 import { obtenerRepuesto } from "./api";
 import { extraerIdProducto } from "./slugProducto";
 import { esVendedor } from "./auth";
+import { compatibilidadesDe, esCompatible, normalizar } from "./compatibilidad";
 
 function IconoCarrito({ className = "h-4 w-4" }) {
   return (
@@ -30,6 +31,9 @@ function IconoCorazon({ className = "h-5 w-5", relleno = false }) {
     </svg>
   );
 }
+
+// Cuántos autos compatibles se ven antes de "Ver los N autos compatibles".
+const COMPATIBLES_VISIBLES = 6;
 
 export default function DetalleProducto({
   onHome,
@@ -61,6 +65,7 @@ export default function DetalleProducto({
   const [imagenActiva, setImagenActiva] = useState(0);
   const [editandoVehiculo, setEditandoVehiculo] = useState(false);
   const [selectorVehiculoMontado, setSelectorVehiculoMontado] = useState(false);
+  const [verTodosCompatibles, setVerTodosCompatibles] = useState(false);
 
   useEffect(() => {
     if (!idDesdeUrl) return;
@@ -141,80 +146,16 @@ export default function DetalleProducto({
     }
   };
 
-  const normalizar = (valor) => valor?.trim().replace(/\s+/g, " ").toLocaleLowerCase("es") || "";
   const marcaSeleccionada = normalizar(filtrosVehiculo?.brand);
-  const modeloSeleccionado = normalizar(filtrosVehiculo?.model);
-  const anioSeleccionado = filtrosVehiculo?.year ? Number(filtrosVehiculo.year) : null;
   const nombreVehiculo = [filtrosVehiculo?.brand, filtrosVehiculo?.model, filtrosVehiculo?.year].filter(Boolean).join(" ");
-  // La API puede entregar compatibilidades estructuradas o aplicaciones como texto.
-  // Normalizamos ambas formas para que la tarjeta no indique "no disponible"
-  // cuando el producto sí trae aplicaciones registradas.
-  const compatibilidadesEstructuradas = Array.isArray(productoActual.compatibilidades)
-    ? productoActual.compatibilidades
-    : [];
-  const aplicacionesTexto = Array.isArray(productoActual.aplicaciones)
-    ? productoActual.aplicaciones.filter((item) => typeof item === "string" && item.trim())
-    : [];
-  const compatibilidades = compatibilidadesEstructuradas.length
-    ? compatibilidadesEstructuradas.map((item) => ({ ...item, formatoTexto: false }))
-    : aplicacionesTexto.map((texto) => ({ texto: texto.trim(), formatoTexto: true }));
-
-  const compatible = marcaSeleccionada && compatibilidades.length > 0
-    ? (() => {
-        let hayDatosInsuficientes = false;
-
-        for (const compatibilidad of compatibilidades) {
-          if (compatibilidad.formatoTexto) {
-            const aplicacion = normalizar(compatibilidad.texto);
-            const marcaCoincide = aplicacion.includes(marcaSeleccionada);
-            if (!marcaCoincide) continue;
-            if (!modeloSeleccionado) return true;
-            if (!aplicacion.includes(modeloSeleccionado)) continue;
-            if (!anioSeleccionado) return true;
-
-            // En aplicaciones textuales solo afirmamos compatibilidad por año
-            // si el año seleccionado aparece explícitamente en la aplicación.
-            const aniosExplicitos = aplicacion.match(/\b(?:19|20)\d{2}\b/g) || [];
-            if (aniosExplicitos.includes(String(anioSeleccionado))) return true;
-            if (aniosExplicitos.length === 0) hayDatosInsuficientes = true;
-            continue;
-          }
-
-          const marcaAplicacion = normalizar(compatibilidad.brand);
-          if (!marcaAplicacion) {
-            hayDatosInsuficientes = true;
-            continue;
-          }
-          if (marcaAplicacion !== marcaSeleccionada) continue;
-          if (!modeloSeleccionado) return true;
-
-          const modeloAplicacion = normalizar(compatibilidad.model);
-          if (!modeloAplicacion) {
-            hayDatosInsuficientes = true;
-            continue;
-          }
-          if (modeloAplicacion !== modeloSeleccionado) continue;
-          if (!anioSeleccionado) return true;
-
-          if (compatibilidad.year_from == null || compatibilidad.year_to == null) {
-            hayDatosInsuficientes = true;
-            continue;
-          }
-          const anioDesde = Number(compatibilidad.year_from);
-          const anioHasta = Number(compatibilidad.year_to);
-          if (!Number.isFinite(anioDesde) || !Number.isFinite(anioHasta) || anioDesde > anioHasta) {
-            hayDatosInsuficientes = true;
-            continue;
-          }
-          if (anioSeleccionado >= anioDesde && anioSeleccionado <= anioHasta) return true;
-        }
-
-        return hayDatosInsuficientes ? null : false;
-      })()
-    : null;
+  // La regla de compatibilidad vive en compatibilidad.js (la comparte con
+  // "Suelen comprarse juntos").
+  const compatibilidades = compatibilidadesDe(productoActual);
+  const compatible = esCompatible(compatibilidades, filtrosVehiculo);
 
   // El agregado lo hace BotonAgregarCarrito y el aviso, CartContext.
   const sinStock = productoActual.stock === 0;
+
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
@@ -231,8 +172,9 @@ export default function DetalleProducto({
               : []),
             productoActual.nombre,
           ]}
-          titulo={productoActual.nombre}
-          descripcion={productoActual.fabricante}
+          titulo={productoActual.categoria || "Repuestos"}
+          etiquetaTitulo="p"
+          compacto
           fin={
               <div id="vehicle-selection" data-testid="vehicle-selection"
                 data-compatibilidad={compatibilidades.length === 0 ? "no-disponible" : !marcaSeleccionada ? "sin-vehiculo" : compatible === null ? "no-verificable" : compatible ? "compatible" : "incompatible"}
@@ -240,7 +182,7 @@ export default function DetalleProducto({
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-orange-400"><IconoAuto className="h-5 w-5" /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-gray-400">Tu vehículo</p>
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Tu vehículo</p>
                     <p className="truncate text-xs font-bold text-white">
                       {filtrosVehiculo?.brand
                         ? [filtrosVehiculo.brand, filtrosVehiculo.model, filtrosVehiculo.year].filter(Boolean).join(" ")
@@ -249,7 +191,7 @@ export default function DetalleProducto({
                   </div>
                   {!editandoVehiculo && (
                     <button type="button" onClick={abrirSelectorVehiculo}
-                      className="shrink-0 text-[11px] font-bold text-orange-400 underline underline-offset-4 hover:text-orange-300">
+                      className="shrink-0 text-xs font-bold text-orange-400 underline underline-offset-4 hover:text-orange-300">
                       {filtrosVehiculo?.brand ? "Cambiar" : "Seleccionar vehículo"}
                     </button>
                   )}
@@ -283,18 +225,17 @@ export default function DetalleProducto({
 
         <section className="bg-gray-50 py-7 md:py-9">
           <div className="max-w-[1200px] mx-auto px-5 md:px-10">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr_0.7fr] gap-7">
-            <div>
+          {/* En celular: foto, nombre, precio y compra, y recién después
+              los detalles (antes había que pasar toda la descripción para
+              llegar al precio). En pantallas grandes, tres columnas. */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.15fr_0.7fr] lg:grid-rows-[auto_1fr] gap-x-7 gap-y-5">
+            <div className="order-1 lg:col-start-1 lg:row-start-1 lg:row-span-2">
+              {/* El favorito va una sola vez: en el botón debajo de
+                  "Agregar al carrito", no también sobre la foto. */}
               <div className="relative h-[360px] bg-white rounded-xl overflow-hidden border border-gray-100">
                 <img onError={usarImagenGenerica} src={imagenes[imagenActiva] ?? imagenes[0]} alt={productoActual.nombre} className="w-full h-full object-contain p-6" />
-                {!vendedor && (
-                <button onClick={() => onAlternarFavorito(productoActual)}
-                  className={`absolute top-4 right-4 flex w-10 h-10 items-center justify-center bg-white rounded-full shadow-md ${favorito ? "text-orange-500" : "text-gray-500"}`}>
-                  <IconoCorazon className="h-5 w-5" relleno={favorito} />
-                </button>
-                )}
               </div>
-              <p className="text-[10px] text-gray-400 mt-2">Imagen ilustrativa.</p>
+              <p className="text-xs text-gray-400 mt-2">Imagen ilustrativa.</p>
               {imagenes.length > 1 && (
                 <div className="flex items-center gap-3 mt-3">
                   {imagenes.map((imagen, index) => (
@@ -308,11 +249,20 @@ export default function DetalleProducto({
               )}
             </div>
 
-            <div>
-              {/* El fabricante y el nombre se presentan en el encabezado. */}
+            <div className="order-2 lg:col-start-2 lg:row-start-1">
+              {/* El fabricante y el nombre, al lado de la foto y en tamaño
+                  normal (como en cualquier tienda): en la franja de arriba
+                  los nombres largos se leían mal. */}
               <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-                <p className="text-[10px] font-bold text-gray-500">Código: <span className="font-black text-gray-800">{productoActual.codigo}</span></p>
-                <div className="mt-5 border-t border-gray-100 pt-5">
+                <p className="text-xs font-black uppercase tracking-wide text-orange-500">{productoActual.fabricante}</p>
+                <h1 className="mt-1 text-2xl font-black leading-tight text-gray-900">{productoActual.nombre}</h1>
+                <p className="mt-2 text-xs font-bold text-gray-500">Código: <span className="font-black text-gray-800">{productoActual.codigo}</span></p>
+              </div>
+            </div>
+
+            <div className="order-4 lg:col-start-2 lg:row-start-2">
+              <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div>
                   <h2 className="text-sm font-black text-gray-900">Descripción</h2>
                   <p className="mt-2 text-xs leading-relaxed text-gray-600">
                     {productoActual.descripcion || "Este repuesto todavía no tiene una descripción cargada."}
@@ -365,14 +315,14 @@ export default function DetalleProducto({
 
             </div>
 
-            <div>
+            <div className="order-3 lg:col-start-3 lg:row-start-1 lg:row-span-2">
               <div className="h-fit rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
                 <p className="text-3xl font-black text-orange-500">${productoActual.precio.toLocaleString("es-UY")}</p>
                 {sinStock ? (
                   <p className="mt-2 text-xs">
                     <span className="font-bold text-red-500">Sin stock</span>
                     {!vendedor && (
-                      <BotonAvisoStock producto={productoActual} tieneAviso={tieneAvisoStock(productoActual.partId)} onAlternarAviso={onAlternarAvisoStock} className="ml-3 text-[10px]" />
+                      <BotonAvisoStock producto={productoActual} tieneAviso={tieneAvisoStock(productoActual.partId)} onAlternarAviso={onAlternarAvisoStock} className="ml-3 text-xs" />
                     )}
                   </p>
                 ) : (
@@ -389,16 +339,16 @@ export default function DetalleProducto({
                   <BotonAgregarCarrito
                     producto={productoActual}
                     cantidad={cantidad}
-                    textoSinStock="SIN STOCK"
+                    textoSinStock="Sin stock"
                     onTerminar={() => setCantidad(1)}
-                    className="h-10 min-w-0 flex-1 inline-flex items-center justify-center gap-1.5 rounded-md px-2 text-[10px] font-black"
+                    className="h-10 min-w-0 flex-1 inline-flex items-center justify-center gap-1.5 rounded-md px-3 text-sm font-bold whitespace-nowrap"
                   >
-                    <IconoCarrito className="h-3.5 w-3.5" />AGREGAR AL CARRITO
+                    <IconoCarrito className="h-4 w-4" />Agregar al carrito
                   </BotonAgregarCarrito>
                 </div>
                 <button onClick={() => onAlternarFavorito(productoActual)}
-                  className={`mt-3 h-10 w-full rounded-md border text-[10px] font-bold ${favorito ? "border-orange-500 text-orange-500" : "border-gray-200 text-gray-600"}`}>
-                  <span className="inline-flex items-center justify-center gap-1.5"><IconoCorazon className="h-3.5 w-3.5" relleno={favorito} />{favorito ? "Agregado a favoritos" : "Agregar a favoritos"}</span>
+                  className={`mt-3 h-10 w-full rounded-md border text-sm font-bold transition ${favorito ? "border-orange-500 text-orange-500" : "border-gray-200 text-gray-600 hover:border-orange-500 hover:text-orange-500"}`}>
+                  <span className="inline-flex items-center justify-center gap-1.5"><IconoCorazon className="h-4 w-4" relleno={favorito} />{favorito ? "Guardado en favoritos" : "Agregar a favoritos"}</span>
                 </button>
                 </>
                 )}
@@ -418,7 +368,9 @@ export default function DetalleProducto({
                 {!compatibilidades.length && <p className="mt-3 text-xs text-gray-600">La información de compatibilidad no está disponible.</p>}
                 {compatibilidades.length > 0 && (
                   <div className="mt-3 min-w-0 space-y-2">
-                    {compatibilidades.map((item, index) => {
+                    {/* Un repuesto genérico (un aceite) le sirve a decenas de
+                        autos: se ven los primeros y el resto, a pedido. */}
+                    {(verTodosCompatibles ? compatibilidades : compatibilidades.slice(0, COMPATIBLES_VISIBLES)).map((item, index) => {
                       if (item.formatoTexto) {
                         const texto = item.texto;
                         const aniosEncontrados = texto.match(/\b(?:19|20)\d{2}\b/g) || [];
@@ -430,7 +382,7 @@ export default function DetalleProducto({
                         return <div key={`${item.texto}-${index}`} className="rounded-lg border border-gray-200 px-3 py-2">
                           <p className="text-xs font-black text-gray-900">{nombreAuto}</p>
                           {(motorEncontrado || aniosEncontrados.length > 0) && (
-                            <p className="mt-1 text-[10px] leading-relaxed text-gray-600">
+                            <p className="mt-1 text-xs leading-relaxed text-gray-600">
                               {motorEncontrado && <>Motor: {motorEncontrado[0].trim()}</>}
                               {motorEncontrado && aniosEncontrados.length > 0 && " · "}
                               {aniosEncontrados.length === 1 && <>Año: {aniosEncontrados[0]}</>}
@@ -445,7 +397,7 @@ export default function DetalleProducto({
                       return <div key={`${item.brand}-${item.model}-${index}`} className="min-w-0 rounded-lg border border-gray-200 px-3 py-2">
                         <p className="text-xs font-black text-gray-900">{[item.brand, item.model].filter(Boolean).join(" ") || "Vehículo sin identificar"}</p>
                         {(item.engine_code || years) && (
-                          <p className="mt-1 text-[10px] leading-relaxed text-gray-600">
+                          <p className="mt-1 text-xs leading-relaxed text-gray-600">
                             {item.engine_code && <>Motor: {item.engine_code}</>}
                             {item.engine_code && years && " · "}
                             {years}
@@ -453,6 +405,16 @@ export default function DetalleProducto({
                         )}
                       </div>;
                     })}
+                    {compatibilidades.length > COMPATIBLES_VISIBLES && (
+                      <button
+                        type="button"
+                        onClick={() => setVerTodosCompatibles((ver) => !ver)}
+                        aria-expanded={verTodosCompatibles}
+                        className="w-full pt-1 text-xs font-bold text-orange-600 hover:underline underline-offset-4"
+                      >
+                        {verTodosCompatibles ? "Ver menos" : `Ver los ${compatibilidades.length} autos compatibles`}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

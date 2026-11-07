@@ -52,7 +52,7 @@ describe("RecuperarPassword", () => {
     const user = userEvent.setup();
     render(<RecuperarPassword onVolverAlLogin={jest.fn()} />);
 
-    await user.click(screen.getByRole("button", { name: "ENVIAR ENLACE" }));
+    await user.click(screen.getByRole("button", { name: "Enviar enlace" }));
 
     expect(screen.getByText("Ingresá tu correo electrónico.")).toBeInTheDocument();
     expect(pedirRecuperacion).not.toHaveBeenCalled();
@@ -66,11 +66,11 @@ describe("RecuperarPassword", () => {
     render(<RecuperarPassword onVolverAlLogin={jest.fn()} />);
 
     await user.type(screen.getByLabelText("CORREO ELECTRÓNICO"), " ana@example.com ");
-    await user.click(screen.getByRole("button", { name: "ENVIAR ENLACE" }));
+    await user.click(screen.getByRole("button", { name: "Enviar enlace" }));
 
     expect(pedirRecuperacion).toHaveBeenCalledWith("ana@example.com");
     expect(await screen.findByRole("status")).toHaveTextContent("Si el correo está registrado");
-    expect(screen.queryByRole("button", { name: "ENVIAR ENLACE" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enviar enlace" })).not.toBeInTheDocument();
   });
 
   it("muestra el error si no se pudo pedir y permite volver al login", async () => {
@@ -80,7 +80,7 @@ describe("RecuperarPassword", () => {
     render(<RecuperarPassword onVolverAlLogin={onVolverAlLogin} />);
 
     await user.type(screen.getByLabelText("CORREO ELECTRÓNICO"), "ana@example.com");
-    await user.click(screen.getByRole("button", { name: "ENVIAR ENLACE" }));
+    await user.click(screen.getByRole("button", { name: "Enviar enlace" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos conectar con el servidor.");
 
     await user.click(screen.getByRole("button", { name: "Volver a iniciar sesión" }));
@@ -97,7 +97,7 @@ describe("RestablecerPassword", () => {
     enRuta(<RestablecerPassword {...p} />, "/restablecer-password", "/restablecer-password");
 
     expect(screen.getByRole("alert")).toHaveTextContent(ENLACE_INVALIDO);
-    await user.click(screen.getByRole("button", { name: "PEDIR OTRO ENLACE" }));
+    await user.click(screen.getByRole("button", { name: "Pedir otro enlace" }));
     expect(p.onPedirOtroEnlace).toHaveBeenCalled();
   });
 
@@ -107,7 +107,7 @@ describe("RestablecerPassword", () => {
 
     await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "corta");
     await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "otra");
-    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+    await user.click(screen.getByRole("button", { name: "Guardar contraseña" }));
 
     expect(screen.getByText("La contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
     expect(screen.getByText("Las contraseñas no coinciden.")).toBeInTheDocument();
@@ -122,11 +122,11 @@ describe("RestablecerPassword", () => {
 
     await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "Nueva2026x");
     await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "Nueva2026x");
-    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+    await user.click(screen.getByRole("button", { name: "Guardar contraseña" }));
 
     expect(restablecerPassword).toHaveBeenCalledWith("tok-mail", "Nueva2026x");
     expect(await screen.findByRole("status")).toHaveTextContent("ya podés iniciar sesión");
-    await user.click(screen.getByRole("button", { name: "INICIAR SESIÓN" }));
+    await user.click(screen.getByRole("button", { name: "Iniciar sesión" }));
     expect(p.onIniciarSesion).toHaveBeenCalled();
   });
 
@@ -137,11 +137,11 @@ describe("RestablecerPassword", () => {
 
     await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "Nueva2026x");
     await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "Nueva2026x");
-    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+    await user.click(screen.getByRole("button", { name: "Guardar contraseña" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(ENLACE_INVALIDO);
     expect(screen.queryByLabelText("NUEVA CONTRASEÑA")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "PEDIR OTRO ENLACE" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pedir otro enlace" })).toBeInTheDocument();
   });
 
   it("si la contraseña no sirve, se puede corregir sin pedir otro enlace", async () => {
@@ -151,7 +151,7 @@ describe("RestablecerPassword", () => {
 
     await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), "lucia2026x");
     await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), "lucia2026x");
-    await user.click(screen.getByRole("button", { name: "GUARDAR CONTRASEÑA" }));
+    await user.click(screen.getByRole("button", { name: "Guardar contraseña" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("no puede contener tu correo");
     expect(screen.getByLabelText("NUEVA CONTRASEÑA")).toBeInTheDocument();
@@ -176,7 +176,7 @@ describe("VerificarCorreo", () => {
     expect(verificarCorreo).toHaveBeenCalledWith("tok-mail");
     expect(onVerificado).toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "IR A LA TIENDA" }));
+    await user.click(screen.getByRole("button", { name: "Ir a la tienda" }));
     expect(onIrALaTienda).toHaveBeenCalled();
   });
 
@@ -224,7 +224,7 @@ describe("AvisoVerificarCorreo", () => {
     reenviarVerificacion.mockResolvedValue();
     render(<AvisoVerificarCorreo usuario={sinVerificar} />);
 
-    await user.click(screen.getByRole("button", { name: "REENVIAR MAIL" }));
+    await user.click(screen.getByRole("button", { name: "Reenviar mail" }));
 
     expect(reenviarVerificacion).toHaveBeenCalled();
     expect(await screen.findByText("Listo, te lo reenviamos.")).toBeInTheDocument();
@@ -235,11 +235,11 @@ describe("AvisoVerificarCorreo", () => {
     reenviarVerificacion.mockRejectedValue(new Error("No pudimos reenviar el mail."));
     render(<AvisoVerificarCorreo usuario={sinVerificar} />);
 
-    await user.click(screen.getByRole("button", { name: "REENVIAR MAIL" }));
+    await user.click(screen.getByRole("button", { name: "Reenviar mail" }));
 
     expect(await screen.findByText("No pudimos reenviar el mail.")).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "REENVIAR MAIL" })).toBeEnabled()
+      expect(screen.getByRole("button", { name: "Reenviar mail" })).toBeEnabled()
     );
   });
 
@@ -296,7 +296,7 @@ describe("AvisoVerificarCorreo", () => {
       await waitFor(() => expect(obtenerPerfil).toHaveBeenCalledTimes(1));
 
       obtenerPerfil.mockResolvedValue({ emailVerificado: true });
-      await user.click(screen.getByRole("button", { name: "REENVIAR MAIL" }));
+      await user.click(screen.getByRole("button", { name: "Reenviar mail" }));
 
       await waitFor(() => expect(onVerificado).toHaveBeenCalled());
       expect(reenviarVerificacion).not.toHaveBeenCalled();
