@@ -399,3 +399,28 @@ def test_si_el_cambio_falla_no_hay_aviso(client, mails):
     })
 
     assert mails == []
+
+
+# =====================================================
+# Límite de mails de cuenta
+# =====================================================
+
+
+def test_la_recuperacion_deja_de_mandar_mails_al_llegar_al_limite(client, mails):
+    registrar(client)
+    mails.clear()
+
+    respuestas = [client.post(FORGOT, json={"email": CORREO}) for _ in range(7)]
+
+    # La respuesta no cambia (no revela nada), pero salen como mucho 5 mails.
+    assert {r.status_code for r in respuestas} == {202}
+    assert len(mails) == 5
+
+
+def test_reenviar_la_verificacion_tiene_limite(client, mails):
+    headers = registrar(client)
+
+    codigos = [client.post(RESEND, headers=headers).status_code for _ in range(6)]
+
+    assert codigos[:5] == [204] * 5
+    assert codigos[5] == 429

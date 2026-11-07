@@ -141,6 +141,7 @@ export default function Catalogo({
     setBusqueda(consulta);
     // Solo cuando se navega: los filtros que el cliente cambia después
     // a mano no se pisan.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [claveNavegacion]);
 
   const [precioMin, setPrecioMin] = useState("");

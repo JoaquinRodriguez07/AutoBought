@@ -149,7 +149,8 @@ def test_registra_cada_consulta_con_sus_tokens(db_session):
 
     usos = db_session.query(UsoIA).order_by(UsoIA.uso_ia_id).all()
     assert [(u.funcionalidad, u.tokens, u.ok) for u in usos] == [("asistente", 120, True), ("asistente", 0, False)]
-    assert consultas_recientes(db_session, cliente.user_id) == 2
+    # Las consultas que fallaron (la IA no respondió) no cuentan para el límite.
+    assert consultas_recientes(db_session, cliente.user_id) == 1
 
 
 def test_supera_el_limite_responde_429(db_session):

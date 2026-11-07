@@ -47,20 +47,29 @@ export function avisarSesionInvalida(tokenEnviado) {
 }
 
 export async function login(email, password) {
-  const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new Error("No pudimos conectar con el servidor.");
+  }
 
-  const data = await response.json();
+  const data = await leerJson(response);
 
   if (!response.ok) {
     const mensaje =
-      typeof data.detail === "string"
+      data !== SIN_JSON && typeof data?.detail === "string"
         ? data.detail
         : "Correo electrónico o contraseña incorrectos.";
     throw new Error(mensaje);
+  }
+
+  if (data === SIN_JSON) {
+    throw new Error("No pudimos leer la respuesta del servidor.");
   }
 
   return data;
@@ -607,6 +616,20 @@ export async function obtenerCategorias() {
   );
 
   return listaDe(data, "categories", mensajeError).map(mapearCategoria);
+}
+
+/**
+ * GET /api/v1/parts/manufacturers: los fabricantes con repuestos, del que
+ * más tiene al que menos, con el mismo shape `{ nombre, cantidad }`.
+ */
+export async function obtenerFabricantes() {
+  const mensajeError = "No pudimos cargar los fabricantes.";
+  const data = await pedirJson(
+    `${API_BASE_URL}/api/v1/parts/manufacturers`,
+    mensajeError
+  );
+
+  return listaDe(data, "manufacturers", mensajeError).map(mapearCategoria);
 }
 
 /**

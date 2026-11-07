@@ -230,15 +230,6 @@ export function Opciones({ etiqueta, valor, onCambiar, opciones }) {
   );
 }
 
-export function TituloSeccion({ children, detalle }) {
-  return (
-    <div className="mb-4 max-w-2xl">
-      <h2 className="text-[15px] font-semibold">{children}</h2>
-      {detalle && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{detalle}</p>}
-    </div>
-  );
-}
-
 // Ventana modal del dashboard. El contenido se monta al abrirla, así cada
 // vez arranca con el formulario limpio.
 export function Dialogo({ abierto, onCambiar, titulo, descripcion, ancho = "sm:max-w-[640px]", children }) {

@@ -3,10 +3,11 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import MAX_INTENTOS_FALLIDOS, VENTANA_INTENTOS_MINUTOS
 from app.models.auth_attempt import AuthAttempt
 
-MAX_FAILED_ATTEMPTS = 5
-ATTEMPT_WINDOW = timedelta(minutes=15)
+MAX_FAILED_ATTEMPTS = MAX_INTENTOS_FALLIDOS
+ATTEMPT_WINDOW = timedelta(minutes=VENTANA_INTENTOS_MINUTOS)
 
 
 def _now() -> datetime:
@@ -79,6 +80,18 @@ def register_failure(db: Session, email: str, now: datetime | None = None) -> bo
 
     db.commit()
     return row.blocked_until is not None and _aware(row.blocked_until) > now
+
+
+def puede_mandar_mail(db: Session, tipo: str, email: str) -> bool:
+    """Límite de mails de cuenta (recuperar contraseña, reenviar la
+    verificación) por correo: como mucho MAX_FAILED_ATTEMPTS dentro de la
+    ventana. Usa la misma tabla que el login, con otra clave, así que no
+    se mezcla con los intentos de contraseña. Si se puede, lo anota."""
+    clave = f"mail:{tipo}:{email}"
+    if is_blocked(db, clave):
+        return False
+    register_failure(db, clave)
+    return True
 
 
 def clear_failures(db: Session, email: str) -> None:
