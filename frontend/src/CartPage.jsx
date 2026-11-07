@@ -24,7 +24,7 @@ export default function CartPage({
   const totalFinal = subtotal + shipping;
 
   const price = (rawValue) => `$${rawValue.toLocaleString("es-UY")}`;
-  const units = products.reduce((suma, p) => suma + p.quantity, 0);
+  const units = products.reduce((sum, p) => sum + p.quantity, 0);
 
   const [confirmationOpen, setConfirmationOpen] = useState(false);
   const [sending, setSending] = useState(false);

@@ -45,7 +45,7 @@ export default function AddToCartButton({
     timer.current = setTimeout(() => setStatus("ready"), ADDED_DURATION_MS);
   };
 
-  const colores = withoutStock
+  const colors = withoutStock
     ? "bg-gray-200 text-gray-400 cursor-not-allowed"
     : estado === "added"
       ? "bg-green-600 text-white"
@@ -53,10 +53,10 @@ export default function AddToCartButton({
         ? "bg-orange-400 text-white cursor-wait"
         : "bg-orange-500 hover:bg-orange-600 text-white";
 
-  let contenido = children;
-  if (withoutStock) contenido = textWithoutStock;
-  else if (estado === "adding") contenido = "Agregando…";
-  else if (estado === "added") contenido = <><CheckIcon />Agregado</>;
+  let content = children;
+  if (withoutStock) content = textWithoutStock;
+  else if (estado === "adding") content = "Agregando…";
+  else if (estado === "added") content = <><CheckIcon />Agregado</>;
 
   return (
     <button
@@ -64,9 +64,9 @@ export default function AddToCartButton({
       onClick={add}
       disabled={withoutStock || estado === "adding"}
       aria-busy={estado === "adding"}
-      className={`transition ${colores} ${className}`}
+      className={`transition ${colors} ${className}`}
     >
-      {contenido}
+      {content}
     </button>
   );
 }

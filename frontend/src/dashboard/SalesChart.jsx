@@ -29,10 +29,10 @@ function ChangeText({ current, previous, formatear }) {
   );
 }
 
-function Tooltip({ active, payload, metrica }) {
+function Tooltip({ active, payload, metric }) {
   if (!active || !payload?.length) return null;
   const punto = payload[0].payload;
-  const { formatear, displayName } = METRICS[metrica];
+  const { formatear, displayName } = METRICS[metric];
 
   return (
     <div className="grid gap-1 rounded-lg border bg-background px-3 py-2 text-xs shadow-xl">
@@ -77,14 +77,14 @@ function Legend({ children, simbolo }) {
   );
 }
 
-export default function SalesChart({ months, forecast, metrica = "units", title }) {
-  const withForecast = Boolean(forecast) && metrica === "units";
-  const { formatear, displayName } = METRICS[metrica];
+export default function SalesChart({ months, forecast, metric = "units", title }) {
+  const withForecast = Boolean(forecast) && metric === "units";
+  const { formatear, displayName } = METRICS[metric];
 
   const info = months.map((month, i) => ({
     ...month,
-    real: month[metrica],
-    previous: i > 0 ? months[i - 1][metrica] : undefined,
+    real: month[metric],
+    previous: i > 0 ? months[i - 1][metric] : undefined,
     // La línea punteada sale del último mes real hacia el proyectado.
     projected: withForecast && i === months.length - 1 ? month.units : null,
   }));
@@ -117,14 +117,14 @@ export default function SalesChart({ months, forecast, metrica = "units", title 
             minTickGap={16}
           />
           <YAxis
-            tickFormatter={(rawValue) => (metrica === "revenue" ? formatPesos(rawValue) : formatNumber(rawValue))}
+            tickFormatter={(rawValue) => (metric === "revenue" ? formatPesos(rawValue) : formatNumber(rawValue))}
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            width={metrica === "revenue" ? 84 : 44}
+            width={metric === "revenue" ? 84 : 44}
             allowDecimals={false}
           />
-          <ChartTooltip content={<Tooltip metrica={metrica} />} cursor={{ stroke: "var(--muted-foreground)", strokeWidth: 1 }} />
+          <ChartTooltip content={<Tooltip metric={metric} />} cursor={{ stroke: "var(--muted-foreground)", strokeWidth: 1 }} />
           {/* Solo el relleno debajo de la línea real: los datos los dibuja la Line. */}
           <Area
             type="linear"

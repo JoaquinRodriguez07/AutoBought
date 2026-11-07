@@ -104,7 +104,7 @@ describe("HistorialCompras (Mis compras › Anteriores)", () => {
         number: "1234",
         apartamento: "",
         city: "Montevideo",
-        departamento: "Montevideo",
+        department: "Montevideo",
       },
       paymentMethod: "Visa •••• 1234",
       items: [{ partId: 1, displayName: "Pastillas de freno", quantity: 2, price: 900 }],

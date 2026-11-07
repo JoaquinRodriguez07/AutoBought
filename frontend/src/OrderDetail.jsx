@@ -91,7 +91,7 @@ function Timeline({ purchase }) {
 
 function addressText(d) {
   const apartamento = d.apartamento ? ` apto ${d.apartamento}` : "";
-  return `${d.street} ${d.number}${apartamento}, ${d.city}, ${d.departamento}`;
+  return `${d.street} ${d.number}${apartamento}, ${d.city}, ${d.department}`;
 }
 
 const primaryButton =

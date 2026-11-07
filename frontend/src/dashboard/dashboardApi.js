@@ -275,7 +275,7 @@ function mapSellerOrder(p) {
       number: p.shipping_address.number,
       apartamento: p.shipping_address.apartment ?? null,
       city: p.shipping_address.city,
-      departamento: p.shipping_address.department,
+      department: p.shipping_address.department,
       codePostal: p.shipping_address.postal_code ?? null,
     },
     items: p.items.map((item) => ({
@@ -348,7 +348,7 @@ export async function updateOrder(id, { shipping, internalNote } = {}) {
       number: shipping.number,
       apartment: shipping.apartamento || null,
       city: shipping.city,
-      department: shipping.departamento,
+      department: shipping.department,
       postal_code: shipping.codePostal || null,
     };
   }

@@ -30,7 +30,7 @@ export default function PageHeader({
   fin,
   children,
   ancho = "max-w-[1100px]",
-  compacto = false,
+  compact = false,
   titleLabel: Title = "h1",
 }) {
   return (
@@ -44,7 +44,7 @@ export default function PageHeader({
       />
       <div className="absolute inset-0 bg-linear-to-r from-[#151719] via-[#151719]/85 to-[#151719]/40" />
 
-      <div className={`relative px-5 md:px-10 pt-[104px] ${compacto ? "pb-6" : "pb-10"}`}>
+      <div className={`relative px-5 md:px-10 pt-[104px] ${compact ? "pb-6" : "pb-10"}`}>
       <div className={`${ancho} mx-auto`}>
 
         <nav aria-label="Estás en" className="text-xs text-gray-400">
@@ -74,7 +74,7 @@ export default function PageHeader({
           <div className="flex items-center gap-4 min-w-0">
             {home}
             <div className="min-w-0">
-              <Title className={`text-white font-black italic uppercase leading-none ${compacto ? "text-2xl md:text-3xl" : "text-3xl md:text-4xl"}`}>
+              <Title className={`text-white font-black italic uppercase leading-none ${compact ? "text-2xl md:text-3xl" : "text-3xl md:text-4xl"}`}>
                 {title}
               </Title>
               {description && (

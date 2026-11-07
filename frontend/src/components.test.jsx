@@ -160,7 +160,7 @@ const product = {
   stock: 5,
   specifications: [["Material", "Semi-metalico"]],
   fitments: ["Volkswagen Gol"],
-  garantia: "6 meses",
+  warranty: "6 meses",
 };
 
 const catalogProducts = [
@@ -2817,7 +2817,7 @@ describe("Direcciones ante un 401", () => {
   const error401 = () => Object.assign(new Error("Tu sesión venció. Iniciá sesión de nuevo."), { status: 401 });
   const shippingAddress = {
     id: 1, displayName: "Casa", street: "Av. Italia", number: "1234", apartamento: "",
-    city: "Montevideo", departamento: "Montevideo", codePostal: "", primary: false,
+    city: "Montevideo", department: "Montevideo", codePostal: "", primary: false,
   };
   const deleteValue = async (user) => {
     await user.click(await screen.findByRole("button", { name: "Eliminar la dirección Casa" }));
@@ -3387,20 +3387,20 @@ describe("Direcciones", () => {
     expect(await screen.findByText("Todavía no tenés direcciones guardadas.")).toBeInTheDocument();
     expect(createAddress).toHaveBeenCalledWith(expect.objectContaining({
       displayName: "Casa",
-      departamento: "Montevideo",
+      department: "Montevideo",
     }));
     expect(deleteAddressApi).toHaveBeenCalledWith(1);
   });
 
   const completeAddress = async (user, d = {}) => {
-    const info = { displayName: "Casa", city: "Montevideo", street: "Av. Italia", number: "1234", departamento: "Montevideo", ...d };
+    const info = { displayName: "Casa", city: "Montevideo", street: "Av. Italia", number: "1234", department: "Montevideo", ...d };
     await user.click(await screen.findByRole("button", { name: /agregar dirección/i }));
     if (info.displayName) await user.type(screen.getByPlaceholderText("Ej: Casa"), info.displayName);
     if (info.city) await user.type(screen.getByPlaceholderText("Ej: Montevideo"), info.city);
     if (info.street) await user.type(screen.getByPlaceholderText("Ej: Av. Italia"), info.street);
     if (info.number) await user.type(screen.getByPlaceholderText("Ej: 1234 o S/N"), info.number);
     if (info.codePostal) await user.type(screen.getByPlaceholderText("Opcional (ej: 11300)"), info.codePostal);
-    if (info.departamento) await user.selectOptions(screen.getByRole("combobox"), info.departamento);
+    if (info.department) await user.selectOptions(screen.getByRole("combobox"), info.department);
     await user.click(screen.getByRole("button", { name: /guardar dirección/i }));
   };
 
@@ -3408,7 +3408,7 @@ describe("Direcciones", () => {
     const user = userEvent.setup();
     render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
 
-    await completeAddress(user, { displayName: "", city: "", street: "", number: "", departamento: "" });
+    await completeAddress(user, { displayName: "", city: "", street: "", number: "", department: "" });
 
     expect(screen.getByText("Poné un nombre para la dirección (ej: Casa).")).toBeInTheDocument();
     expect(screen.getByText("La calle no puede estar vacía.")).toBeInTheDocument();
@@ -3419,7 +3419,7 @@ describe("Direcciones", () => {
   });
 
   it.each([
-    ["a city of another department", { city: "Montevideo", departamento: "Artigas" }, "Montevideo no está en el departamento de Artigas."],
+    ["a city of another department", { city: "Montevideo", department: "Artigas" }, "Montevideo no está en el departamento de Artigas."],
     ["a door number with letters only", { number: "abc" }, "Ingresá un número de puerta válido (ej: 1234, 1234B, 1234 bis o S/N)."],
     ["a street without letters", { street: "1234" }, "Ingresá un nombre de calle válido (ej: Av. Italia, 18 de Julio)."],
     ["a postal code that is not 5 digits", { codePostal: "113" }, "El código postal tiene que tener 5 dígitos."],
@@ -3482,7 +3482,7 @@ describe("Direcciones", () => {
   it("can cancel deleting an address", async () => {
     const user = userEvent.setup();
     getAddresses.mockResolvedValue([
-      { id: 1, displayName: "Casa", street: "A", number: "1", city: "MVD", departamento: "MVD", primary: true },
+      { id: 1, displayName: "Casa", street: "A", number: "1", city: "MVD", department: "MVD", primary: true },
     ]);
     render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
 
@@ -3498,8 +3498,8 @@ describe("Direcciones", () => {
     const user = userEvent.setup();
     const onProfile = jest.fn();
     let savedAddresses = [
-      { id: 1, displayName: "Casa", street: "A", number: "1", city: "MVD", departamento: "MVD", primary: true },
-      { id: 2, displayName: "Oficina", street: "B", number: "2", city: "MVD", departamento: "MVD", primary: false },
+      { id: 1, displayName: "Casa", street: "A", number: "1", city: "MVD", department: "MVD", primary: true },
+      { id: 2, displayName: "Oficina", street: "B", number: "2", city: "MVD", department: "MVD", primary: false },
     ];
     getAddresses.mockImplementation(() => Promise.resolve(savedAddresses));
     setPrimaryAddress.mockImplementation(async (id) => {

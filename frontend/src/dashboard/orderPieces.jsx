@@ -211,7 +211,7 @@ function EditShippingContent({ pedido, onSaved }) {
   const [info, setData] = useState(() =>
     Object.fromEntries([
       ...SHIPPING_FIELDS.map(([key, , shippingField]) => [key, pedido.shipping[shippingField] ?? ""]),
-      ["departamento", pedido.shipping.departamento],
+      ["department", pedido.shipping.department],
     ])
   );
   const [errors, setErrors] = useState({});
@@ -232,7 +232,7 @@ function EditShippingContent({ pedido, onSaved }) {
         number: clean(info.number),
         apartamento: clean(info.apartamento) || null,
         city: clean(info.city),
-        departamento: info.departamento,
+        department: info.department,
         codePostal: clean(info.codePostal) || null,
       };
       onSaved(await updateOrder(pedido.id, { shipping }));
@@ -268,17 +268,17 @@ function EditShippingContent({ pedido, onSaved }) {
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_7rem_7rem] gap-3">{SHIPPING_FIELDS.slice(1, 4).map(field)}</div>
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_9rem] gap-3">
         {field(SHIPPING_FIELDS[4])}
-        <FormField id="envio-departamento" label="Departamento" error={errors.departamento}>
+        <FormField id="envio-departamento" label="Departamento" error={errors.department}>
           <NativeSelect
             id="envio-departamento"
-            value={info.departamento}
-            onChange={(event) => setData((current) => ({ ...current, departamento: event.target.value }))}
-            aria-invalid={Boolean(errors.departamento)}
+            value={info.department}
+            onChange={(event) => setData((current) => ({ ...current, department: event.target.value }))}
+            aria-invalid={Boolean(errors.department)}
             className="w-full *:h-10"
           >
-            {DEPARTMENTS.map((departamento) => (
-              <NativeSelectOption key={departamento} value={departamento}>
-                {departamento}
+            {DEPARTMENTS.map((department) => (
+              <NativeSelectOption key={department} value={department}>
+                {department}
               </NativeSelectOption>
             ))}
           </NativeSelect>

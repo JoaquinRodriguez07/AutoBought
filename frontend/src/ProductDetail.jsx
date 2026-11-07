@@ -176,7 +176,7 @@ export default function ProductDetail({
           ]}
           title={currentProduct.categoria || "Repuestos"}
           titleLabel="p"
-          compacto
+          compact
           fin={
               <div id="vehicle-selection" data-testid="vehicle-selection"
                 data-compatibilidad={compatibilidades.length === 0 ? "no-disponible" : !selectedBrand ? "sin-vehiculo" : compatible === null ? "no-verificable" : compatible ? "compatible" : "incompatible"}

@@ -24,26 +24,26 @@ function Figure({ title, rawValue, details, featured = false }) {
 // viene en el mismo gráfico (HU 5.5). La proyección es en unidades. La
 // consulta la hace el Dashboard (también arma los indicadores del resumen).
 // `compacto`: sin la explicación de la proyección, para el resumen.
-export default function SalesTrend({ filters, queryState, compacto = false }) {
-  const [metrica, setMetrica] = useState("units");
-  const alcance = [filters.categoria, filters.search && `«${filters.search}»`].filter(Boolean).join(" · ");
+export default function SalesTrend({ filters, queryState, compact = false }) {
+  const [metric, setMetric] = useState("units");
+  const scope = [filters.categoria, filters.search && `«${filters.search}»`].filter(Boolean).join(" · ");
 
   return (
     <QueryState queryState={queryState}>
       {({ months, forecast }) => {
-        const formatear = metrica === "revenue" ? formatPesos : formatNumber;
-        const total = months.reduce((suma, month) => suma + month[metrica], 0);
-        const mejor = months.reduce((max, month) => (month[metrica] > (max?.[metrica] ?? -1) ? month : max), null);
+        const formatear = metric === "revenue" ? formatPesos : formatNumber;
+        const total = months.reduce((sum, month) => sum + month[metric], 0);
+        const best = months.reduce((max, month) => (month[metric] > (max?.[metric] ?? -1) ? month : max), null);
         return (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <p className="text-xs text-muted-foreground">
-                {alcance || "Toda la tienda"}. No cuentan los pedidos cancelados.
+                {scope || "Toda la tienda"}. No cuentan los pedidos cancelados.
               </p>
               <Options
                 label="Qué mostrar"
-                rawValue={metrica}
-                onChange={setMetrica}
+                rawValue={metric}
+                onChange={setMetric}
                 opciones={[
                   ["units", "Unidades"],
                   ["revenue", "Facturación"],
@@ -54,8 +54,8 @@ export default function SalesTrend({ filters, queryState, compacto = false }) {
             {months.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
                 <Figure title="Total del período" rawValue={formatear(total)} details="Incluye el mes en curso hasta hoy" />
-                <Figure title="Mejor mes" rawValue={formatear(mejor[metrica])} details={formatMonth(mejor.month, { long: true })} />
-                {metrica === "units" && (
+                <Figure title="Mejor mes" rawValue={formatear(best[metric])} details={formatMonth(best.month, { long: true })} />
+                {metric === "units" && (
                   <Figure
                     title="Se espera el mes que viene"
                     rawValue={formatNumber(forecast.units)}
@@ -69,11 +69,11 @@ export default function SalesTrend({ filters, queryState, compacto = false }) {
             <SalesChart
               months={months}
               forecast={forecast}
-              metrica={metrica}
+              metric={metric}
               title={`Evolución de ventas de los últimos ${filters.months} meses`}
             />
 
-            {!compacto && (
+            {!compact && (
               <p className="mt-3 text-xs text-muted-foreground">
                 Demanda proyectada para {formatMonth(forecast.month, { long: true })}:{" "}
                 <strong className="text-foreground">{formatNumber(forecast.units)} unidades</strong>. Es una

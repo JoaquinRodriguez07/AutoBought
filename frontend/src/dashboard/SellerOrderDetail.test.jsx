@@ -26,7 +26,7 @@ const pedido = (extra = {}) => ({
     number: "1234",
     apartamento: "301",
     city: "Montevideo",
-    departamento: "Montevideo",
+    department: "Montevideo",
     codePostal: "11300",
   },
   items: [
@@ -244,7 +244,7 @@ describe("editar la dirección de envío", () => {
         number: "1234",
         apartamento: null,
         city: "Pando",
-        departamento: "Canelones",
+        department: "Canelones",
         codePostal: "11300",
       },
     });

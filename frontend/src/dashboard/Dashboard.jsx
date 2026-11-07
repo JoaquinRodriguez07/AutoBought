@@ -310,7 +310,7 @@ function Overview({ filters, stock, alertas, sales, version, onView, onDetail, o
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel title={`Ventas · últimos ${filters.months} meses`} id="titulo-ventas-resumen" className="min-w-0">
-            <SalesTrend filters={filters} queryState={sales} compacto />
+            <SalesTrend filters={filters} queryState={sales} compact />
           </Panel>
           <Panel
             title="Lo que más se vende"

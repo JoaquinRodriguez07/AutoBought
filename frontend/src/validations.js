@@ -163,12 +163,12 @@ export function validateAddress(f) {
   }
 
   let departmentError = null;
-  if (!f.departamento) departmentError = "Seleccioná un departamento.";
+  if (!f.department) departmentError = "Seleccioná un departamento.";
   else {
     const other = DEPARTMENTS.find(
-      (d) => d !== f.departamento && normalizeText(d) === normalizeText(city)
+      (d) => d !== f.department && normalizeText(d) === normalizeText(city)
     );
-    if (other) departmentError = `${city} no está en el departamento de ${f.departamento}.`;
+    if (other) departmentError = `${city} no está en el departamento de ${f.department}.`;
   }
 
   return onlyErrors({
@@ -191,7 +191,7 @@ export function validateAddress(f) {
       : CITY.test(city) && letterCount(city) >= 2
         ? null
         : "Ingresá un nombre de ciudad válido.",
-    departamento: departmentError,
+    department: departmentError,
     codePostal: !codePostal || POSTAL_CODE.test(codePostal)
       ? null
       : "El código postal tiene que tener 5 dígitos.",

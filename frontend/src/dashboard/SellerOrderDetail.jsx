@@ -110,7 +110,7 @@ function Shipping({ shipping, customer, onEdit }) {
         <DataItem title={`Dirección${shipping.addressName ? ` («${shipping.addressName}»)` : ""}`}>
           {streetText(shipping)}
           <span className="block">
-            {shipping.city}, {shipping.departamento}
+            {shipping.city}, {shipping.department}
             {shipping.codePostal ? ` · CP ${shipping.codePostal}` : ""}
           </span>
         </DataItem>

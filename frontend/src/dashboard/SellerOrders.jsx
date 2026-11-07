@@ -96,7 +96,7 @@ export default function SellerOrders({ initialStatus = "all", onCambio, onDetail
   return (
     <QueryState queryState={queryState}>
       {({ orders, total, byStatus }) => {
-        const all = Object.values(byStatus).reduce((suma, n) => suma + n, 0);
+        const all = Object.values(byStatus).reduce((sum, n) => sum + n, 0);
         return (
           <div className="flex flex-col gap-4">
             <section

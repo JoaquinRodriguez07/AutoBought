@@ -71,9 +71,9 @@ export default function PitChat({
     contenedor.scrollTop = ancla ? ancla.offsetTop - 16 : contenedor.scrollHeight;
   }, [last, thinking]);
 
-  const submit = (contenido) => {
-    if (contenido.trim().length < 3 || thinking) return;
-    send(contenido);
+  const submit = (content) => {
+    if (content.trim().length < 3 || thinking) return;
+    send(content);
     setText("");
   };
 
@@ -311,7 +311,7 @@ function PitAnswer({ message, ancla, vehicleName, onAdd, onAddAll, onDetail, onS
   const forAddAll = response.recomendaciones
     .map((recomendacion) => recomendacion.repuestos.find((product) => product.stock > 0))
     .filter(Boolean);
-  const totalAll = forAddAll.reduce((suma, product) => suma + Number(product.price || 0), 0);
+  const totalAll = forAddAll.reduce((sum, product) => sum + Number(product.price || 0), 0);
 
   return (
     <PitBubble ancla={ancla} className="self-stretch max-w-none flex flex-col gap-3">

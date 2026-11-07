@@ -36,7 +36,7 @@ describe("validatePassword", () => {
 describe("validateAddress", () => {
   const shippingAddress = {
     displayName: "Casa", street: "18 de Julio", number: "1234 bis", apartamento: "3B",
-    city: "Montevideo", departamento: "Montevideo", codePostal: "11200",
+    city: "Montevideo", department: "Montevideo", codePostal: "11200",
   };
 
   it("accepts a valid address, and S/N as door number", () => {
@@ -45,7 +45,7 @@ describe("validateAddress", () => {
   });
 
   it("rejects a city named as another department, ignoring accents and case", () => {
-    expect(validateAddress({ ...shippingAddress, city: "PAYSANDU", departamento: "Artigas" }).departamento).toBe(
+    expect(validateAddress({ ...shippingAddress, city: "PAYSANDU", department: "Artigas" }).department).toBe(
       "PAYSANDU no está en el departamento de Artigas."
     );
   });

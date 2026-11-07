@@ -48,7 +48,7 @@ describe("mapPart", () => {
       ],
       description: "Pastillas de freno Brembo, para Chevrolet Onix.",
       specifications: [["Material", "Cerámico"], ["Espesor", "17 mm"]],
-      garantia: "12 meses de garantía del fabricante (Brembo), por defectos de fabricación.",
+      warranty: "12 meses de garantía del fabricante (Brembo), por defectos de fabricación.",
       monthsWarranty: 12,
       warrantyProvider: "fabricante",
       fitments: ["Chevrolet Onix 1.4 8V (2013–2019)", "Volkswagen Gol 1.6 MSI (2020)"],
@@ -74,7 +74,7 @@ describe("mapPart", () => {
       compatibilidades: [],
       description: "",
       specifications: [],
-      garantia: "",
+      warranty: "",
       monthsWarranty: null,
       warrantyProvider: null,
       fitments: [],
@@ -85,7 +85,7 @@ describe("mapPart", () => {
 
   it("says when the warranty is covered by the store instead of the manufacturer", () => {
     expect(
-      mapPart({ id: 1, manufacturer: "Fram", warranty_months: 6, warranty_provider: "vendedor" }).garantia
+      mapPart({ id: 1, manufacturer: "Fram", warranty_months: 6, warranty_provider: "vendedor" }).warranty
     ).toBe("6 meses de garantía del vendedor (AutoBought), por defectos de fabricación.");
   });
 });

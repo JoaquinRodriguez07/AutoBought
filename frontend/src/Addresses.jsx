@@ -21,7 +21,7 @@ const API_FIELDS = {
   number: "number",
   apartment: "apartamento",
   city: "city",
-  department: "departamento",
+  department: "department",
   postal_code: "codePostal",
 };
 
@@ -34,7 +34,7 @@ const EMPTY_FORM = {
   number: "",
   apartamento: "",
   city: "",
-  departamento: "",
+  department: "",
   codePostal: "",
   primary: false,
 };
@@ -70,7 +70,7 @@ export default function Addresses(navigation) {
     setErrors((actuales) => ({
       ...actuales,
       [name]: undefined,
-      ...(name === "city" ? { departamento: undefined } : {}),
+      ...(name === "city" ? { department: undefined } : {}),
     }));
     setErrorForm("");
   };
@@ -205,12 +205,12 @@ export default function Addresses(navigation) {
               <input {...propsInput("city")} placeholder="Ej: Montevideo" maxLength={50} autoComplete="address-level2" />
             )}
 
-            {field("departamento", "DEPARTAMENTO *", "md:col-span-3",
-              <select {...propsInput("departamento")}>
+            {field("department", "DEPARTAMENTO *", "md:col-span-3",
+              <select {...propsInput("department")}>
                 <option value="">Seleccioná un departamento</option>
-                {DEPARTMENTS.map((departamento) => (
-                  <option key={departamento} value={departamento}>
-                    {departamento}
+                {DEPARTMENTS.map((department) => (
+                  <option key={department} value={department}>
+                    {department}
                   </option>
                 ))}
               </select>
@@ -343,7 +343,7 @@ export default function Addresses(navigation) {
                     {shippingAddress.apartamento && `, apto. ${shippingAddress.apartamento}`}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {shippingAddress.city}, {shippingAddress.departamento}
+                    {shippingAddress.city}, {shippingAddress.department}
                     {shippingAddress.codePostal && ` · CP ${shippingAddress.codePostal}`}
                   </p>
                 </div>

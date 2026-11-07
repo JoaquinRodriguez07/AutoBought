@@ -39,7 +39,7 @@ const itemCart = (partId, displayName, price, quantity, stock = 10) => ({
 
 const shippingAddress = (id, street, primary) => ({
   id, displayName: "Ana", street, number: "1234", apartamento: "", city: "Montevideo",
-  departamento: "Montevideo", codePostal: "", primary,
+  department: "Montevideo", codePostal: "", primary,
 });
 const LINK_MP = "https://mercadopago.test/checkout/pref-1";
 
@@ -47,11 +47,11 @@ const pads = itemCart(1, "Pastillas de freno", 1000, 2);
 const filter = itemCart(2, "Filtro de aire", 3000, 1);
 
 function withCart(cart, loadCart = jest.fn().mockResolvedValue(undefined)) {
-  const total = cart.reduce((suma, item) => suma + item.price * item.quantity, 0);
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   useCart.mockReturnValue({
     cart,
     total,
-    cartQuantity: cart.reduce((suma, item) => suma + item.quantity, 0),
+    cartQuantity: cart.reduce((sum, item) => sum + item.quantity, 0),
     updateQuantity: jest.fn(),
     removeFromCart: jest.fn(),
     clearCart: jest.fn(),

@@ -52,7 +52,7 @@ export default function AccountLayout({
       <main>
 
         <PageHeader
-          compacto
+          compact
           migas={
             migas ??
             (inHome

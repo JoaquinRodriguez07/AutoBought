@@ -99,11 +99,11 @@ export function InDevelopment() {
 
 // Subió o bajó contra el período anterior. `mejor`: si subir es bueno
 // (ventas) o malo; define el verde o el rojo.
-export function Change({ percentage, texto, mejor = "subir" }) {
+export function Change({ percentage, texto, best = "subir" }) {
   if (percentage === null || percentage === undefined) return null;
   const sube = percentage > 0;
   const igual = percentage === 0;
-  const bueno = igual ? null : sube === (mejor === "subir");
+  const bueno = igual ? null : sube === (best === "subir");
   const Arrow = igual ? MinusIcon : sube ? ArrowUpRightIcon : ArrowDownRightIcon;
   return (
     <span
@@ -125,7 +125,7 @@ export function Change({ percentage, texto, mejor = "subir" }) {
 // Con `onClick`, toda la tarjeta es un botón (por ejemplo, para ver la
 // lista de lo que cuenta) y lo dice con `accion`.
 export function Metric({ title, rawValue, details, cambio, Icon, onClick, action }) {
-  const contenido = (
+  const content = (
     <div
       className={cn(
         "flex h-full flex-col rounded-xl border bg-card p-4 sm:p-5 shadow-xs transition",
@@ -156,10 +156,10 @@ export function Metric({ title, rawValue, details, cambio, Icon, onClick, action
     </div>
   );
 
-  if (!onClick) return contenido;
+  if (!onClick) return content;
   return (
     <button type="button" onClick={onClick} className="group block h-full w-full text-left rounded-xl focus-visible:outline-2 focus-visible:outline-orange-500">
-      {contenido}
+      {content}
     </button>
   );
 }

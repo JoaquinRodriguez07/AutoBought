@@ -77,7 +77,7 @@ const uiPart = {
   models: [],
   description: "",
   specifications: [],
-  garantia: "",
+  warranty: "",
   monthsWarranty: null,
   warrantyProvider: null,
   compatibilidades: [],
@@ -845,7 +845,7 @@ describe("address API", () => {
     number: "1234",
     apartamento: "",
     city: "Montevideo",
-    departamento: "Montevideo",
+    department: "Montevideo",
     codePostal: "",
     primary: true,
   };
@@ -864,7 +864,7 @@ describe("address API", () => {
       number: "1234",
       apartamento: "",
       city: "Montevideo",
-      departamento: "Montevideo",
+      department: "Montevideo",
       codePostal: "",
       primary: true,
     })).resolves.toEqual(uiAddress);

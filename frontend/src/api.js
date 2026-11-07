@@ -336,14 +336,14 @@ export async function changePassword(current, newPassword) {
 
 // POST sin sesión que solo importa si salió bien: devuelve el JSON (o
 // null) y, si falla, tira un Error con el `detail` del backend.
-async function postAccount(route, cuerpo, messageByDefecto, headers = {}) {
+async function postAccount(route, requestBody, messageByDefecto, headers = {}) {
   let response;
 
   try {
     response = await fetch(`${API_BASE_URL}/api/v1/auth/${route}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...headers },
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+      body: requestBody === undefined ? undefined : JSON.stringify(requestBody),
     });
   } catch {
     throw new Error("No pudimos conectar con el servidor.");
@@ -961,7 +961,7 @@ function mapAddress(d) {
     number: d.number,
     apartamento: d.apartment ?? "",
     city: d.city,
-    departamento: d.department,
+    department: d.department,
     codePostal: d.postal_code ?? "",
     primary: d.is_primary,
   };
@@ -983,7 +983,7 @@ export async function createAddress(f) {
       number: f.number,
       apartment: f.apartamento || null,
       city: f.city,
-      department: f.departamento,
+      department: f.department,
       postal_code: f.codePostal || null,
       is_primary: Boolean(f.primary),
     }),
@@ -1216,15 +1216,15 @@ const ASSISTANT_STATUS_MESSAGES = {
  * firmó y rechaza cualquier cambio (400).
  */
 export async function askAssistant({ texto, marca, modelo, anio, historial = [], firma = null }) {
-  const cuerpo = { texto, marca, modelo, anio: Number(anio) };
+  const requestBody = { texto, marca, modelo, anio: Number(anio) };
   if (historial.length > 0) {
-    cuerpo.historial = historial;
-    cuerpo.firma = firma;
+    requestBody.historial = historial;
+    requestBody.firma = firma;
   }
 
   const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/asistente`,
-    { method: "POST", body: JSON.stringify(cuerpo) },
+    { method: "POST", body: JSON.stringify(requestBody) },
     ASSISTANT_STATUS_MESSAGES,
     "No pudimos consultar al asistente."
   );

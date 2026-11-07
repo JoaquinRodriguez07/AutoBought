@@ -121,7 +121,7 @@ export function mapPart(part) {
     models: Array.isArray(part.compatible_models) ? part.compatible_models : [],
     description: part.description ?? "",
     specifications: Array.isArray(part.specifications) ? part.specifications : [],
-    garantia: warrantyText(part.warranty_months, part.warranty_provider, part.manufacturer),
+    warranty: warrantyText(part.warranty_months, part.warranty_provider, part.manufacturer),
     monthsWarranty: part.warranty_months ?? null,
     warrantyProvider: part.warranty_provider ?? null,
     // Conservar la estructura de API para validar compatibilidad en el
