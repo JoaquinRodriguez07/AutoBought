@@ -221,7 +221,7 @@ def print_report(report):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("accion", choices=["check", "completar", "stamp"])
+    parser.add_argument("action_name", metavar="accion", choices=["check", "completar", "stamp"])
     parser.add_argument(
         "--permitir-sobrantes",
         action="store_true",
