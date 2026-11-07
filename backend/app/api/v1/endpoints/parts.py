@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.crud import text_search
@@ -25,9 +25,15 @@ from app.schemas.part import (
 
 router = APIRouter(prefix="/parts", tags=["parts"])
 
+# El catálogo completo tarda en armarse. Vercel guarda la respuesta 1 minuto
+# y, pasado ese tiempo, sigue mostrando la guardada mientras pide una nueva.
+# El stock puede verse con hasta un minuto de atraso; al pagar se valida el real.
+CATALOG_CACHE = "public, s-maxage=60, stale-while-revalidate=300"
+
 
 @router.get("", response_model=PartsResponse)
 def list_parts(
+    response: Response,
     brand: str | None = Query(default=None),
     model: str | None = Query(default=None),
     year: int | None = Query(default=None),
@@ -65,6 +71,7 @@ def list_parts(
     ),
     db: Session = Depends(get_db),
 ):
+    response.headers["Cache-Control"] = CATALOG_CACHE
     # Antes de mostrar el stock, se libera el de los pedidos vencidos.
     cancel_expired_orders(db)
     category_filter = categoria or category
