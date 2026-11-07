@@ -200,6 +200,9 @@ export default function DetallePedido({ compra, onVolver, textoVolver, onActuali
       {canceladoPorLaTienda(compra) && (
         <div className="bg-white border border-gray-200 rounded-xl p-5 mb-6">
           <p className="text-sm font-black text-gray-900">La tienda canceló este pedido</p>
+          {compra.detalleCancelacion && (
+            <p className="text-sm text-gray-600 mt-1">Motivo: {compra.detalleCancelacion}</p>
+          )}
           <p className="text-sm text-gray-600 mt-1">
             Si ya lo habías pagado, te devolvemos el dinero. El reintegro puede tardar unos días en verse.
           </p>

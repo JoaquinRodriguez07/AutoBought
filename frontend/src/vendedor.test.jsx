@@ -53,6 +53,7 @@ jest.mock("./dashboard/apiDashboard", () => ({
     Promise.resolve({ meses: [], proyeccion: { mes: "2026-11", unidades: 0 } })
   ),
   obtenerMasVendidos: jest.fn(() => Promise.resolve([])),
+  obtenerPedidos: jest.fn(() => Promise.resolve({ pedidos: [], total: 0, porEstado: {}, paraPreparar: 0 })),
   obtenerResumenIA: jest.fn(() => Promise.reject(Object.assign(new Error("No encontrado"), { status: 404 }))),
   funcionSinPublicar: (error) => error?.status === 404,
 }));
@@ -137,6 +138,12 @@ const rutaActual = () => screen.getByTestId("ruta-actual").textContent;
 // suite corre en paralelo.
 beforeAll(() => import("./dashboard/Dashboard"));
 
+// Aun con el módulo cargado, el primer dibujo del dashboard completo tarda en
+// jsdom ~0,9 s (y ~2 s con la suite en paralelo y cobertura, como en CI): el
+// segundo que espera findByRole por defecto no alcanza.
+const esperarDashboard = () =>
+  screen.findByRole("heading", { level: 1, name: "Resumen" }, { timeout: 4000 });
+
 beforeEach(() => {
   obtenerRepuestos.mockResolvedValue([]);
   obtenerCategorias.mockResolvedValue([]);
@@ -194,7 +201,7 @@ describe("login según el tipo de usuario", () => {
   it("sends a seller to the dashboard without asking for the client profile, cart or favorites", async () => {
     await iniciarSesion("employee");
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
+    expect(await esperarDashboard()).toBeInTheDocument();
     expect(rutaActual()).toBe("/dashboard");
     expectSinPedidosDeCliente();
 
@@ -211,7 +218,7 @@ describe("login según el tipo de usuario", () => {
 
     await iniciarSesion("employee");
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
+    expect(await esperarDashboard()).toBeInTheDocument();
     expect(rutaActual()).toBe("/dashboard");
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
   });
@@ -310,7 +317,7 @@ describe("App con sesión de vendedor", () => {
   it("greets the seller in the dashboard, in its own portal, with the data from the API", async () => {
     renderApp("/dashboard");
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
+    expect(await esperarDashboard()).toBeInTheDocument();
     expect(screen.getByText(/Hola, vendedor\./)).toBeInTheDocument();
     expect(await screen.findByText("No hay repuestos que requieran reposición")).toBeInTheDocument();
     expect(obtenerStock).toHaveBeenCalled();
@@ -365,7 +372,7 @@ describe("App con sesión de vendedor", () => {
   ])("redirects the client route %s to the dashboard", async (ruta) => {
     renderApp(ruta);
 
-    expect(await screen.findByRole("heading", { level: 1, name: "Resumen" })).toBeInTheDocument();
+    expect(await esperarDashboard()).toBeInTheDocument();
     expect(rutaActual()).toBe("/dashboard");
     expectSinPedidosDeCliente();
   });

@@ -34,6 +34,13 @@ class ClienteMPFalso:
         self.pagos: dict[str, PagoMP] = {}
         self.error: Exception | None = None
         self.consultadas: list[str] = []
+        # (id del pago, clave de idempotencia) de cada devolución pedida.
+        self.devoluciones: list[tuple[str, str]] = []
+
+    def devolver_pago(self, pago_id: str, clave_idempotencia: str) -> None:
+        if self.error:
+            raise self.error
+        self.devoluciones.append((pago_id, clave_idempotencia))
 
     def crear_preferencia(self, preferencia: dict) -> tuple[str, str]:
         if self.error:

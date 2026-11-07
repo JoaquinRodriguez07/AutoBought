@@ -49,6 +49,7 @@ import DarseDeBaja from "./DarseDeBaja";
 // vendedor: un cliente nunca baja ese código.
 const Dashboard = lazy(() => import("./dashboard/Dashboard"));
 const DetalleRepuestoVendedor = lazy(() => import("./dashboard/DetalleRepuestoVendedor"));
+const DetallePedidoVendedor = lazy(() => import("./dashboard/DetallePedidoVendedor"));
 
 const cargandoDashboard = (
   <p className="pt-[140px] text-center text-sm text-gray-400">Cargando dashboard…</p>
@@ -824,6 +825,14 @@ function App() {
           element={
             <Suspense fallback={cargandoDashboard}>
               <DetalleRepuestoVendedor {...propsNavbar} usuario={usuario} />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/dashboard/pedidos/:id"
+          element={
+            <Suspense fallback={cargandoDashboard}>
+              <DetallePedidoVendedor {...propsNavbar} usuario={usuario} />
             </Suspense>
           }
         />

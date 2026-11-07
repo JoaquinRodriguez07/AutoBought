@@ -26,8 +26,10 @@ function renderFormulario(props = {}) {
 async function completar(user, campos) {
   for (const [etiqueta, valor] of Object.entries(campos)) {
     const campo = screen.getByLabelText(etiqueta);
+    // Pega el valor entero: tipearlo tecla por tecla redibuja el formulario
+    // en cada letra y, con la suite en paralelo, el test pasaba los 5 s.
     await user.clear(campo);
-    await user.type(campo, valor);
+    await user.paste(valor);
   }
 }
 

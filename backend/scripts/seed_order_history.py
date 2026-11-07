@@ -254,8 +254,10 @@ def _estado(creado: date, hasta: date, rng: random.Random) -> OrderStatus:
     if rng.random() < 0.03:
         return OrderStatus.CANCELLED
     dias = (hasta - creado).days
-    if dias <= 3:
+    if dias <= 1:
         return OrderStatus.CONFIRMED
+    if dias <= 3:
+        return OrderStatus.PACKING
     if dias <= 10:
         return OrderStatus.SHIPPED
     return OrderStatus.DELIVERED

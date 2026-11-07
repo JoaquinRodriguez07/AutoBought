@@ -12,6 +12,7 @@ import {
   funcionSinPublicar,
   obtenerEvolucionVentas,
   obtenerMasVendidos,
+  obtenerPedidos,
   obtenerProyeccionDemanda,
   obtenerResumenIA,
   obtenerRiesgoAgotamiento,
@@ -82,6 +83,8 @@ beforeEach(() => {
     )
   );
   obtenerEvolucionVentas.mockResolvedValue(evolucion);
+  // La sección de pedidos tiene sus propios tests (PedidosVendedor.test.jsx).
+  obtenerPedidos.mockResolvedValue({ pedidos: [], total: 0, porEstado: {}, paraPreparar: 3 });
   obtenerMasVendidos.mockResolvedValue([
     { ...repuesto(2, { nombre: "Discos Fremax" }), unidadesVendidas: 120 },
     { ...repuesto(1, { nombre: "Pastillas Bosch" }), unidadesVendidas: 80 },
@@ -99,6 +102,10 @@ afterEach(() => {
 
 function DetalleFalso() {
   return <p>Detalle del repuesto {useParams().id}</p>;
+}
+
+function PedidoFalso() {
+  return <p>Detalle del pedido {useParams().id}</p>;
 }
 
 function renderDashboard(ruta = "/dashboard", usuario = { email: "vendedor@example.com" }) {
@@ -162,6 +169,54 @@ describe("acceso y datos del sistema (HU 5.1)", () => {
     renderDashboard();
 
     expect(await within(menu()).findByRole("button", { name: /^Reposición\s*:\s*2$/ })).toBeInTheDocument();
+  });
+
+  it("lists on Resumen the paid orders waiting to be prepared, and opens one's detail", async () => {
+    const user = userEvent.setup();
+    obtenerPedidos.mockResolvedValue({
+      pedidos: [
+        {
+          id: 77,
+          fecha: "2026-11-05T14:30:00Z",
+          total: 3000,
+          cliente: { nombre: "Ana Pérez", email: "ana@example.com" },
+          items: [{ nombre: "Pastillas Bosch", cantidad: 2 }],
+        },
+      ],
+      total: 4,
+      porEstado: { confirmed: 4 },
+      paraPreparar: 4,
+    });
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard usuario={{ email: "vendedor@example.com" }} />} />
+          <Route path="/dashboard/pedidos/:id" element={<PedidoFalso />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const lista = await screen.findByRole("list", { name: "Pedidos para preparar" });
+    expect(lista).toHaveTextContent("#77 · Ana Pérez");
+    expect(lista).toHaveTextContent("Pastillas Bosch · 2 u.");
+    expect(screen.getByText("Y 3 más esperando.")).toBeInTheDocument();
+    expect(obtenerPedidos).toHaveBeenCalledWith({ estado: "confirmed", soloPagados: true, limite: 5 });
+
+    await user.click(within(lista).getByRole("button", { name: "Ver el detalle del pedido #77 de Ana Pérez" }));
+    expect(screen.getByText("Detalle del pedido 77")).toBeInTheDocument();
+  });
+
+  it("shows next to Pedidos in the menu how many paid orders are waiting to be prepared", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const pedidos = await within(menu()).findByRole("button", { name: /^Pedidos\s*:\s*3$/ });
+    await user.click(pedidos);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Pedidos" })).toBeInTheDocument();
+    // Los pedidos se filtran por estado, no por categoría ni búsqueda.
+    expect(screen.queryByRole("button", { name: "Últimos 3 meses" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Todavía no hay pedidos.")).toBeInTheDocument();
   });
 });
 

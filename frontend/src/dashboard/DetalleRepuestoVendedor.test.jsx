@@ -150,3 +150,17 @@ it("goes back to the dashboard keeping the filters", async () => {
 
   expect(screen.getByTestId("ruta")).toHaveTextContent("/dashboard?categoria=Frenos&periodo=3");
 });
+
+it("shows the photo of the part, as the client sees it in the store", async () => {
+  const user = userEvent.setup();
+  renderDetalle();
+
+  const foto = await screen.findByRole("img", { name: "Foto de Pastillas de freno Bosch" });
+  expect(foto).toHaveAttribute("src", "/repuestos/pastillas-freno.webp");
+
+  await user.click(screen.getByRole("button", { name: "Ver foto 2" }));
+  expect(screen.getByRole("img", { name: "Foto de Pastillas de freno Bosch" })).toHaveAttribute(
+    "src",
+    "/repuestos/pastillas-freno-vista.webp"
+  );
+});

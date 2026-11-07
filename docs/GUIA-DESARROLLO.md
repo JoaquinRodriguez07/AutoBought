@@ -39,6 +39,8 @@ Las responsabilidades quedan separadas:
 | `0002` part_code único | Agrega `UNIQUE (part_code)` en `part` (`uq_part_part_code`). Si hay códigos repetidos, falla sin tocar nada y los lista. |
 | `0003` seguimiento del pedido | Agrega el estado «Empaquetando» (`packing`) y la tabla `order_status_history` con cada cambio de estado. |
 | `0004` equipo de vendedores | Agrega `is_admin` y `active` a `employee`. El vendedor más antiguo pasa a ser administrador. |
+| `0005` motivo de cancelación | Agrega `order.cancellation_reason`: el texto con el que el vendedor explica la cancelación (va en el mail al cliente). |
+| `0006` nota interna | Agrega `order.internal_note`: una nota del pedido que solo ve la tienda. |
 
 ### `DATABASE_URL`
 

@@ -1068,6 +1068,8 @@ function mapearPedido(p) {
     estadoPago: p.payment_status ?? null,
     // Hasta cuándo se puede pagar; pasado el plazo el pedido se cancela solo.
     vencePago: p.payment_due_at ?? null,
+    // El texto que escribió la tienda al cancelar (el tipo va en motivoCancelacion).
+    detalleCancelacion: p.cancellation_reason ?? null,
     total: p.total ?? 0,
     // Los estados por los que pasó, del primero al actual. `fecha` es null
     // si no se sabe (pedidos de antes del seguimiento).

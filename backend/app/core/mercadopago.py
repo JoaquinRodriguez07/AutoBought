@@ -1,7 +1,8 @@
 """Cliente de Mercado Pago (Checkout Pro).
 
-Es el único lugar del backend que habla con Mercado Pago, con dos llamadas:
-crear el link de pago de un pedido (preferencia) y consultar un pago. La
+Es el único lugar del backend que habla con Mercado Pago: crear el link de
+pago de un pedido (preferencia), consultar un pago y devolverlo cuando el
+vendedor cancela un pedido pagado. La
 tarjeta se carga en la página de Mercado Pago: nunca pasa por la tienda.
 En los tests se reemplaza por un cliente falso (ver `get_cliente_mp`): el CI
 nunca llama a Mercado Pago.
@@ -47,6 +48,8 @@ class ClienteMercadoPago(Protocol):
 
     def consultar_preferencia(self, preferencia_id: str) -> str: ...
 
+    def devolver_pago(self, pago_id: str, clave_idempotencia: str) -> None: ...
+
 
 class ClienteMercadoPagoHTTP:
     def __init__(
@@ -62,7 +65,7 @@ class ClienteMercadoPagoHTTP:
         # Solo para los tests: un transporte falso en vez de la red.
         self.transport = transport
 
-    def _pedir(self, metodo: str, ruta: str, **kwargs) -> dict:
+    def _pedir(self, metodo: str, ruta: str, headers: dict | None = None, **kwargs) -> dict:
         if not self.token:
             raise MercadoPagoNoDisponible("No hay token de Mercado Pago configurado.")
         try:
@@ -70,7 +73,7 @@ class ClienteMercadoPagoHTTP:
                 respuesta = http.request(
                     metodo,
                     f"{self.url}{ruta}",
-                    headers={"Authorization": f"Bearer {self.token}"},
+                    headers={**(headers or {}), "Authorization": f"Bearer {self.token}"},
                     **kwargs,
                 )
         except httpx.HTTPError as error:
@@ -112,6 +115,17 @@ class ClienteMercadoPagoHTTP:
             estado=cuerpo.get("status") or "",
             referencia=cuerpo.get("external_reference"),
             monto=cuerpo.get("transaction_amount"),
+        )
+
+    def devolver_pago(self, pago_id: str, clave_idempotencia: str) -> None:
+        """Devuelve el total de un pago aprobado. Con la misma clave de
+        idempotencia, Mercado Pago no lo devuelve dos veces aunque se
+        reintente (por ejemplo, si se cortó la conexión antes de la respuesta)."""
+        self._pedir(
+            "POST",
+            f"/v1/payments/{pago_id}/refunds",
+            headers={"X-Idempotency-Key": clave_idempotencia},
+            json={},
         )
 
 
