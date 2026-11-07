@@ -2,15 +2,15 @@ import AccountLayout from "./AccountLayout";
 import MailPreferences from "./MailPreferences";
 
 /** "Notificaciones" (/notificaciones): qué mails recibe el cliente. */
-export default function Notifications({ onActualizarUsuario, ...propsNavbar }) {
+export default function Notifications({ onUpdateUser, ...propsNavbar }) {
   return (
     <AccountLayout
       {...propsNavbar}
-      seccion="notificaciones"
-      titulo="Notificaciones"
-      descripcion="Lo que te mandamos por mail."
+      section="notificaciones"
+      title="Notificaciones"
+      description="Lo que te mandamos por mail."
     >
-      <MailPreferences usuario={propsNavbar.usuario} onActualizarUsuario={onActualizarUsuario} />
+      <MailPreferences sessionUser={propsNavbar.sessionUser} onUpdateUser={onUpdateUser} />
     </AccountLayout>
   );
 }

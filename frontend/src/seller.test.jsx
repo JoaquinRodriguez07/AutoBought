@@ -30,9 +30,9 @@ jest.mock("./api", () => ({
   createAddress: jest.fn(),
   setPrimaryAddress: jest.fn(),
   deleteAddressApi: jest.fn(),
-  crearMetodoPago: jest.fn(),
-  marcarMetodoPagoPrincipal: jest.fn(),
-  eliminarMetodoPagoAPI: jest.fn(),
+  createPaymentMethod: jest.fn(),
+  markMethodPaymentPrimary: jest.fn(),
+  deleteMethodPaymentApi: jest.fn(),
   getRecommendations: jest.fn(),
   getFavorites: jest.fn(),
   getStockAlerts: jest.fn(),
@@ -47,15 +47,15 @@ jest.mock("./api", () => ({
 // El dashboard tiene sus propios tests (dashboard/*.test.jsx): acá alcanza
 // con que responda vacío.
 jest.mock("./dashboard/dashboardApi", () => ({
-  getStock: jest.fn(() => Promise.resolve({ umbralStockBajo: 5, repuestos: [] })),
+  getStock: jest.fn(() => Promise.resolve({ thresholdStockLow: 5, repuestos: [] })),
   getStockoutRisk: jest.fn(() =>
-    Promise.resolve({ mes: "2026-11", umbrales: { alto: 15, medio: 30 }, repuestos: [] })
+    Promise.resolve({ month: "2026-11", umbrales: { high: 15, medium: 30 }, repuestos: [] })
   ),
   getSalesTrend: jest.fn(() =>
-    Promise.resolve({ meses: [], proyeccion: { mes: "2026-11", unidades: 0 } })
+    Promise.resolve({ months: [], forecast: { month: "2026-11", units: 0 } })
   ),
   getBestSellers: jest.fn(() => Promise.resolve([])),
-  getOrders: jest.fn(() => Promise.resolve({ pedidos: [], total: 0, porEstado: {}, paraPreparar: 0 })),
+  getOrders: jest.fn(() => Promise.resolve({ orders: [], total: 0, byStatus: {}, forPrepare: 0 })),
   getAISummary: jest.fn(() => Promise.reject(Object.assign(new Error("No encontrado"), { status: 404 }))),
   unpublishedFeature: (error) => error?.status === 404,
 }));
@@ -99,10 +99,10 @@ import { mapPart } from "./mapPart";
 const HORA = 60 * 60 * 1000;
 const emptyCart = { items: [], total: 0 };
 
-const tokenDe = (tipo) => createToken(Date.now() + HORA, tipo);
+const tokenOf = (tipo) => createToken(Date.now() + HORA, tipo);
 
-const sesionDe = (tipo, extra = {}) => ({
-  token: tokenDe(tipo),
+const sessionOf = (tipo, extra = {}) => ({
+  token: tokenOf(tipo),
   tokenType: "bearer",
   userId: "1",
   userType: tipo,
@@ -110,22 +110,22 @@ const sesionDe = (tipo, extra = {}) => ({
   ...extra,
 });
 
-const guardar = (sesion) =>
-  localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+const save = (session) =>
+  localStorage.setItem("autobought-sesion", JSON.stringify(session));
 
-function RutaActual() {
+function CurrentRoute() {
   const location = useLocation();
   return <p data-testid="ruta-actual">{location.pathname}</p>;
 }
 
-function renderApp(ruta = "/") {
+function renderApp(route = "/") {
   return render(
-    <MemoryRouter initialEntries={[ruta]}>
+    <MemoryRouter initialEntries={[route]}>
       <CartProvider>
         <VehicleProvider>
           <PitProvider>
             <App />
-            <RutaActual />
+            <CurrentRoute />
           </PitProvider>
         </VehicleProvider>
       </CartProvider>
@@ -133,7 +133,7 @@ function renderApp(ruta = "/") {
   );
 }
 
-const rutaActual = () => screen.getByTestId("ruta-actual").textContent;
+const currentRoute = () => screen.getByTestId("ruta-actual").textContent;
 
 // El dashboard se carga diferido (React.lazy). Se importa antes para que el
 // primer test que lo abre no dependa de cuánto tarda en cargarse cuando la
@@ -162,10 +162,10 @@ beforeEach(() => {
   getPurchaseHistory.mockResolvedValue([]);
   getPurchaseDetail.mockResolvedValue({});
   getProfile.mockResolvedValue({
-    nombre: "Ana Gomez",
-    apellido: "",
+    displayName: "Ana Gomez",
+    lastName: "",
     email: "ana@example.com",
-    telefono: "",
+    phone: "",
   });
 });
 
@@ -176,7 +176,7 @@ afterEach(() => {
 });
 
 // Ninguno de estos pedidos le corresponde a un vendedor (responden 403).
-const pedidosDeCliente = () => [
+const ordersCustomer = () => [
   getProfile,
   getCart,
   getFavorites,
@@ -185,14 +185,14 @@ const pedidosDeCliente = () => [
   getPurchaseHistory,
 ];
 
-const expectSinPedidosDeCliente = () => {
-  pedidosDeCliente().forEach((pedido) => expect(pedido).not.toHaveBeenCalled());
+const customerExpectWithoutOrders = () => {
+  ordersCustomer().forEach((pedido) => expect(pedido).not.toHaveBeenCalled());
 };
 
 describe("login según el tipo de usuario", () => {
-  const iniciarSesion = async (tipo) => {
+  const startSession = async (tipo) => {
     const user = userEvent.setup();
-    login.mockResolvedValue({ access_token: tokenDe(tipo), token_type: "bearer" });
+    login.mockResolvedValue({ access_token: tokenOf(tipo), token_type: "bearer" });
 
     renderApp("/login");
     await user.type(screen.getByPlaceholderText("tu@email.com"), "alguien@example.com");
@@ -201,14 +201,14 @@ describe("login según el tipo de usuario", () => {
   };
 
   it("sends a seller to the dashboard without asking for the client profile, cart or favorites", async () => {
-    await iniciarSesion("employee");
+    await startSession("employee");
 
     expect(await esperarDashboard()).toBeInTheDocument();
-    expect(rutaActual()).toBe("/dashboard");
-    expectSinPedidosDeCliente();
+    expect(currentRoute()).toBe("/dashboard");
+    customerExpectWithoutOrders();
 
-    const sesion = JSON.parse(sessionStorage.getItem("autobought-sesion"));
-    expect(sesion).toEqual(
+    const session = JSON.parse(sessionStorage.getItem("autobought-sesion"));
+    expect(session).toEqual(
       expect.objectContaining({ userType: "employee", email: "alguien@example.com" })
     );
   });
@@ -216,19 +216,19 @@ describe("login según el tipo de usuario", () => {
   it("lets a seller in even if an old remembered session is still stored", async () => {
     // Sesión de cliente con «Recordarme» que ya venció: no tiene que tapar
     // a la del vendedor, que se guarda en sessionStorage.
-    guardar(sesionDe("client", { token: createToken(Date.now() - HORA, "client") }));
+    save(sessionOf("client", { token: createToken(Date.now() - HORA, "client") }));
 
-    await iniciarSesion("employee");
+    await startSession("employee");
 
     expect(await esperarDashboard()).toBeInTheDocument();
-    expect(rutaActual()).toBe("/dashboard");
+    expect(currentRoute()).toBe("/dashboard");
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
   });
 
   it("keeps sending a client to the store and loads profile and cart as before", async () => {
-    await iniciarSesion("client");
+    await startSession("client");
 
-    await waitFor(() => expect(rutaActual()).toBe("/"));
+    await waitFor(() => expect(currentRoute()).toBe("/"));
     expect(getProfile).toHaveBeenCalled();
     expect(getCart).toHaveBeenCalled();
     await waitFor(() => expect(getFavorites).toHaveBeenCalled());
@@ -238,32 +238,32 @@ describe("login según el tipo de usuario", () => {
 });
 
 describe("Navbar según el perfil", () => {
-  const renderNavbar = (usuario) =>
+  const renderNavbar = (sessionUser) =>
     render(
       <MemoryRouter>
         <CartProvider>
           <Navbar
-            paginaActual="home"
-            usuario={usuario}
+            currentPage="home"
+            sessionUser={sessionUser}
             onHome={jest.fn()}
             onCatalogo={jest.fn()}
             onLogin={jest.fn()}
-            onMarcas={jest.fn()}
-            onCarrito={jest.fn()}
-            onFavoritos={jest.fn()}
-            onPerfil={jest.fn()}
-            onDirecciones={jest.fn()}
-            onHistorial={jest.fn()}
-            onCerrarSesion={jest.fn()}
+            onBrands={jest.fn()}
+            onCart={jest.fn()}
+            onFavorites={jest.fn()}
+            onProfile={jest.fn()}
+            onAddresses={jest.fn()}
+            onHistory={jest.fn()}
+            onCloseSession={jest.fn()}
           />
-          <RutaActual />
+          <CurrentRoute />
         </CartProvider>
       </MemoryRouter>
     );
 
   it("shows a seller only Dashboard and Cerrar sesión, with no cart, favorites or client items", async () => {
     const user = userEvent.setup();
-    renderNavbar(sesionDe("employee"));
+    renderNavbar(sessionOf("employee"));
 
     expect(screen.queryByTitle("Carrito")).not.toBeInTheDocument();
     expect(screen.queryByTitle("Favoritos")).not.toBeInTheDocument();
@@ -273,33 +273,33 @@ describe("Navbar según el perfil", () => {
     expect(screen.getByRole("button", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
     expect(screen.getByText("vendedor@example.com")).toBeInTheDocument();
-    ["Mi perfil", "Direcciones", "Historial de compras"].forEach((nombre) =>
-      expect(screen.queryByRole("button", { name: nombre })).not.toBeInTheDocument()
+    ["Mi perfil", "Direcciones", "Historial de compras"].forEach((displayName) =>
+      expect(screen.queryByRole("button", { name: displayName })).not.toBeInTheDocument()
     );
   });
 
   it("takes a seller to the dashboard from the menu", async () => {
     const user = userEvent.setup();
-    renderNavbar(sesionDe("employee"));
+    renderNavbar(sessionOf("employee"));
 
     await user.click(screen.getByTitle("Mi cuenta"));
     await user.click(screen.getByRole("button", { name: "Dashboard" }));
 
-    expect(rutaActual()).toBe("/dashboard");
+    expect(currentRoute()).toBe("/dashboard");
   });
 
   it("shows a client the cart, favorites and account items, without a dashboard link", async () => {
     const user = userEvent.setup();
-    renderNavbar(sesionDe("client", { nombre: "Ana" }));
+    renderNavbar(sessionOf("client", { displayName: "Ana" }));
 
     expect(screen.getByTitle("Carrito")).toBeInTheDocument();
     expect(screen.getByTitle("Favoritos")).toBeInTheDocument();
 
     await user.click(screen.getByTitle("Mi cuenta"));
 
-    const desplegable = screen.getByRole("button", { name: "Ver toda mi cuenta" }).closest("div.absolute");
+    const dropdown = screen.getByRole("button", { name: "Ver toda mi cuenta" }).closest("div.absolute");
     ["Mis compras", "Mis datos", "Direcciones", "Cerrar sesión"].forEach(
-      (nombre) => expect(within(desplegable).getByRole("button", { name: nombre })).toBeInTheDocument()
+      (displayName) => expect(within(dropdown).getByRole("button", { name: displayName })).toBeInTheDocument()
     );
     expect(screen.queryByRole("button", { name: "Dashboard" })).not.toBeInTheDocument();
   });
@@ -314,7 +314,7 @@ describe("Navbar según el perfil", () => {
 });
 
 describe("App con sesión de vendedor", () => {
-  beforeEach(() => guardar(sesionDe("employee")));
+  beforeEach(() => save(sessionOf("employee")));
 
   it("greets the seller in the dashboard, in its own portal, with the data from the API", async () => {
     renderApp("/dashboard");
@@ -336,7 +336,7 @@ describe("App con sesión de vendedor", () => {
     await screen.findByTitle("Mi cuenta");
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expectSinPedidosDeCliente();
+    customerExpectWithoutOrders();
   });
 
   it("does not request profile, cart or favorites when the seller opens the store", async () => {
@@ -345,11 +345,11 @@ describe("App con sesión de vendedor", () => {
     renderApp("/dashboard");
 
     await user.click(await screen.findByRole("button", { name: "Ver la tienda" }));
-    await waitFor(() => expect(rutaActual()).toBe("/"));
+    await waitFor(() => expect(currentRoute()).toBe("/"));
     await user.click(await screen.findByRole("button", { name: "Repuestos" }));
-    await waitFor(() => expect(rutaActual()).toBe("/catalogo"));
+    await waitFor(() => expect(currentRoute()).toBe("/catalogo"));
 
-    expectSinPedidosDeCliente();
+    customerExpectWithoutOrders();
   });
 
   it("logs out from the seller menu, clears the session and leaves the dashboard", async () => {
@@ -360,7 +360,7 @@ describe("App con sesión de vendedor", () => {
 
     // Igual que cerrar sesión en /carrito: el guard ve que ya no hay sesión
     // y manda al login antes de que se aplique la navegación a "/".
-    await waitFor(() => expect(rutaActual()).not.toBe("/dashboard"));
+    await waitFor(() => expect(currentRoute()).not.toBe("/dashboard"));
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
   });
 
@@ -371,12 +371,12 @@ describe("App con sesión de vendedor", () => {
     "/direcciones",
     "/pago?pedido=1",
     "/historial",
-  ])("redirects the client route %s to the dashboard", async (ruta) => {
-    renderApp(ruta);
+  ])("redirects the client route %s to the dashboard", async (route) => {
+    renderApp(route);
 
     expect(await esperarDashboard()).toBeInTheDocument();
-    expect(rutaActual()).toBe("/dashboard");
-    expectSinPedidosDeCliente();
+    expect(currentRoute()).toBe("/dashboard");
+    customerExpectWithoutOrders();
   });
 
   it("does not add to the cart through the API", async () => {
@@ -393,9 +393,9 @@ describe("App con sesión de vendedor", () => {
       </MemoryRouter>
     );
 
-    const agregado = await addToCart({ id: "BP1234", stock: 3 });
+    const added = await addToCart({ id: "BP1234", stock: 3 });
 
-    expect(agregado).toBe(false);
+    expect(added).toBe(false);
     expect(addCartItem).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalled();
   });
@@ -403,10 +403,10 @@ describe("App con sesión de vendedor", () => {
   it("renews the token keeping the seller user type, without client requests", async () => {
     jest.useFakeTimers();
     try {
-      const sesion = sesionDe("employee", { token: createToken(Date.now() + 4 * 60 * 1000, "employee") });
-      guardar(sesion);
-      const nuevo = createToken(Date.now() + HORA, "employee");
-      renewToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+      const session = sessionOf("employee", { token: createToken(Date.now() + 4 * 60 * 1000, "employee") });
+      save(session);
+      const newItem = createToken(Date.now() + HORA, "employee");
+      renewToken.mockResolvedValueOnce({ access_token: newItem, token_type: "bearer" });
 
       renderApp("/dashboard");
       await act(async () => {
@@ -415,11 +415,11 @@ describe("App con sesión de vendedor", () => {
 
       await waitFor(() =>
         expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual(
-          expect.objectContaining({ token: nuevo, userType: "employee" })
+          expect.objectContaining({ token: newItem, userType: "employee" })
         )
       );
-      expect(rutaActual()).toBe("/dashboard");
-      expectSinPedidosDeCliente();
+      expect(currentRoute()).toBe("/dashboard");
+      customerExpectWithoutOrders();
     } finally {
       jest.useRealTimers();
     }
@@ -428,10 +428,10 @@ describe("App con sesión de vendedor", () => {
 
 describe("App con sesión de cliente o anónima", () => {
   it("keeps the dashboard closed to clients, who go back to the store", async () => {
-    guardar(sesionDe("client", { nombre: "Ana" }));
+    save(sessionOf("client", { displayName: "Ana" }));
     renderApp("/dashboard");
 
-    await waitFor(() => expect(rutaActual()).toBe("/"));
+    await waitFor(() => expect(currentRoute()).toBe("/"));
     expect(screen.queryByRole("heading", { level: 1, name: "Resumen" })).not.toBeInTheDocument();
     expect(getStock).not.toHaveBeenCalled();
   });
@@ -439,55 +439,55 @@ describe("App con sesión de cliente o anónima", () => {
   it("sends an anonymous visitor from the dashboard to the login", async () => {
     renderApp("/dashboard");
 
-    await waitFor(() => expect(rutaActual()).toBe("/login"));
+    await waitFor(() => expect(currentRoute()).toBe("/login"));
   });
 
   it("leaves client routes as they were for clients", async () => {
-    guardar(sesionDe("client", { nombre: "Ana" }));
+    save(sessionOf("client", { displayName: "Ana" }));
     renderApp("/perfil");
 
     expect(await screen.findByRole("button", { name: "Cerrar sesión" })).toBeInTheDocument();
-    expect(rutaActual()).toBe("/perfil");
+    expect(currentRoute()).toBe("/perfil");
   });
 
   it("sends anonymous visitors from private client routes to the login", async () => {
     renderApp("/favoritos");
 
-    await waitFor(() => expect(rutaActual()).toBe("/login"));
+    await waitFor(() => expect(currentRoute()).toBe("/login"));
   });
 
   it("keeps sending anonymous visitors from the cart to the login", async () => {
     renderApp("/carrito");
 
-    await waitFor(() => expect(rutaActual()).toBe("/login"));
+    await waitFor(() => expect(currentRoute()).toBe("/login"));
   });
 });
 
 describe("EmployeeRoute", () => {
-  const renderRuta = (ruta) =>
+  const renderRoute = (route) =>
     render(
-      <MemoryRouter initialEntries={[ruta]}>
+      <MemoryRouter initialEntries={[route]}>
         <EmployeeRoute />
-        <RutaActual />
+        <CurrentRoute />
       </MemoryRouter>
     );
 
   it("redirects anonymous users to the login", () => {
-    renderRuta("/dashboard");
+    renderRoute("/dashboard");
 
-    expect(rutaActual()).toBe("/login");
+    expect(currentRoute()).toBe("/login");
   });
 
   it("redirects an expired seller session to the login", () => {
-    guardar(sesionDe("employee", { token: createToken(Date.now() - 1000, "employee") }));
-    renderRuta("/dashboard");
+    save(sessionOf("employee", { token: createToken(Date.now() - 1000, "employee") }));
+    renderRoute("/dashboard");
 
-    expect(rutaActual()).toBe("/login");
+    expect(currentRoute()).toBe("/login");
   });
 });
 
 describe("acciones de comprador según el rol", () => {
-  const repuesto = (id, stock) =>
+  const part = (id, stock) =>
     mapPart({
       id,
       part_code: `FRE-00${id}`,
@@ -501,40 +501,40 @@ describe("acciones de comprador según el rol", () => {
 
   // Los botones de la tarjeta y del detalle; el enlace «Mis favoritos» del
   // footer lleva al vendedor a su dashboard y no cuenta.
-  const accionesDeComprador = () => [
+  const buyerActions = () => [
     ...screen.queryAllByRole("button", { name: /^Agregar$|AGREGAR AL CARRITO|SIN STOCK/ }),
     ...screen.queryAllByRole("button", { name: /Marcar como favorito|Agregar a favoritos/ }),
     ...screen.queryAllByRole("button", { name: /Avisame cuando haya/ }),
   ];
 
   beforeEach(() => {
-    getParts.mockResolvedValue([repuesto(1, 8), repuesto(2, 0)]);
-    getPart.mockImplementation((id) => Promise.resolve(repuesto(Number(id), Number(id) === 1 ? 8 : 0)));
+    getParts.mockResolvedValue([part(1, 8), part(2, 0)]);
+    getPart.mockImplementation((id) => Promise.resolve(part(Number(id), Number(id) === 1 ? 8 : 0)));
   });
 
   it("hides the cart, favorites and stock alert buttons from a seller in the catalog", async () => {
-    guardar(sesionDe("employee"));
+    save(sessionOf("employee"));
     renderApp("/catalogo");
 
     expect(await screen.findAllByRole("button", { name: /^Ver detalle de / })).toHaveLength(2);
-    expect(accionesDeComprador()).toEqual([]);
+    expect(buyerActions()).toEqual([]);
   });
 
   it.each([
     ["with stock", "/producto/pastillas-1-1"],
     ["out of stock", "/producto/pastillas-2-2"],
-  ])("hides them from a seller in the detail of a part %s", async (_, ruta) => {
-    guardar(sesionDe("employee"));
-    renderApp(ruta);
+  ])("hides them from a seller in the detail of a part %s", async (_, route) => {
+    save(sessionOf("employee"));
+    renderApp(route);
 
     expect(await screen.findByRole("heading", { level: 1, name: /Pastillas/ })).toBeInTheDocument();
-    expect(accionesDeComprador()).toEqual([]);
+    expect(buyerActions()).toEqual([]);
     // El navbar recibe la sesión: muestra el menú del vendedor, no el login.
     expect(screen.queryByTitle("Carrito")).not.toBeInTheDocument();
   });
 
   it("keeps them for a client", async () => {
-    guardar(sesionDe("client", { nombre: "Ana" }));
+    save(sessionOf("client", { displayName: "Ana" }));
     renderApp("/catalogo");
 
     await screen.findAllByRole("button", { name: /^Ver detalle de / });

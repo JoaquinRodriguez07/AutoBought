@@ -47,28 +47,28 @@ const logoMap = {
 };
 
 export default function Brands({
-  usuario,
+  sessionUser,
   onHome,
   onCatalogo,
   onLogin,
-  onMarcas,
-  onCarrito,
-  onFavoritos,
-  cantidadCarrito,
-  cantidadFavoritos,
-  onPerfil,
-  onDirecciones,
-  onHistorial,
-  onCerrarSesion,
+  onBrands,
+  onCart,
+  onFavorites,
+  cartQuantity,
+  favoritesQuantity,
+  onProfile,
+  onAddresses,
+  onHistory,
+  onCloseSession,
 }) {
-  const [marcas, setMarcas] = useState([]);
+  const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     getBrands()
       .then((data) => {
-        setMarcas(data);
+        setBrands(data);
         setLoading(false);
       })
       .catch((error) => {
@@ -84,20 +84,20 @@ export default function Brands({
       {/* NAVBAR */}
 
       <Navbar
-        paginaActual="marcas"
-        usuario={usuario}
+        currentPage="brands"
+        sessionUser={sessionUser}
         onHome={onHome}
         onCatalogo={onCatalogo}
         onLogin={onLogin}
-        onMarcas={onMarcas}
-        onCarrito={onCarrito}
-        onFavoritos={onFavoritos}
-        onPerfil={onPerfil}
-        onDirecciones={onDirecciones}
-        onHistorial={onHistorial}
-        onCerrarSesion={onCerrarSesion}
-        cantidadCarrito={cantidadCarrito}
-        cantidadFavoritos={cantidadFavoritos}
+        onBrands={onBrands}
+        onCart={onCart}
+        onFavorites={onFavorites}
+        onProfile={onProfile}
+        onAddresses={onAddresses}
+        onHistory={onHistory}
+        onCloseSession={onCloseSession}
+        cartQuantity={cartQuantity}
+        favoritesQuantity={favoritesQuantity}
       />
 
       {/* CONTENIDO */}
@@ -107,9 +107,9 @@ export default function Brands({
         {/* ENCABEZADO: el mismo de catálogo, carrito y la cuenta */}
 
         <PageHeader
-          migas={[{ texto: "Inicio", ir: onHome }, "Marcas"]}
-          titulo="Marcas"
-          descripcion="Elegí la marca de tu auto y te mostramos los repuestos que le sirven."
+          migas={[{ texto: "Inicio", goTo: onHome }, "Marcas"]}
+          title="Marcas"
+          description="Elegí la marca de tu auto y te mostramos los repuestos que le sirven."
         />
 
         {/* MARCAS */}
@@ -131,7 +131,7 @@ export default function Brands({
             </div>
 
             <span className="text-sm text-gray-400">
-              {loading ? "Cargando..." : `${marcas.length} marcas`}
+              {loading ? "Cargando..." : `${brands.length} marcas`}
             </span>
 
           </div>
@@ -165,7 +165,7 @@ export default function Brands({
           {!loading && !error && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
 
-              {marcas.map((marca) => {
+              {brands.map((marca) => {
 
                 const logo = logoMap[marca.brand];
 

@@ -17,37 +17,37 @@ jest.mock("./context/CartContext", () => ({
   useCart: jest.fn(),
 }));
 
-const TITULO = "Te puede servir también";
+const TITLE = "Te puede servir también";
 
-const itemCarrito = (partId, nombre) => ({
+const itemCart = (partId, displayName) => ({
   id: String(partId),
   partId,
-  nombre,
-  precio: 1000,
-  cantidad: 1,
+  displayName,
+  price: 1000,
+  quantity: 1,
   stock: 10,
 });
 
-const sugerencia = (partId, nombre) => ({
+const suggestionItem = (partId, displayName) => ({
   id: String(partId),
   partId,
-  nombre,
-  codigo: `COD-${partId}`,
+  displayName,
+  code: `COD-${partId}`,
   categoria: "Frenos",
-  precio: 2500,
+  price: 2500,
   stock: 5,
   marca: "Chevrolet",
-  marcaPrincipal: "Chevrolet",
-  imagen: "imagen.jpg",
+  primaryBrand: "Chevrolet",
+  image: "imagen.jpg",
 });
 
-const pastillas = itemCarrito(1, "Pastillas de freno delanteras Chevrolet Onix");
-const discos = sugerencia(2, "Discos de freno Chevrolet Onix");
-const liquido = sugerencia(3, "Líquido de frenos DOT4");
-const amortiguador = sugerencia(4, "Amortiguador delantero Chevrolet Onix");
-const radiador = sugerencia(5, "Radiador Chevrolet Onix");
+const pads = itemCart(1, "Pastillas de freno delanteras Chevrolet Onix");
+const discos = suggestionItem(2, "Discos de freno Chevrolet Onix");
+const fluid = suggestionItem(3, "Líquido de frenos DOT4");
+const amortiguador = suggestionItem(4, "Amortiguador delantero Chevrolet Onix");
+const radiador = suggestionItem(5, "Radiador Chevrolet Onix");
 
-function conCarrito(cart, addToCart = jest.fn()) {
+function withCart(cart, addToCart = jest.fn()) {
   useCart.mockReturnValue({ cart, addToCart });
   return addToCart;
 }
@@ -58,23 +58,23 @@ beforeEach(() => {
 
 describe("SugerenciasCarrito (HU 3.2)", () => {
   test("opens the detail of a suggestion with its real product", async () => {
-    const usuario = userEvent.setup();
-    const onDetalle = jest.fn();
-    conCarrito([pastillas]);
+    const sessionUser = userEvent.setup();
+    const onDetail = jest.fn();
+    withCart([pads]);
     getRecommendations.mockResolvedValue([discos]);
 
-    render(<CartSuggestions onDetalle={onDetalle} />);
+    render(<CartSuggestions onDetail={onDetail} />);
 
-    await usuario.click(await screen.findByRole("button", { name: discos.nombre }));
+    await sessionUser.click(await screen.findByRole("button", { name: discos.displayName }));
 
-    expect(onDetalle).toHaveBeenCalledWith(discos);
+    expect(onDetail).toHaveBeenCalledWith(discos);
   });
 
   test("Ver sugerencias al abrir el carrito: muestra la sección con 1 a 3 repuestos", async () => {
-    conCarrito([pastillas]);
+    withCart([pads]);
     getRecommendations.mockResolvedValue([
       discos,
-      liquido,
+      fluid,
       amortiguador,
       radiador,
     ]);
@@ -82,40 +82,40 @@ describe("SugerenciasCarrito (HU 3.2)", () => {
     render(<CartSuggestions />);
 
     expect(
-      await screen.findByRole("heading", { name: TITULO })
+      await screen.findByRole("heading", { name: TITLE })
     ).toBeInTheDocument();
     expect(getRecommendations).toHaveBeenCalledWith([1]);
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
-    expect(screen.queryByText(radiador.nombre)).not.toBeInTheDocument();
+    expect(screen.queryByText(radiador.displayName)).not.toBeInTheDocument();
   });
 
   test("Agregar una sugerencia sin salir del carrito: llama a addToCart y deja de mostrarse", async () => {
-    const usuario = userEvent.setup();
-    const addToCart = conCarrito([pastillas]);
-    getRecommendations.mockResolvedValue([discos, liquido]);
+    const sessionUser = userEvent.setup();
+    const addToCart = withCart([pads]);
+    getRecommendations.mockResolvedValue([discos, fluid]);
 
     const { rerender } = render(<CartSuggestions />);
 
-    await usuario.click(
+    await sessionUser.click(
       await screen.findByRole("button", {
-        name: `Agregar ${discos.nombre} al carrito`,
+        name: `Agregar ${discos.displayName} al carrito`,
       })
     );
 
     expect(addToCart).toHaveBeenCalledWith(discos, 1, { aviso: false });
 
     // El carrito ya trae el repuesto agregado (lo actualiza CartContext).
-    conCarrito([pastillas, itemCarrito(discos.partId, discos.nombre)], addToCart);
+    withCart([pads, itemCart(discos.partId, discos.displayName)], addToCart);
     rerender(<CartSuggestions />);
 
     await waitFor(() =>
-      expect(screen.queryByText(discos.nombre)).not.toBeInTheDocument()
+      expect(screen.queryByText(discos.displayName)).not.toBeInTheDocument()
     );
-    expect(screen.getByText(liquido.nombre)).toBeInTheDocument();
+    expect(screen.getByText(fluid.displayName)).toBeInTheDocument();
   });
 
   test("Carrito vacío: no se muestra la sección ni se consulta la API", () => {
-    conCarrito([]);
+    withCart([]);
 
     const { container } = render(<CartSuggestions />);
 
@@ -124,7 +124,7 @@ describe("SugerenciasCarrito (HU 3.2)", () => {
   });
 
   test("Falla del servicio de recomendaciones: el carrito se ve sin la sección", async () => {
-    conCarrito([pastillas]);
+    withCart([pads]);
     // obtenerRecomendaciones devuelve [] cuando el servicio falla.
     getRecommendations.mockResolvedValue([]);
 

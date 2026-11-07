@@ -21,25 +21,25 @@ export const SUGGESTED_QUESTIONS = [
 // Con `disponible` en false (el backend todavía no tiene la ruta) se ve,
 // pero dice que está en desarrollo y no deja preguntar.
 export default function AskDashboard({ disponible = false }) {
-  const [texto, setTexto] = useState("");
-  const [estado, setEstado] = useState({ pregunta: "", resultado: null, cargando: false, error: null });
+  const [texto, setText] = useState("");
+  const [estado, setStatus] = useState({ pregunta: "", result: null, loading: false, error: null });
 
-  const preguntar = async (pregunta) => {
+  const ask = async (pregunta) => {
     const limpia = pregunta.trim();
-    if (!limpia || estado.cargando || !disponible) return;
-    setTexto(limpia);
-    setEstado({ pregunta: limpia, resultado: null, cargando: true, error: null });
+    if (!limpia || estado.loading || !disponible) return;
+    setText(limpia);
+    setStatus({ pregunta: limpia, result: null, loading: true, error: null });
     try {
-      const resultado = await askDashboard(limpia);
-      setEstado({ pregunta: limpia, resultado, cargando: false, error: null });
+      const result = await askDashboard(limpia);
+      setStatus({ pregunta: limpia, result, loading: false, error: null });
     } catch (error) {
-      setEstado({ pregunta: limpia, resultado: null, cargando: false, error });
+      setStatus({ pregunta: limpia, result: null, loading: false, error });
     }
   };
 
-  const enviar = (event) => {
+  const send = (event) => {
     event.preventDefault();
-    preguntar(texto);
+    ask(texto);
   };
 
   return (
@@ -51,20 +51,20 @@ export default function AskDashboard({ disponible = false }) {
             Estamos desarrollando esta función. Pronto vas a poder preguntarle al dashboard en tus palabras.
           </div>
         )}
-        <form onSubmit={enviar} className="flex gap-2">
+        <form onSubmit={send} className="flex gap-2">
           <label htmlFor="pregunta-dashboard" className="sr-only">
             Tu pregunta
           </label>
           <Input
             id="pregunta-dashboard"
             value={texto}
-            onChange={(event) => setTexto(event.target.value)}
+            onChange={(event) => setText(event.target.value)}
             placeholder="Ej.: ¿qué repuestos se van a agotar este mes?"
             maxLength={300}
             disabled={!disponible}
             className="h-11 flex-1 min-w-0 bg-background"
           />
-          <Button type="submit" disabled={!disponible || !texto.trim() || estado.cargando} className="h-11 px-4">
+          <Button type="submit" disabled={!disponible || !texto.trim() || estado.loading} className="h-11 px-4">
             <ArrowUpIcon />
             Preguntar
           </Button>
@@ -73,15 +73,15 @@ export default function AskDashboard({ disponible = false }) {
         <div className="mt-4">
           <p className="text-xs text-muted-foreground mb-2">Probá con:</p>
           <ul aria-label="Preguntas sugeridas" className="flex flex-wrap gap-2">
-            {SUGGESTED_QUESTIONS.map((sugerida) => (
-              <li key={sugerida}>
+            {SUGGESTED_QUESTIONS.map((suggested) => (
+              <li key={suggested}>
                 <button
                   type="button"
-                  onClick={() => preguntar(sugerida)}
-                  disabled={!disponible || estado.cargando}
+                  onClick={() => ask(suggested)}
+                  disabled={!disponible || estado.loading}
                   className="rounded-full border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-muted/40 disabled:hover:text-muted-foreground"
                 >
-                  {sugerida}
+                  {suggested}
                 </button>
               </li>
             ))}
@@ -95,7 +95,7 @@ export default function AskDashboard({ disponible = false }) {
           <p className="font-semibold mt-0.5">{estado.pregunta}</p>
 
           <div className="mt-4 border-t pt-4">
-            {estado.cargando && (
+            {estado.loading && (
               <div className="flex flex-col gap-2" aria-label="Pensando…">
                 <Skeleton className="h-4 w-4/5" />
                 <Skeleton className="h-4 w-3/5" />
@@ -113,15 +113,15 @@ export default function AskDashboard({ disponible = false }) {
               </Alert>
             )}
 
-            {estado.resultado && (
+            {estado.result && (
               <div className="flex gap-3">
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-orange-500 text-white">
                   <SparklesIcon className="size-3.5" aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-relaxed whitespace-pre-line">{estado.resultado.respuesta}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-line">{estado.result.response}</p>
 
-                  {estado.resultado.datos && (
+                  {estado.result.info && (
                     <details className="mt-4 text-xs">
                       <summary className="cursor-pointer text-muted-foreground hover:text-foreground w-fit">
                         Ver los datos que se usaron
@@ -130,17 +130,17 @@ export default function AskDashboard({ disponible = false }) {
                         <Table className="text-xs">
                           <TableHeader className="bg-muted">
                             <TableRow>
-                              {estado.resultado.datos.columnas.map((columna) => (
-                                <TableHead key={columna}>{columna}</TableHead>
+                              {estado.result.info.columnas.map((column) => (
+                                <TableHead key={column}>{column}</TableHead>
                               ))}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {estado.resultado.datos.filas.map((fila, i) => (
+                            {estado.result.info.rows.map((row, i) => (
                               <TableRow key={i}>
-                                {fila.map((valor, j) => (
+                                {row.map((rawValue, j) => (
                                   <TableCell key={j} className="tabular-nums">
-                                    {valor}
+                                    {rawValue}
                                   </TableCell>
                                 ))}
                               </TableRow>

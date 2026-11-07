@@ -76,63 +76,63 @@ function App() {
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
   }, [pathname]);
-  const { cargarCarrito, limpiarCarritoLocal } = useCart();
-  const { activarVehiculo } = useVehicle();
-  const { olvidar: olvidarCharlaPit } = usePit();
-  const { recargar: recargarPedidos, clean: limpiarPedidos } = useOrders();
+  const { loadCart, clearCartLocal } = useCart();
+  const { activateVehicle } = useVehicle();
+  const { forget: forgetChatPit } = usePit();
+  const { reload: reloadOrders, clean: clearOrders } = useOrders();
 
   // Al volver al inicio se actualizan los pedidos en curso (el aviso del
   // banner y el número de la barra): un pedido pudo cambiar de estado.
   useEffect(() => {
-    if (pathname === "/") recargarPedidos();
-  }, [pathname, recargarPedidos]);
+    if (pathname === "/") reloadOrders();
+  }, [pathname, reloadOrders]);
 
 
   // null = sin filtro de categoría (el catálogo muestra todos los
   // repuestos). Los nombres de categoría los define el backend
   // (GET /api/v1/parts/categories), no el frontend.
-  const [categoriaCatalogo, setCategoriaCatalogo] =
+  const [categoryCatalogo, setCategoryCatalogo] =
     useState(null);
 
   /* =====================================================
      SESIÓN
   ====================================================== */
 
-  const [usuario, setUsuario] = useState(() => {
-    const sesion = getSession();
-    return isSessionValid(sesion) ? sesion : null;
+  const [sessionUser, setUser] = useState(() => {
+    const session = getSession();
+    return isSessionValid(session) ? session : null;
   });
 
   /* =====================================================
      FAVORITOS
   ====================================================== */
 
-  const [favoritos, setFavoritos] = useState([]);
+  const [favorites, setFavorites] = useState([]);
 
   // El efecto depende de quién es el usuario y de si hay token, NO del
   // valor del token: renovarlo cada ~55 minutos no tiene que volver a
   // pedir (y pisar) los favoritos.
-  const userId = usuario?.userId;
-  const haySesionConToken = Boolean(usuario?.token);
-  const vendedor = isSeller(usuario);
+  const userId = sessionUser?.userId;
+  const hasSessionWithToken = Boolean(sessionUser?.token);
+  const seller = isSeller(sessionUser);
 
   useEffect(() => {
     // Un vendedor no tiene favoritos (la API le responde 403).
-    if (!haySesionConToken || vendedor) return;
+    if (!hasSessionWithToken || seller) return;
 
-    let cancelado = false;
+    let cancelled = false;
     getFavorites()
-      .then((lista) => {
-        if (!cancelado) setFavoritos(lista);
+      .then((list) => {
+        if (!cancelled) setFavorites(list);
       })
       .catch(() => {
-        if (!cancelado) setFavoritos([]);
+        if (!cancelled) setFavorites([]);
       });
 
     return () => {
-      cancelado = true;
+      cancelled = true;
     };
-  }, [userId, haySesionConToken, vendedor]);
+  }, [userId, hasSessionWithToken, seller]);
 
   /* =====================================================
      AVISOS DE STOCK («Avisame cuando haya»)
@@ -140,25 +140,25 @@ function App() {
      pidió aviso. Se cargan igual que los favoritos.
   ====================================================== */
 
-  const [avisosStock, setAvisosStock] = useState([]);
+  const [noticesStock, setNoticesStock] = useState([]);
 
   useEffect(() => {
     // Un vendedor no pide avisos de stock (la API le responde 403).
-    if (!haySesionConToken || vendedor) return;
+    if (!hasSessionWithToken || seller) return;
 
-    let cancelado = false;
+    let cancelled = false;
     getStockAlerts()
       .then((ids) => {
-        if (!cancelado) setAvisosStock(ids);
+        if (!cancelled) setNoticesStock(ids);
       })
       .catch(() => {
-        if (!cancelado) setAvisosStock([]);
+        if (!cancelled) setNoticesStock([]);
       });
 
     return () => {
-      cancelado = true;
+      cancelled = true;
     };
-  }, [userId, haySesionConToken, vendedor]);
+  }, [userId, hasSessionWithToken, seller]);
 
 
   /* =====================================================
@@ -176,11 +176,11 @@ function App() {
   // (los logos de marcas del inicio y de /marcas), el catálogo abre con
   // ese filtro tildado. Son filtros de una sola vez: a diferencia del
   // vehículo, no se arrastran al volver a entrar al catálogo.
-  const irAlCatalogo = (categoria = null, vehiculo = null, { fabricante, marca } = {}) => {
-     setCategoriaCatalogo(categoria);
+  const goToCatalogo = (categoria = null, vehicle = null, { fabricante, marca } = {}) => {
+     setCategoryCatalogo(categoria);
 
-     if (vehiculo) {
-       activarVehiculo(vehiculo);
+     if (vehicle) {
+       activateVehicle(vehicle);
      }
 
      const params = new URLSearchParams();
@@ -191,24 +191,24 @@ function App() {
      navigate(query ? `/catalogo?${query}` : "/catalogo");
   };
 
-  const irAlDetalle = (producto) => {
-    const partId = producto?.partId ?? producto?.id;
-    const slug = slugifyProduct(producto?.nombre, partId);
+  const goToDetail = (product) => {
+    const partId = product?.partId ?? product?.id;
+    const slug = slugifyProduct(product?.displayName, partId);
     if (!slug) return;
     navigate(`/producto/${encodeURIComponent(slug)}`);
   };
 
-  const irAlCarrito = () => {
+  const goToCart = () => {
     navigate("/carrito");
   };
 
-  const irAFavoritos = () => {
-    if (!usuario) {
+  const goToFavorites = () => {
+    if (!sessionUser) {
       navigate("/login");
       return;
     }
 
-    if (vendedor) {
+    if (seller) {
       navigate("/dashboard");
       return;
     }
@@ -220,11 +220,11 @@ function App() {
      LOGIN
   ====================================================== */
 
-  const iniciarSesion = (
-    usuarioLogueado,
-    recordar
+  const startSession = (
+    userLoggedIn,
+    remember
   ) => {
-    setUsuario(usuarioLogueado);
+    setUser(userLoggedIn);
 
     // Se borra cualquier sesión anterior (por ejemplo, una vencida de
     // «Recordarme»): obtenerSesion lee primero localStorage, así que si
@@ -233,26 +233,26 @@ function App() {
     localStorage.removeItem("autobought-sesion");
     sessionStorage.removeItem("autobought-sesion");
 
-    if (recordar) {
+    if (remember) {
       localStorage.setItem(
         "autobought-sesion",
-        JSON.stringify(usuarioLogueado)
+        JSON.stringify(userLoggedIn)
       );
     } else {
       sessionStorage.setItem(
         "autobought-sesion",
-        JSON.stringify(usuarioLogueado)
+        JSON.stringify(userLoggedIn)
       );
     }
 
     // Un vendedor no tiene carrito: va directo a su portal.
-    if (isSeller(usuarioLogueado)) {
+    if (isSeller(userLoggedIn)) {
       navigate("/dashboard");
       return;
     }
 
-    cargarCarrito();
-    recargarPedidos();
+    loadCart();
+    reloadOrders();
     navigate("/");
   };
 
@@ -260,15 +260,15 @@ function App() {
      REGISTRO
   ====================================================== */
 
-  const registroExitoso = (usuarioNuevo) => {
-    setUsuario(usuarioNuevo);
+  const registroExitoso = (newUser) => {
+    setUser(newUser);
 
     localStorage.setItem(
       "autobought-sesion",
-      JSON.stringify(usuarioNuevo)
+      JSON.stringify(newUser)
     );
 
-    cargarCarrito();
+    loadCart();
     navigate("/");
   };
 
@@ -276,15 +276,15 @@ function App() {
      ACTUALIZAR USUARIO
   ====================================================== */
 
-  const actualizarUsuario = (usuarioActualizado) => {
-    const sesionActual = getSession();
+  const updateUser = (updatedUser) => {
+    const currentSession = getSession();
 
-    if (!sesionActual || sesionActual.token !== usuarioActualizado.token) {
+    if (!currentSession || currentSession.token !== updatedUser.token) {
       return;
     }
 
-    setUsuario(usuarioActualizado);
-    saveSession(usuarioActualizado);
+    setUser(updatedUser);
+    saveSession(updatedUser);
   };
 
   /* =====================================================
@@ -293,30 +293,30 @@ function App() {
      hay una abierta, se le saca el aviso de verificación.
   ====================================================== */
 
-  const marcarCorreoVerificado = useCallback(() => {
-    const sesionActual = getSession();
-    if (!sesionActual) return;
+  const markVerifiedEmail = useCallback(() => {
+    const currentSession = getSession();
+    if (!currentSession) return;
 
-    const verificada = { ...sesionActual, emailVerificado: true };
-    saveSession(verificada);
-    setUsuario((actual) => (actual ? { ...actual, emailVerificado: true } : actual));
+    const verified = { ...currentSession, verifiedEmail: true };
+    saveSession(verified);
+    setUser((current) => (current ? { ...current, verifiedEmail: true } : current));
   }, []);
 
   /* =====================================================
      CERRAR SESIÓN
   ====================================================== */
 
-  const cerrarSesion = () => {
-    setUsuario(null);
+  const closeSession = () => {
+    setUser(null);
 
     localStorage.removeItem("autobought-sesion");
     sessionStorage.removeItem("autobought-sesion");
 
-    limpiarCarritoLocal();
-    olvidarCharlaPit();
-    setFavoritos([]);
-    setAvisosStock([]);
-    limpiarPedidos();
+    clearCartLocal();
+    forgetChatPit();
+    setFavorites([]);
+    setNoticesStock([]);
+    clearOrders();
     navigate("/");
   };
 
@@ -330,35 +330,35 @@ function App() {
     // Si no hay sesión guardada, el cliente cerró sesión en otra pestaña:
     // no se la resucita, se cierra también acá.
     if (!getSession()) {
-      cerrarSesion();
+      closeSession();
       return;
     }
 
-    const renovada = {
+    const renewed = {
       ...getSession(),
       token: access_token,
       ...(token_type ? { tokenType: token_type } : {}),
     };
 
-    saveSession(renovada);
-    setUsuario((actual) => (actual ? { ...actual, ...renovada } : actual));
+    saveSession(renewed);
+    setUser((current) => (current ? { ...current, ...renewed } : current));
   };
 
   // Único lugar que reacciona a una sesión inválida: lo disparan el 401 de
   // cualquier pedido autenticado (ver `alSesionInvalida` en api.js) y la
   // renovación automática. El mensaje sirve para los dos casos: token
   // vencido o contraseña cambiada en otro dispositivo.
-  const sesionVencida = () => {
-    cerrarSesion();
+  const expiredSession = () => {
+    closeSession();
     toast.error("Tu sesión se cerró. Iniciá sesión de nuevo.");
     navigate("/login");
   };
 
   // El manejador se registra una sola vez y lee la versión más reciente de
   // `sesionVencida` desde una ref.
-  const sesionVencidaRef = useRef(sesionVencida);
+  const sessionExpiredRef = useRef(expiredSession);
   useEffect(() => {
-    sesionVencidaRef.current = sesionVencida;
+    sessionExpiredRef.current = expiredSession;
   });
 
   // Si varios pedidos dan 401 a la vez, el primero cierra la sesión y los
@@ -367,7 +367,7 @@ function App() {
     () =>
       onInvalidSession(() => {
         if (!getSession()) return;
-        sesionVencidaRef.current();
+        sessionExpiredRef.current();
       }),
     []
   );
@@ -378,54 +378,54 @@ function App() {
   useEffect(
     () =>
       onSessionSaved(() => {
-        const guardada = getSession();
-        if (!guardada) return;
-        setUsuario((actual) => (actual ? { ...actual, ...guardada } : actual));
+        const saved = getSession();
+        if (!saved) return;
+        setUser((current) => (current ? { ...current, ...saved } : current));
       }),
     []
   );
 
-  useSessionRenewal(usuario?.token, {
-    onRenovada: reemplazarToken,
-    onVencida: sesionVencida,
+  useSessionRenewal(sessionUser?.token, {
+    onRenewed: reemplazarToken,
+    onExpired: expiredSession,
   });
 
   /* =====================================================
      FAVORITOS
   ====================================================== */
 
-  const alternarFavorito = async (producto) => {
-    if (!usuario) {
+  const toggleFavorite = async (product) => {
+    if (!sessionUser) {
       navigate("/login");
       return;
     }
 
-    if (vendedor) {
+    if (seller) {
       toast.error("Los vendedores no tienen favoritos.");
       return;
     }
 
-    const existe = favoritos.some(
-      (item) => item.id === producto.id
+    const existe = favorites.some(
+      (item) => item.id === product.id
     );
 
-    setFavoritos((actual) =>
+    setFavorites((current) =>
       existe
-        ? actual.filter((item) => item.id !== producto.id)
-        : [...actual, producto]
+        ? current.filter((item) => item.id !== product.id)
+        : [...current, product]
     );
 
     try {
       if (existe) {
-        await removeFavoriteApi(producto.partId ?? producto.id);
+        await removeFavoriteApi(product.partId ?? product.id);
       } else {
-        await addFavoriteApi(producto.partId ?? producto.id);
+        await addFavoriteApi(product.partId ?? product.id);
       }
     } catch (error) {
-      setFavoritos((actual) =>
+      setFavorites((current) =>
         existe
-          ? [...actual, producto]
-          : actual.filter((item) => item.id !== producto.id)
+          ? [...current, product]
+          : current.filter((item) => item.id !== product.id)
       );
 
       // Un 401 lo maneja `alSesionInvalida` (toast y /login): acá solo se
@@ -436,22 +436,22 @@ function App() {
     }
   };
 
-  const alternarAvisoStock = async (producto) => {
-    if (!usuario) {
+  const toggleNoticeStock = async (product) => {
+    if (!sessionUser) {
       navigate("/login");
       return;
     }
 
-    if (vendedor) {
+    if (seller) {
       toast.error("Los vendedores no piden avisos de stock.");
       return;
     }
 
-    const partId = producto.partId;
-    const tenia = avisosStock.includes(partId);
+    const partId = product.partId;
+    const tenia = noticesStock.includes(partId);
 
-    setAvisosStock((actual) =>
-      tenia ? actual.filter((id) => id !== partId) : [...actual, partId]
+    setNoticesStock((current) =>
+      tenia ? current.filter((id) => id !== partId) : [...current, partId]
     );
 
     try {
@@ -462,8 +462,8 @@ function App() {
         toast.success("Listo: te mandamos un mail cuando vuelva a haber stock.");
       }
     } catch (error) {
-      setAvisosStock((actual) =>
-        tenia ? [...actual, partId] : actual.filter((id) => id !== partId)
+      setNoticesStock((current) =>
+        tenia ? [...current, partId] : current.filter((id) => id !== partId)
       );
 
       // Igual que en favoritos: el 401 lo maneja `alSesionInvalida`.
@@ -473,10 +473,10 @@ function App() {
     }
   };
 
-  const tieneAvisoStock = (partId) => avisosStock.includes(partId);
+  const hasNoticeStock = (partId) => noticesStock.includes(partId);
 
-  const esFavorito = (id) =>
-    favoritos.some(
+  const isFavorite = (id) =>
+    favorites.some(
       (item) => item.id === id
     );
 
@@ -485,43 +485,43 @@ function App() {
   ====================================================== */
 
   const propsNavbar = {
-    usuario,
+    sessionUser,
 
     onHome: () => navigate("/"),
 
-    onCatalogo: irAlCatalogo,
+    onCatalogo: goToCatalogo,
 
     onLogin: () => {
-      if (usuario) {
+      if (sessionUser) {
         navigate("/perfil");
       } else {
         navigate("/login");
       }
     },
 
-    onMarcas: () => navigate("/marcas"),
+    onBrands: () => navigate("/marcas"),
 
-    onCarrito: irAlCarrito,
+    onCart: goToCart,
 
-    onFavoritos: irAFavoritos,
+    onFavorites: goToFavorites,
 
     // ==========================================
     // ACCESOS DEL MENÚ DE USUARIO
     // ==========================================
 
-    onPerfil: () => navigate("/perfil"),
+    onProfile: () => navigate("/perfil"),
 
     // «Mi cuenta» (/cuenta): el menú de la cuenta (en celular, su página).
-    onCuenta: () => navigate("/cuenta"),
+    onAccount: () => navigate("/cuenta"),
 
-    onDirecciones: () => navigate("/direcciones"),
+    onAddresses: () => navigate("/direcciones"),
 
-    onHistorial: () => navigate("/historial"),
+    onHistory: () => navigate("/historial"),
 
     // «Mis compras»: las que están en curso (el ícono de la barra).
-    onPedidos: () => navigate("/pedidos"),
+    onOrders: () => navigate("/pedidos"),
 
-    onCerrarSesion: cerrarSesion,
+    onCloseSession: closeSession,
 
     // ==========================================
     // CONTADORES
@@ -529,7 +529,7 @@ function App() {
     // lee directo de CartContext con useCart())
     // ==========================================
 
-    cantidadFavoritos: favoritos.length,
+    favoritesQuantity: favorites.length,
   };
 
   /* =====================================================
@@ -543,19 +543,19 @@ function App() {
   // juntos llenen la pantalla.
   // El portal del vendedor (/dashboard y el detalle de un repuesto) tiene
   // su propio marco, sin el footer de la tienda.
-  const conFooter = !ROUTES_WITHOUT_FOOTER.includes(pathname) && !pathname.startsWith("/dashboard");
+  const withFooter = !ROUTES_WITHOUT_FOOTER.includes(pathname) && !pathname.startsWith("/dashboard");
 
   // Pit (el asistente con IA) flota en las páginas de la tienda para los
   // clientes con sesión: no en las pantallas de cuenta sin footer (login,
   // registro...) ni para el vendedor. No tiene página propia: se abre al
   // costado, sin salir de lo que el cliente estaba mirando.
-  const mostrarPit = Boolean(usuario) && !vendedor && conFooter;
+  const showPit = Boolean(sessionUser) && !seller && withFooter;
 
   return (
     <>
-    <VerifyEmailNotice usuario={usuario} onVerificado={marcarCorreoVerificado} />
-    <div className={conFooter ? "min-h-screen flex flex-col" : undefined}>
-    <div className={conFooter ? "flex-1 flex flex-col *:flex-1 *:min-h-0!" : undefined}>
+    <VerifyEmailNotice sessionUser={sessionUser} onVerified={markVerifiedEmail} />
+    <div className={withFooter ? "min-h-screen flex flex-col" : undefined}>
+    <div className={withFooter ? "flex-1 flex flex-col *:flex-1 *:min-h-0!" : undefined}>
     <Routes>
       {/* =================================================
           HOME
@@ -564,7 +564,7 @@ function App() {
       <Route
         path="/"
         element={
-          <Home {...propsNavbar} onDetalle={irAlDetalle} />
+          <Home {...propsNavbar} onDetail={goToDetail} />
         }
       />
 
@@ -586,7 +586,7 @@ function App() {
         element={
           <Login
             {...propsNavbar}
-            onIniciarSesion={iniciarSesion}
+            onStartSession={startSession}
             onRegistro={() => navigate("/registro")}
             onOlvidePassword={() => navigate("/recuperar-password")}
           />
@@ -603,7 +603,7 @@ function App() {
         element={
           <ForgotPassword
             {...propsNavbar}
-            onVolverAlLogin={() => navigate("/login")}
+            onGoBackLogin={() => navigate("/login")}
           />
         }
       />
@@ -613,8 +613,8 @@ function App() {
         element={
           <ResetPassword
             {...propsNavbar}
-            onIniciarSesion={() => navigate("/login")}
-            onPedirOtroEnlace={() => navigate("/recuperar-password")}
+            onStartSession={() => navigate("/login")}
+            onAskOtherLink={() => navigate("/recuperar-password")}
           />
         }
       />
@@ -624,7 +624,7 @@ function App() {
         element={
           <Unsubscribe
             {...propsNavbar}
-            onIrALaTienda={() => navigate("/")}
+            onGoToStore={() => navigate("/")}
           />
         }
       />
@@ -634,8 +634,8 @@ function App() {
         element={
           <VerifyEmail
             {...propsNavbar}
-            onVerificado={marcarCorreoVerificado}
-            onIrALaTienda={() => navigate("/")}
+            onVerified={markVerifiedEmail}
+            onGoToStore={() => navigate("/")}
           />
         }
       />
@@ -668,14 +668,14 @@ function App() {
         element={
           <Catalog
             {...propsNavbar}
-            onDetalle={irAlDetalle}
-            categoriaInicial={categoriaCatalogo}
-            onCategoriaSeleccionada={setCategoriaCatalogo}
-            favoritos={favoritos}
-            onAlternarFavorito={alternarFavorito}
-            esFavorito={esFavorito}
-            onAlternarAvisoStock={alternarAvisoStock}
-            tieneAvisoStock={tieneAvisoStock}
+            onDetail={goToDetail}
+            initialCategory={categoryCatalogo}
+            onSelectedCategory={setCategoryCatalogo}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+            isFavorite={isFavorite}
+            onToggleNoticeStock={toggleNoticeStock}
+            hasNoticeStock={hasNoticeStock}
           />
         }
       />
@@ -685,12 +685,12 @@ function App() {
         element={
           <ProductDetail
             {...propsNavbar}
-            onDetalle={irAlDetalle}
-            onCatalogo={irAlCatalogo}
-            onAlternarFavorito={alternarFavorito}
-            esFavorito={esFavorito}
-            onAlternarAvisoStock={alternarAvisoStock}
-            tieneAvisoStock={tieneAvisoStock}
+            onDetail={goToDetail}
+            onCatalogo={goToCatalogo}
+            onToggleFavorite={toggleFavorite}
+            isFavorite={isFavorite}
+            onToggleNoticeStock={toggleNoticeStock}
+            hasNoticeStock={hasNoticeStock}
           />
         }
       />
@@ -706,8 +706,8 @@ function App() {
           element={
             <CartPage
               {...propsNavbar}
-              onDetalle={irAlDetalle}
-              onDirecciones={() => navigate("/direcciones")}
+              onDetail={goToDetail}
+              onAddresses={() => navigate("/direcciones")}
             />
           }
         />
@@ -719,9 +719,9 @@ function App() {
           element={
             <Favorites
               {...propsNavbar}
-              favoritos={favoritos}
-              onAlternarFavorito={alternarFavorito}
-              onDetalle={irAlDetalle}
+              favorites={favorites}
+              onToggleFavorite={toggleFavorite}
+              onDetail={goToDetail}
             />
           }
         />
@@ -735,11 +735,11 @@ function App() {
         <Route
           path="/perfil"
           element={
-            usuario ? (
+            sessionUser ? (
               <Profile
                 {...propsNavbar}
-                usuario={usuario}
-                onActualizarUsuario={actualizarUsuario}
+                sessionUser={sessionUser}
+                onUpdateUser={updateUser}
               />
             ) : (
               <Navigate to="/login" replace />
@@ -754,14 +754,14 @@ function App() {
 
         <Route
           path="/seguridad"
-          element={usuario ? <Security {...propsNavbar} /> : <Navigate to="/login" replace />}
+          element={sessionUser ? <Security {...propsNavbar} /> : <Navigate to="/login" replace />}
         />
 
         <Route
           path="/notificaciones"
           element={
-            usuario ? (
-              <Notifications {...propsNavbar} onActualizarUsuario={actualizarUsuario} />
+            sessionUser ? (
+              <Notifications {...propsNavbar} onUpdateUser={updateUser} />
             ) : (
               <Navigate to="/login" replace />
             )
@@ -818,7 +818,7 @@ function App() {
           path="/dashboard"
           element={
             <Suspense fallback={dashboardLoading}>
-              <Dashboard {...propsNavbar} usuario={usuario} />
+              <Dashboard {...propsNavbar} sessionUser={sessionUser} />
             </Suspense>
           }
         />
@@ -826,7 +826,7 @@ function App() {
           path="/dashboard/repuestos/:id"
           element={
             <Suspense fallback={dashboardLoading}>
-              <SellerPartDetail {...propsNavbar} usuario={usuario} />
+              <SellerPartDetail {...propsNavbar} sessionUser={sessionUser} />
             </Suspense>
           }
         />
@@ -834,7 +834,7 @@ function App() {
           path="/dashboard/pedidos/:id"
           element={
             <Suspense fallback={dashboardLoading}>
-              <SellerOrderDetail {...propsNavbar} usuario={usuario} />
+              <SellerOrderDetail {...propsNavbar} sessionUser={sessionUser} />
             </Suspense>
           }
         />
@@ -852,12 +852,12 @@ function App() {
     </Routes>
     </div>
     {/* Las pantallas de iniciar sesión y registro tienen su propio armado. */}
-    {conFooter && <Footer {...propsNavbar} />}
+    {withFooter && <Footer {...propsNavbar} />}
     </div>
-    {mostrarPit && (
+    {showPit && (
       <PitPanel
-        onDetalle={irAlDetalle}
-        onBuscarEnCatalogo={(consulta) => navigate(`/catalogo?q=${encodeURIComponent(consulta)}`)}
+        onDetail={goToDetail}
+        onSearchInCatalogo={(queryState) => navigate(`/catalogo?q=${encodeURIComponent(queryState)}`)}
       />
     )}
     </>

@@ -41,8 +41,8 @@ export function onInvalidSession(fn) {
  * pedido viejo, hecho con el token anterior al cambio de contraseña, no
  * tiene que cerrar la sesión nueva).
  */
-export function notifyInvalidSession(tokenEnviado) {
-  if (!tokenEnviado || getSession()?.token !== tokenEnviado) return;
+export function notifyInvalidSession(shippedToken) {
+  if (!shippedToken || getSession()?.token !== shippedToken) return;
   [...invalidSessionHandlers].forEach((fn) => fn());
 }
 
@@ -61,11 +61,11 @@ export async function login(email, password) {
   const data = await readJson(response);
 
   if (!response.ok) {
-    const mensaje =
+    const message =
       data !== NO_JSON && typeof data?.detail === "string"
         ? data.detail
         : "Correo electrónico o contraseña incorrectos.";
-    throw new Error(mensaje);
+    throw new Error(message);
   }
 
   if (data === NO_JSON) {
@@ -84,7 +84,7 @@ export async function login(email, password) {
  * 201 devuelve el mismo `{ access_token, token_type }` que el login,
  * para dejar la sesión iniciada. 409 = correo ya registrado.
  */
-export async function register({ nombre, apellido, email, telefono, password }) {
+export async function register({ displayName, lastName, email, phone, password }) {
   let response;
 
   try {
@@ -92,9 +92,9 @@ export async function register({ nombre, apellido, email, telefono, password }) 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: `${nombre} ${apellido}`.trim(),
+        name: `${displayName} ${lastName}`.trim(),
         email,
-        phone: telefono || null,
+        phone: phone || null,
         password,
       }),
     });
@@ -112,14 +112,14 @@ export async function register({ nombre, apellido, email, telefono, password }) 
   if (!response.ok) {
     // 409 trae `detail` como string; 422 trae una lista de errores de
     // validación que no sirve para mostrar tal cual.
-    const mensaje =
+    const message =
       typeof data?.detail === "string"
         ? data.detail
         : response.status === 422
           ? "Revisá los datos ingresados."
           : "No pudimos crear tu cuenta. Intentá de nuevo.";
-    const error = new Error(mensaje);
-    error.campos = fieldsWithErrors(data?.detail);
+    const error = new Error(message);
+    error.fields = fieldsWithErrors(data?.detail);
     throw error;
   }
 
@@ -140,13 +140,13 @@ export async function register({ nombre, apellido, email, telefono, password }) 
  * de red o de servidor, que se puede reintentar.
  */
 export async function renewToken() {
-  const sesion = getSession();
+  const session = getSession();
   let response;
 
   try {
     response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${sesion?.token}` },
+      headers: { Authorization: `Bearer ${session?.token}` },
     });
   } catch {
     throw new Error("No pudimos conectar con el servidor.");
@@ -164,7 +164,7 @@ export async function renewToken() {
   // es del token viejo, ya revocado. No se usa, ni siquiera su 401: pisaría
   // o cerraría la sesión nueva. Sin `status`, useRenovacionSesion lo toma
   // como pasajero y, si la sesión sigue, reprograma con el token vigente.
-  if (getSession()?.token !== sesion?.token) {
+  if (getSession()?.token !== session?.token) {
     throw new Error("La sesión cambió mientras se renovaba.");
   }
 
@@ -221,17 +221,17 @@ export async function getProfile(token) {
 
 function mapProfile(data) {
   return {
-    nombre: data.name,
-    apellido: "",
+    displayName: data.name,
+    lastName: "",
     email: data.email,
-    telefono: formatUyPhone(data.phone),
-    emailVerificado: data.email_verified,
+    phone: formatUyPhone(data.phone),
+    verifiedEmail: data.email_verified,
     recibeOfertas: data.marketing_emails,
   };
 }
 
-export async function updateProfile({ nombre, apellido, telefono }) {
-  const sesion = getSession();
+export async function updateProfile({ displayName, lastName, phone }) {
+  const session = getSession();
   let response;
 
   try {
@@ -239,11 +239,11 @@ export async function updateProfile({ nombre, apellido, telefono }) {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${sesion?.token}`,
+        Authorization: `Bearer ${session?.token}`,
       },
       body: JSON.stringify({
-        name: `${nombre} ${apellido}`.trim(),
-        phone: telefono || null,
+        name: `${displayName} ${lastName}`.trim(),
+        phone: phone || null,
       }),
     });
   } catch {
@@ -257,17 +257,17 @@ export async function updateProfile({ nombre, apellido, telefono }) {
     data = null;
   }
 
-  if (response.status === 401) notifyInvalidSession(sesion?.token);
+  if (response.status === 401) notifyInvalidSession(session?.token);
 
   if (!response.ok || !data) {
-    const mensaje =
+    const message =
       response.status === 401
         ? "Tu sesión venció. Iniciá sesión de nuevo."
         : response.status === 422
           ? Object.values(fieldsWithErrors(data?.detail))[0] ||
             "Revisá el nombre y el teléfono (ej: 099 123 456)."
           : "No pudimos guardar tus datos.";
-    const error = new Error(mensaje);
+    const error = new Error(message);
     error.status = response.status;
     throw error;
   }
@@ -283,8 +283,8 @@ export async function updateProfile({ nombre, apellido, telefono }) {
  * token_type }`, el único válido: quien llama tiene que guardarlo para que
  * este dispositivo siga logueado (ver CambiarPassword.jsx).
  */
-export async function changePassword(actual, nueva) {
-  const sesion = getSession();
+export async function changePassword(current, newPassword) {
+  const session = getSession();
   let response;
 
   try {
@@ -292,9 +292,9 @@ export async function changePassword(actual, nueva) {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${sesion?.token}`,
+        Authorization: `Bearer ${session?.token}`,
       },
-      body: JSON.stringify({ current_password: actual, new_password: nueva }),
+      body: JSON.stringify({ current_password: current, new_password: newPassword }),
     });
   } catch {
     throw new Error("No pudimos conectar con el servidor.");
@@ -311,9 +311,9 @@ export async function changePassword(actual, nueva) {
 
   // Solo el 401 (token inválido) es sesión inválida: el 400 de «contraseña
   // actual incorrecta» es un error del formulario.
-  if (response.status === 401) notifyInvalidSession(sesion?.token);
+  if (response.status === 401) notifyInvalidSession(session?.token);
 
-  const mensaje =
+  const message =
     response.status === 401
       ? "Tu sesión venció. Iniciá sesión de nuevo."
       : typeof data?.detail === "string"
@@ -322,7 +322,7 @@ export async function changePassword(actual, nueva) {
           ? Object.values(fieldsWithErrors(data?.detail))[0] ||
             "Revisá la nueva contraseña."
           : "No pudimos cambiar tu contraseña.";
-  const error = new Error(mensaje);
+  const error = new Error(message);
   error.status = response.status;
   throw error;
 }
@@ -336,11 +336,11 @@ export async function changePassword(actual, nueva) {
 
 // POST sin sesión que solo importa si salió bien: devuelve el JSON (o
 // null) y, si falla, tira un Error con el `detail` del backend.
-async function postAccount(ruta, cuerpo, mensajePorDefecto, headers = {}) {
+async function postAccount(route, cuerpo, messageByDefecto, headers = {}) {
   let response;
 
   try {
-    response = await fetch(`${API_BASE_URL}/api/v1/auth/${ruta}`, {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/${route}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...headers },
       body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
@@ -357,13 +357,13 @@ async function postAccount(ruta, cuerpo, mensajePorDefecto, headers = {}) {
   }
 
   if (!response.ok) {
-    const mensaje =
+    const message =
       typeof data?.detail === "string"
         ? data.detail
         : response.status === 422
-          ? Object.values(fieldsWithErrors(data?.detail))[0] || mensajePorDefecto
-          : mensajePorDefecto;
-    const error = new Error(mensaje);
+          ? Object.values(fieldsWithErrors(data?.detail))[0] || messageByDefecto
+          : messageByDefecto;
+    const error = new Error(message);
     error.status = response.status;
     throw error;
   }
@@ -378,17 +378,17 @@ export async function verifyEmail(token) {
 
 /** POST /api/v1/auth/verify-email/resend — vuelve a mandar el mail. */
 export async function resendVerification() {
-  const sesion = getSession();
+  const session = getSession();
 
   try {
     await postAccount(
       "verify-email/resend",
       undefined,
       "No pudimos reenviar el mail.",
-      { Authorization: `Bearer ${sesion?.token}` }
+      { Authorization: `Bearer ${session?.token}` }
     );
   } catch (error) {
-    if (error.status === 401) notifyInvalidSession(sesion?.token);
+    if (error.status === 401) notifyInvalidSession(session?.token);
     throw error;
   }
 }
@@ -407,10 +407,10 @@ export async function requestPasswordReset(email) {
 }
 
 /** POST /api/v1/auth/password/reset — 204; 400 enlace inválido; 422 contraseña débil. */
-export async function resetPassword(token, nueva) {
+export async function resetPassword(token, newPassword) {
   await postAccount(
     "password/reset",
-    { token, new_password: nueva },
+    { token, new_password: newPassword },
     "No pudimos cambiar tu contraseña."
   );
 }
@@ -456,10 +456,10 @@ async function readJson(response) {
   }
 }
 
-function responseError(data, mensajePorDefecto, statusCode) {
-  const mensaje =
-    typeof data?.detail === "string" ? data.detail : mensajePorDefecto;
-  const error = new Error(mensaje);
+function responseError(data, messageByDefecto, statusCode) {
+  const message =
+    typeof data?.detail === "string" ? data.detail : messageByDefecto;
+  const error = new Error(message);
   error.status = statusCode;
   return error;
 }
@@ -473,7 +473,7 @@ function responseError(data, mensajePorDefecto, statusCode) {
  * @param {string} mensajeError - copy por defecto de la pantalla.
  * @returns {Promise<object>} el JSON de la respuesta.
  */
-async function fetchJson(url, mensajeError) {
+async function fetchJson(url, errorMessage) {
   let response;
 
   try {
@@ -482,17 +482,17 @@ async function fetchJson(url, mensajeError) {
     // `fetch` RECHAZA (no devuelve un status) si el backend está caído
     // o no hay red: el TypeError trae "Failed to fetch", en inglés y
     // sin contexto. Se descarta y se usa el copy de la pantalla.
-    throw new Error(mensajeError);
+    throw new Error(errorMessage);
   }
 
   const data = await readJson(response);
 
   if (!response.ok) {
-    throw responseError(data === NO_JSON ? null : data, mensajeError, response.status);
+    throw responseError(data === NO_JSON ? null : data, errorMessage, response.status);
   }
 
   if (data === NO_JSON) {
-    throw new Error(mensajeError);
+    throw new Error(errorMessage);
   }
 
   return data;
@@ -512,14 +512,14 @@ async function fetchJson(url, mensajeError) {
  * @param {string} mensajeError - copy por defecto de la pantalla.
  * @returns {Array<object>}
  */
-function listFrom(data, clave, mensajeError) {
-  const lista = data?.[clave];
+function listFrom(data, key, errorMessage) {
+  const list = data?.[key];
 
-  if (!Array.isArray(lista)) {
-    throw new Error(mensajeError);
+  if (!Array.isArray(list)) {
+    throw new Error(errorMessage);
   }
 
-  return lista;
+  return list;
 }
 
 /**
@@ -537,9 +537,9 @@ function listFrom(data, clave, mensajeError) {
  * @param {string|{categoria?: string, brand?: string, model?: string, year?: string|number}} [filtros]
  * @returns {Promise<Array<object>>} repuestos con el shape de la UI.
  */
-export async function getParts(filtros) {
+export async function getParts(filters) {
   const { categoria, brand, model, year } =
-    typeof filtros === "string" ? { categoria: filtros } : filtros || {};
+    typeof filters === "string" ? { categoria: filters } : filters || {};
 
   const params = new URLSearchParams();
   if (categoria) params.set("categoria", categoria);
@@ -551,22 +551,22 @@ export async function getParts(filtros) {
     params.toString() ? `?${params.toString()}` : ""
   }`;
 
-  const mensajeError = "No pudimos cargar los repuestos.";
-  const data = await fetchJson(url, mensajeError);
+  const errorMessage = "No pudimos cargar los repuestos.";
+  const data = await fetchJson(url, errorMessage);
 
-  return listFrom(data, "parts", mensajeError).map(mapPart);
+  return listFrom(data, "parts", errorMessage).map(mapPart);
 }
 
 /** GET /api/v1/parts/{id}; devuelve un repuesto con el mismo mapeo que el catálogo. */
 export async function getPart(id) {
-  const mensajeError = "No pudimos cargar el repuesto.";
+  const errorMessage = "No pudimos cargar el repuesto.";
   const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts/${encodeURIComponent(id)}`,
-    mensajeError
+    errorMessage
   );
 
   if (!data || typeof data !== "object" || Array.isArray(data) || data.id == null) {
-    throw new Error(mensajeError);
+    throw new Error(errorMessage);
   }
 
   return mapPart(data);
@@ -577,18 +577,18 @@ export async function getPart(id) {
  * Ejemplo: "pastillas de freno onix 2020"
  */
 export async function searchText(texto) {
-  const mensajeError = "No pudimos realizar la búsqueda.";
+  const errorMessage = "No pudimos realizar la búsqueda.";
 
   const params = new URLSearchParams();
   params.set("q", texto);
 
   const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts?${params.toString()}`,
-    mensajeError
+    errorMessage
   );
 
   return {
-    parts: listFrom(data, "parts", mensajeError).map(mapPart),
+    parts: listFrom(data, "parts", errorMessage).map(mapPart),
     entities: data.entities || {
       part: null,
       brand: null,
@@ -609,13 +609,13 @@ export async function searchText(texto) {
  * @returns {Promise<Array<{nombre: string, cantidad: number}>>}
  */
 export async function getCategories() {
-  const mensajeError = "No pudimos cargar las categorías.";
+  const errorMessage = "No pudimos cargar las categorías.";
   const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts/categories`,
-    mensajeError
+    errorMessage
   );
 
-  return listFrom(data, "categories", mensajeError).map(mapCategory);
+  return listFrom(data, "categories", errorMessage).map(mapCategory);
 }
 
 /**
@@ -623,13 +623,13 @@ export async function getCategories() {
  * más tiene al que menos, con el mismo shape `{ nombre, cantidad }`.
  */
 export async function getManufacturers() {
-  const mensajeError = "No pudimos cargar los fabricantes.";
+  const errorMessage = "No pudimos cargar los fabricantes.";
   const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts/manufacturers`,
-    mensajeError
+    errorMessage
   );
 
-  return listFrom(data, "manufacturers", mensajeError).map(mapCategory);
+  return listFrom(data, "manufacturers", errorMessage).map(mapCategory);
 }
 
 /**
@@ -641,20 +641,20 @@ export async function getManufacturers() {
  *
  * @returns {Promise<Array<object>>} repuestos con el shape de la UI.
  */
-export async function getBestSellers({ limite = 4, dias = 90 } = {}) {
+export async function getBestSellers({ limit = 4, days = 90 } = {}) {
   const params = new URLSearchParams({
-    limit: limite,
-    days: dias,
+    limit: limit,
+    days: days,
     in_stock: "true",
   });
 
-  const mensajeError = "No pudimos cargar los más vendidos.";
+  const errorMessage = "No pudimos cargar los más vendidos.";
   const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts/best-sellers?${params.toString()}`,
-    mensajeError
+    errorMessage
   );
 
-  return listFrom(data, "parts", mensajeError).map(mapPart);
+  return listFrom(data, "parts", errorMessage).map(mapPart);
 }
 
 /* =====================================================
@@ -682,7 +682,7 @@ const CART_STATUS_MESSAGES = {
 };
 
 async function fetchCart(url, options = {}) {
-  const sesion = getSession();
+  const session = getSession();
 
   let response;
   try {
@@ -690,7 +690,7 @@ async function fetchCart(url, options = {}) {
       ...options,
       headers: {
         "Content-Type": "application/json",
-        ...(sesion?.token ? { Authorization: `Bearer ${sesion.token}` } : {}),
+        ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
         ...(options.headers || {}),
       },
     });
@@ -701,15 +701,15 @@ async function fetchCart(url, options = {}) {
   const data = await readJson(response);
 
   if (!response.ok) {
-    if (response.status === 401) notifyInvalidSession(sesion?.token);
+    if (response.status === 401) notifyInvalidSession(session?.token);
 
-    const detalle =
+    const details =
       data !== NO_JSON && typeof data?.detail === "string"
         ? data.detail
         : null;
 
     const error = new Error(
-      detalle ||
+      details ||
         CART_STATUS_MESSAGES[response.status] ||
         "No pudimos actualizar el carrito."
     );
@@ -832,18 +832,18 @@ function fetchAddresses(url, options = {}) {
  */
 export function fieldsWithErrors(detail) {
   if (!Array.isArray(detail)) return {};
-  const campos = {};
+  const fields = {};
   for (const item of detail) {
-    const campo = item?.loc?.[0] === "body" ? item.loc[1] : null;
-    if (campo && !campos[campo]) {
-      campos[campo] = String(item.msg ?? "").replace(/^Value error, /, "");
+    const field = item?.loc?.[0] === "body" ? item.loc[1] : null;
+    if (field && !fields[field]) {
+      fields[field] = String(item.msg ?? "").replace(/^Value error, /, "");
     }
   }
-  return campos;
+  return fields;
 }
 
-async function fetchCustomerAccount(url, options, mensajesPorStatus, mensajeGenerico) {
-  const sesion = getSession();
+async function fetchCustomerAccount(url, options, messagesByStatus, messageGenerico) {
+  const session = getSession();
 
   let response;
   try {
@@ -851,7 +851,7 @@ async function fetchCustomerAccount(url, options, mensajesPorStatus, mensajeGene
       ...options,
       headers: {
         "Content-Type": "application/json",
-        ...(sesion?.token ? { Authorization: `Bearer ${sesion.token}` } : {}),
+        ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
         ...(options.headers || {}),
       },
     });
@@ -862,18 +862,18 @@ async function fetchCustomerAccount(url, options, mensajesPorStatus, mensajeGene
   const data = response.status === 204 ? null : await readJson(response);
 
   if (!response.ok) {
-    if (response.status === 401) notifyInvalidSession(sesion?.token);
+    if (response.status === 401) notifyInvalidSession(session?.token);
 
-    const detalle =
+    const details =
       data !== NO_JSON && typeof data?.detail === "string"
         ? data.detail
         : null;
 
     const error = new Error(
-      detalle || mensajesPorStatus[response.status] || mensajeGenerico
+      details || messagesByStatus[response.status] || messageGenerico
     );
     error.status = response.status;
-    error.campos = data !== NO_JSON ? fieldsWithErrors(data?.detail) : {};
+    error.fields = data !== NO_JSON ? fieldsWithErrors(data?.detail) : {};
     throw error;
   }
 
@@ -899,9 +899,9 @@ function fetchFavorites(url, options = {}) {
 }
 
 export async function getFavorites() {
-  const mensajeError = "No pudimos cargar tus favoritos.";
+  const errorMessage = "No pudimos cargar tus favoritos.";
   const data = await fetchFavorites(`${API_BASE_URL}/api/v1/favorites`);
-  return listFrom(data, "parts", mensajeError).map(mapPart);
+  return listFrom(data, "parts", errorMessage).map(mapPart);
 }
 
 export async function addFavoriteApi(partId) {
@@ -956,14 +956,14 @@ export async function removeStockAlert(partId) {
 function mapAddress(d) {
   return {
     id: d.shipping_address_id,
-    nombre: d.personal_name,
-    calle: d.street,
-    numero: d.number,
+    displayName: d.personal_name,
+    street: d.street,
+    number: d.number,
     apartamento: d.apartment ?? "",
-    ciudad: d.city,
+    city: d.city,
     departamento: d.department,
-    codigoPostal: d.postal_code ?? "",
-    principal: d.is_primary,
+    codePostal: d.postal_code ?? "",
+    primary: d.is_primary,
   };
 }
 
@@ -978,14 +978,14 @@ export async function createAddress(f) {
   const data = await fetchAddresses(`${API_BASE_URL}/api/v1/addresses`, {
     method: "POST",
     body: JSON.stringify({
-      personal_name: f.nombre,
-      street: f.calle,
-      number: f.numero,
+      personal_name: f.displayName,
+      street: f.street,
+      number: f.number,
       apartment: f.apartamento || null,
-      city: f.ciudad,
+      city: f.city,
       department: f.departamento,
-      postal_code: f.codigoPostal || null,
-      is_primary: Boolean(f.principal),
+      postal_code: f.codePostal || null,
+      is_primary: Boolean(f.primary),
     }),
   });
   return mapAddress(data);
@@ -1030,15 +1030,15 @@ export async function getRecommendations(partIds) {
 
   if (ids.length === 0) return [];
 
-  const mensajeError = "No pudimos cargar las sugerencias.";
+  const errorMessage = "No pudimos cargar las sugerencias.";
 
   try {
     const data = await fetchJson(
       `${API_BASE_URL}/api/v1/recommendations?part_ids=${ids.join(",")}`,
-      mensajeError
+      errorMessage
     );
 
-    return listFrom(data, "parts", mensajeError).map(mapPart);
+    return listFrom(data, "parts", errorMessage).map(mapPart);
   } catch {
     return [];
   }
@@ -1059,33 +1059,33 @@ const ORDER_STATUS_MESSAGES = {
 function mapOrder(p) {
   return {
     id: p.order_id,
-    fecha: p.created_at,
+    date: p.created_at,
     estado: p.status,
-    direccion: p.shipping_address ? mapAddress(p.shipping_address) : null,
-    metodoPago: p.payment_method ?? "",
+    shippingAddress: p.shipping_address ? mapAddress(p.shipping_address) : null,
+    paymentMethod: p.payment_method ?? "",
     // "pending" | "approved" | "rejected"; null en los pedidos de antes de
     // Mercado Pago (ya cobrados).
-    estadoPago: p.payment_status ?? null,
+    paymentStatus: p.payment_status ?? null,
     // Hasta cuándo se puede pagar; pasado el plazo el pedido se cancela solo.
-    vencePago: p.payment_due_at ?? null,
+    expiresPayment: p.payment_due_at ?? null,
     // El texto que escribió la tienda al cancelar (el tipo va en motivoCancelacion).
-    detalleCancelacion: p.cancellation_reason ?? null,
+    detailCancellation: p.cancellation_reason ?? null,
     total: p.total ?? 0,
     // Los estados por los que pasó, del primero al actual. `fecha` es null
     // si no se sabe (pedidos de antes del seguimiento).
-    seguimiento: (p.status_history || []).map((paso) => ({
-      estado: paso.status,
-      fecha: paso.changed_at ?? null,
+    tracking: (p.status_history || []).map((step) => ({
+      estado: step.status,
+      date: step.changed_at ?? null,
     })),
     // Solo en los cancelados: "expired" (venció sin pagarse) o "store"
     // (lo canceló la tienda); null si no se sabe.
-    motivoCancelacion: p.cancel_reason ?? null,
+    reasonCancellation: p.cancel_reason ?? null,
     items: (p.items || []).map((item) => ({
       partId: item.part_id,
-      codigo: item.part_code ?? "",
-      nombre: item.name ?? "",
-      cantidad: item.quantity,
-      precio: item.frozen_price,
+      code: item.part_code ?? "",
+      displayName: item.name ?? "",
+      quantity: item.quantity,
+      price: item.frozen_price,
     })),
   };
 }
@@ -1095,13 +1095,13 @@ function mapOrder(p) {
  * dirección elegida (sin elegir, usa la principal). El pedido queda
  * pendiente de pago: se paga después en Mercado Pago (crearLinkPago).
  */
-export async function confirmPurchase({ direccionId } = {}) {
+export async function confirmPurchase({ idAddress } = {}) {
   const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/orders`,
     {
       method: "POST",
       body: JSON.stringify({
-        shipping_address_id: direccionId ?? null,
+        shipping_address_id: idAddress ?? null,
       }),
     },
     ORDER_STATUS_MESSAGES,
@@ -1235,7 +1235,7 @@ export async function askAssistant({ texto, marca, modelo, anio, historial = [],
     aviso: data.aviso ?? null,
     pregunta: data.pregunta ?? null,
     opciones: data.opciones ?? [],
-    fueraDeTema: Boolean(data.fuera_de_tema),
+    offTopic: Boolean(data.fuera_de_tema),
     recomendaciones: (data.recomendaciones || []).map((recomendacion) => ({
       tipo: recomendacion.tipo,
       motivo: recomendacion.motivo,

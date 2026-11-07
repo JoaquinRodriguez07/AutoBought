@@ -14,32 +14,32 @@ const dateTime = new Intl.DateTimeFormat("es-UY", { dateStyle: "long", timeStyle
 // ruta, el panel dice que está en desarrollo; si la IA no responde, avisa y
 // el resto del dashboard sigue igual.
 export default function AISummary() {
-  const [estado, setEstado] = useState({ resumen: null, cargando: true, error: null });
-  const [actualizando, setActualizando] = useState(false);
+  const [estado, setStatus] = useState({ summary: null, loading: true, error: null });
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     let vigente = true;
     getAISummary()
-      .then((resumen) => vigente && setEstado({ resumen, cargando: false, error: null }))
-      .catch((error) => vigente && setEstado({ resumen: null, cargando: false, error }));
+      .then((summary) => vigente && setStatus({ summary, loading: false, error: null }))
+      .catch((error) => vigente && setStatus({ summary: null, loading: false, error }));
     return () => {
       vigente = false;
     };
   }, []);
 
-  const actualizar = async () => {
-    setActualizando(true);
+  const update = async () => {
+    setUpdating(true);
     try {
-      const resumen = await refreshAISummary();
-      setEstado({ resumen, cargando: false, error: null });
+      const summary = await refreshAISummary();
+      setStatus({ summary, loading: false, error: null });
     } catch (error) {
-      setEstado((anterior) => ({ ...anterior, error }));
+      setStatus((previous) => ({ ...previous, error }));
     } finally {
-      setActualizando(false);
+      setUpdating(false);
     }
   };
 
-  const enDesarrollo = unpublishedFeature(estado.error);
+  const inDesarrollo = unpublishedFeature(estado.error);
 
   return (
     <section
@@ -54,22 +54,22 @@ export default function AISummary() {
           <div>
             <h2 id="titulo-resumen-ia" className="text-[15px] font-semibold flex flex-wrap items-center gap-2">
               Resumen del día
-              {enDesarrollo && <InDevelopment />}
+              {inDesarrollo && <InDevelopment />}
             </h2>
-            {estado.resumen && (
-              <p className="text-xs text-muted-foreground">Generado el {dateTime.format(new Date(estado.resumen.generado))}</p>
+            {estado.summary && (
+              <p className="text-xs text-muted-foreground">Generado el {dateTime.format(new Date(estado.summary.generated))}</p>
             )}
           </div>
         </div>
-        {!estado.cargando && !enDesarrollo && (
-          <Button variant="outline" size="sm" onClick={actualizar} disabled={actualizando}>
-            <RefreshCwIcon className={actualizando ? "animate-spin" : undefined} />
+        {!estado.loading && !inDesarrollo && (
+          <Button variant="outline" size="sm" onClick={update} disabled={updating}>
+            <RefreshCwIcon className={updating ? "animate-spin" : undefined} />
             Actualizar
           </Button>
         )}
       </div>
 
-      {estado.cargando && (
+      {estado.loading && (
         <div className="mt-4 flex flex-col gap-2" aria-label="Cargando…">
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-4 w-2/3" />
@@ -77,22 +77,22 @@ export default function AISummary() {
         </div>
       )}
 
-      {enDesarrollo && (
+      {inDesarrollo && (
         <p className="mt-3 text-sm text-muted-foreground">
           Estamos desarrollando un resumen escrito con IA de cómo vienen las ventas y qué conviene reponer. Va a
           aparecer acá.
         </p>
       )}
 
-      {estado.error && !enDesarrollo && (
+      {estado.error && !inDesarrollo && (
         <p role="status" className="mt-3 text-sm text-muted-foreground">
           El resumen no está disponible en este momento. El resto del dashboard funciona igual.
         </p>
       )}
 
-      {estado.resumen && !estado.error && (
+      {estado.summary && !estado.error && (
         <ul className="mt-4 flex flex-col gap-2 text-sm leading-relaxed">
-          {estado.resumen.puntos.map((punto) => (
+          {estado.summary.puntos.map((punto) => (
             <li key={punto} className="flex gap-2.5">
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-orange-500" aria-hidden="true" />
               {punto}

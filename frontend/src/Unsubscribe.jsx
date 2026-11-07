@@ -11,11 +11,11 @@ const INVALID_LINK = "El enlace no es válido.";
  * Enlace «No quiero recibir estos mails» de los mails comerciales
  * (?token=...). No pide sesión.
  */
-export default function Unsubscribe({ onIrALaTienda, ...propsNavbar }) {
+export default function Unsubscribe({ onGoToStore, ...propsNavbar }) {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") || "";
 
-  const [estado, setEstado] = useState(token ? "procesando" : "error");
+  const [estado, setStatus] = useState(token ? "procesando" : "error");
   const [error, setError] = useState(token ? "" : INVALID_LINK);
 
   // En desarrollo, StrictMode corre los efectos dos veces.
@@ -26,22 +26,22 @@ export default function Unsubscribe({ onIrALaTienda, ...propsNavbar }) {
     pedido.current = true;
 
     unsubscribe(token)
-      .then(() => setEstado("listo"))
+      .then(() => setStatus("ready"))
       .catch((err) => {
-        setEstado("error");
+        setStatus("error");
         setError(err.message);
       });
   }, [token]);
 
   return (
-    <AccountCard titulo="Mails de ofertas" {...propsNavbar}>
+    <AccountCard title="Mails de ofertas" {...propsNavbar}>
       {estado === "procesando" && (
         <p role="status" className="mt-6 text-xs text-gray-500">
           Procesando tu baja...
         </p>
       )}
 
-      {estado === "listo" && (
+      {estado === "ready" && (
         <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-xs font-semibold">
           Listo, no te vamos a mandar más ofertas ni recordatorios. Los mails de tus pedidos y de tu cuenta te siguen llegando.
           Si cambiás de idea, lo podés volver a activar desde tu perfil.
@@ -55,7 +55,7 @@ export default function Unsubscribe({ onIrALaTienda, ...propsNavbar }) {
       )}
 
       {estado !== "procesando" && (
-        <button type="button" onClick={onIrALaTienda} className={accountButtonClass}>
+        <button type="button" onClick={onGoToStore} className={accountButtonClass}>
           Ir a la tienda
         </button>
       )}

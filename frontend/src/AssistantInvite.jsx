@@ -17,12 +17,12 @@ import { usePit } from "./context/PitContext";
  */
 export default function AssistantInvite({ variante = "banda", termino = "" }) {
   const navigate = useNavigate();
-  const { abrir: abrirPit } = usePit();
+  const { open: openPit } = usePit();
 
-  const sesion = getSession();
-  if (isSeller(sesion)) return null;
+  const session = getSession();
+  if (isSeller(session)) return null;
 
-  const abrir = () => (isSessionValid(sesion) ? abrirPit(termino) : navigate("/login"));
+  const open = () => (isSessionValid(session) ? openPit(termino) : navigate("/login"));
 
   if (variante === "sinResultados") {
     return (
@@ -37,7 +37,7 @@ export default function AssistantInvite({ variante = "banda", termino = "" }) {
           </p>
           <button
             type="button"
-            onClick={abrir}
+            onClick={open}
             className="mt-3 h-10 px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-black transition"
           >
             Preguntarle a Pit
@@ -61,7 +61,7 @@ export default function AssistantInvite({ variante = "banda", termino = "" }) {
         </div>
         <button
           type="button"
-          onClick={abrir}
+          onClick={open}
           className="shrink-0 bg-white text-orange-600 hover:bg-orange-50 px-6 py-3 rounded-md text-sm font-black transition"
         >
           Consultar a Pit

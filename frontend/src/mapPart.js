@@ -56,13 +56,13 @@
  * sueltos se descartan: `aplicaciones` ya los tiene, auto por auto.
  */
 
-import imagenPlaceholder from "./assets/repuestos.jpg";
+import imagePlaceholder from "./assets/repuestos.jpg";
 import { imageForType, extraImagesForType } from "./partImages";
 
 // El backend no guarda fotos de los repuestos: cada uno muestra la imagen
 // de su tipo de pieza. Si el nombre no corresponde a ningún tipo conocido,
 // se usa esta imagen genérica para que el <img> nunca quede roto.
-export const PLACEHOLDER_IMAGE = imagenPlaceholder;
+export const PLACEHOLDER_IMAGE = imagePlaceholder;
 
 /**
  * onError de las <img> de repuestos: si la imagen no carga (por ejemplo,
@@ -75,63 +75,63 @@ export const PLACEHOLDER_IMAGE = imagenPlaceholder;
  * elemento al cambiar `src`) y esa falla, vuelve a caer en la genérica.
  */
 export function useGenericImage(evento) {
-  const imagen = evento.currentTarget;
-  if (imagen.getAttribute("src") === PLACEHOLDER_IMAGE) return;
-  imagen.src = PLACEHOLDER_IMAGE;
+  const image = evento.currentTarget;
+  if (image.getAttribute("src") === PLACEHOLDER_IMAGE) return;
+  image.src = PLACEHOLDER_IMAGE;
 }
 
-export function partImage(nombre) {
-  return imageForType(nombre) ?? PLACEHOLDER_IMAGE;
+export function partImage(displayName) {
+  return imageForType(displayName) ?? PLACEHOLDER_IMAGE;
 }
 
 // "12 meses de garantía del fabricante (Bosch), por defectos de
 // fabricación." Sin meses, vacío: la pantalla muestra "Consultar garantía".
-export function warrantyText(meses, proveedor, fabricante) {
-  if (!meses) return "";
+export function warrantyText(months, provider, fabricante) {
+  if (!months) return "";
   const quien =
-    proveedor === "vendedor"
+    provider === "vendedor"
       ? "del vendedor (AutoBought)"
       : `del fabricante${fabricante ? ` (${fabricante})` : ""}`;
-  return `${meses} meses de garantía ${quien}, por defectos de fabricación.`;
+  return `${months} meses de garantía ${quien}, por defectos de fabricación.`;
 }
 
 // Una línea por auto compatible, para la pestaña Aplicaciones del detalle.
 function fitmentText({ brand, model, engine_code, year_from, year_to }) {
-  const anios = year_from === year_to ? `${year_from}` : `${year_from}–${year_to}`;
-  return `${brand} ${model} ${engine_code} (${anios})`;
+  const years = year_from === year_to ? `${year_from}` : `${year_from}–${year_to}`;
+  return `${brand} ${model} ${engine_code} (${years})`;
 }
 
 export function mapPart(part) {
-  const marcas = Array.isArray(part.compatible_brands)
+  const brands = Array.isArray(part.compatible_brands)
     ? part.compatible_brands
     : [];
 
   return {
     id: String(part.id),
     partId: part.id,
-    nombre: part.name ?? "",
+    displayName: part.name ?? "",
     fabricante: part.manufacturer ?? "",
-    codigo: part.part_code ?? "",
+    code: part.part_code ?? "",
     categoria: part.category ?? "",
-    precio: part.price ?? 0,
+    price: part.price ?? 0,
     stock: part.stock ?? 0,
-    marca: marcas.join(" "),
-    marcaPrincipal: marcas[0] ?? "",
-    marcas,
-    modelos: Array.isArray(part.compatible_models) ? part.compatible_models : [],
-    descripcion: part.description ?? "",
-    especificaciones: Array.isArray(part.specifications) ? part.specifications : [],
+    marca: brands.join(" "),
+    primaryBrand: brands[0] ?? "",
+    brands,
+    models: Array.isArray(part.compatible_models) ? part.compatible_models : [],
+    description: part.description ?? "",
+    specifications: Array.isArray(part.specifications) ? part.specifications : [],
     garantia: warrantyText(part.warranty_months, part.warranty_provider, part.manufacturer),
-    garantiaMeses: part.warranty_months ?? null,
-    proveedorGarantia: part.warranty_provider ?? null,
+    monthsWarranty: part.warranty_months ?? null,
+    warrantyProvider: part.warranty_provider ?? null,
     // Conservar la estructura de API para validar compatibilidad en el
     // detalle, sin cambiar el formato string que ya usa Aplicaciones.
     compatibilidades: Array.isArray(part.compatibilities)
       ? part.compatibilities.map((compatibility) => ({ ...compatibility }))
       : [],
-    aplicaciones: Array.isArray(part.compatibilities) ? part.compatibilities.map(fitmentText) : [],
-    imagen: partImage(part.name),
-    imagenesExtra: extraImagesForType(part.name),
+    fitments: Array.isArray(part.compatibilities) ? part.compatibilities.map(fitmentText) : [],
+    image: partImage(part.name),
+    imagesExtra: extraImagesForType(part.name),
   };
 }
 
@@ -146,14 +146,14 @@ export function mapCartItem(item) {
   return {
     id: String(item.part_id),
     partId: item.part_id,
-    codigo: item.part_code ?? "",
-    nombre: item.name ?? "",
-    precio: item.price ?? 0,
-    cantidad: item.amount ?? 0,
+    code: item.part_code ?? "",
+    displayName: item.name ?? "",
+    price: item.price ?? 0,
+    quantity: item.amount ?? 0,
     subtotal: item.subtotal ?? 0,
     stock: item.stock ?? 0,
     categoria: item.category ?? "",
-    imagen: partImage(item.name),
+    image: partImage(item.name),
   };
 }
 
@@ -163,7 +163,7 @@ export function mapCartItem(item) {
  */
 export function mapCategory(categoria) {
   return {
-    nombre: categoria.name ?? "",
-    cantidad: categoria.count ?? 0,
+    displayName: categoria.name ?? "",
+    quantity: categoria.count ?? 0,
   };
 }

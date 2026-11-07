@@ -5,7 +5,7 @@ import { CloseIcon, CheckIcon } from "./Icons";
 // Cuánto queda a la vista el aviso antes de irse solo.
 export const NOTICE_DURATION_MS = 5000;
 
-const precio = (valor) => `$${Number(valor || 0).toLocaleString("es-UY")}`;
+const price = (rawValue) => `$${Number(rawValue || 0).toLocaleString("es-UY")}`;
 
 /**
  * ConfirmacionAgregarCarrito
@@ -29,43 +29,43 @@ const precio = (valor) => `$${Number(valor || 0).toLocaleString("es-UY")}`;
  */
 export default function AddedToCartNotice({
   aviso,
-  cantidadCarrito,
+  cartQuantity,
   total,
-  onDeshacer,
-  onCerrar,
-  onVerCarrito,
-  onIniciarSesion,
+  onUndo,
+  onClose,
+  onSeeCart,
+  onStartSession,
 }) {
-  const [pausado, setPausado] = useState(false);
+  const [paused, setPaused] = useState(false);
 
   // Al cerrarse, la pausa se descarta. Si no, al cerrar uno con el mouse
   // encima (Deshacer, ✕) nunca llega el mouseLeave y el siguiente no se
   // iría solo. Mientras sigue abierto (por ejemplo, "×3") la pausa se
   // respeta.
-  if (!aviso && pausado) {
-    setPausado(false);
+  if (!aviso && paused) {
+    setPaused(false);
   }
 
   // Quien lo usa puede pasar `onCerrar` como función nueva en cada
   // render: se guarda en una ref para que eso no reinicie la cuenta.
-  const cerrar = useRef(onCerrar);
+  const close = useRef(onClose);
   useEffect(() => {
-    cerrar.current = onCerrar;
-  }, [onCerrar]);
+    close.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
-    if (!aviso || pausado) return;
-    const temporizador = setTimeout(() => cerrar.current(), NOTICE_DURATION_MS);
+    if (!aviso || paused) return;
+    const temporizador = setTimeout(() => close.current(), NOTICE_DURATION_MS);
     return () => clearTimeout(temporizador);
-  }, [aviso, pausado]);
+  }, [aviso, paused]);
 
   useEffect(() => {
     if (!aviso) return;
-    const cerrarConEscape = (event) => {
-      if (event.key === "Escape") cerrar.current();
+    const closeWithEscape = (event) => {
+      if (event.key === "Escape") close.current();
     };
-    document.addEventListener("keydown", cerrarConEscape);
-    return () => document.removeEventListener("keydown", cerrarConEscape);
+    document.addEventListener("keydown", closeWithEscape);
+    return () => document.removeEventListener("keydown", closeWithEscape);
   }, [aviso]);
 
   return (
@@ -77,22 +77,22 @@ export default function AddedToCartNotice({
       {aviso && (
         <div
           role="status"
-          onMouseEnter={() => setPausado(true)}
-          onMouseLeave={() => setPausado(false)}
-          onFocus={() => setPausado(true)}
-          onBlur={() => setPausado(false)}
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onFocus={() => setPaused(true)}
+          onBlur={() => setPaused(false)}
           className="pointer-events-auto rounded-xl bg-[#151719] text-white shadow-2xl p-4 motion-safe:animate-entrar-aviso"
         >
           {aviso.tipo === "login" ? (
-            <LoginContent onIniciarSesion={onIniciarSesion} onCerrar={onCerrar} />
+            <LoginContent onStartSession={onStartSession} onClose={onClose} />
           ) : (
             <AddedContent
               aviso={aviso}
-              cantidadCarrito={cantidadCarrito}
+              cartQuantity={cartQuantity}
               total={total}
-              onDeshacer={onDeshacer}
-              onCerrar={onCerrar}
-              onVerCarrito={onVerCarrito}
+              onUndo={onUndo}
+              onClose={onClose}
+              onSeeCart={onSeeCart}
             />
           )}
         </div>
@@ -101,11 +101,11 @@ export default function AddedToCartNotice({
   );
 }
 
-function CloseButton({ onCerrar }) {
+function CloseButton({ onClose }) {
   return (
     <button
       type="button"
-      onClick={onCerrar}
+      onClick={onClose}
       aria-label="Cerrar aviso"
       className="text-gray-400 hover:text-white"
     >
@@ -116,13 +116,13 @@ function CloseButton({ onCerrar }) {
 
 function AddedContent({
   aviso,
-  cantidadCarrito,
+  cartQuantity,
   total,
-  onDeshacer,
-  onCerrar,
-  onVerCarrito,
+  onUndo,
+  onClose,
+  onSeeCart,
 }) {
-  const { producto, cantidadAgregada } = aviso;
+  const { product, addedQuantity } = aviso;
 
   return (
     <>
@@ -133,41 +133,41 @@ function AddedContent({
           </span>
           Agregado al carrito
         </p>
-        <CloseButton onCerrar={onCerrar} />
+        <CloseButton onClose={onClose} />
       </div>
 
       <div className="mt-3 flex gap-3">
         <img onError={useGenericImage}
-          src={producto.imagen}
+          src={product.image}
           alt=""
           className="w-14 h-14 shrink-0 rounded-md object-cover bg-white/10"
         />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold truncate" title={producto.nombre}>
-            {producto.nombre}
+          <p className="text-xs font-bold truncate" title={product.displayName}>
+            {product.displayName}
           </p>
           <p className="mt-1 text-xs text-gray-400">
-            {precio(producto.precio)} · ×{cantidadAgregada}
+            {price(product.price)} · ×{addedQuantity}
           </p>
         </div>
       </div>
 
       <p className="mt-3 pt-3 border-t border-white/10 text-xs text-gray-400">
-        Tu carrito ({cantidadCarrito} {cantidadCarrito === 1 ? "producto" : "productos"}):{" "}
-        <span className="font-black text-white">{precio(total)}</span>
+        Tu carrito ({cartQuantity} {cartQuantity === 1 ? "producto" : "productos"}):{" "}
+        <span className="font-black text-white">{price(total)}</span>
       </p>
 
       <div className="mt-3 flex gap-2">
         <button
           type="button"
-          onClick={onCerrar}
+          onClick={onClose}
           className="flex-1 rounded-md border border-white/20 py-2 text-sm font-bold text-gray-200 hover:border-orange-500 hover:text-orange-400 transition"
         >
           Seguir comprando
         </button>
         <button
           type="button"
-          onClick={onVerCarrito}
+          onClick={onSeeCart}
           className="flex-1 rounded-md bg-orange-500 py-2 text-sm font-bold text-white hover:bg-orange-600 transition"
         >
           Ver carrito
@@ -176,7 +176,7 @@ function AddedContent({
 
       <button
         type="button"
-        onClick={onDeshacer}
+        onClick={onUndo}
         className="mt-2 w-full text-center text-xs text-gray-400 underline hover:text-orange-400"
       >
         Deshacer
@@ -185,18 +185,18 @@ function AddedContent({
   );
 }
 
-function LoginContent({ onIniciarSesion, onCerrar }) {
+function LoginContent({ onStartSession, onClose }) {
   return (
     <>
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-black">
           Iniciá sesión para agregar productos al carrito.
         </p>
-        <CloseButton onCerrar={onCerrar} />
+        <CloseButton onClose={onClose} />
       </div>
       <button
         type="button"
-        onClick={onIniciarSesion}
+        onClick={onStartSession}
         className="mt-3 w-full rounded-md bg-orange-500 py-2 text-sm font-bold text-white hover:bg-orange-600 transition"
       >
         Iniciar sesión

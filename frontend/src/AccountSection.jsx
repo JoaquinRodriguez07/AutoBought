@@ -7,9 +7,9 @@
  * encabezado. `Icono` (opcional) va en un círculo naranja a la izquierda
  * del título.
  */
-export default function AccountSection({ titulo, descripcion, accion, idTitulo, Icon, children }) {
+export default function AccountSection({ title, description, action, titleId, Icon, children }) {
   return (
-    <section aria-labelledby={idTitulo} className="border border-gray-200 rounded-xl bg-white shadow-xs">
+    <section aria-labelledby={titleId} className="border border-gray-200 rounded-xl bg-white shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 sm:px-6 py-5">
         <div className="flex items-start gap-4 min-w-0">
           {Icon && (
@@ -18,13 +18,13 @@ export default function AccountSection({ titulo, descripcion, accion, idTitulo, 
             </span>
           )}
           <div className="min-w-0">
-            <h3 id={idTitulo} className="text-base font-black text-gray-900">
-              {titulo}
+            <h3 id={titleId} className="text-base font-black text-gray-900">
+              {title}
             </h3>
-            {descripcion && <p className="text-sm text-gray-500 mt-1">{descripcion}</p>}
+            {description && <p className="text-sm text-gray-500 mt-1">{description}</p>}
           </div>
         </div>
-        {accion}
+        {action}
       </div>
 
       {children && <div className="border-t border-gray-100 px-5 sm:px-6 py-5">{children}</div>}

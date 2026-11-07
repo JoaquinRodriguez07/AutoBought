@@ -44,24 +44,24 @@ export default function SearchBar({
     }
   }, [value]);
 
-  const actualizar = (nuevoValor) => {
-    setInterno(nuevoValor);
-    onChange?.(nuevoValor);
+  const update = (newValue) => {
+    setInterno(newValue);
+    onChange?.(newValue);
   };
 
-  const buscar = () => {
+  const runSearch = () => {
     onSubmit?.(interno);
   };
 
-  const manejarTecla = (e) => {
+  const handleTecla = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      buscar();
+      runSearch();
     }
   };
 
   const clean = () => {
-    actualizar("");
+    update("");
     onSubmit?.("");
   };
 
@@ -73,8 +73,8 @@ export default function SearchBar({
       <input
         id={inputId}
         value={interno}
-        onChange={(e) => actualizar(e.target.value)}
-        onKeyDown={manejarTecla}
+        onChange={(e) => update(e.target.value)}
+        onKeyDown={handleTecla}
         type="search"
         autoFocus={autoFocus}
         aria-label="Buscar repuesto por nombre o código"
@@ -95,7 +95,7 @@ export default function SearchBar({
 
       <button
         type="button"
-        onClick={buscar}
+        onClick={runSearch}
         aria-label="Buscar"
         className="bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition"
       >

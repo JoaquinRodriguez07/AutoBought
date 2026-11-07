@@ -65,25 +65,25 @@ const backendPart = {
 const uiPart = {
   id: "21",
   partId: 21,
-  nombre: "Disco de freno",
+  displayName: "Disco de freno",
   fabricante: "Brembo",
-  codigo: "DF-21",
+  code: "DF-21",
   categoria: "Frenos",
-  precio: 2450,
+  price: 2450,
   stock: 7,
   marca: "Volkswagen Audi",
-  marcaPrincipal: "Volkswagen",
-  marcas: ["Volkswagen", "Audi"],
-  modelos: [],
-  descripcion: "",
-  especificaciones: [],
+  primaryBrand: "Volkswagen",
+  brands: ["Volkswagen", "Audi"],
+  models: [],
+  description: "",
+  specifications: [],
   garantia: "",
-  garantiaMeses: null,
-  proveedorGarantia: null,
+  monthsWarranty: null,
+  warrantyProvider: null,
   compatibilidades: [],
-  aplicaciones: [],
-  imagen: PLACEHOLDER_IMAGE,
-  imagenesExtra: [],
+  fitments: [],
+  image: PLACEHOLDER_IMAGE,
+  imagesExtra: [],
 };
 
 /**
@@ -138,13 +138,13 @@ describe("login", () => {
 });
 
 describe("registrar", () => {
-  const datos = { nombre: "Lucia", apellido: "Gomez", email: "lucia@example.com", telefono: "099123456", password: "secreto123" };
+  const info = { displayName: "Lucia", lastName: "Gomez", email: "lucia@example.com", phone: "099123456", password: "secreto123" };
 
   it("posts the data with name and surname joined, the phone, and returns the token", async () => {
     const data = { access_token: "token", token_type: "bearer" };
     fetch.mockResolvedValue(response(data, { status: 201 }));
 
-    await expect(register(datos)).resolves.toEqual(data);
+    await expect(register(info)).resolves.toEqual(data);
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -163,15 +163,15 @@ describe("registrar", () => {
       .mockResolvedValueOnce(response({ detail: [{ msg: "x" }] }, { ok: false, status: 422 }))
       .mockResolvedValueOnce(response({}, { ok: false, status: 500 }));
 
-    await expect(register(datos)).rejects.toThrow("El correo ya está en uso.");
-    await expect(register(datos)).rejects.toThrow("Revisá los datos ingresados.");
-    await expect(register(datos)).rejects.toThrow("No pudimos crear tu cuenta. Intentá de nuevo.");
+    await expect(register(info)).rejects.toThrow("El correo ya está en uso.");
+    await expect(register(info)).rejects.toThrow("Revisá los datos ingresados.");
+    await expect(register(info)).rejects.toThrow("No pudimos crear tu cuenta. Intentá de nuevo.");
   });
 
   it("translates a network failure", async () => {
     fetch.mockRejectedValue(new TypeError("Failed to fetch"));
 
-    await expect(register(datos)).rejects.toThrow("No pudimos conectar con el servidor.");
+    await expect(register(info)).rejects.toThrow("No pudimos conectar con el servidor.");
   });
 });
 
@@ -189,11 +189,11 @@ describe("getProfile", () => {
     );
 
     await expect(getProfile("tok")).resolves.toEqual({
-      nombre: "Lucia Gomez",
-      apellido: "",
+      displayName: "Lucia Gomez",
+      lastName: "",
       email: "lucia@example.com",
-      telefono: "099 123 456",
-      emailVerificado: false,
+      phone: "099 123 456",
+      verifiedEmail: false,
       recibeOfertas: true,
     });
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me`, {
@@ -204,7 +204,7 @@ describe("getProfile", () => {
   it("maps a missing phone to an empty string", async () => {
     fetch.mockResolvedValue(response({ user_id: 7, name: "Ana", email: "a@b.com", phone: null }));
 
-    await expect(getProfile("tok")).resolves.toEqual(expect.objectContaining({ telefono: "" }));
+    await expect(getProfile("tok")).resolves.toEqual(expect.objectContaining({ phone: "" }));
   });
 
   it("fails on error statuses, broken bodies and network errors", async () => {
@@ -273,7 +273,7 @@ describe("mails de cuenta", () => {
       response({ detail: "El enlace no es válido o ya venció. Pedí uno nuevo." }, { ok: false, status: 400 })
     );
 
-    await expect(resetPassword("viejo", "Nueva2026x")).rejects.toMatchObject({
+    await expect(resetPassword("old", "Nueva2026x")).rejects.toMatchObject({
       message: "El enlace no es válido o ya venció. Pedí uno nuevo.",
       status: 400,
     });
@@ -420,9 +420,9 @@ describe("renewToken", () => {
       .mockResolvedValueOnce(response(null, { jsonError: new Error("bad json") }))
       .mockResolvedValueOnce(response({ token_type: "bearer" }));
 
-    const sinRed = await renewToken().catch((e) => e);
-    expect(sinRed.message).toBe("No pudimos conectar con el servidor.");
-    expect(sinRed.status).toBeUndefined();
+    const withoutNetwork = await renewToken().catch((e) => e);
+    expect(withoutNetwork.message).toBe("No pudimos conectar con el servidor.");
+    expect(withoutNetwork.status).toBeUndefined();
 
     await expect(renewToken()).rejects.toThrow("No pudimos renovar tu sesión.");
     await expect(renewToken()).rejects.toThrow("No pudimos renovar tu sesión.");
@@ -475,12 +475,12 @@ describe("updateProfile", () => {
     );
 
     await expect(
-      updateProfile({ nombre: "Lucia", apellido: "Perez", telefono: "098 765 432" })
+      updateProfile({ displayName: "Lucia", lastName: "Perez", phone: "098 765 432" })
     ).resolves.toEqual({
-      nombre: "Lucia Perez",
-      apellido: "",
+      displayName: "Lucia Perez",
+      lastName: "",
       email: "lucia@example.com",
-      telefono: "098 765 432",
+      phone: "098 765 432",
     });
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me`, {
       method: "PATCH",
@@ -492,7 +492,7 @@ describe("updateProfile", () => {
   it("sends a null phone when it is empty", async () => {
     fetch.mockResolvedValue(response({ user_id: 7, name: "Ana", email: "a@b.com", phone: null }));
 
-    await updateProfile({ nombre: "Ana", apellido: "", telefono: "" });
+    await updateProfile({ displayName: "Ana", lastName: "", phone: "" });
 
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: "Ana", phone: null });
   });
@@ -504,14 +504,14 @@ describe("updateProfile", () => {
       .mockResolvedValueOnce(response(null, { jsonError: new Error("bad json") }))
       .mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
-    const datos = { nombre: "Ana", apellido: "", telefono: "" };
-    await expect(updateProfile(datos)).rejects.toMatchObject({
+    const info = { displayName: "Ana", lastName: "", phone: "" };
+    await expect(updateProfile(info)).rejects.toMatchObject({
       message: "Tu sesión venció. Iniciá sesión de nuevo.",
       status: 401,
     });
-    await expect(updateProfile(datos)).rejects.toThrow("Revisá el nombre y el teléfono (ej: 099 123 456).");
-    await expect(updateProfile(datos)).rejects.toThrow("No pudimos guardar tus datos.");
-    await expect(updateProfile(datos)).rejects.toThrow("No pudimos conectar con el servidor.");
+    await expect(updateProfile(info)).rejects.toThrow("Revisá el nombre y el teléfono (ej: 099 123 456).");
+    await expect(updateProfile(info)).rejects.toThrow("No pudimos guardar tus datos.");
+    await expect(updateProfile(info)).rejects.toThrow("No pudimos conectar con el servidor.");
   });
 });
 
@@ -559,13 +559,13 @@ describe("changePassword", () => {
 });
 
 describe("onInvalidSession", () => {
-  const sin401 = { ok: false, status: 401 };
-  let alInvalidarse;
+  const without401 = { ok: false, status: 401 };
+  let onInvalidarse;
   let desregistrar;
 
   beforeEach(() => {
-    alInvalidarse = jest.fn();
-    desregistrar = onInvalidSession(alInvalidarse);
+    onInvalidarse = jest.fn();
+    desregistrar = onInvalidSession(onInvalidarse);
   });
 
   afterEach(() => {
@@ -580,23 +580,23 @@ describe("onInvalidSession", () => {
     ["createPaymentLink", () => createPaymentLink(42)],
     ["getStockAlerts", () => getStockAlerts()],
     ["getProfile", () => getProfile("jwt-token")],
-    ["updateProfile", () => updateProfile({ nombre: "Ana", apellido: "", telefono: "" })],
+    ["updateProfile", () => updateProfile({ displayName: "Ana", lastName: "", phone: "" })],
     ["changePassword", () => changePassword("a", "b")],
     ["resendVerification", () => resendVerification()],
-  ])("fires when %s gets a 401 with the session token", async (_nombre, llamar) => {
-    fetch.mockResolvedValue(response({ detail: "Token inválido o expirado." }, sin401));
+  ])("fires when %s gets a 401 with the session token", async (name, llamar) => {
+    fetch.mockResolvedValue(response({ detail: "Token inválido o expirado." }, without401));
 
     await expect(llamar()).rejects.toThrow();
 
-    expect(alInvalidarse).toHaveBeenCalledTimes(1);
+    expect(onInvalidarse).toHaveBeenCalledTimes(1);
   });
 
   it("does not fire for the 401 of a failed login", async () => {
-    fetch.mockResolvedValue(response({ detail: "Credenciales inválidas" }, sin401));
+    fetch.mockResolvedValue(response({ detail: "Credenciales inválidas" }, without401));
 
     await expect(login("user@example.com", "bad")).rejects.toThrow();
 
-    expect(alInvalidarse).not.toHaveBeenCalled();
+    expect(onInvalidarse).not.toHaveBeenCalled();
   });
 
   it("does not fire for the 400 of a wrong current password", async () => {
@@ -608,7 +608,7 @@ describe("onInvalidSession", () => {
       "La contraseña actual es incorrecta."
     );
 
-    expect(alInvalidarse).not.toHaveBeenCalled();
+    expect(onInvalidarse).not.toHaveBeenCalled();
   });
 
   it("does not fire for other error statuses", async () => {
@@ -616,16 +616,16 @@ describe("onInvalidSession", () => {
 
     await expect(getCart()).rejects.toThrow();
 
-    expect(alInvalidarse).not.toHaveBeenCalled();
+    expect(onInvalidarse).not.toHaveBeenCalled();
   });
 
   it("does not fire when the request did not send a token", async () => {
     getSession.mockReturnValue(null);
-    fetch.mockResolvedValue(response({ detail: "x" }, sin401));
+    fetch.mockResolvedValue(response({ detail: "x" }, without401));
 
     await expect(getCart()).rejects.toThrow();
 
-    expect(alInvalidarse).not.toHaveBeenCalled();
+    expect(onInvalidarse).not.toHaveBeenCalled();
   });
 
   it("ignores a 401 for a token that is no longer the session one", async () => {
@@ -633,21 +633,21 @@ describe("onInvalidSession", () => {
     // o sesión ya cerrada): el 401 es del token viejo.
     fetch.mockImplementation(async () => {
       getSession.mockReturnValue({ token: "jwt-nuevo" });
-      return response({ detail: "x" }, sin401);
+      return response({ detail: "x" }, without401);
     });
 
     await expect(getCart()).rejects.toThrow();
 
-    expect(alInvalidarse).not.toHaveBeenCalled();
+    expect(onInvalidarse).not.toHaveBeenCalled();
   });
 
   it("stops calling the handler once it is unregistered", async () => {
     desregistrar();
-    fetch.mockResolvedValue(response({ detail: "x" }, sin401));
+    fetch.mockResolvedValue(response({ detail: "x" }, without401));
 
     await expect(getFavorites()).rejects.toThrow();
 
-    expect(alInvalidarse).not.toHaveBeenCalled();
+    expect(onInvalidarse).not.toHaveBeenCalled();
   });
 });
 
@@ -694,7 +694,7 @@ describe("catalog API", () => {
       `${BASE_URL}/api/v1/parts?categoria=Frenos`
     );
     await expect(getCategories()).resolves.toEqual([
-      { nombre: "Frenos", cantidad: 3 },
+      { displayName: "Frenos", quantity: 3 },
     ]);
   });
 
@@ -764,14 +764,14 @@ describe("cart API", () => {
     items: [{
       id: "21",
       partId: 21,
-      codigo: "BRK-0021",
-      nombre: "Disco de freno",
-      precio: 2450,
-      cantidad: 2,
+      code: "BRK-0021",
+      displayName: "Disco de freno",
+      price: 2450,
+      quantity: 2,
       subtotal: 4900,
       stock: 7,
       categoria: "Frenos",
-      imagen: PLACEHOLDER_IMAGE,
+      image: PLACEHOLDER_IMAGE,
     }],
     total: 4900,
   };
@@ -840,14 +840,14 @@ describe("address API", () => {
   };
   const uiAddress = {
     id: 4,
-    nombre: "Casa",
-    calle: "Av. Italia",
-    numero: "1234",
+    displayName: "Casa",
+    street: "Av. Italia",
+    number: "1234",
     apartamento: "",
-    ciudad: "Montevideo",
+    city: "Montevideo",
     departamento: "Montevideo",
-    codigoPostal: "",
-    principal: true,
+    codePostal: "",
+    primary: true,
   };
 
   it("maps addresses and submits create, primary, and delete requests", async () => {
@@ -859,14 +859,14 @@ describe("address API", () => {
 
     await expect(getAddresses()).resolves.toEqual([uiAddress]);
     await expect(createAddress({
-      nombre: "Casa",
-      calle: "Av. Italia",
-      numero: "1234",
+      displayName: "Casa",
+      street: "Av. Italia",
+      number: "1234",
       apartamento: "",
-      ciudad: "Montevideo",
+      city: "Montevideo",
       departamento: "Montevideo",
-      codigoPostal: "",
-      principal: true,
+      codePostal: "",
+      primary: true,
     })).resolves.toEqual(uiAddress);
     await expect(setPrimaryAddress(4)).resolves.toEqual(uiAddress);
     await expect(deleteAddressApi(4)).resolves.toBeUndefined();
@@ -920,10 +920,10 @@ describe("orders and Mercado Pago API", () => {
   it("confirms the purchase with only the chosen address and maps the payment status", async () => {
     fetch.mockResolvedValue(response(backendOrder));
 
-    await expect(confirmPurchase({ direccionId: 3 })).resolves.toMatchObject({
+    await expect(confirmPurchase({ idAddress: 3 })).resolves.toMatchObject({
       id: 42,
-      metodoPago: "Mercado Pago",
-      estadoPago: "pending",
+      paymentMethod: "Mercado Pago",
+      paymentStatus: "pending",
     });
 
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/orders`, {
@@ -936,7 +936,7 @@ describe("orders and Mercado Pago API", () => {
   it("maps orders from before Mercado Pago without a payment status", async () => {
     fetch.mockResolvedValue(response({ ...backendOrder, payment_method: "Visa •••• 1234", payment_status: null }));
 
-    await expect(getPurchaseDetail(42)).resolves.toMatchObject({ estadoPago: null });
+    await expect(getPurchaseDetail(42)).resolves.toMatchObject({ paymentStatus: null });
   });
 
   it("maps the order tracking and the cancel reason", async () => {
@@ -951,11 +951,11 @@ describe("orders and Mercado Pago API", () => {
     }));
 
     await expect(getPurchaseDetail(42)).resolves.toMatchObject({
-      seguimiento: [
-        { estado: "confirmed", fecha: "2026-01-02T10:00:00Z" },
-        { estado: "cancelled", fecha: null },
+      tracking: [
+        { estado: "confirmed", date: "2026-01-02T10:00:00Z" },
+        { estado: "cancelled", date: null },
       ],
-      motivoCancelacion: "store",
+      reasonCancellation: "store",
     });
   });
 
@@ -1048,15 +1048,15 @@ describe("assistant API", () => {
       recomendaciones: [{ tipo: "Pastillas de freno", motivo: "Chillido.", repuestos: [backendPart] }],
     }));
 
-    const resultado = await askAssistant({ texto: "chilla", marca: "Chevrolet", modelo: "Onix", anio: "2016" });
+    const result = await askAssistant({ texto: "chilla", marca: "Chevrolet", modelo: "Onix", anio: "2016" });
 
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/asistente`, expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ texto: "chilla", marca: "Chevrolet", modelo: "Onix", anio: 2016 }),
       headers: expect.objectContaining({ Authorization: "Bearer jwt-token" }),
     }));
-    expect(resultado).toMatchObject({ diagnostico: "Pastillas gastadas.", urgencia: "alta", aviso: "No manejes.", fueraDeTema: false });
-    expect(resultado.recomendaciones[0].repuestos[0]).toMatchObject({ id: "11", nombre: backendPart.name, fabricante: "Bosch", precio: 2800 });
+    expect(result).toMatchObject({ diagnostico: "Pastillas gastadas.", urgencia: "alta", aviso: "No manejes.", offTopic: false });
+    expect(result.recomendaciones[0].repuestos[0]).toMatchObject({ id: "11", displayName: backendPart.name, fabricante: "Bosch", price: 2800 });
   });
 
   it("sends the signed history to continue the conversation and returns the new one", async () => {
@@ -1067,15 +1067,15 @@ describe("assistant API", () => {
       historial: [...historial, { rol: "cliente", texto: "fuerte" }], firma: "firma-2",
     }));
 
-    const resultado = await askAssistant({
+    const result = await askAssistant({
       texto: "fuerte", marca: "Chevrolet", modelo: "Onix", anio: "2016", historial, firma: "firma-1",
     });
 
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
       texto: "fuerte", marca: "Chevrolet", modelo: "Onix", anio: 2016, historial, firma: "firma-1",
     });
-    expect(resultado).toMatchObject({ opciones: ["Una semana"], firma: "firma-2" });
-    expect(resultado.historial).toHaveLength(3);
+    expect(result).toMatchObject({ opciones: ["Una semana"], firma: "firma-2" });
+    expect(result.historial).toHaveLength(3);
   });
 
   it("keeps the status so the screen can offer the catalog search", async () => {

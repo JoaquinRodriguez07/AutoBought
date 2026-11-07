@@ -25,58 +25,58 @@ import logoBlanco from "../assets/logo-blanco.png";
 // valor va en la URL (?vista=), salvo "resumen", que es la de entrada.
 export const GROUPS = [
   {
-    titulo: null,
-    vistas: [
-      { valor: "resumen", texto: "Resumen", Icon: LayoutDashboardIcon },
-      { valor: "pedidos", texto: "Pedidos", Icon: ClipboardListIcon },
+    title: null,
+    views: [
+      { rawValue: "summary", texto: "Resumen", Icon: LayoutDashboardIcon },
+      { rawValue: "orders", texto: "Pedidos", Icon: ClipboardListIcon },
     ],
   },
   {
-    titulo: "Ventas",
-    vistas: [
-      { valor: "ventas", texto: "Evolución de ventas", Icon: ChartLineIcon },
-      { valor: "mas-vendidos", texto: "Más vendidos", Icon: TrophyIcon },
-      { valor: "proyeccion", texto: "Proyección de demanda", Icon: TrendingUpIcon },
+    title: "Ventas",
+    views: [
+      { rawValue: "sales", texto: "Evolución de ventas", Icon: ChartLineIcon },
+      { rawValue: "mas-vendidos", texto: "Más vendidos", Icon: TrophyIcon },
+      { rawValue: "forecast", texto: "Proyección de demanda", Icon: TrendingUpIcon },
     ],
   },
   {
-    titulo: "Inventario",
-    vistas: [
-      { valor: "stock", texto: "Stock", Icon: BoxesIcon },
-      { valor: "riesgo", texto: "Reposición", Icon: PackageCheckIcon },
+    title: "Inventario",
+    views: [
+      { rawValue: "stock", texto: "Stock", Icon: BoxesIcon },
+      { rawValue: "risk", texto: "Reposición", Icon: PackageCheckIcon },
     ],
   },
   {
-    titulo: "Asistente",
-    vistas: [{ valor: "preguntar", texto: "Preguntar", Icon: MessageCircleQuestionIcon, enDesarrollo: true }],
+    title: "Asistente",
+    views: [{ rawValue: "ask", texto: "Preguntar", Icon: MessageCircleQuestionIcon, inDesarrollo: true }],
   },
   // Solo la ven los administradores (SCRUM-175).
   {
-    titulo: "Administración",
-    vistas: [{ valor: "equipo", texto: "Equipo", Icon: UsersIcon, soloAdmin: true }],
+    title: "Administración",
+    views: [{ rawValue: "team", texto: "Equipo", Icon: UsersIcon, onlyAdmin: true }],
   },
 ];
 
-export const VIEWS = GROUPS.flatMap((grupo) => grupo.vistas);
+export const VIEWS = GROUPS.flatMap((grupo) => grupo.views);
 
-function groupsFor(usuario) {
-  const admin = isAdmin(usuario);
-  return GROUPS.map((grupo) => ({ ...grupo, vistas: grupo.vistas.filter((v) => !v.soloAdmin || admin) })).filter(
-    (grupo) => grupo.vistas.length > 0
+function groupsFor(sessionUser) {
+  const admin = isAdmin(sessionUser);
+  return GROUPS.map((grupo) => ({ ...grupo, views: grupo.views.filter((v) => !v.onlyAdmin || admin) })).filter(
+    (grupo) => grupo.views.length > 0
   );
 }
 
 // Nombre del vendedor: viene en el token de sesión (el vendedor no tiene
 // perfil en /me como el cliente). Una sesión vieja, sin nombre en el token,
 // usa la parte del correo antes de la @.
-export function sellerName(usuario) {
-  const nombre = usuario?.nombre || (usuario?.token && decodeToken(usuario.token)?.name);
-  if (nombre) return nombre;
-  return usuario?.email ? usuario.email.split("@")[0] : "";
+export function sellerName(sessionUser) {
+  const displayName = sessionUser?.displayName || (sessionUser?.token && decodeToken(sessionUser.token)?.name);
+  if (displayName) return displayName;
+  return sessionUser?.email ? sessionUser.email.split("@")[0] : "";
 }
 
-function initials(usuario) {
-  const palabras = sellerName(usuario).split(/\s+/).filter(Boolean);
+function initials(sessionUser) {
+  const palabras = sellerName(sessionUser).split(/\s+/).filter(Boolean);
   const letras = palabras.length > 1 ? palabras[0][0] + palabras[1][0] : (palabras[0] ?? "").slice(0, 2);
   return letras.toUpperCase() || "V";
 }
@@ -91,7 +91,7 @@ function Logo({ oscura = false }) {
 
 // `avisos`: un número al lado de una sección (por ejemplo, cuántos
 // repuestos hay que reponer), como { riesgo: 12 }.
-function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
+function Menu({ vista, onView, onStore, onCloseSession, sessionUser, notices }) {
   return (
     <div className="flex h-full flex-col">
       {/* Arriba, centrado en el menú. */}
@@ -102,33 +102,33 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
       </div>
 
       <nav aria-label="Secciones del dashboard" className="flex-1 overflow-y-auto px-3 flex flex-col gap-5">
-        {groupsFor(usuario).map((grupo) => (
-          <div key={grupo.titulo ?? "inicio"}>
-            {grupo.titulo && (
-              <p className="px-3 mb-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">{grupo.titulo}</p>
+        {groupsFor(sessionUser).map((grupo) => (
+          <div key={grupo.title ?? "home"}>
+            {grupo.title && (
+              <p className="px-3 mb-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">{grupo.title}</p>
             )}
             <ul className="flex flex-col gap-0.5">
-              {grupo.vistas.map(({ valor, texto, Icon, enDesarrollo }) => {
-                const activa = vista === valor;
-                const aviso = avisos?.[valor];
+              {grupo.views.map(({ rawValue, texto, Icon, inDesarrollo }) => {
+                const active = vista === rawValue;
+                const aviso = notices?.[rawValue];
                 return (
-                  <li key={valor}>
+                  <li key={rawValue}>
                     <button
                       type="button"
-                      onClick={() => onVista(valor)}
-                      aria-current={activa ? "page" : undefined}
+                      onClick={() => onView(rawValue)}
+                      aria-current={active ? "page" : undefined}
                       className={cn(
                         "group relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition",
-                        activa
+                        active
                           ? "bg-orange-500/15 text-orange-400 font-medium"
                           : "text-gray-300 hover:bg-white/5 hover:text-white"
                       )}
                     >
-                      {activa && (
+                      {active && (
                         <span className="absolute -left-3 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-orange-500" aria-hidden="true" />
                       )}
                       <Icon
-                        className={cn("size-4 shrink-0", activa ? "text-orange-400" : "text-gray-400 group-hover:text-white")}
+                        className={cn("size-4 shrink-0", active ? "text-orange-400" : "text-gray-400 group-hover:text-white")}
                         aria-hidden="true"
                       />
                       <span className="flex-1 truncate">{texto}</span>
@@ -138,7 +138,7 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
                           {aviso}
                         </span>
                       )}
-                      {enDesarrollo && (
+                      {inDesarrollo && (
                         <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-300">
                           En desarrollo
                         </span>
@@ -155,7 +155,7 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
       <div className="border-t border-white/10 p-3 flex flex-col gap-1">
         <button
           type="button"
-          onClick={onTienda}
+          onClick={onStore}
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
         >
           <StoreIcon className="size-4" aria-hidden="true" />
@@ -166,15 +166,15 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
             aria-hidden="true"
             className="grid size-8 shrink-0 place-items-center rounded-full bg-orange-500 text-xs font-bold text-white"
           >
-            {initials(usuario)}
+            {initials(sessionUser)}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-white">{sellerName(usuario)}</p>
-            <p className="text-xs text-gray-400">{isAdmin(usuario) ? "Administrador" : "Vendedor"}</p>
+            <p className="truncate text-xs font-medium text-white">{sellerName(sessionUser)}</p>
+            <p className="text-xs text-gray-400">{isAdmin(sessionUser) ? "Administrador" : "Vendedor"}</p>
           </div>
           <button
             type="button"
-            onClick={onCerrarSesion}
+            onClick={onCloseSession}
             aria-label="Cerrar sesión"
             title="Cerrar sesión"
             className="rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
@@ -193,35 +193,35 @@ function Menu({ vista, onVista, onTienda, onCerrarSesion, usuario, avisos }) {
 // confunde con lo que ve un cliente. En celular el menú se abre con el
 // botón de la barra de arriba.
 export default function SellerLayout({
-  usuario,
+  sessionUser,
   vista,
-  onVista,
-  onTienda,
-  onCerrarSesion,
-  avisos,
-  antesDelTitulo,
-  titulo,
-  descripcion,
-  acciones,
-  barra,
+  onView,
+  onStore,
+  onCloseSession,
+  notices,
+  titleBefore,
+  title,
+  description,
+  actions,
+  bar,
   children,
 }) {
-  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [openMenu, setOpenMenu] = useState(false);
 
   // Con el menú de celular abierto, Escape lo cierra.
   useEffect(() => {
-    if (!menuAbierto) return;
-    const alTeclear = (event) => event.key === "Escape" && setMenuAbierto(false);
-    document.addEventListener("keydown", alTeclear);
-    return () => document.removeEventListener("keydown", alTeclear);
-  }, [menuAbierto]);
+    if (!openMenu) return;
+    const onType = (event) => event.key === "Escape" && setOpenMenu(false);
+    document.addEventListener("keydown", onType);
+    return () => document.removeEventListener("keydown", onType);
+  }, [openMenu]);
 
-  const elegir = (valor) => {
-    setMenuAbierto(false);
-    onVista(valor);
+  const choose = (rawValue) => {
+    setOpenMenu(false);
+    onView(rawValue);
   };
 
-  const propsMenu = { vista, onVista: elegir, onTienda, onCerrarSesion, usuario, avisos };
+  const propsMenu = { vista, onView: choose, onStore, onCloseSession, sessionUser, notices };
 
   return (
     <div className="min-h-screen bg-gray-50 text-foreground font-sans antialiased">
@@ -229,19 +229,19 @@ export default function SellerLayout({
         <Menu {...propsMenu} />
       </aside>
 
-      {menuAbierto && (
+      {openMenu && (
         <div className="lg:hidden fixed inset-0 z-50">
           <button
             type="button"
             aria-label="Cerrar menú"
-            onClick={() => setMenuAbierto(false)}
+            onClick={() => setOpenMenu(false)}
             className="absolute inset-0 bg-gray-900/40"
           />
           <div role="dialog" aria-modal="true" aria-label="Menú" className="absolute inset-y-0 left-0 w-72 max-w-[85%] bg-[#151719] shadow-2xl">
             <button
               type="button"
               aria-label="Cerrar menú"
-              onClick={() => setMenuAbierto(false)}
+              onClick={() => setOpenMenu(false)}
               className="absolute top-5 right-3 rounded-md p-1.5 text-gray-400 hover:bg-white/10 hover:text-white"
             >
               <XIcon className="size-5" />
@@ -257,7 +257,7 @@ export default function SellerLayout({
           <button
             type="button"
             aria-label="Abrir menú"
-            onClick={() => setMenuAbierto(true)}
+            onClick={() => setOpenMenu(true)}
             className="-ml-1 rounded-md p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
           >
             <MenuIcon className="size-5" />
@@ -266,16 +266,16 @@ export default function SellerLayout({
         </header>
 
         <main className="px-4 sm:px-6 lg:px-10 py-6 lg:py-9 max-w-[1320px]">
-          {antesDelTitulo}
+          {titleBefore}
           {/* Una descripción larga pasa a dos líneas; las acciones quedan a la derecha. */}
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="min-w-0 sm:flex-1">
-              <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight">{titulo}</h1>
-              {descripcion && <p className="text-sm text-muted-foreground mt-1 max-w-3xl">{descripcion}</p>}
+              <h1 className="text-2xl sm:text-[28px] font-semibold tracking-tight">{title}</h1>
+              {description && <p className="text-sm text-muted-foreground mt-1 max-w-3xl">{description}</p>}
             </div>
-            {acciones && <div className="flex flex-wrap gap-2 sm:shrink-0">{acciones}</div>}
+            {actions && <div className="flex flex-wrap gap-2 sm:shrink-0">{actions}</div>}
           </div>
-          {barra}
+          {bar}
           <div className="mt-6">{children}</div>
         </main>
       </div>

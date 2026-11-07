@@ -13,111 +13,111 @@ import { goTo } from "./redirect";
 
 
 export default function CartPage({
-  onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
-  cantidadFavoritos, onDetalle, onDirecciones,
-  usuario, onPerfil, onHistorial, onPedidos, onCerrarSesion,
+  onHome, onCatalogo, onLogin, onBrands, onCart, onFavorites,
+  favoritesQuantity, onDetail, onAddresses,
+  sessionUser, onProfile, onHistory, onOrders, onCloseSession,
 }) {
-  const { cart: productos, updateQuantity, removeFromCart, clearCart, total, cargarCarrito } = useCart();
+  const { cart: products, updateQuantity, removeFromCart, clearCart, total, loadCart } = useCart();
 
   const subtotal = total;
-  const envio = productos.length ? 0 : 0;
-  const totalFinal = subtotal + envio;
+  const shipping = products.length ? 0 : 0;
+  const totalFinal = subtotal + shipping;
 
-  const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
-  const unidades = productos.reduce((suma, p) => suma + p.cantidad, 0);
+  const price = (rawValue) => `$${rawValue.toLocaleString("es-UY")}`;
+  const units = products.reduce((suma, p) => suma + p.quantity, 0);
 
-  const [confirmacionAbierta, setConfirmacionAbierta] = useState(false);
-  const [enviando, setEnviando] = useState(false);
-  const [pedido, setPedido] = useState(null);
-  const [errorCompra, setErrorCompra] = useState("");
-  const [direcciones, setDirecciones] = useState([]);
-  const [direccionId, setDireccionId] = useState("");
-  const [cargandoDatos, setCargandoDatos] = useState(false);
+  const [confirmationOpen, setConfirmationOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [pedido, setOrder] = useState(null);
+  const [purchaseError, setPurchaseError] = useState("");
+  const [addresses, setAddresses] = useState([]);
+  const [idAddress, setIdAddress] = useState("");
+  const [loadingData, setLoadingData] = useState(false);
 
   // La principal, o la primera.
-  const idPrincipal = (lista) => {
-    const principal = lista.find((item) => item.principal) ?? lista[0];
-    return principal ? String(principal.id) : "";
+  const primaryId = (list) => {
+    const primary = list.find((item) => item.primary) ?? list[0];
+    return primary ? String(primary.id) : "";
   };
 
   // Al abrir se traen las direcciones del perfil, con la principal
   // preseleccionada.
-  const abrirConfirmacion = async () => {
-    setPedido(null);
-    setErrorCompra("");
-    setConfirmacionAbierta(true);
-    setCargandoDatos(true);
+  const openConfirmation = async () => {
+    setOrder(null);
+    setPurchaseError("");
+    setConfirmationOpen(true);
+    setLoadingData(true);
     try {
-      const listaDirecciones = await getAddresses();
-      setDirecciones(listaDirecciones);
-      setDireccionId(idPrincipal(listaDirecciones));
+      const addressesList = await getAddresses();
+      setAddresses(addressesList);
+      setIdAddress(primaryId(addressesList));
     } catch (error) {
-      setErrorCompra(error.message || "No pudimos cargar tus direcciones.");
+      setPurchaseError(error.message || "No pudimos cargar tus direcciones.");
     } finally {
-      setCargandoDatos(false);
+      setLoadingData(false);
     }
   };
 
   const addressText = (d) =>
-    `${d.calle} ${d.numero}${d.apartamento ? ` apto ${d.apartamento}` : ""}, ${d.ciudad}`;
-  const puedeConfirmar = !enviando && !cargandoDatos && direccionId !== "";
+    `${d.street} ${d.number}${d.apartamento ? ` apto ${d.apartamento}` : ""}, ${d.city}`;
+  const canConfirm = !sending && !loadingData && idAddress !== "";
 
-  const cerrarConfirmacion = () => {
-    if (enviando) return;
-    setConfirmacionAbierta(false);
+  const closeConfirmation = () => {
+    if (sending) return;
+    setConfirmationOpen(false);
   };
 
   // Lleva al cliente a pagar el pedido en Mercado Pago. Si no se puede
   // abrir, el pedido ya quedó creado (con el stock reservado): se muestra
   // el error y se puede reintentar sin volver a confirmar.
-  const irAPagar = async (pedidoAPagar) => {
-    setEnviando(true);
-    setErrorCompra("");
+  const goToPay = async (orderToPay) => {
+    setSending(true);
+    setPurchaseError("");
     try {
-      goTo(await createPaymentLink(pedidoAPagar.id));
+      goTo(await createPaymentLink(orderToPay.id));
     } catch (error) {
-      setErrorCompra(error.message || "No pudimos abrir Mercado Pago.");
-      setEnviando(false);
+      setPurchaseError(error.message || "No pudimos abrir Mercado Pago.");
+      setSending(false);
     }
   };
 
   // Se crea el pedido (pendiente de pago) y se va a pagar. Si falla, el
   // mensaje ya viene en español desde el backend: en el 409 dice qué
   // repuesto no alcanza.
-  const confirmar = async () => {
-    setEnviando(true);
-    setErrorCompra("");
-    let nuevoPedido;
+  const confirm = async () => {
+    setSending(true);
+    setPurchaseError("");
+    let newOrder;
     try {
-      nuevoPedido = await confirmPurchase({ direccionId: Number(direccionId) });
+      newOrder = await confirmPurchase({ idAddress: Number(idAddress) });
     } catch (error) {
-      setErrorCompra(error.message || "No pudimos confirmar la compra.");
-      setEnviando(false);
+      setPurchaseError(error.message || "No pudimos confirmar la compra.");
+      setSending(false);
       return;
     }
-    setPedido(nuevoPedido);
+    setOrder(newOrder);
     // El carrito ya quedó vacío en el backend.
-    cargarCarrito();
-    await irAPagar(nuevoPedido);
+    loadCart();
+    await goToPay(newOrder);
   };
 
-  const resumen = (
+  const summary = (
     <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit shadow-xs lg:sticky lg:top-24">
       <h2 className="text-base font-black">Resumen del pedido</h2>
       <div className="mt-5 space-y-3">
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">
-            Subtotal ({unidades} {unidades === 1 ? "unidad" : "unidades"})
+            Subtotal ({units} {units === 1 ? "unidad" : "unidades"})
           </span>
-          <span className="font-bold">{precio(subtotal)}</span>
+          <span className="font-bold">{price(subtotal)}</span>
         </div>
         <div className="flex justify-between text-sm"><span className="text-gray-500">Envío</span><span className="text-green-600 font-bold">Gratis</span></div>
       </div>
       <div className="border-t border-gray-200 mt-5 pt-4 flex justify-between items-end">
         <span className="text-sm font-bold">Total</span>
-        <span className="text-2xl font-black text-orange-500">{precio(totalFinal)}</span>
+        <span className="text-2xl font-black text-orange-500">{price(totalFinal)}</span>
       </div>
-      <button onClick={abrirConfirmacion} disabled={productos.length === 0}
+      <button onClick={openConfirmation} disabled={products.length === 0}
         className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md h-12 mt-5 text-sm font-black disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-500">
         Finalizar compra
       </button>
@@ -130,26 +130,26 @@ export default function CartPage({
         Pago 100% seguro y protegido
       </p>
 
-      {confirmacionAbierta && (
+      {confirmationOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-5">
           <div role="dialog" aria-modal="true" aria-labelledby="titulo-confirmar-compra"
             className="w-full max-w-[420px] bg-white rounded-xl p-6 shadow-lg">
             {pedido ? (
               <div className="text-center">
                 <h2 id="titulo-confirmar-compra" className="text-lg font-black">{`Pedido #${pedido.id}`}</h2>
-                {errorCompra ? (
+                {purchaseError ? (
                   <>
-                    <p role="alert" className="text-sm text-red-600 font-bold mt-2">{errorCompra}</p>
+                    <p role="alert" className="text-sm text-red-600 font-bold mt-2">{purchaseError}</p>
                     <p className="text-sm text-gray-500 mt-2">
-                      {pedido.vencePago
-                        ? `Tus repuestos quedan reservados hasta ${paymentDeadlineText(pedido.vencePago)}.`
+                      {pedido.expiresPayment
+                        ? `Tus repuestos quedan reservados hasta ${paymentDeadlineText(pedido.expiresPayment)}.`
                         : "Tus repuestos quedan reservados mientras pagás."}
                     </p>
-                    <button onClick={() => irAPagar(pedido)} disabled={enviando}
+                    <button onClick={() => goToPay(pedido)} disabled={sending}
                       className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 mt-6 text-sm font-black disabled:opacity-40">
                       Reintentar pago
                     </button>
-                    <button onClick={onPedidos} disabled={enviando}
+                    <button onClick={onOrders} disabled={sending}
                       className="w-full mt-2 py-2 text-sm font-bold text-gray-500 hover:text-orange-500 disabled:opacity-40">
                       Pagar más tarde desde mis compras
                     </button>
@@ -162,34 +162,34 @@ export default function CartPage({
               <>
                 <h2 id="titulo-confirmar-compra" className="text-lg font-black">Confirmá tu compra</h2>
                 <ul className="mt-4 space-y-2 max-h-[240px] overflow-y-auto">
-                  {productos.map((producto) => (
-                    <li key={producto.id} className="flex justify-between gap-3 text-sm">
-                      <span>{producto.nombre} × {producto.cantidad}</span>
-                      <span className="font-bold whitespace-nowrap">{precio(producto.precio * producto.cantidad)}</span>
+                  {products.map((product) => (
+                    <li key={product.id} className="flex justify-between gap-3 text-sm">
+                      <span>{product.displayName} × {product.quantity}</span>
+                      <span className="font-bold whitespace-nowrap">{price(product.price * product.quantity)}</span>
                     </li>
                   ))}
                 </ul>
                 <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between items-end">
                   <span className="text-xs text-gray-400">TOTAL</span>
-                  <span className="text-xl font-black text-orange-500">{precio(totalFinal)}</span>
+                  <span className="text-xl font-black text-orange-500">{price(totalFinal)}</span>
                 </div>
-                {cargandoDatos ? (
+                {loadingData ? (
                   <p role="status" className="mt-4 text-sm text-gray-500">Cargando tus direcciones...</p>
                 ) : (
                   <div className="mt-4 space-y-3">
                     <div>
                       <label htmlFor="direccion-envio" className="block text-xs font-black text-gray-500">DIRECCIÓN DE ENVÍO</label>
-                      {direcciones.length > 0 ? (
-                        <select id="direccion-envio" value={direccionId} onChange={(e) => setDireccionId(e.target.value)}
+                      {addresses.length > 0 ? (
+                        <select id="direccion-envio" value={idAddress} onChange={(e) => setIdAddress(e.target.value)}
                           className="w-full mt-1 border border-gray-200 rounded-md px-3 py-2 text-sm bg-white outline-hidden focus:border-orange-500">
-                          {direcciones.map((d) => (
+                          {addresses.map((d) => (
                             <option key={d.id} value={String(d.id)}>{addressText(d)}</option>
                           ))}
                         </select>
                       ) : (
                         <p className="mt-1 text-sm text-gray-500">
                           No tenés direcciones guardadas.{" "}
-                          <button type="button" onClick={onDirecciones} className="text-orange-500 font-bold hover:underline">
+                          <button type="button" onClick={onAddresses} className="text-orange-500 font-bold hover:underline">
                             Agregar una dirección
                           </button>
                         </p>
@@ -200,17 +200,17 @@ export default function CartPage({
                 <p className="mt-4 text-xs text-gray-500">
                   Vas a pagar en Mercado Pago: la tarjeta se carga ahí, no en la tienda.
                 </p>
-                {errorCompra && (
-                  <p role="alert" className="mt-4 text-sm text-red-600 font-bold">{errorCompra}</p>
+                {purchaseError && (
+                  <p role="alert" className="mt-4 text-sm text-red-600 font-bold">{purchaseError}</p>
                 )}
                 <div className="mt-6 flex gap-3">
-                  <button onClick={cerrarConfirmacion} disabled={enviando}
+                  <button onClick={closeConfirmation} disabled={sending}
                     className="flex-1 border border-gray-200 rounded-md py-3 text-sm font-black text-gray-500 hover:border-orange-500 hover:text-orange-500 disabled:opacity-40">
                     Cancelar
                   </button>
-                  <button onClick={confirmar} disabled={!puedeConfirmar}
+                  <button onClick={confirm} disabled={!canConfirm}
                     className="flex-1 bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 text-sm font-black disabled:opacity-40">
-                    {enviando ? "Confirmando..." : "Ir a pagar"}
+                    {sending ? "Confirmando..." : "Ir a pagar"}
                   </button>
                 </div>
               </>
@@ -223,23 +223,23 @@ export default function CartPage({
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
-      <Navbar paginaActual="carrito" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
-        onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
-        usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
-        onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
-        cantidadFavoritos={cantidadFavoritos} />
+      <Navbar currentPage="cartState" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
+        onBrands={onBrands} onCart={onCart} onFavorites={onFavorites}
+        sessionUser={sessionUser} onProfile={onProfile} onAddresses={onAddresses}
+        onHistory={onHistory} onCloseSession={onCloseSession}
+        favoritesQuantity={favoritesQuantity} />
 
       <main>
         <PageHeader
-          migas={[{ texto: "Inicio", ir: onHome }, "Carrito"]}
-          titulo="Tu Carrito de Compras"
-          descripcion="Revisá tus repuestos antes de pagar."
+          migas={[{ texto: "Inicio", goTo: onHome }, "Carrito"]}
+          title="Tu Carrito de Compras"
+          description="Revisá tus repuestos antes de pagar."
         />
 
         <div className="px-5 md:px-10 py-8">
           <div className="max-w-[1100px] mx-auto">
 
-            {productos.length === 0 ? (
+            {products.length === 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
                 <div className="bg-white border border-gray-200 rounded-xl px-8 py-12 text-center shadow-xs">
                   <span className="mx-auto mb-4 w-16 h-16 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
@@ -252,7 +252,7 @@ export default function CartPage({
                     Ver repuestos
                   </button>
                 </div>
-                {resumen}
+                {summary}
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
@@ -265,7 +265,7 @@ export default function CartPage({
 
                     <div className="flex justify-between items-center px-5 py-3 border-b border-gray-200">
                       <h2 className="text-base font-black">
-                        Productos <span className="text-gray-400 font-bold">({productos.length})</span>
+                        Productos <span className="text-gray-400 font-bold">({products.length})</span>
                       </h2>
                       <button onClick={clearCart}
                         className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-red-500 transition">
@@ -275,31 +275,31 @@ export default function CartPage({
                     </div>
 
                     <ul className="divide-y divide-gray-100">
-                      {productos.map((producto) => {
-                        const alcanzoMaximo = producto.cantidad >= producto.stock;
+                      {products.map((product) => {
+                        const alcanzoMaximo = product.quantity >= product.stock;
                         return (
-                          <li key={producto.id} className="flex items-center gap-4 px-5 py-4">
+                          <li key={product.id} className="flex items-center gap-4 px-5 py-4">
 
-                            <button onClick={() => onDetalle(producto)}
+                            <button onClick={() => onDetail(product)}
                               className="w-20 h-20 rounded-lg overflow-hidden bg-white border border-gray-100 shrink-0">
-                              <img onError={useGenericImage} src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-1" />
+                              <img onError={useGenericImage} src={product.image} alt={product.displayName} className="w-full h-full object-contain p-1" />
                             </button>
 
                             <div className="flex-1 min-w-0">
-                              <p className="text-orange-500 text-xs uppercase tracking-wide font-black">{producto.categoria}</p>
-                              <button onClick={() => onDetalle(producto)}
+                              <p className="text-orange-500 text-xs uppercase tracking-wide font-black">{product.categoria}</p>
+                              <button onClick={() => onDetail(product)}
                                 className="text-left text-sm font-bold leading-snug mt-0.5 hover:text-orange-500">
-                                {producto.nombre}
+                                {product.displayName}
                               </button>
                               {/* Hay repuestos con el mismo nombre para autos distintos
                                   (el auto no va en el nombre): el código los distingue. */}
-                              {producto.codigo && (
-                                <p className="text-xs text-gray-400">Código: {producto.codigo}</p>
+                              {product.code && (
+                                <p className="text-xs text-gray-400">Código: {product.code}</p>
                               )}
                               <div className="flex items-center gap-3 mt-1.5 text-xs">
                                 <span className="text-green-600 font-bold">En stock</span>
-                                <button onClick={() => removeFromCart(producto.id)}
-                                  aria-label={`Quitar ${producto.nombre} del carrito`}
+                                <button onClick={() => removeFromCart(product.id)}
+                                  aria-label={`Quitar ${product.displayName} del carrito`}
                                   className="text-gray-400 hover:text-red-500 underline transition">
                                   Quitar
                                 </button>
@@ -308,10 +308,10 @@ export default function CartPage({
 
                             <div className="flex flex-col items-center gap-1">
                               <div className="flex items-center border border-gray-200 rounded-md">
-                                <button onClick={() => updateQuantity(producto.id, producto.cantidad - 1)} className="w-8 h-8">−</button>
-                                <span className="w-8 text-center text-sm font-bold">{producto.cantidad}</span>
+                                <button onClick={() => updateQuantity(product.id, product.quantity - 1)} className="w-8 h-8">−</button>
+                                <span className="w-8 text-center text-sm font-bold">{product.quantity}</span>
                                 <button
-                                  onClick={() => updateQuantity(producto.id, producto.cantidad + 1)}
+                                  onClick={() => updateQuantity(product.id, product.quantity + 1)}
                                   disabled={alcanzoMaximo}
                                   className="w-8 h-8 disabled:opacity-40"
                                 >
@@ -324,9 +324,9 @@ export default function CartPage({
                             </div>
 
                             <div className="w-24 text-right shrink-0">
-                              <p className="text-base font-black">{precio(producto.precio * producto.cantidad)}</p>
-                              {producto.cantidad > 1 && (
-                                <p className="text-xs text-gray-400 mt-0.5">{precio(producto.precio)} c/u</p>
+                              <p className="text-base font-black">{price(product.price * product.quantity)}</p>
+                              {product.quantity > 1 && (
+                                <p className="text-xs text-gray-400 mt-0.5">{price(product.price)} c/u</p>
                               )}
                             </div>
 
@@ -339,11 +339,11 @@ export default function CartPage({
 
                   {/* Las sugerencias acompañan debajo de la lista, chicas,
                       sin competir con el carrito. */}
-                  <CartSuggestions onDetalle={onDetalle} />
+                  <CartSuggestions onDetail={onDetail} />
 
                 </div>
 
-                {resumen}
+                {summary}
               </div>
             )}
 

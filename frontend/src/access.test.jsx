@@ -39,14 +39,14 @@ describe("Registro", () => {
   test("the error goes away when you fix the field", async () => {
     const user = userEvent.setup();
     renderRegistro();
-    const confirmar = screen.getByPlaceholderText("Repetí tu contraseña");
+    const confirm = screen.getByPlaceholderText("Repetí tu contraseña");
 
     await user.type(screen.getByPlaceholderText("Mínimo 8 caracteres"), "Repuestos2026");
-    await user.type(confirmar, "Otra");
+    await user.type(confirm, "Otra");
     await user.tab();
     expect(screen.getByText("Las contraseñas no coinciden.")).toBeInTheDocument();
 
-    await user.type(confirmar, "x");
+    await user.type(confirm, "x");
     expect(screen.queryByText("Las contraseñas no coinciden.")).not.toBeInTheDocument();
   });
 
@@ -67,9 +67,9 @@ describe("Registro", () => {
     const user = userEvent.setup();
     renderRegistro();
 
-    const [mostrarPassword, mostrarConfirmar] = screen.getAllByRole("button", { name: "Mostrar contraseña" });
-    await user.click(mostrarPassword);
-    await user.click(mostrarConfirmar);
+    const [showPassword, showConfirm] = screen.getAllByRole("button", { name: "Mostrar contraseña" });
+    await user.click(showPassword);
+    await user.click(showConfirm);
 
     expect(screen.getByPlaceholderText("Mínimo 8 caracteres")).toHaveAttribute("type", "text");
     expect(screen.getByPlaceholderText("Repetí tu contraseña")).toHaveAttribute("type", "text");

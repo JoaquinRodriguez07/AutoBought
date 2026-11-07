@@ -8,111 +8,111 @@ import AccountSection, { cancelButtonClass, saveButtonClass, sectionButtonClass 
 import { withError, errorProps } from "./fieldErrors";
 import { validatePasswordChange } from "./validations";
 
-const EMPTY_FORM = { actual: "", nueva: "", repetir: "" };
+const EMPTY_FORM = { current: "", newPassword: "", repeat: "" };
 
 const inputClass =
   "w-full mt-2 h-11 px-4 bg-white border border-gray-200 rounded-md text-sm text-gray-700 outline-hidden focus:border-orange-500 transition";
 
 export default function ChangePassword({ email = "" }) {
-  const [abierto, setAbierto] = useState(false);
-  const [formulario, setFormulario] = useState(EMPTY_FORM);
-  const [guardando, setGuardando] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [errores, setErrores] = useState({});
-  const [exito, setExito] = useState(false);
-  const [sinTokenNuevo, setSinTokenNuevo] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [success, setSuccess] = useState(false);
+  const [withoutNewToken, setWithoutNewToken] = useState(false);
 
-  const manejarCambio = (e) => {
+  const handleCambio = (e) => {
     const { name, value } = e.target;
     setError("");
-    setErrores((actuales) => ({ ...actuales, [name]: undefined }));
-    setFormulario((actual) => ({ ...actual, [name]: value }));
+    setErrors((actuales) => ({ ...actuales, [name]: undefined }));
+    setForm((current) => ({ ...current, [name]: value }));
   };
 
-  const abrir = () => {
-    setExito(false);
-    setSinTokenNuevo(false);
-    setAbierto(true);
+  const open = () => {
+    setSuccess(false);
+    setWithoutNewToken(false);
+    setIsOpen(true);
   };
 
-  const cancelar = () => {
-    setFormulario(EMPTY_FORM);
+  const cancel = () => {
+    setForm(EMPTY_FORM);
     setError("");
-    setErrores({});
-    setAbierto(false);
+    setErrors({});
+    setIsOpen(false);
   };
 
-  const guardar = async (e) => {
+  const save = async (e) => {
     e.preventDefault();
 
-    const erroresFormulario = validatePasswordChange(formulario, email);
-    setErrores(erroresFormulario);
-    if (Object.keys(erroresFormulario).length > 0) return;
+    const errorsForm = validatePasswordChange(form, email);
+    setErrors(errorsForm);
+    if (Object.keys(errorsForm).length > 0) return;
 
-    setGuardando(true);
+    setSaving(true);
     setError("");
 
     try {
-      const data = await changePassword(formulario.actual, formulario.nueva);
+      const data = await changePassword(form.current, form.newPassword);
 
       // El backend invalidó todos los tokens anteriores, también el de esta
       // sesión: se guarda el nuevo ANTES de mostrar el éxito para que el
       // próximo pedido (y la renovación automática) ya use el válido.
       // Guardarlo actualiza el `usuario` de App (ver alGuardarSesion).
-      const sesion = getSession();
-      if (sesion && data?.access_token) {
+      const session = getSession();
+      if (session && data?.access_token) {
         saveSession({
-          ...sesion,
+          ...session,
           token: data.access_token,
           ...(data.token_type ? { tokenType: data.token_type } : {}),
         });
-        setSinTokenNuevo(false);
-      } else if (sesion) {
+        setWithoutNewToken(false);
+      } else if (session) {
         // La contraseña se cambió pero no llegó un token nuevo: el actual
         // está revocado. No se muestra un éxito engañoso.
-        setSinTokenNuevo(true);
+        setWithoutNewToken(true);
       }
 
-      setFormulario(EMPTY_FORM);
-      setAbierto(false);
-      setExito(true);
+      setForm(EMPTY_FORM);
+      setIsOpen(false);
+      setSuccess(true);
     } catch (err) {
       setError(err.message);
     } finally {
-      setGuardando(false);
+      setSaving(false);
     }
   };
 
   return (
     <AccountSection
-      titulo="Contraseña"
-      descripcion="Cambiá la contraseña con la que iniciás sesión."
-      idTitulo="titulo-contrasena"
-      accion={
-        !abierto && (
-          <button type="button" onClick={abrir} className={sectionButtonClass}>
+      title="Contraseña"
+      description="Cambiá la contraseña con la que iniciás sesión."
+      titleId="titulo-contrasena"
+      action={
+        !isOpen && (
+          <button type="button" onClick={open} className={sectionButtonClass}>
             Cambiar contraseña
           </button>
         )
       }
     >
-      {(exito || abierto) && (
+      {(success || isOpen) && (
         <>
-          {exito && !sinTokenNuevo && (
+          {success && !withoutNewToken && (
             <p role="status" className="bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-sm">
               Tu contraseña se actualizó correctamente.
             </p>
           )}
 
-          {exito && sinTokenNuevo && (
+          {success && withoutNewToken && (
             <p role="alert" className="bg-amber-50 border border-amber-200 text-amber-800 rounded-md px-4 py-3 text-sm">
               Tu contraseña se actualizó, pero tu sesión actual ya no es válida.
               Iniciá sesión de nuevo con la contraseña nueva.
             </p>
           )}
 
-          {abierto && (
-            <form onSubmit={guardar}>
+          {isOpen && (
+            <form onSubmit={save}>
 
               <p className="text-xs text-gray-500 mb-4">
                 Mínimo 8 caracteres, con al menos una letra y un número.
@@ -127,14 +127,14 @@ export default function ChangePassword({ email = "" }) {
                   <input
                     id="password-actual"
                     type="password"
-                    name="actual"
+                    name="current"
                     autoComplete="current-password"
-                    value={formulario.actual}
-                    onChange={manejarCambio}
-                    className={withError(inputClass, errores.actual)}
-                    {...errorProps("actual", errores.actual)}
+                    value={form.current}
+                    onChange={handleCambio}
+                    className={withError(inputClass, errors.current)}
+                    {...errorProps("current", errors.current)}
                   />
-                  <FieldError campo="actual" mensaje={errores.actual} />
+                  <FieldError field="current" message={errors.current} />
                 </div>
 
                 <div>
@@ -144,14 +144,14 @@ export default function ChangePassword({ email = "" }) {
                   <input
                     id="password-nueva"
                     type="password"
-                    name="nueva"
+                    name="newPassword"
                     autoComplete="new-password"
-                    value={formulario.nueva}
-                    onChange={manejarCambio}
-                    className={withError(inputClass, errores.nueva)}
-                    {...errorProps("nueva", errores.nueva)}
+                    value={form.newPassword}
+                    onChange={handleCambio}
+                    className={withError(inputClass, errors.newPassword)}
+                    {...errorProps("newPassword", errors.newPassword)}
                   />
-                  <FieldError campo="nueva" mensaje={errores.nueva} />
+                  <FieldError field="newPassword" message={errors.newPassword} />
                 </div>
 
                 <div>
@@ -161,14 +161,14 @@ export default function ChangePassword({ email = "" }) {
                   <input
                     id="password-repetir"
                     type="password"
-                    name="repetir"
+                    name="repeat"
                     autoComplete="new-password"
-                    value={formulario.repetir}
-                    onChange={manejarCambio}
-                    className={withError(inputClass, errores.repetir)}
-                    {...errorProps("repetir", errores.repetir)}
+                    value={form.repeat}
+                    onChange={handleCambio}
+                    className={withError(inputClass, errors.repeat)}
+                    {...errorProps("repeat", errors.repeat)}
                   />
-                  <FieldError campo="repetir" mensaje={errores.repetir} />
+                  <FieldError field="repeat" message={errors.repeat} />
                 </div>
 
               </div>
@@ -181,7 +181,7 @@ export default function ChangePassword({ email = "" }) {
 
                 <button
                   type="button"
-                  onClick={cancelar}
+                  onClick={cancel}
                   className={cancelButtonClass}
                 >
                   Cancelar
@@ -189,10 +189,10 @@ export default function ChangePassword({ email = "" }) {
 
                 <button
                   type="submit"
-                  disabled={guardando}
+                  disabled={saving}
                   className={saveButtonClass}
                 >
-                  {guardando ? "Guardando..." : "Guardar contraseña"}
+                  {saving ? "Guardando..." : "Guardar contraseña"}
                 </button>
 
               </div>

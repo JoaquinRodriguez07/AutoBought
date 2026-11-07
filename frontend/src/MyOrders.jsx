@@ -43,144 +43,144 @@ export default function MyOrders(propsNavbar) {
   const navigate = useNavigate();
   const { establecer } = useOrders();
 
-  const [compras, setCompras] = useState([]);
-  const [cargando, setCargando] = useState(true);
+  const [purchases, setPurchases] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [detalle, setDetalle] = useState(null);
-  const [errorDetalle, setErrorDetalle] = useState("");
+  const [details, setDetail] = useState(null);
+  const [detailError, setDetailError] = useState("");
 
   // El pedido con una acción en marcha (pagar o «Ya lo recibí»).
-  const [pagandoId, setPagandoId] = useState(null);
-  const [confirmandoId, setConfirmandoId] = useState(null);
-  const [entregadoId, setEntregadoId] = useState(null);
-  const ocupado = pagandoId !== null || confirmandoId !== null;
+  const [payingId, setPayingId] = useState(null);
+  const [confirmingId, setConfirmingId] = useState(null);
+  const [deliveredId, setDeliveredId] = useState(null);
+  const busy = payingId !== null || confirmingId !== null;
 
   useEffect(() => {
-    let cancelado = false;
+    let cancelled = false;
 
-    const cargar = async () => {
-      setCargando(true);
+    const load = async () => {
+      setLoading(true);
       setError("");
       try {
-        const lista = await getPurchaseHistory();
-        if (!cancelado) {
-          setCompras(lista);
-          establecer(lista);
+        const list = await getPurchaseHistory();
+        if (!cancelled) {
+          setPurchases(list);
+          establecer(list);
         }
-      } catch (errorCarga) {
-        if (!cancelado) setError(errorCarga.message || "No pudimos cargar tus pedidos.");
+      } catch (loadError) {
+        if (!cancelled) setError(loadError.message || "No pudimos cargar tus pedidos.");
       } finally {
-        if (!cancelado) setCargando(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    cargar();
+    load();
     return () => {
-      cancelado = true;
+      cancelled = true;
     };
   }, [establecer]);
 
   useEffect(() => {
     if (!id) return undefined;
-    let cancelado = false;
+    let cancelled = false;
 
-    const cargar = async () => {
-      setErrorDetalle("");
+    const load = async () => {
+      setDetailError("");
       try {
         const pedido = await getPurchaseDetail(id);
-        if (!cancelado) setDetalle(pedido);
-      } catch (errorCarga) {
-        if (!cancelado) setErrorDetalle(errorCarga.message || "No pudimos cargar el pedido.");
+        if (!cancelled) setDetail(pedido);
+      } catch (loadError) {
+        if (!cancelled) setDetailError(loadError.message || "No pudimos cargar el pedido.");
       }
     };
 
-    cargar();
+    load();
     return () => {
-      cancelado = true;
+      cancelled = true;
     };
   }, [id]);
 
   // El detalle cargado corresponde al pedido de la dirección.
-  const compraSeleccionada = id && detalle && String(detalle.id) === String(id) ? detalle : null;
+  const selectedPurchase = id && details && String(details.id) === String(id) ? details : null;
 
-  const reemplazar = (actualizada) => {
-    const lista = compras.map((anterior) => (anterior.id === actualizada.id ? actualizada : anterior));
-    setCompras(lista);
-    establecer(lista);
+  const reemplazar = (updated) => {
+    const list = purchases.map((previous) => (previous.id === updated.id ? updated : previous));
+    setPurchases(list);
+    establecer(list);
   };
 
-  const pagar = async (compra) => {
-    setPagandoId(compra.id);
+  const pay = async (purchase) => {
+    setPayingId(purchase.id);
     setError("");
     try {
-      goTo(await createPaymentLink(compra.id));
-    } catch (errorPago) {
-      setError(errorPago.message || "No pudimos abrir Mercado Pago.");
-      setPagandoId(null);
+      goTo(await createPaymentLink(purchase.id));
+    } catch (paymentError) {
+      setError(paymentError.message || "No pudimos abrir Mercado Pago.");
+      setPayingId(null);
     }
   };
 
-  const confirmarLlegada = async (compra) => {
-    setConfirmandoId(compra.id);
+  const confirmArrival = async (purchase) => {
+    setConfirmingId(purchase.id);
     setError("");
     try {
-      const entregada = await confirmReceipt(compra.id);
-      reemplazar(entregada);
-      setEntregadoId(entregada.id);
+      const delivered = await confirmReceipt(purchase.id);
+      reemplazar(delivered);
+      setDeliveredId(delivered.id);
     } catch (errorRecepcion) {
       setError(errorRecepcion.message || "No pudimos confirmar la llegada del pedido.");
     } finally {
-      setConfirmandoId(null);
+      setConfirmingId(null);
     }
   };
 
-  const enCurso = compras.filter(isActive);
+  const inProgress = purchases.filter(isActive);
 
   return (
     <AccountLayout
       {...propsNavbar}
-      seccion="compras"
+      section="purchases"
       migas={
         id
           ? [
-              { texto: "Inicio", ir: propsNavbar.onHome },
-              { texto: "Mi cuenta", ir: () => navigate("/cuenta") },
-              { texto: "Mis compras", ir: () => navigate("/pedidos") },
+              { texto: "Inicio", goTo: propsNavbar.onHome },
+              { texto: "Mi cuenta", goTo: () => navigate("/cuenta") },
+              { texto: "Mis compras", goTo: () => navigate("/pedidos") },
               `Pedido #${id}`,
             ]
           : undefined
       }
-      titulo={id ? `Pedido #${id}` : "Mis compras"}
-      descripcion={id && compraSeleccionada ? `Realizado el ${formatDate(compraSeleccionada.fecha)}` : undefined}
+      title={id ? `Pedido #${id}` : "Mis compras"}
+      description={id && selectedPurchase ? `Realizado el ${formatDate(selectedPurchase.date)}` : undefined}
     >
-          {!id && <PurchaseTabs actual="enCurso" />}
+          {!id && <PurchaseTabs current="inProgress" />}
 
           {id ? (
-            errorDetalle ? (
+            detailError ? (
               <>
                 <p role="alert" className="bg-red-50 border border-red-200 text-red-600 rounded-md px-4 py-3 text-sm font-bold mb-6">
-                  {errorDetalle}
+                  {detailError}
                 </p>
                 <button type="button" onClick={() => navigate("/pedidos")} className="text-orange-500 text-sm font-bold hover:underline">
                   ← Volver a mis compras
                 </button>
               </>
-            ) : compraSeleccionada ? (
+            ) : selectedPurchase ? (
               <OrderDetail
-                key={compraSeleccionada.id}
-                compra={compraSeleccionada}
-                textoVolver="← Volver a mis compras"
-                onVolver={() => navigate("/pedidos")}
-                onActualizado={(entregada) => {
-                  setDetalle(entregada);
-                  reemplazar(entregada);
+                key={selectedPurchase.id}
+                purchase={selectedPurchase}
+                textGoBack="← Volver a mis compras"
+                onGoBack={() => navigate("/pedidos")}
+                onUpdated={(delivered) => {
+                  setDetail(delivered);
+                  reemplazar(delivered);
                 }}
               />
             ) : (
               <Loading texto="Cargando el pedido..." />
             )
-          ) : cargando ? (
+          ) : loading ? (
             <Loading texto="Cargando tus pedidos..." />
           ) : (
             <>
@@ -190,25 +190,25 @@ export default function MyOrders(propsNavbar) {
                 </p>
               )}
 
-              {entregadoId !== null && (
+              {deliveredId !== null && (
                 <p role="status" className="bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-sm font-bold mb-6">
-                  ¡Listo! Marcamos el pedido #{entregadoId} como entregado. Te mandamos un mail con el resumen.
+                  ¡Listo! Marcamos el pedido #{deliveredId} como entregado. Te mandamos un mail con el resumen.
                   Lo vas a encontrar en «Anteriores».
                 </p>
               )}
 
-              {enCurso.length > 0 ? (
+              {inProgress.length > 0 ? (
                 <ul aria-label="Pedidos en curso" className="space-y-4">
-                  {enCurso.map((compra) => (
+                  {inProgress.map((purchase) => (
                     <ActiveOrderCard
-                      key={compra.id}
-                      compra={compra}
-                      onVerDetalle={(elegida) => navigate(`/pedidos/${elegida.id}`)}
-                      onPagar={pagar}
-                      onRecibido={confirmarLlegada}
-                      pagando={pagandoId === compra.id}
-                      confirmando={confirmandoId === compra.id}
-                      ocupado={ocupado}
+                      key={purchase.id}
+                      purchase={purchase}
+                      onSeeDetail={(chosen) => navigate(`/pedidos/${chosen.id}`)}
+                      onPay={pay}
+                      onReceived={confirmArrival}
+                      paying={payingId === purchase.id}
+                      confirming={confirmingId === purchase.id}
+                      busy={busy}
                     />
                   ))}
                 </ul>

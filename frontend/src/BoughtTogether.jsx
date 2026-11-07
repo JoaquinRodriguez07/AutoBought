@@ -20,34 +20,34 @@ import { productIsCompatible } from "./compatibility";
 
 const MAX_SUGGESTIONS = 4;
 
-const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
+const price = (rawValue) => `$${rawValue.toLocaleString("es-UY")}`;
 
-export default function BoughtTogether({ producto, onDetalle }) {
-  const [sugerencias, setSugerencias] = useState({ partId: null, lista: [] });
-  const { vehiculoActivo } = useVehicle();
-  const partId = producto?.partId;
+export default function BoughtTogether({ product, onDetail }) {
+  const [suggestions, setSuggestions] = useState({ partId: null, list: [] });
+  const { activeVehicle } = useVehicle();
+  const partId = product?.partId;
 
   useEffect(() => {
     if (!partId) return undefined;
 
-    let activo = true;
-    getRecommendations([partId]).then((lista) => {
-      if (activo) setSugerencias({ partId, lista });
+    let active = true;
+    getRecommendations([partId]).then((list) => {
+      if (active) setSuggestions({ partId, list });
     });
 
     return () => {
-      activo = false;
+      active = false;
     };
   }, [partId]);
 
   // Las de otro repuesto (mientras cargan las del nuevo) no se muestran.
-  const delRepuesto = sugerencias.partId === partId ? sugerencias.lista : [];
-  const visibles = (
-    vehiculoActivo?.brand
-      ? delRepuesto.filter((sugerencia) => productIsCompatible(sugerencia, vehiculoActivo) === true)
-      : delRepuesto
+  const ofPart = suggestions.partId === partId ? suggestions.list : [];
+  const visible = (
+    activeVehicle?.brand
+      ? ofPart.filter((suggestionItem) => productIsCompatible(suggestionItem, activeVehicle) === true)
+      : ofPart
   ).slice(0, MAX_SUGGESTIONS);
-  if (visibles.length === 0) return null;
+  if (visible.length === 0) return null;
 
   return (
     <section aria-labelledby="titulo-comprados-juntos" className="bg-white py-10 md:py-12">
@@ -58,22 +58,22 @@ export default function BoughtTogether({ producto, onDetalle }) {
         </h2>
 
         {/* Con 3 sugerencias, 3 columnas: con 4 quedaba un hueco a la derecha. */}
-        <ul className={`grid grid-cols-1 sm:grid-cols-2 ${visibles.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-5 mt-6`}>
-          {visibles.map((sugerencia) => (
+        <ul className={`grid grid-cols-1 sm:grid-cols-2 ${visible.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-5 mt-6`}>
+          {visible.map((suggestionItem) => (
             <li
-              key={sugerencia.id}
+              key={suggestionItem.id}
               className="flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition"
             >
               <button
                 type="button"
-                onClick={() => onDetalle?.(sugerencia)}
-                aria-label={`Ver ${sugerencia.nombre}`}
+                onClick={() => onDetail?.(suggestionItem)}
+                aria-label={`Ver ${suggestionItem.displayName}`}
                 className="h-40 bg-white"
               >
                 <img
                   onError={useGenericImage}
-                  src={sugerencia.imagen}
-                  alt={sugerencia.nombre}
+                  src={suggestionItem.image}
+                  alt={suggestionItem.displayName}
                   loading="lazy"
                   className="w-full h-full object-contain p-3"
                 />
@@ -81,13 +81,13 @@ export default function BoughtTogether({ producto, onDetalle }) {
 
               <div className="flex flex-col flex-1 p-4">
                 <p className="text-xs uppercase tracking-wide text-orange-500 font-black">
-                  {sugerencia.fabricante}
+                  {suggestionItem.fabricante}
                 </p>
-                <h3 className="text-sm font-bold mt-1 leading-snug">{sugerencia.nombre}</h3>
-                <p className="text-lg font-black mt-auto pt-3">{precio(sugerencia.precio)}</p>
+                <h3 className="text-sm font-bold mt-1 leading-snug">{suggestionItem.displayName}</h3>
+                <p className="text-lg font-black mt-auto pt-3">{price(suggestionItem.price)}</p>
 
                 <AddToCartButton
-                  producto={sugerencia}
+                  product={suggestionItem}
                   className="w-full mt-3 flex items-center justify-center gap-2 h-9 rounded-md text-xs font-bold"
                 >
                   <CartIcon />

@@ -20,14 +20,14 @@ const NO_ORDERS = [];
 const OrdersContext = createContext(null);
 
 export function OrdersProvider({ children }) {
-  const [pedidos, setPedidos] = useState(NO_ORDERS);
+  const [orders, setOrders] = useState(NO_ORDERS);
 
-  const recargar = useCallback(async () => {
-    const sesion = getSession();
+  const reload = useCallback(async () => {
+    const session = getSession();
     // El vendedor no compra (la API le responde 403).
-    if (!isSessionValid(sesion) || isSeller(sesion)) return;
+    if (!isSessionValid(session) || isSeller(session)) return;
     try {
-      setPedidos(await getPurchaseHistory());
+      setOrders(await getPurchaseHistory());
     } catch {
       // Si falla, queda lo que había: es solo un aviso.
     }
@@ -35,40 +35,40 @@ export function OrdersProvider({ children }) {
 
   // La primera carga, al abrir la tienda con la sesión ya iniciada.
   useEffect(() => {
-    const sesion = getSession();
-    if (!isSessionValid(sesion) || isSeller(sesion)) return undefined;
+    const session = getSession();
+    if (!isSessionValid(session) || isSeller(session)) return undefined;
 
-    let cancelado = false;
+    let cancelled = false;
     getPurchaseHistory()
-      .then((lista) => {
-        if (!cancelado) setPedidos(lista);
+      .then((list) => {
+        if (!cancelled) setOrders(list);
       })
       .catch(() => {});
     return () => {
-      cancelado = true;
+      cancelled = true;
     };
   }, []);
 
-  const clean = useCallback(() => setPedidos(NO_ORDERS), []);
+  const clean = useCallback(() => setOrders(NO_ORDERS), []);
 
   const value = useMemo(
     () => ({
-      pedidos,
-      enCurso: pedidos.filter(isActive),
-      recargar,
-      establecer: setPedidos,
+      orders,
+      inProgress: orders.filter(isActive),
+      reload,
+      establecer: setOrders,
       clean,
     }),
-    [pedidos, recargar, clean]
+    [orders, reload, clean]
   );
 
   return <OrdersContext.Provider value={value}>{children}</OrdersContext.Provider>;
 }
 
 const NO_PROVIDER = {
-  pedidos: NO_ORDERS,
-  enCurso: NO_ORDERS,
-  recargar: () => {},
+  orders: NO_ORDERS,
+  inProgress: NO_ORDERS,
+  reload: () => {},
   establecer: () => {},
   clean: () => {},
 };

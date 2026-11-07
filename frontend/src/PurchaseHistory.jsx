@@ -22,9 +22,9 @@ import { ProductPhoto } from "./ActiveOrderCard";
 const THUMBNAILS = 3;
 
 // La línea chica al lado del estado: por qué se canceló.
-function cancellationNote(compra) {
-  if (expiredUnpaid(compra)) return "No se completó el pago a tiempo";
-  if (cancelledByStore(compra)) return "Lo canceló la tienda";
+function cancellationNote(purchase) {
+  if (expiredUnpaid(purchase)) return "No se completó el pago a tiempo";
+  if (cancelledByStore(purchase)) return "Lo canceló la tienda";
   return "";
 }
 
@@ -49,75 +49,75 @@ function HistoryLoading() {
   );
 }
 
-export default function PurchaseHistory(navegacion) {
-  const [compras, setCompras] = useState([]);
-  const [compraSeleccionada, setCompraSeleccionada] = useState(null);
-  const [cargando, setCargando] = useState(true);
-  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+export default function PurchaseHistory(navigation) {
+  const [purchases, setPurchases] = useState([]);
+  const [selectedPurchase, setSelectedPurchase] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState("");
-  const [errorDetalle, setErrorDetalle] = useState("");
+  const [detailError, setDetailError] = useState("");
   const { establecer } = useOrders();
 
   // Después de «Ya lo recibí»: el pedido entregado reemplaza al de la lista
   // (y el número de pedidos en curso de la barra baja).
-  const actualizarCompra = (entregada) => {
-    setCompraSeleccionada(entregada);
-    const lista = compras.map((anterior) => (anterior.id === entregada.id ? entregada : anterior));
-    setCompras(lista);
-    establecer(lista);
+  const updatePurchase = (delivered) => {
+    setSelectedPurchase(delivered);
+    const list = purchases.map((previous) => (previous.id === delivered.id ? delivered : previous));
+    setPurchases(list);
+    establecer(list);
   };
 
   useEffect(() => {
-    let cancelado = false;
+    let cancelled = false;
 
-    const cargarCompras = async () => {
-      setCargando(true);
+    const loadPurchases = async () => {
+      setLoading(true);
       setError("");
       try {
         const historial = await getPurchaseHistory();
-        if (!cancelado) setCompras(historial);
-      } catch (errorCarga) {
-        if (!cancelado) {
-          setError(errorCarga.message || "No pudimos cargar tu historial de compras.");
+        if (!cancelled) setPurchases(historial);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError.message || "No pudimos cargar tu historial de compras.");
         }
       } finally {
-        if (!cancelado) setCargando(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    cargarCompras();
+    loadPurchases();
     return () => {
-      cancelado = true;
+      cancelled = true;
     };
   }, []);
 
-  const verDetalle = async (compra) => {
-    setCargandoDetalle(true);
-    setErrorDetalle("");
+  const seeDetail = async (purchase) => {
+    setLoadingDetail(true);
+    setDetailError("");
     try {
-      const detalle = await getPurchaseDetail(compra.id);
-      setCompraSeleccionada(detalle);
-    } catch (errorCarga) {
-      setErrorDetalle(
-        errorCarga.message || "No pudimos cargar el detalle de la compra."
+      const details = await getPurchaseDetail(purchase.id);
+      setSelectedPurchase(details);
+    } catch (loadError) {
+      setDetailError(
+        loadError.message || "No pudimos cargar el detalle de la compra."
       );
     } finally {
-      setCargandoDetalle(false);
+      setLoadingDetail(false);
     }
   };
 
   // Las que están en curso van en la otra pestaña (/pedidos): acá solo
   // las que ya terminaron (entregadas o canceladas).
-  const anteriores = compras.filter((compra) => !isActive(compra));
+  const anteriores = purchases.filter((purchase) => !isActive(purchase));
 
   return (
     <AccountLayout
-      {...navegacion}
-      seccion="compras"
-      titulo={compraSeleccionada ? `Pedido #${compraSeleccionada.id}` : "Mis compras"}
-      descripcion={compraSeleccionada ? `Realizado el ${formatDate(compraSeleccionada.fecha)}` : undefined}
+      {...navigation}
+      section="purchases"
+      title={selectedPurchase ? `Pedido #${selectedPurchase.id}` : "Mis compras"}
+      description={selectedPurchase ? `Realizado el ${formatDate(selectedPurchase.date)}` : undefined}
     >
-      {!compraSeleccionada && <PurchaseTabs actual="anteriores" />}
+      {!selectedPurchase && <PurchaseTabs current="anteriores" />}
 
       {error && (
         <p role="alert" className="text-center text-red-600 font-bold">
@@ -125,28 +125,28 @@ export default function PurchaseHistory(navegacion) {
         </p>
       )}
 
-      {errorDetalle && (
+      {detailError && (
         <p role="alert" className="bg-red-50 border border-red-200 text-red-600 rounded-md px-4 py-3 text-sm font-bold mb-6">
-          {errorDetalle}
+          {detailError}
         </p>
       )}
 
-      {cargando ? (
+      {loading ? (
         <HistoryLoading />
-      ) : compraSeleccionada ? (
+      ) : selectedPurchase ? (
 
         /* DETALLE */
 
         <OrderDetail
-          compra={compraSeleccionada}
-          textoVolver="← Volver a mis compras"
-          onVolver={() => {
-            setCompraSeleccionada(null);
-            setErrorDetalle("");
+          purchase={selectedPurchase}
+          textGoBack="← Volver a mis compras"
+          onGoBack={() => {
+            setSelectedPurchase(null);
+            setDetailError("");
           }}
-          onActualizado={actualizarCompra}
+          onUpdated={updatePurchase}
         />
-      ) : cargandoDetalle ? (
+      ) : loadingDetail ? (
         <HistoryLoading />
       ) : error ? null : anteriores.length === 0 ? (
         <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-xl">
@@ -163,21 +163,21 @@ export default function PurchaseHistory(navegacion) {
         /* LISTA */
 
         <ul aria-label="Compras anteriores" className="space-y-4">
-          {anteriores.map((compra) => {
-            const items = compra.items || [];
+          {anteriores.map((purchase) => {
+            const items = purchase.items || [];
             return (
-              <li key={compra.id} className="bg-white border border-gray-200 rounded-xl shadow-xs hover:border-gray-300 transition">
+              <li key={purchase.id} className="bg-white border border-gray-200 rounded-xl shadow-xs hover:border-gray-300 transition">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
                   <p className="text-sm text-gray-500">
-                    <span className="font-black text-gray-900">#{compra.id}</span>
+                    <span className="font-black text-gray-900">#{purchase.id}</span>
                     <span className="mx-2 text-gray-300">·</span>
-                    {formatDate(compra.fecha)}
+                    {formatDate(purchase.date)}
                   </p>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    {cancellationNote(compra) && (
-                      <span className="text-xs text-gray-500">{cancellationNote(compra)}</span>
+                    {cancellationNote(purchase) && (
+                      <span className="text-xs text-gray-500">{cancellationNote(purchase)}</span>
                     )}
-                    <OrderStatusBadge compra={compra} />
+                    <OrderStatusBadge purchase={purchase} />
                   </div>
                 </div>
 
@@ -185,8 +185,8 @@ export default function PurchaseHistory(navegacion) {
                   {items.length > 0 && (
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <div className="flex gap-2">
-                        {items.slice(0, THUMBNAILS).map((producto, index) => (
-                          <ProductPhoto key={producto.partId || index} producto={producto} clase="w-14 h-14" />
+                        {items.slice(0, THUMBNAILS).map((product, index) => (
+                          <ProductPhoto key={product.partId || index} product={product} clase="w-14 h-14" />
                         ))}
                         {items.length > THUMBNAILS && (
                           <div className="w-14 h-14 shrink-0 rounded-md bg-gray-50 border border-gray-100 flex items-center justify-center text-xs font-black text-gray-500">
@@ -201,14 +201,14 @@ export default function PurchaseHistory(navegacion) {
                   <div className="flex items-center justify-between md:justify-end gap-5 md:ml-auto">
                     <div className="md:text-right">
                       <p className="text-xs text-gray-400 font-bold uppercase">Total</p>
-                      <p className="text-lg font-black">{formatPrice(compra.total)}</p>
+                      <p className="text-lg font-black">{formatPrice(purchase.total)}</p>
                     </div>
                     <div className="flex items-center gap-4">
                       <button
                         type="button"
-                        onClick={() => verDetalle(compra)}
-                        disabled={cargandoDetalle}
-                        aria-label={`Ver detalle del pedido #${compra.id}`}
+                        onClick={() => seeDetail(purchase)}
+                        disabled={loadingDetail}
+                        aria-label={`Ver detalle del pedido #${purchase.id}`}
                         className="text-gray-600 text-sm font-bold hover:text-orange-500 whitespace-nowrap disabled:opacity-50"
                       >
                         Ver detalle →

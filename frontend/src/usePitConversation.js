@@ -13,7 +13,7 @@ const newId = () => {
   return lastId;
 };
 
-const keyFor = (vehiculo) => (isVehicleComplete(vehiculo) ? `${vehiculo.brand}|${vehiculo.model}|${vehiculo.year}` : "");
+const keyFor = (vehicle) => (isVehicleComplete(vehicle) ? `${vehicle.brand}|${vehicle.model}|${vehicle.year}` : "");
 
 /**
  * useConversacionPit
@@ -30,75 +30,75 @@ const keyFor = (vehiculo) => (isVehicleComplete(vehiculo) ? `${vehiculo.brand}|$
  * era de otro auto (y el backend la rechazaría, porque la firma incluye el
  * vehículo).
  */
-export function usePitConversation(vehiculo) {
-  const [mensajes, setMensajes] = useState([]);
-  const [pensando, setPensando] = useState(false);
-  const [conversacion, setConversacion] = useState(NO_CONVERSATION);
+export function usePitConversation(vehicle) {
+  const [messages, setMessages] = useState([]);
+  const [thinking, setThinking] = useState(false);
+  const [conversation, setConversation] = useState(NO_CONVERSATION);
 
-  const clave = keyFor(vehiculo);
-  const [claveDeLaCharla, setClaveDeLaCharla] = useState(clave);
-  if (clave !== claveDeLaCharla) {
+  const key = keyFor(vehicle);
+  const [keyChat, setKeyChat] = useState(key);
+  if (key !== keyChat) {
     // Se ajusta durante el render (como recomienda React) en vez de en un
     // efecto, así nunca se ve la charla vieja con el auto nuevo.
-    setClaveDeLaCharla(clave);
-    setMensajes([]);
-    setConversacion(NO_CONVERSATION);
-    setPensando(false);
+    setKeyChat(key);
+    setMessages([]);
+    setConversation(NO_CONVERSATION);
+    setThinking(false);
   }
 
   // Cada reinicio (o cambio de auto) es un "turno" nuevo. Si llega tarde la
   // respuesta de un mensaje de antes, se descarta en vez de mezclarla.
   const turno = useRef(0);
-  const claveActual = useRef(clave);
+  const currentKey = useRef(key);
   useEffect(() => {
-    if (claveActual.current !== clave) turno.current += 1;
-    claveActual.current = clave;
-  }, [clave]);
+    if (currentKey.current !== key) turno.current += 1;
+    currentKey.current = key;
+  }, [key]);
 
-  const reiniciar = useCallback(() => {
+  const reset = useCallback(() => {
     turno.current += 1;
-    setMensajes([]);
-    setConversacion(NO_CONVERSATION);
-    setPensando(false);
+    setMessages([]);
+    setConversation(NO_CONVERSATION);
+    setThinking(false);
   }, []);
 
-  const enviar = async (texto) => {
-    const consulta = texto.trim();
-    if (consulta.length < 3 || pensando || !clave) return;
+  const send = async (texto) => {
+    const queryState = texto.trim();
+    if (queryState.length < 3 || thinking || !key) return;
 
     const miTurno = turno.current;
     const llegoTarde = () => miTurno !== turno.current;
 
-    setMensajes((anteriores) => [...anteriores, { id: newId(), rol: "cliente", texto: consulta }]);
-    setPensando(true);
+    setMessages((anteriores) => [...anteriores, { id: newId(), rol: "cliente", texto: queryState }]);
+    setThinking(true);
 
     try {
-      const respuesta = await askAssistant({
-        texto: consulta,
-        marca: vehiculo.brand,
-        modelo: vehiculo.model,
-        anio: vehiculo.year,
-        historial: conversacion.historial,
-        firma: conversacion.firma,
+      const response = await askAssistant({
+        texto: queryState,
+        marca: vehicle.brand,
+        modelo: vehicle.model,
+        anio: vehicle.year,
+        historial: conversation.historial,
+        firma: conversation.firma,
       });
       if (llegoTarde()) return;
 
-      setConversacion({ historial: respuesta.historial, firma: respuesta.firma });
-      setMensajes((anteriores) => [...anteriores, { id: newId(), rol: "pit", consulta, respuesta }]);
+      setConversation({ historial: response.historial, firma: response.firma });
+      setMessages((anteriores) => [...anteriores, { id: newId(), rol: "pit", queryState, response }]);
     } catch (error) {
       if (llegoTarde()) return;
 
       // El backend no aceptó el historial: el próximo mensaje empieza una
       // conversación nueva.
-      if (error.status === 400) setConversacion(NO_CONVERSATION);
-      setMensajes((anteriores) => [
+      if (error.status === 400) setConversation(NO_CONVERSATION);
+      setMessages((anteriores) => [
         ...anteriores,
-        { id: newId(), rol: "pit", consulta, error: { mensaje: error.message, status: error.status } },
+        { id: newId(), rol: "pit", queryState, error: { message: error.message, status: error.status } },
       ]);
     } finally {
-      if (!llegoTarde()) setPensando(false);
+      if (!llegoTarde()) setThinking(false);
     }
   };
 
-  return { mensajes, pensando, enviar, reiniciar };
+  return { messages, thinking, send, reset };
 }

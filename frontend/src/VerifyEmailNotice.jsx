@@ -25,45 +25,45 @@ function readClosed() {
  * al montar, al volver a la pestaña y cuando otra pestaña guarda la sesión
  * ya verificada. Si lo está, `onVerificado` saca el aviso.
  */
-export default function VerifyEmailNotice({ usuario, onVerificado }) {
-  const [estado, setEstado] = useState("inicial");
+export default function VerifyEmailNotice({ sessionUser, onVerified }) {
+  const [estado, setStatus] = useState("initial");
   const [error, setError] = useState("");
-  const [cerrado, setCerrado] = useState(readClosed);
+  const [isClosed, setIsClosed] = useState(readClosed);
 
-  const pendiente = usuario?.emailVerificado === false;
-  const token = usuario?.token;
+  const pending = sessionUser?.verifiedEmail === false;
+  const token = sessionUser?.token;
 
   // `onVerificado` cambia de identidad entre renders: se lee desde una ref
   // para no volver a registrar los listeners.
-  const onVerificadoRef = useRef(onVerificado);
+  const onVerifiedRef = useRef(onVerified);
   useEffect(() => {
-    onVerificadoRef.current = onVerificado;
+    onVerifiedRef.current = onVerified;
   });
 
   useEffect(() => {
-    if (!pendiente || !token) return;
+    if (!pending || !token) return;
 
-    let cancelado = false;
+    let cancelled = false;
 
     const consultar = () => {
       Promise.resolve()
         .then(() => getProfile(token))
-        .then((perfil) => {
-          if (!cancelado && perfil?.emailVerificado) onVerificadoRef.current?.();
+        .then((profile) => {
+          if (!cancelled && profile?.verifiedEmail) onVerifiedRef.current?.();
         })
         .catch(() => {});
     };
 
-    const alVolver = () => {
+    const onGoBack = () => {
       if (document.visibilityState === "visible") consultar();
     };
 
     // Otra pestaña con la sesión en localStorage abrió el enlace y la
     // guardó verificada: no hace falta ir al backend.
-    const alCambiarStorage = (event) => {
+    const onChangeStorage = (event) => {
       if (event.key !== SESSION_KEY || !event.newValue) return;
       try {
-        if (JSON.parse(event.newValue)?.emailVerificado) onVerificadoRef.current?.();
+        if (JSON.parse(event.newValue)?.verifiedEmail) onVerifiedRef.current?.();
       } catch {
         // valor ilegible: se ignora
       }
@@ -71,29 +71,29 @@ export default function VerifyEmailNotice({ usuario, onVerificado }) {
 
     consultar();
     window.addEventListener("focus", consultar);
-    document.addEventListener("visibilitychange", alVolver);
-    window.addEventListener("storage", alCambiarStorage);
+    document.addEventListener("visibilitychange", onGoBack);
+    window.addEventListener("storage", onChangeStorage);
 
     return () => {
-      cancelado = true;
+      cancelled = true;
       window.removeEventListener("focus", consultar);
-      document.removeEventListener("visibilitychange", alVolver);
-      window.removeEventListener("storage", alCambiarStorage);
+      document.removeEventListener("visibilitychange", onGoBack);
+      window.removeEventListener("storage", onChangeStorage);
     };
-  }, [pendiente, token]);
+  }, [pending, token]);
 
-  if (!pendiente || cerrado) return null;
+  if (!pending || isClosed) return null;
 
   const reenviar = async () => {
-    setEstado("enviando");
+    setStatus("sending");
     setError("");
 
     // El backend responde 204 aunque el correo ya esté verificado: antes de
     // decir "te lo reenviamos" se confirma que de verdad falte verificar.
     try {
-      const perfil = token ? await getProfile(token) : null;
-      if (perfil?.emailVerificado) {
-        onVerificado?.();
+      const profile = token ? await getProfile(token) : null;
+      if (profile?.verifiedEmail) {
+        onVerified?.();
         return;
       }
     } catch {
@@ -102,15 +102,15 @@ export default function VerifyEmailNotice({ usuario, onVerificado }) {
 
     try {
       await resendVerification();
-      setEstado("enviado");
+      setStatus("shipped");
     } catch (err) {
-      setEstado("inicial");
+      setStatus("initial");
       setError(err.message);
     }
   };
 
-  const cerrar = () => {
-    setCerrado(true);
+  const close = () => {
+    setIsClosed(true);
     try {
       sessionStorage.setItem(CLOSED_KEY, "1");
     } catch {
@@ -125,19 +125,19 @@ export default function VerifyEmailNotice({ usuario, onVerificado }) {
       className="fixed bottom-0 inset-x-0 z-50 bg-orange-500 text-white pl-4 pr-10 py-2 text-xs flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
     >
       <span>
-        <strong>Verificá tu correo</strong> para poder confirmar compras. Te mandamos un enlace a {usuario.email}.
+        <strong>Verificá tu correo</strong> para poder confirmar compras. Te mandamos un enlace a {sessionUser.email}.
       </span>
 
-      {estado === "enviado" ? (
+      {estado === "shipped" ? (
         <span className="font-bold">Listo, te lo reenviamos.</span>
       ) : (
         <button
           type="button"
           onClick={reenviar}
-          disabled={estado === "enviando"}
+          disabled={estado === "sending"}
           className="font-black underline hover:no-underline disabled:opacity-60"
         >
-          {estado === "enviando" ? "Enviando..." : "Reenviar mail"}
+          {estado === "sending" ? "Enviando..." : "Reenviar mail"}
         </button>
       )}
 
@@ -145,7 +145,7 @@ export default function VerifyEmailNotice({ usuario, onVerificado }) {
 
       <button
         type="button"
-        onClick={cerrar}
+        onClick={close}
         aria-label="Cerrar aviso"
         className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-black leading-none hover:opacity-70"
       >

@@ -12,20 +12,20 @@ import { ACCOUNT_SECTIONS } from "./accountSections";
  */
 export default function AccountHome(propsNavbar) {
   const navigate = useNavigate();
-  const nombre = propsNavbar.usuario?.nombre?.split(" ")[0];
+  const displayName = propsNavbar.sessionUser?.displayName?.split(" ")[0];
 
   return (
     <AccountLayout
       {...propsNavbar}
-      titulo={nombre ? `Hola, ${nombre}` : "Mi cuenta"}
-      descripcion="Desde acá manejás tus compras y tus datos."
+      title={displayName ? `Hola, ${displayName}` : "Mi cuenta"}
+      description="Desde acá manejás tus compras y tus datos."
     >
       <ul className="grid grid-cols-2 gap-4">
-        {ACCOUNT_SECTIONS.map(({ clave, texto, descripcion, Icon, ruta }) => (
-          <li key={clave}>
+        {ACCOUNT_SECTIONS.map(({ key, texto, description, Icon, route }) => (
+          <li key={key}>
             <button
               type="button"
-              onClick={() => navigate(ruta)}
+              onClick={() => navigate(route)}
               className="group w-full h-full flex items-start gap-4 bg-white border border-gray-200 rounded-xl p-5 text-left shadow-xs hover:border-orange-300 hover:shadow-md transition"
             >
               <span className="w-11 h-11 shrink-0 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition">
@@ -33,7 +33,7 @@ export default function AccountHome(propsNavbar) {
               </span>
               <span>
                 <span className="block text-base font-black">{texto}</span>
-                <span className="block text-sm text-gray-500 mt-1">{descripcion}</span>
+                <span className="block text-sm text-gray-500 mt-1">{description}</span>
               </span>
             </button>
           </li>

@@ -24,14 +24,14 @@ import repuestos from "./assets/repuestos.jpg";
  */
 export default function PageHeader({
   migas = [],
-  titulo,
-  descripcion,
-  inicio,
+  title,
+  description,
+  home,
   fin,
   children,
   ancho = "max-w-[1100px]",
   compacto = false,
-  etiquetaTitulo: Titulo = "h1",
+  titleLabel: Title = "h1",
 }) {
   return (
     <section className="relative overflow-hidden bg-[#151719]">
@@ -49,21 +49,21 @@ export default function PageHeader({
 
         <nav aria-label="Estás en" className="text-xs text-gray-400">
           {migas.map((miga, i) => {
-            const { texto, ir } = typeof miga === "string" ? { texto: miga } : miga;
-            const actual = i === migas.length - 1;
+            const { texto, goTo } = typeof miga === "string" ? { texto: miga } : miga;
+            const current = i === migas.length - 1;
             return (
               <span key={texto}>
                 {i > 0 && <span className="mx-1.5">›</span>}
-                {ir && !actual ? (
+                {goTo && !current ? (
                   <button
                     type="button"
-                    onClick={ir}
+                    onClick={goTo}
                     className="hover:text-white hover:underline transition"
                   >
                     {texto}
                   </button>
                 ) : (
-                  <span className={actual ? "text-orange-400" : undefined}>{texto}</span>
+                  <span className={current ? "text-orange-400" : undefined}>{texto}</span>
                 )}
               </span>
             );
@@ -72,13 +72,13 @@ export default function PageHeader({
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-3">
           <div className="flex items-center gap-4 min-w-0">
-            {inicio}
+            {home}
             <div className="min-w-0">
-              <Titulo className={`text-white font-black italic uppercase leading-none ${compacto ? "text-2xl md:text-3xl" : "text-3xl md:text-4xl"}`}>
-                {titulo}
-              </Titulo>
-              {descripcion && (
-                <p className="text-gray-300 text-sm mt-2 truncate">{descripcion}</p>
+              <Title className={`text-white font-black italic uppercase leading-none ${compacto ? "text-2xl md:text-3xl" : "text-3xl md:text-4xl"}`}>
+                {title}
+              </Title>
+              {description && (
+                <p className="text-gray-300 text-sm mt-2 truncate">{description}</p>
               )}
             </div>
           </div>

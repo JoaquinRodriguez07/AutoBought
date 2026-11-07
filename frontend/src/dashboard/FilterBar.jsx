@@ -15,32 +15,32 @@ const ALL = "todas";
 // período. Se aplican al momento, salvo la búsqueda, que se aplica al
 // presionar Buscar o Enter para no pedir datos en cada tecla. El período
 // solo aparece en las secciones que lo usan (`conPeriodo`).
-export default function FilterBar({ filtros, categorias, conPeriodo = true, onCambiar, onQuitar }) {
-  const [texto, setTexto] = useState(filtros.busqueda);
-  const [textoAplicado, setTextoAplicado] = useState(filtros.busqueda);
+export default function FilterBar({ filters, categories, withPeriod = true, onChange, onRemove }) {
+  const [texto, setText] = useState(filters.search);
+  const [appliedText, setAppliedText] = useState(filters.search);
 
   // Si la búsqueda cambia desde afuera (Quitar filtros), el campo la sigue.
-  if (filtros.busqueda !== textoAplicado) {
-    setTextoAplicado(filtros.busqueda);
-    setTexto(filtros.busqueda);
+  if (filters.search !== appliedText) {
+    setAppliedText(filters.search);
+    setText(filters.search);
   }
 
-  const hayFiltros =
-    Boolean(filtros.categoria) || Boolean(filtros.busqueda) || filtros.meses !== DEFAULT_PERIOD;
+  const hasFilters =
+    Boolean(filters.categoria) || Boolean(filters.search) || filters.months !== DEFAULT_PERIOD;
 
   const items = [
     { value: ALL, label: "Todas las categorías" },
-    ...categorias.map((nombre) => ({ value: nombre, label: nombre })),
+    ...categories.map((displayName) => ({ value: displayName, label: displayName })),
   ];
 
-  const buscar = (event) => {
+  const runSearch = (event) => {
     event.preventDefault();
-    onCambiar({ busqueda: texto.trim() });
+    onChange({ search: texto.trim() });
   };
 
   return (
     <section aria-label="Filtros" className="mt-6 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
-      <form onSubmit={buscar} className="flex gap-2 sm:flex-1 sm:min-w-[260px] sm:max-w-md">
+      <form onSubmit={runSearch} className="flex gap-2 sm:flex-1 sm:min-w-[260px] sm:max-w-md">
         <div className="relative flex-1 min-w-0">
           <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <label htmlFor="filtro-repuesto" className="sr-only">
@@ -50,7 +50,7 @@ export default function FilterBar({ filtros, categorias, conPeriodo = true, onCa
             id="filtro-repuesto"
             type="search"
             value={texto}
-            onChange={(event) => setTexto(event.target.value)}
+            onChange={(event) => setText(event.target.value)}
             placeholder="Buscar repuesto por nombre o código"
             className="h-9 w-full pl-9 bg-card"
           />
@@ -62,8 +62,8 @@ export default function FilterBar({ filtros, categorias, conPeriodo = true, onCa
 
       <Select
         items={items}
-        value={filtros.categoria || ALL}
-        onValueChange={(valor) => onCambiar({ categoria: valor === ALL ? "" : valor })}
+        value={filters.categoria || ALL}
+        onValueChange={(rawValue) => onChange({ categoria: rawValue === ALL ? "" : rawValue })}
       >
         <SelectTrigger aria-label="Categoría" className="h-9 w-full sm:w-56 bg-card">
           <SelectValue />
@@ -77,30 +77,30 @@ export default function FilterBar({ filtros, categorias, conPeriodo = true, onCa
         </SelectContent>
       </Select>
 
-      {conPeriodo && (
+      {withPeriod && (
         <ToggleGroup
           aria-label="Período"
           variant="outline"
           spacing={0}
-          value={[String(filtros.meses)]}
-          onValueChange={(valor) => valor.length && onCambiar({ meses: Number(valor[0]) })}
+          value={[String(filters.months)]}
+          onValueChange={(rawValue) => rawValue.length && onChange({ months: Number(rawValue[0]) })}
           className="rounded-lg bg-card"
         >
-          {PERIODS.map((meses) => (
+          {PERIODS.map((months) => (
             <ToggleGroupItem
-              key={meses}
-              value={String(meses)}
-              aria-label={`Últimos ${meses} meses`}
+              key={months}
+              value={String(months)}
+              aria-label={`Últimos ${months} meses`}
               className="h-9 px-3 text-xs font-medium text-muted-foreground aria-pressed:bg-gray-900 aria-pressed:text-white hover:aria-pressed:bg-gray-900"
             >
-              {meses} meses
+              {months} meses
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
       )}
 
-      {hayFiltros && (
-        <Button type="button" variant="ghost" onClick={onQuitar} className="h-9 px-3 text-xs text-muted-foreground hover:text-foreground">
+      {hasFilters && (
+        <Button type="button" variant="ghost" onClick={onRemove} className="h-9 px-3 text-xs text-muted-foreground hover:text-foreground">
           <XIcon />
           Quitar filtros
         </Button>

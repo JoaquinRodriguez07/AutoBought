@@ -5,7 +5,7 @@ import Navbar from "./Navbar";
  * (recuperar contraseña, elegir una nueva, verificar el correo). Mismo
  * estilo que el login.
  */
-export default function AccountCard({ titulo, subtitulo, children, ...propsNavbar }) {
+export default function AccountCard({ title, subtitulo, children, ...propsNavbar }) {
   return (
     <div
       className="min-h-screen flex flex-col font-sans"
@@ -14,7 +14,7 @@ export default function AccountCard({ titulo, subtitulo, children, ...propsNavba
           "linear-gradient(rgba(0,0,0,1), rgb(73, 34, 2))",
       }}
     >
-      <Navbar paginaActual="login" {...propsNavbar} />
+      <Navbar currentPage="login" {...propsNavbar} />
 
       <main className="min-h-screen flex items-center justify-center px-5 pt-24 pb-10">
         <div className="w-full max-w-[440px] bg-white rounded-2xl shadow-2xl p-8 md:p-12">
@@ -24,7 +24,7 @@ export default function AccountCard({ titulo, subtitulo, children, ...propsNavba
           </p>
 
           <h1 className="text-2xl font-black italic uppercase mt-2">
-            {titulo}
+            {title}
           </h1>
 
           {subtitulo && (

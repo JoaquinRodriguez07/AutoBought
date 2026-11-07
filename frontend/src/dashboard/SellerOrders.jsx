@@ -20,31 +20,31 @@ const SORT_ITEMS = Object.entries(ORDER_SORTS).map(([value, label]) => ({ value,
 // Trae los primeros `visibles` pedidos de a una página por pedido (el
 // backend no da más de 200 juntos). Se piden todas de nuevo cada vez, así
 // un cambio de estado se ve en cualquier página que ya esté a la vista.
-async function fetchVisible(filtros, visibles) {
-  const paginas = Math.ceil(visibles / PAGE_SIZE);
-  const respuestas = await Promise.all(
+async function fetchVisible(filters, visible) {
+  const paginas = Math.ceil(visible / PAGE_SIZE);
+  const responses = await Promise.all(
     Array.from({ length: paginas }, (_, i) =>
-      getOrders(i === 0 ? { ...filtros, limite: PAGE_SIZE } : { ...filtros, limite: PAGE_SIZE, desde: i * PAGE_SIZE })
+      getOrders(i === 0 ? { ...filters, limit: PAGE_SIZE } : { ...filters, limit: PAGE_SIZE, from: i * PAGE_SIZE })
     )
   );
-  return { ...respuestas[0], pedidos: respuestas.flatMap((respuesta) => respuesta.pedidos) };
+  return { ...responses[0], orders: responses.flatMap((response) => response.orders) };
 }
 
 function productsText(items) {
-  const unidades = items.reduce((total, item) => total + item.cantidad, 0);
-  const primero = items[0] ? `${items[0].cantidad} × ${items[0].nombre}` : "";
-  return items.length > 1 ? `${primero} y ${items.length - 1} más (${unidades} u.)` : primero;
+  const units = items.reduce((total, item) => total + item.quantity, 0);
+  const first = items[0] ? `${items[0].quantity} × ${items[0].displayName}` : "";
+  return items.length > 1 ? `${first} y ${items.length - 1} más (${units} u.)` : first;
 }
 
 // Cómo ordenar el listado, con el mismo desplegable que la categoría de la
 // barra de filtros del dashboard.
-function SortSelector({ valor, onCambiar }) {
+function SortSelector({ rawValue, onChange }) {
   return (
     <div className="flex items-center gap-2">
       <span id="etiqueta-orden-pedidos" className="text-xs text-muted-foreground whitespace-nowrap">
         Ordenar por
       </span>
-      <Select items={SORT_ITEMS} value={valor} onValueChange={onCambiar}>
+      <Select items={SORT_ITEMS} value={rawValue} onValueChange={onChange}>
         <SelectTrigger aria-labelledby="etiqueta-orden-pedidos" className="h-9 w-full sm:w-48 bg-card">
           <SelectValue />
         </SelectTrigger>
@@ -64,22 +64,22 @@ function SortSelector({ valor, onCambiar }) {
 // botón para pasar cada uno al siguiente. Tocar la fila abre el detalle
 // (`onDetalle`). `onCambio` avisa al Dashboard (el número del menú).
 // `estadoInicial` llega por la URL (?estado=).
-export default function SellerOrders({ estadoInicial = "todos", onCambio, onDetalle }) {
-  const [estado, setEstado] = useState(estadoInicial in ORDER_STATUSES ? estadoInicial : "todos");
-  const [orden, setOrden] = useState(DEFAULT_SORT);
-  const [visibles, setVisibles] = useState(PAGE_SIZE);
+export default function SellerOrders({ initialStatus = "all", onCambio, onDetail }) {
+  const [estado, setStatus] = useState(initialStatus in ORDER_STATUSES ? initialStatus : "all");
+  const [sort, setSort] = useState(DEFAULT_SORT);
+  const [visible, setVisible] = useState(PAGE_SIZE);
   const [version, setVersion] = useState(0);
 
-  const consulta = useQuery(
+  const queryState = useQuery(
     () =>
       fetchVisible(
         {
-          estado: estado === "todos" ? undefined : estado,
-          orden: orden === DEFAULT_SORT ? undefined : orden,
+          estado: estado === "all" ? undefined : estado,
+          sort: sort === DEFAULT_SORT ? undefined : sort,
         },
-        visibles
+        visible
       ),
-    `${estado}|${orden}|${visibles}|${version}`
+    `${estado}|${sort}|${visible}|${version}`
   );
   const cambio = useStatusChange((pedido) => {
     setVersion((v) => v + 1);
@@ -87,16 +87,16 @@ export default function SellerOrders({ estadoInicial = "todos", onCambio, onDeta
   });
 
   // Otro filtro u orden: se vuelve a la primera página.
-  const elegir = (cambiar) => (valor) => {
-    cambiar(valor);
-    setVisibles(PAGE_SIZE);
-    cambio.limpiarError();
+  const choose = (change) => (rawValue) => {
+    change(rawValue);
+    setVisible(PAGE_SIZE);
+    cambio.clearError();
   };
 
   return (
-    <QueryState consulta={consulta}>
-      {({ pedidos, total, porEstado }) => {
-        const todos = Object.values(porEstado).reduce((suma, n) => suma + n, 0);
+    <QueryState queryState={queryState}>
+      {({ orders, total, byStatus }) => {
+        const all = Object.values(byStatus).reduce((suma, n) => suma + n, 0);
         return (
           <div className="flex flex-col gap-4">
             <section
@@ -104,18 +104,18 @@ export default function SellerOrders({ estadoInicial = "todos", onCambio, onDeta
               className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"
             >
               <Options
-                etiqueta="Estado del pedido"
-                valor={estado}
-                onCambiar={elegir(setEstado)}
+                label="Estado del pedido"
+                rawValue={estado}
+                onChange={choose(setStatus)}
                 opciones={[
-                  ["todos", `Todos (${formatNumber(todos)})`],
-                  ...Object.entries(ORDER_STATUSES).map(([valor, { texto }]) => [
-                    valor,
-                    `${texto} (${formatNumber(porEstado[valor] ?? 0)})`,
+                  ["all", `Todos (${formatNumber(all)})`],
+                  ...Object.entries(ORDER_STATUSES).map(([rawValue, { texto }]) => [
+                    rawValue,
+                    `${texto} (${formatNumber(byStatus[rawValue] ?? 0)})`,
                   ]),
                 ]}
               />
-              <SortSelector valor={orden} onCambiar={elegir(setOrden)} />
+              <SortSelector rawValue={sort} onChange={choose(setSort)} />
             </section>
 
             {cambio.error && (
@@ -125,9 +125,9 @@ export default function SellerOrders({ estadoInicial = "todos", onCambio, onDeta
               </Alert>
             )}
 
-            {pedidos.length === 0 ? (
+            {orders.length === 0 ? (
               <NoData>
-                {estado === "todos" ? "Todavía no hay pedidos." : `No hay pedidos en «${ORDER_STATUSES[estado].texto}».`}
+                {estado === "all" ? "Todavía no hay pedidos." : `No hay pedidos en «${ORDER_STATUSES[estado].texto}».`}
               </NoData>
             ) : (
               <section aria-label="Listado de pedidos" className="rounded-xl border bg-card shadow-xs">
@@ -146,26 +146,26 @@ export default function SellerOrders({ estadoInicial = "todos", onCambio, onDeta
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pedidos.map((pedido) => (
+                    {orders.map((pedido) => (
                       // Toda la fila abre el detalle; con teclado, el número (un botón).
-                      <TableRow key={pedido.id} onClick={() => onDetalle?.(pedido.id)} className="cursor-pointer">
+                      <TableRow key={pedido.id} onClick={() => onDetail?.(pedido.id)} className="cursor-pointer">
                         <TableCell className="pl-4 sm:pl-5">
                           <button
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              onDetalle?.(pedido.id);
+                              onDetail?.(pedido.id);
                             }}
                             aria-label={`Ver el detalle del pedido #${pedido.id}`}
                             className="font-medium tabular-nums hover:text-orange-600 hover:underline underline-offset-2"
                           >
                             #{pedido.id}
                           </button>
-                          <span className="block text-xs text-muted-foreground">{formatOrderDate(pedido.fecha)}</span>
+                          <span className="block text-xs text-muted-foreground">{formatOrderDate(pedido.date)}</span>
                         </TableCell>
                         <TableCell>
-                          <span className="block">{pedido.cliente.nombre}</span>
-                          <span className="block text-xs text-muted-foreground">{pedido.cliente.email}</span>
+                          <span className="block">{pedido.customer.displayName}</span>
+                          <span className="block text-xs text-muted-foreground">{pedido.customer.email}</span>
                         </TableCell>
                         <TableCell className="hidden lg:table-cell text-muted-foreground max-w-[260px] truncate">
                           {productsText(pedido.items)}
@@ -176,9 +176,9 @@ export default function SellerOrders({ estadoInicial = "todos", onCambio, onDeta
                         </TableCell>
                         <TableCell>
                           <OrderStatusBadgeSeller estado={pedido.estado} />
-                          {pedido.motivoCancelacion && (
-                            <span className="block mt-1 text-xs text-muted-foreground max-w-[200px] truncate" title={pedido.motivoCancelacion}>
-                              {pedido.motivoCancelacion}
+                          {pedido.reasonCancellation && (
+                            <span className="block mt-1 text-xs text-muted-foreground max-w-[200px] truncate" title={pedido.reasonCancellation}>
+                              {pedido.reasonCancellation}
                             </span>
                           )}
                         </TableCell>
@@ -186,9 +186,9 @@ export default function SellerOrders({ estadoInicial = "todos", onCambio, onDeta
                         <TableCell className="pr-4 sm:pr-5 text-right" onClick={(event) => event.stopPropagation()}>
                           <OrderActions
                             pedido={pedido}
-                            ocupado={cambio.ocupado}
+                            busy={cambio.busy}
                             onAvanzar={cambio.avanzar}
-                            onCancelar={cambio.pedirCancelar}
+                            onCancel={cambio.askCancel}
                           />
                         </TableCell>
                       </TableRow>
@@ -197,18 +197,18 @@ export default function SellerOrders({ estadoInicial = "todos", onCambio, onDeta
                 </Table>
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 sm:px-5">
                   <p className="text-xs text-muted-foreground">
-                    Mostrando {formatNumber(pedidos.length)} de {formatNumber(total)} pedidos.
+                    Mostrando {formatNumber(orders.length)} de {formatNumber(total)} pedidos.
                   </p>
-                  {total > pedidos.length && (
-                    <Button variant="outline" size="sm" onClick={() => setVisibles((v) => v + PAGE_SIZE)} className="text-xs">
-                      Mostrar {formatNumber(Math.min(PAGE_SIZE, total - pedidos.length))} más
+                  {total > orders.length && (
+                    <Button variant="outline" size="sm" onClick={() => setVisible((v) => v + PAGE_SIZE)} className="text-xs">
+                      Mostrar {formatNumber(Math.min(PAGE_SIZE, total - orders.length))} más
                     </Button>
                   )}
                 </div>
               </section>
             )}
 
-            <CancelOrderDialog pedido={cambio.aCancelar} onCerrar={cambio.cerrarCancelar} onCancelado={cambio.alCancelar} />
+            <CancelOrderDialog pedido={cambio.toCancel} onClose={cambio.closeCancel} onCancelled={cambio.onCancel} />
           </div>
         );
       }}

@@ -32,28 +32,28 @@ describe("mapPart", () => {
     ).toEqual({
       id: "42",
       partId: 42,
-      nombre: "Pastillas de freno",
+      displayName: "Pastillas de freno",
       fabricante: "Brembo",
-      codigo: "PF-42",
+      code: "PF-42",
       categoria: "Frenos",
-      precio: 1299.5,
+      price: 1299.5,
       stock: 8,
       marca: "Chevrolet Volkswagen",
-      marcaPrincipal: "Chevrolet",
-      marcas: ["Chevrolet", "Volkswagen"],
-      modelos: [],
+      primaryBrand: "Chevrolet",
+      brands: ["Chevrolet", "Volkswagen"],
+      models: [],
       compatibilidades: [
         { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 },
         { brand: "Volkswagen", model: "Gol", engine_code: "1.6 MSI", year_from: 2020, year_to: 2020 },
       ],
-      descripcion: "Pastillas de freno Brembo, para Chevrolet Onix.",
-      especificaciones: [["Material", "Cerámico"], ["Espesor", "17 mm"]],
+      description: "Pastillas de freno Brembo, para Chevrolet Onix.",
+      specifications: [["Material", "Cerámico"], ["Espesor", "17 mm"]],
       garantia: "12 meses de garantía del fabricante (Brembo), por defectos de fabricación.",
-      garantiaMeses: 12,
-      proveedorGarantia: "fabricante",
-      aplicaciones: ["Chevrolet Onix 1.4 8V (2013–2019)", "Volkswagen Gol 1.6 MSI (2020)"],
-      imagen: "/repuestos/pastillas-freno.webp",
-      imagenesExtra: ["/repuestos/pastillas-freno-vista.webp"],
+      monthsWarranty: 12,
+      warrantyProvider: "fabricante",
+      fitments: ["Chevrolet Onix 1.4 8V (2013–2019)", "Volkswagen Gol 1.6 MSI (2020)"],
+      image: "/repuestos/pastillas-freno.webp",
+      imagesExtra: ["/repuestos/pastillas-freno-vista.webp"],
     });
   });
 
@@ -61,25 +61,25 @@ describe("mapPart", () => {
     expect(mapPart({ id: 0 })).toEqual({
       id: "0",
       partId: 0,
-      nombre: "",
+      displayName: "",
       fabricante: "",
-      codigo: "",
+      code: "",
       categoria: "",
-      precio: 0,
+      price: 0,
       stock: 0,
       marca: "",
-      marcaPrincipal: "",
-      marcas: [],
-      modelos: [],
+      primaryBrand: "",
+      brands: [],
+      models: [],
       compatibilidades: [],
-      descripcion: "",
-      especificaciones: [],
+      description: "",
+      specifications: [],
       garantia: "",
-      garantiaMeses: null,
-      proveedorGarantia: null,
-      aplicaciones: [],
-      imagen: PLACEHOLDER_IMAGE,
-      imagenesExtra: [],
+      monthsWarranty: null,
+      warrantyProvider: null,
+      fitments: [],
+      image: PLACEHOLDER_IMAGE,
+      imagesExtra: [],
     });
   });
 
@@ -106,14 +106,14 @@ describe("mapCartItem", () => {
     ).toEqual({
       id: "17",
       partId: 17,
-      codigo: "FIL-0017",
-      nombre: "Filtro de aceite",
-      precio: 750,
-      cantidad: 2,
+      code: "FIL-0017",
+      displayName: "Filtro de aceite",
+      price: 750,
+      quantity: 2,
       subtotal: 1500,
       stock: 6,
       categoria: "Motor",
-      imagen: "/repuestos/filtro-aceite.webp",
+      image: "/repuestos/filtro-aceite.webp",
     });
   });
 
@@ -121,14 +121,14 @@ describe("mapCartItem", () => {
     expect(mapCartItem({ part_id: 9 })).toEqual({
       id: "9",
       partId: 9,
-      codigo: "",
-      nombre: "",
-      precio: 0,
-      cantidad: 0,
+      code: "",
+      displayName: "",
+      price: 0,
+      quantity: 0,
       subtotal: 0,
       stock: 0,
       categoria: "",
-      imagen: PLACEHOLDER_IMAGE,
+      image: PLACEHOLDER_IMAGE,
     });
   });
 });
@@ -136,45 +136,45 @@ describe("mapCartItem", () => {
 describe("mapCategory", () => {
   it("maps backend category names and counts", () => {
     expect(mapCategory({ name: "Frenos", count: 12 })).toEqual({
-      nombre: "Frenos",
-      cantidad: 12,
+      displayName: "Frenos",
+      quantity: 12,
     });
   });
 
   it("defaults missing category values", () => {
-    expect(mapCategory({})).toEqual({ nombre: "", cantidad: 0 });
+    expect(mapCategory({})).toEqual({ displayName: "", quantity: 0 });
   });
 });
 
 describe("useGenericImage", () => {
   it("swaps a broken image for the generic one", () => {
-    const imagen = document.createElement("img");
-    imagen.src = "/repuestos/no-existe.webp";
+    const image = document.createElement("img");
+    image.src = "/repuestos/no-existe.webp";
 
-    useGenericImage({ currentTarget: imagen });
+    useGenericImage({ currentTarget: image });
 
-    expect(imagen.getAttribute("src")).toBe(PLACEHOLDER_IMAGE);
+    expect(image.getAttribute("src")).toBe(PLACEHOLDER_IMAGE);
   });
 
   it("does not loop when the generic image itself fails", () => {
-    const imagen = document.createElement("img");
-    imagen.src = PLACEHOLDER_IMAGE;
+    const image = document.createElement("img");
+    image.src = PLACEHOLDER_IMAGE;
 
-    useGenericImage({ currentTarget: imagen });
+    useGenericImage({ currentTarget: image });
 
-    expect(imagen.getAttribute("src")).toBe(PLACEHOLDER_IMAGE);
+    expect(image.getAttribute("src")).toBe(PLACEHOLDER_IMAGE);
   });
 
   it("protects again when the same <img> switches to another image that also fails", () => {
-    const imagen = document.createElement("img");
-    imagen.src = "/repuestos/no-existe.webp";
-    useGenericImage({ currentTarget: imagen });
-    expect(imagen.getAttribute("src")).toBe(PLACEHOLDER_IMAGE);
+    const image = document.createElement("img");
+    image.src = "/repuestos/no-existe.webp";
+    useGenericImage({ currentTarget: image });
+    expect(image.getAttribute("src")).toBe(PLACEHOLDER_IMAGE);
 
     // React reutiliza el <img> y le cambia el src a otra imagen rota.
-    imagen.src = "/repuestos/otra-que-no-existe.webp";
-    useGenericImage({ currentTarget: imagen });
+    image.src = "/repuestos/otra-que-no-existe.webp";
+    useGenericImage({ currentTarget: image });
 
-    expect(imagen.getAttribute("src")).toBe(PLACEHOLDER_IMAGE);
+    expect(image.getAttribute("src")).toBe(PLACEHOLDER_IMAGE);
   });
 });

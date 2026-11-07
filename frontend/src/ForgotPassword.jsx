@@ -15,44 +15,44 @@ import { validateEmail } from "./validations";
 const SENT_MESSAGE =
   "Si el correo está registrado, te mandamos un enlace para elegir una contraseña nueva.";
 
-export default function ForgotPassword({ onVolverAlLogin, ...propsNavbar }) {
+export default function ForgotPassword({ onGoBackLogin, ...propsNavbar }) {
   const [email, setEmail] = useState("");
   const [errorEmail, setErrorEmail] = useState(null);
   const [error, setError] = useState("");
-  const [enviado, setEnviado] = useState("");
-  const [enviando, setEnviando] = useState(false);
+  const [shipped, setShipped] = useState("");
+  const [sending, setSending] = useState(false);
 
-  const enviar = async (e) => {
+  const send = async (e) => {
     e.preventDefault();
 
-    const errorValidacion = validateEmail(email);
-    setErrorEmail(errorValidacion);
-    if (errorValidacion) return;
+    const errorValidation = validateEmail(email);
+    setErrorEmail(errorValidation);
+    if (errorValidation) return;
 
-    setEnviando(true);
+    setSending(true);
     setError("");
 
     try {
-      setEnviado((await requestPasswordReset(email.trim())) || SENT_MESSAGE);
+      setShipped((await requestPasswordReset(email.trim())) || SENT_MESSAGE);
     } catch (err) {
       setError(err.message);
     } finally {
-      setEnviando(false);
+      setSending(false);
     }
   };
 
   return (
     <AccountCard
-      titulo="Recuperar contraseña"
+      title="Recuperar contraseña"
       subtitulo="Te mandamos un enlace a tu correo para elegir una contraseña nueva."
       {...propsNavbar}
     >
-      {enviado ? (
+      {shipped ? (
         <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-xs font-semibold">
-          {enviado} Revisá también la carpeta de spam.
+          {shipped} Revisá también la carpeta de spam.
         </div>
       ) : (
-        <form onSubmit={enviar} noValidate className="mt-6">
+        <form onSubmit={send} noValidate className="mt-6">
 
           {error && (
             <div role="alert" className="mb-5 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-xs font-semibold">
@@ -76,17 +76,17 @@ export default function ForgotPassword({ onVolverAlLogin, ...propsNavbar }) {
             className={withError(accountInputClass, errorEmail)}
             {...errorProps("email", errorEmail)}
           />
-          <FieldError campo="email" mensaje={errorEmail} />
+          <FieldError field="email" message={errorEmail} />
 
-          <button type="submit" disabled={enviando} className={accountButtonClass}>
-            {enviando ? "Enviando..." : "Enviar enlace"}
+          <button type="submit" disabled={sending} className={accountButtonClass}>
+            {sending ? "Enviando..." : "Enviar enlace"}
           </button>
 
         </form>
       )}
 
       <p className="text-center text-xs text-gray-500 mt-6">
-        <button type="button" onClick={onVolverAlLogin} className={accountLinkClass}>
+        <button type="button" onClick={onGoBackLogin} className={accountLinkClass}>
           Volver a iniciar sesión
         </button>
       </p>

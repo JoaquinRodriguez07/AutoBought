@@ -20,43 +20,43 @@ export function CartProvider({ children }) {
   const navigate = useNavigate();
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
-  const [aviso, setAviso] = useState(null);
+  const [aviso, setNotice] = useState(null);
 
-  const cerrarAviso = useCallback(() => setAviso(null), []);
+  const closeNotice = useCallback(() => setNotice(null), []);
 
   // Si el cliente se va a otra pantalla (ej. tocó el carrito del
   // navbar) el aviso ya no tiene sentido: se cierra al cambiar la ruta.
   const { pathname } = useLocation();
-  const [rutaDelAviso, setRutaDelAviso] = useState(pathname);
-  if (pathname !== rutaDelAviso) {
-    setRutaDelAviso(pathname);
-    if (aviso) setAviso(null);
+  const [routeNotice, setRouteNotice] = useState(pathname);
+  if (pathname !== routeNotice) {
+    setRouteNotice(pathname);
+    if (aviso) setNotice(null);
   }
 
   // Reemplaza el estado local con lo que devuelve la API (todas las
   // mutaciones del carrito devuelven el carrito COMPLETO ya
   // actualizado, así este es el único lugar que toca `cart`/`total`).
-  const aplicarRespuesta = (carrito) => {
-    setCart(carrito.items);
-    setTotal(carrito.total);
-    return carrito;
+  const applyResponse = (cartState) => {
+    setCart(cartState.items);
+    setTotal(cartState.total);
+    return cartState;
   };
 
   // Carga el carrito desde la API. Se llama al montar (por si ya hay
   // sesión activa, ej. refresh de página) y cuando App.jsx avisa que
   // el usuario inició sesión.
-  const cargarCarrito = useCallback(async () => {
+  const loadCart = useCallback(async () => {
     // Un vendedor no tiene carrito (la API le responde 403): no se pide.
-    const sesion = getSession();
-    if (!isSessionValid(sesion) || isSeller(sesion)) {
+    const session = getSession();
+    if (!isSessionValid(session) || isSeller(session)) {
       setCart([]);
       setTotal(0);
       return;
     }
 
     try {
-      const carrito = await getCart();
-      aplicarRespuesta(carrito);
+      const cartState = await getCart();
+      applyResponse(cartState);
     } catch (error) {
       if (error.status !== 401) {
         toast.error(error.message || "No pudimos cargar tu carrito.");
@@ -65,7 +65,7 @@ export function CartProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    cargarCarrito();
+    loadCart();
     // Solo al montar: App.jsx llama a `cargarCarrito`/`limpiarCarrito`
     // explícitamente en los momentos en que la sesión cambia (login,
     // registro, logout).
@@ -74,7 +74,7 @@ export function CartProvider({ children }) {
 
   // Vacía el estado local sin llamar a la API (para cerrar sesión: el
   // carrito del cliente sigue en la base, solo se limpia la pantalla).
-  const limpiarCarritoLocal = useCallback(() => {
+  const clearCartLocal = useCallback(() => {
     setCart([]);
     setTotal(0);
   }, []);
@@ -84,7 +84,7 @@ export function CartProvider({ children }) {
   // en App.jsx (limpia el carrito, avisa y manda a login); el resto de los
   // códigos (404/409/422/...) solo se avisan con un toast, el mensaje ya
   // viene en español desde el backend.
-  const manejarError = (error) => {
+  const handleError = (error) => {
     if (error.status === 401) return;
 
     toast.error(error.message || "No pudimos actualizar el carrito.");
@@ -94,28 +94,28 @@ export function CartProvider({ children }) {
   // contando el stock total, pero lo que choca casi siempre son las
   // unidades que el cliente YA tenía en el carrito. Acá se arma un
   // mensaje que lo explique con los datos que ya tenemos.
-  const mensajeSinStock = (producto) => {
-    const item = cart.find((it) => it.id === String(producto.id));
-    const disponible = item?.stock ?? producto.stock;
-    const enCarrito = item?.cantidad ?? 0;
-    const unidades = (n) => (n === 1 ? "1 unidad" : `${n} unidades`);
+  const messageWithoutStock = (product) => {
+    const item = cart.find((it) => it.id === String(product.id));
+    const disponible = item?.stock ?? product.stock;
+    const inCart = item?.quantity ?? 0;
+    const units = (n) => (n === 1 ? "1 unidad" : `${n} unidades`);
 
     if (disponible == null) return null;
-    if (enCarrito >= disponible) {
-      return `Ya tenés en el carrito las ${unidades(disponible)} disponibles.`;
+    if (inCart >= disponible) {
+      return `Ya tenés en el carrito las ${units(disponible)} disponibles.`;
     }
-    const queda = disponible === 1 ? "Solo queda" : "Solo quedan";
-    return enCarrito > 0
-      ? `${queda} ${unidades(disponible)} y ya tenés ${enCarrito} en el carrito.`
-      : `${queda} ${unidades(disponible)}.`;
+    const remains = disponible === 1 ? "Solo queda" : "Solo quedan";
+    return inCart > 0
+      ? `${remains} ${units(disponible)} y ya tenés ${inCart} en el carrito.`
+      : `${remains} ${units(disponible)}.`;
   };
 
   // `aviso: false` es para quien ya está en el carrito (las
   // sugerencias): ahí el ítem aparece en la lista y no hace falta
   // avisar nada.
-  const addToCart = async (producto, cantidad = 1, { aviso: mostrarAviso = true } = {}) => {
+  const addToCart = async (product, quantity = 1, { aviso: showNotice = true } = {}) => {
     if (!isSessionValid(getSession())) {
-      setAviso({ tipo: "login" });
+      setNotice({ tipo: "login" });
       return false;
     }
 
@@ -124,81 +124,81 @@ export function CartProvider({ children }) {
       return false;
     }
 
-    if (!producto || producto.stock === 0) return false;
+    if (!product || product.stock === 0) return false;
 
-    const cantidadPedida = Math.max(1, Number(cantidad) || 1);
-    const partId = producto.partId ?? producto.id;
+    const requestedQuantity = Math.max(1, Number(quantity) || 1);
+    const partId = product.partId ?? product.id;
 
     try {
-      const carrito = await addCartItem(partId, cantidadPedida);
-      aplicarRespuesta(carrito);
-      if (mostrarAviso) {
+      const cartState = await addCartItem(partId, requestedQuantity);
+      applyResponse(cartState);
+      if (showNotice) {
         // Un solo aviso a la vez: si se vuelve a agregar el mismo
         // repuesto se suma al que está abierto ("×3") en vez de apilar.
-        setAviso((actual) =>
-          actual?.tipo === "agregado" && actual.producto.id === producto.id
-            ? { ...actual, cantidadAgregada: actual.cantidadAgregada + cantidadPedida }
-            : { tipo: "agregado", producto, cantidadAgregada: cantidadPedida }
+        setNotice((current) =>
+          current?.tipo === "added" && current.product.id === product.id
+            ? { ...current, addedQuantity: current.addedQuantity + requestedQuantity }
+            : { tipo: "added", product, addedQuantity: requestedQuantity }
         );
       }
       return true;
     } catch (error) {
       if (error.status === 409) {
-        toast.error(mensajeSinStock(producto) || error.message);
+        toast.error(messageWithoutStock(product) || error.message);
       } else {
-        manejarError(error);
+        handleError(error);
       }
       return false;
     }
   };
 
-  const updateQuantity = async (productoId, nuevaCantidad) => {
-    if (nuevaCantidad < 1) return;
+  const updateQuantity = async (idProduct, newQuantity) => {
+    if (newQuantity < 1) return;
 
-    const item = cart.find((it) => it.id === String(productoId));
-    const partId = item?.partId ?? productoId;
+    const item = cart.find((it) => it.id === String(idProduct));
+    const partId = item?.partId ?? idProduct;
 
     try {
-      const carrito = await updateCartItem(partId, nuevaCantidad);
-      aplicarRespuesta(carrito);
+      const cartState = await updateCartItem(partId, newQuantity);
+      applyResponse(cartState);
     } catch (error) {
-      manejarError(error);
+      handleError(error);
     }
   };
 
-  const removeFromCart = async (productoId) => {
-    const item = cart.find((it) => it.id === String(productoId));
-    const partId = item?.partId ?? productoId;
+  const removeFromCart = async (idProduct) => {
+    const item = cart.find((it) => it.id === String(idProduct));
+    const partId = item?.partId ?? idProduct;
 
     try {
-      const carrito = await removeCartItem(partId);
-      aplicarRespuesta(carrito);
+      const cartState = await removeCartItem(partId);
+      applyResponse(cartState);
     } catch (error) {
-      manejarError(error);
+      handleError(error);
     }
   };
 
   // Deshace un "agregar al carrito": descuenta solo la cantidad que se
   // acaba de agregar. Si no quedan unidades previas, elimina la línea.
-  const deshacerAgregado = async (productoId, cantidadAgregada) => {
-    const item = cart.find((it) => it.id === String(productoId));
-    if (item && item.cantidad > cantidadAgregada) {
-      await updateQuantity(productoId, item.cantidad - cantidadAgregada);
+  const undoAdded = async (idProduct, addedQuantity) => {
+    const item = cart.find((it) => it.id === String(idProduct));
+    if (item && item.quantity > addedQuantity) {
+      await updateQuantity(idProduct, item.quantity - addedQuantity);
     } else {
-      await removeFromCart(productoId);
+      await removeFromCart(idProduct);
     }
   };
 
   const clearCart = async () => {
     try {
-      const carrito = await clearCartApi();
-      aplicarRespuesta(carrito);
+      const cartState = await clearCartApi();
+      applyResponse(cartState);
     } catch (error) {
-      manejarError(error);
+      handleError(error);
     }
   };
 
-  const cantidadCarrito = cart.reduce((total, item) => total + item.cantidad, 0);
+  const cartQuantity = cart.reduce((total, item) => total + item.quantity, 0);
 
   const value = {
     cart,
@@ -206,14 +206,14 @@ export function CartProvider({ children }) {
     updateQuantity,
     removeFromCart,
     clearCart,
-    cantidadCarrito,
+    cartQuantity,
     total,
 
     // Usados por App.jsx en los momentos en que cambia la sesión
     // (login/registro/logout); no forman parte de la interfaz que
     // consumen las pantallas del carrito.
-    cargarCarrito,
-    limpiarCarritoLocal,
+    loadCart,
+    clearCartLocal,
   };
 
   return (
@@ -221,20 +221,20 @@ export function CartProvider({ children }) {
       {children}
       <AddedToCartNotice
         aviso={aviso}
-        cantidadCarrito={cantidadCarrito}
+        cartQuantity={cartQuantity}
         total={total}
-        onCerrar={cerrarAviso}
-        onDeshacer={async () => {
-          const { producto, cantidadAgregada } = aviso;
-          cerrarAviso();
-          await deshacerAgregado(producto.id, cantidadAgregada);
+        onClose={closeNotice}
+        onUndo={async () => {
+          const { product, addedQuantity } = aviso;
+          closeNotice();
+          await undoAdded(product.id, addedQuantity);
         }}
-        onVerCarrito={() => {
-          cerrarAviso();
+        onSeeCart={() => {
+          closeNotice();
           navigate("/carrito");
         }}
-        onIniciarSesion={() => {
-          cerrarAviso();
+        onStartSession={() => {
+          closeNotice();
           navigate("/login");
         }}
       />

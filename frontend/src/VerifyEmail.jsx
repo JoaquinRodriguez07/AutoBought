@@ -11,11 +11,11 @@ const INVALID_LINK = "El enlace no es válido o ya venció. Pedí uno nuevo.";
  * Se abre desde el enlace del mail de verificación (?token=...). No pide
  * sesión: el mail se puede abrir en otro dispositivo.
  */
-export default function VerifyEmail({ onVerificado, onIrALaTienda, ...propsNavbar }) {
+export default function VerifyEmail({ onVerified, onGoToStore, ...propsNavbar }) {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") || "";
 
-  const [estado, setEstado] = useState(token ? "verificando" : "error");
+  const [estado, setStatus] = useState(token ? "verificando" : "error");
   const [error, setError] = useState(token ? "" : INVALID_LINK);
 
   // En desarrollo, StrictMode corre los efectos dos veces: con esto el
@@ -28,24 +28,24 @@ export default function VerifyEmail({ onVerificado, onIrALaTienda, ...propsNavba
 
     verifyEmail(token)
       .then(() => {
-        setEstado("listo");
-        onVerificado?.();
+        setStatus("ready");
+        onVerified?.();
       })
       .catch((err) => {
-        setEstado("error");
+        setStatus("error");
         setError(err.message);
       });
-  }, [token, onVerificado]);
+  }, [token, onVerified]);
 
   return (
-    <AccountCard titulo="Verificar correo" {...propsNavbar}>
+    <AccountCard title="Verificar correo" {...propsNavbar}>
       {estado === "verificando" && (
         <p role="status" className="mt-6 text-xs text-gray-500">
           Verificando tu correo...
         </p>
       )}
 
-      {estado === "listo" && (
+      {estado === "ready" && (
         <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-xs font-semibold">
           ¡Listo! Tu correo quedó verificado y ya podés confirmar compras.
         </div>
@@ -58,7 +58,7 @@ export default function VerifyEmail({ onVerificado, onIrALaTienda, ...propsNavba
       )}
 
       {estado !== "verificando" && (
-        <button type="button" onClick={onIrALaTienda} className={accountButtonClass}>
+        <button type="button" onClick={onGoToStore} className={accountButtonClass}>
           Ir a la tienda
         </button>
       )}

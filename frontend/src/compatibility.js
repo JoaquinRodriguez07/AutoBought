@@ -10,18 +10,18 @@
  * o aplicaciones como texto (`aplicaciones`); acá se normalizan ambas.
  */
 
-export const normalizeText = (valor) =>
-  valor?.trim().replace(/\s+/g, " ").toLocaleLowerCase("es") || "";
+export const normalizeText = (rawValue) =>
+  rawValue?.trim().replace(/\s+/g, " ").toLocaleLowerCase("es") || "";
 
 /** Las compatibilidades del repuesto, estructuradas o como texto. */
-export function compatibilitiesOf(producto) {
-  const estructuradas = Array.isArray(producto?.compatibilidades) ? producto.compatibilidades : [];
-  if (estructuradas.length) return estructuradas.map((item) => ({ ...item, formatoTexto: false }));
+export function compatibilitiesOf(product) {
+  const structured = Array.isArray(product?.compatibilidades) ? product.compatibilidades : [];
+  if (structured.length) return structured.map((item) => ({ ...item, formatText: false }));
 
-  const aplicacionesTexto = Array.isArray(producto?.aplicaciones)
-    ? producto.aplicaciones.filter((item) => typeof item === "string" && item.trim())
+  const fitmentsText = Array.isArray(product?.fitments)
+    ? product.fitments.filter((item) => typeof item === "string" && item.trim())
     : [];
-  return aplicacionesTexto.map((texto) => ({ texto: texto.trim(), formatoTexto: true }));
+  return fitmentsText.map((texto) => ({ texto: texto.trim(), formatText: true }));
 }
 
 /**
@@ -29,62 +29,62 @@ export function compatibilitiesOf(producto) {
  * si no se puede saber (sin vehículo, sin compatibilidades o con datos
  * incompletos).
  */
-export function isCompatible(compatibilidades, vehiculo) {
-  const marcaSeleccionada = normalizeText(vehiculo?.brand);
-  if (!marcaSeleccionada || compatibilidades.length === 0) return null;
+export function isCompatible(compatibilidades, vehicle) {
+  const selectedBrand = normalizeText(vehicle?.brand);
+  if (!selectedBrand || compatibilidades.length === 0) return null;
 
-  const modeloSeleccionado = normalizeText(vehiculo?.model);
-  const anioSeleccionado = vehiculo?.year ? Number(vehiculo.year) : null;
-  let hayDatosInsuficientes = false;
+  const selectedModel = normalizeText(vehicle?.model);
+  const selectedYear = vehicle?.year ? Number(vehicle.year) : null;
+  let hasDataInsufficient = false;
 
   for (const compatibilidad of compatibilidades) {
-    if (compatibilidad.formatoTexto) {
-      const aplicacion = normalizeText(compatibilidad.texto);
-      if (!aplicacion.includes(marcaSeleccionada)) continue;
-      if (!modeloSeleccionado) return true;
-      if (!aplicacion.includes(modeloSeleccionado)) continue;
-      if (!anioSeleccionado) return true;
+    if (compatibilidad.formatText) {
+      const fitment = normalizeText(compatibilidad.texto);
+      if (!fitment.includes(selectedBrand)) continue;
+      if (!selectedModel) return true;
+      if (!fitment.includes(selectedModel)) continue;
+      if (!selectedYear) return true;
 
       // En aplicaciones textuales solo afirmamos compatibilidad por año
       // si el año seleccionado aparece explícitamente en la aplicación.
-      const aniosExplicitos = aplicacion.match(/\b(?:19|20)\d{2}\b/g) || [];
-      if (aniosExplicitos.includes(String(anioSeleccionado))) return true;
-      if (aniosExplicitos.length === 0) hayDatosInsuficientes = true;
+      const yearsExplicit = fitment.match(/\b(?:19|20)\d{2}\b/g) || [];
+      if (yearsExplicit.includes(String(selectedYear))) return true;
+      if (yearsExplicit.length === 0) hasDataInsufficient = true;
       continue;
     }
 
-    const marcaAplicacion = normalizeText(compatibilidad.brand);
-    if (!marcaAplicacion) {
-      hayDatosInsuficientes = true;
+    const brandFitment = normalizeText(compatibilidad.brand);
+    if (!brandFitment) {
+      hasDataInsufficient = true;
       continue;
     }
-    if (marcaAplicacion !== marcaSeleccionada) continue;
-    if (!modeloSeleccionado) return true;
+    if (brandFitment !== selectedBrand) continue;
+    if (!selectedModel) return true;
 
-    const modeloAplicacion = normalizeText(compatibilidad.model);
-    if (!modeloAplicacion) {
-      hayDatosInsuficientes = true;
+    const modelFitment = normalizeText(compatibilidad.model);
+    if (!modelFitment) {
+      hasDataInsufficient = true;
       continue;
     }
-    if (modeloAplicacion !== modeloSeleccionado) continue;
-    if (!anioSeleccionado) return true;
+    if (modelFitment !== selectedModel) continue;
+    if (!selectedYear) return true;
 
     if (compatibilidad.year_from == null || compatibilidad.year_to == null) {
-      hayDatosInsuficientes = true;
+      hasDataInsufficient = true;
       continue;
     }
-    const anioDesde = Number(compatibilidad.year_from);
-    const anioHasta = Number(compatibilidad.year_to);
-    if (!Number.isFinite(anioDesde) || !Number.isFinite(anioHasta) || anioDesde > anioHasta) {
-      hayDatosInsuficientes = true;
+    const yearFrom = Number(compatibilidad.year_from);
+    const yearUntil = Number(compatibilidad.year_to);
+    if (!Number.isFinite(yearFrom) || !Number.isFinite(yearUntil) || yearFrom > yearUntil) {
+      hasDataInsufficient = true;
       continue;
     }
-    if (anioSeleccionado >= anioDesde && anioSeleccionado <= anioHasta) return true;
+    if (selectedYear >= yearFrom && selectedYear <= yearUntil) return true;
   }
 
-  return hayDatosInsuficientes ? null : false;
+  return hasDataInsufficient ? null : false;
 }
 
 /** Atajo: ¿este repuesto es compatible con el vehículo? (ver esCompatible) */
-export const productIsCompatible = (producto, vehiculo) =>
-  isCompatible(compatibilitiesOf(producto), vehiculo);
+export const productIsCompatible = (product, vehicle) =>
+  isCompatible(compatibilitiesOf(product), vehicle);

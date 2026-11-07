@@ -18,26 +18,26 @@ jest.mock("./context/VehicleContext", () => ({
 }));
 jest.mock("react-hot-toast", () => ({ __esModule: true, default: { success: jest.fn(), error: jest.fn() } }));
 
-const pastillas = {
-  id: "11", partId: 11, nombre: "Pastillas de freno delanteras Bosch", fabricante: "Bosch",
-  codigo: "BRK-0011", precio: 2800, stock: 5, imagen: "/repuestos/pastillas-freno.webp",
+const pads = {
+  id: "11", partId: 11, displayName: "Pastillas de freno delanteras Bosch", fabricante: "Bosch",
+  code: "BRK-0011", price: 2800, stock: 5, image: "/repuestos/pastillas-freno.webp",
 };
 
-const respuesta = {
+const response = {
   diagnostico: "Parece que las pastillas de freno están gastadas.",
-  urgencia: "media", aviso: null, pregunta: null, opciones: [], fueraDeTema: false,
-  recomendaciones: [{ tipo: "Pastillas de freno", motivo: "El chillido es el indicador de desgaste.", repuestos: [pastillas] }],
+  urgencia: "media", aviso: null, pregunta: null, opciones: [], offTopic: false,
+  recomendaciones: [{ tipo: "Pastillas de freno", motivo: "El chillido es el indicador de desgaste.", repuestos: [pads] }],
   historial: [], firma: "firma-1",
 };
 
 // Para probar que al cerrar sesión se olvida la charla.
-function BotonOlvidar() {
-  const { olvidar } = usePit();
-  return <button type="button" onClick={olvidar}>Cerrar sesión</button>;
+function ButtonForget() {
+  const { forget } = usePit();
+  return <button type="button" onClick={forget}>Cerrar sesión</button>;
 }
 
 // Para probar que el panel se cierra si se cambia de página.
-function IrAlCarrito() {
+function GoToCart() {
   const navigate = useNavigate();
   return <button type="button" onClick={() => navigate("/carrito")}>Ir al carrito</button>;
 }
@@ -47,19 +47,19 @@ function renderPanel(props = {}) {
     <MemoryRouter>
       <PitProvider>
         <PitPanel {...props} />
-        <BotonOlvidar />
-        <IrAlCarrito />
+        <ButtonForget />
+        <GoToCart />
       </PitProvider>
     </MemoryRouter>
   );
 }
 
-const abrirPit = () => screen.getByRole("button", { name: "Abrir Pit, el asistente con IA" });
+const openPit = () => screen.getByRole("button", { name: "Abrir Pit, el asistente con IA" });
 
 beforeEach(() => {
-  useVehicle.mockReturnValue({ vehiculoActivo: { brand: "Chevrolet", model: "Onix", year: "2016" } });
-  useCart.mockReturnValue({ addToCart: jest.fn().mockResolvedValue(true), deshacerAgregado: jest.fn() });
-  askAssistant.mockReset().mockResolvedValue(respuesta);
+  useVehicle.mockReturnValue({ activeVehicle: { brand: "Chevrolet", model: "Onix", year: "2016" } });
+  useCart.mockReturnValue({ addToCart: jest.fn().mockResolvedValue(true), undoAdded: jest.fn() });
+  askAssistant.mockReset().mockResolvedValue(response);
 });
 
 describe("PanelPit", () => {
@@ -68,7 +68,7 @@ describe("PanelPit", () => {
     renderPanel();
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await user.click(abrirPit());
+    await user.click(openPit());
 
     expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
     expect(screen.getByLabelText("Mensaje para Pit")).toHaveFocus();
@@ -77,7 +77,7 @@ describe("PanelPit", () => {
     await user.click(screen.getByRole("button", { name: "Cerrar Pit" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(document.body.style.overflow).toBe("");
-    expect(abrirPit()).toHaveFocus();
+    expect(openPit()).toHaveFocus();
   });
 
   it("calls attention when it appears, but stops once it was opened", async () => {
@@ -85,7 +85,7 @@ describe("PanelPit", () => {
     renderPanel();
 
     expect(screen.getByTestId("latido-pit")).toBeInTheDocument();
-    await user.click(abrirPit());
+    await user.click(openPit());
     await user.click(screen.getByRole("button", { name: "Cerrar Pit" }));
 
     expect(screen.queryByTestId("latido-pit")).not.toBeInTheDocument();
@@ -95,12 +95,12 @@ describe("PanelPit", () => {
     jest.useFakeTimers();
     try {
       renderPanel();
-      const etiqueta = screen.getByText("¿Te puedo ayudar en algo?");
-      expect(etiqueta).toHaveClass("md:block");
+      const label = screen.getByText("¿Te puedo ayudar en algo?");
+      expect(label).toHaveClass("md:block");
 
       act(() => jest.advanceTimersByTime(6000));
-      expect(etiqueta).not.toHaveClass("md:block");
-      expect(etiqueta).toHaveClass("md:group-hover:block");
+      expect(label).not.toHaveClass("md:block");
+      expect(label).toHaveClass("md:group-hover:block");
     } finally {
       jest.useRealTimers();
     }
@@ -110,11 +110,11 @@ describe("PanelPit", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(abrirPit());
+    await user.click(openPit());
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    await user.click(abrirPit());
+    await user.click(openPit());
     await user.click(screen.getByTestId("fondo-pit"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -123,26 +123,26 @@ describe("PanelPit", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(abrirPit());
+    await user.click(openPit());
     await user.type(screen.getByLabelText("Mensaje para Pit"), "chilla al frenar");
     await user.click(screen.getByRole("button", { name: "Enviar" }));
-    await screen.findByText(respuesta.diagnostico);
+    await screen.findByText(response.diagnostico);
     await user.click(screen.getByRole("button", { name: "Cerrar Pit" }));
 
     // El botón avisa que hay una charla para seguir.
     await user.click(screen.getByRole("button", { name: "Seguir la conversación con Pit" }));
     expect(screen.getByText("chilla al frenar")).toBeInTheDocument();
-    expect(screen.getByText(respuesta.diagnostico)).toBeInTheDocument();
+    expect(screen.getByText(response.diagnostico)).toBeInTheDocument();
   });
 
   it("closes when the page changes, keeping the conversation", async () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(abrirPit());
+    await user.click(openPit());
     await user.type(screen.getByLabelText("Mensaje para Pit"), "chilla al frenar");
     await user.click(screen.getByRole("button", { name: "Enviar" }));
-    await screen.findByText(respuesta.diagnostico);
+    await screen.findByText(response.diagnostico);
 
     // Por ejemplo, "Ver carrito" en el aviso de agregado (está por encima del panel).
     await user.click(screen.getByRole("button", { name: "Ir al carrito", hidden: true }));
@@ -153,15 +153,15 @@ describe("PanelPit", () => {
 
   it("closes the panel before going to a part", async () => {
     const user = userEvent.setup();
-    const onDetalle = jest.fn();
-    renderPanel({ onDetalle });
+    const onDetail = jest.fn();
+    renderPanel({ onDetail });
 
-    await user.click(abrirPit());
+    await user.click(openPit());
     await user.type(screen.getByLabelText("Mensaje para Pit"), "chilla al frenar");
     await user.click(screen.getByRole("button", { name: "Enviar" }));
-    await user.click(await screen.findByRole("button", { name: `Ver detalle de ${pastillas.nombre}` }));
+    await user.click(await screen.findByRole("button", { name: `Ver detalle de ${pads.displayName}` }));
 
-    expect(onDetalle).toHaveBeenCalledWith(pastillas);
+    expect(onDetail).toHaveBeenCalledWith(pads);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -169,16 +169,16 @@ describe("PanelPit", () => {
     const user = userEvent.setup();
     renderPanel();
 
-    await user.click(abrirPit());
+    await user.click(openPit());
     await user.type(screen.getByLabelText("Mensaje para Pit"), "chilla al frenar");
     await user.click(screen.getByRole("button", { name: "Enviar" }));
-    await screen.findByText(respuesta.diagnostico);
+    await screen.findByText(response.diagnostico);
     await user.click(screen.getByRole("button", { name: "Cerrar Pit" }));
 
     await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
 
     expect(screen.queryByRole("button", { name: "Seguir la conversación con Pit" })).not.toBeInTheDocument();
-    await user.click(abrirPit());
+    await user.click(openPit());
     expect(screen.queryByText("chilla al frenar")).not.toBeInTheDocument();
   });
 });

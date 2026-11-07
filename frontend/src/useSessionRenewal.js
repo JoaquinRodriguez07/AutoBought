@@ -30,24 +30,24 @@ const MAX_WAIT_MS = 2 ** 31 - 1;
  * o la compu suspendida, así que además de programar se recalcula cuando la
  * pestaña vuelve a estar visible.
  */
-export function useSessionRenewal(token, { onRenovada, onVencida }) {
+export function useSessionRenewal(token, { onRenewed, onExpired }) {
   // Los callbacks se leen desde refs para que cambiarlos en cada render no
   // reinicie el temporizador.
-  const callbacks = useRef({ onRenovada, onVencida });
+  const callbacks = useRef({ onRenewed, onExpired });
   useEffect(() => {
-    callbacks.current = { onRenovada, onVencida };
+    callbacks.current = { onRenewed, onExpired };
   });
 
-  const recienRenovado = useRef(false);
+  const justRenewed = useRef(false);
 
   useEffect(() => {
     if (!token || msUntilRenewal(token) === null) return undefined;
 
-    let cancelado = false;
-    let enCurso = false;
+    let cancelled = false;
+    let inProgress = false;
     let temporizador = null;
-    const piso = recienRenovado.current ? MIN_WAIT_MS : 0;
-    recienRenovado.current = false;
+    const piso = justRenewed.current ? MIN_WAIT_MS : 0;
+    justRenewed.current = false;
 
     const clean = () => {
       clearTimeout(temporizador);
@@ -56,12 +56,12 @@ export function useSessionRenewal(token, { onRenovada, onVencida }) {
 
     const programar = (ms) => {
       clean();
-      temporizador = setTimeout(alCumplirseElTiempo, Math.min(ms, MAX_WAIT_MS));
+      temporizador = setTimeout(onElapseTime, Math.min(ms, MAX_WAIT_MS));
     };
 
     // Puede llegar antes de hora (demora partida en tramos o reloj que se
     // ajustó): se vuelve a medir contra el reloj real antes de pedir nada.
-    function alCumplirseElTiempo() {
+    function onElapseTime() {
       const falta = msUntilRenewal(token);
 
       if (falta > 0) {
@@ -72,40 +72,40 @@ export function useSessionRenewal(token, { onRenovada, onVencida }) {
     }
 
     async function renovar() {
-      if (cancelado || enCurso) return;
-      enCurso = true;
+      if (cancelled || inProgress) return;
+      inProgress = true;
       clean();
 
       let data;
       try {
         data = await renewToken();
       } catch (error) {
-        enCurso = false;
-        if (cancelado) return;
+        inProgress = false;
+        if (cancelled) return;
 
         if (error.status === 401) {
-          callbacks.current.onVencida();
+          callbacks.current.onExpired();
         } else {
           programar(RENEWAL_RETRY_MS);
         }
         return;
       }
 
-      enCurso = false;
-      if (cancelado) return;
+      inProgress = false;
+      if (cancelled) return;
 
       // Al cambiar el token el efecto se reejecuta y programa el próximo.
-      recienRenovado.current = true;
-      callbacks.current.onRenovada(data);
+      justRenewed.current = true;
+      callbacks.current.onRenewed(data);
     }
 
     const reprogramar = () => {
-      if (cancelado || enCurso) return;
+      if (cancelled || inProgress) return;
       programar(Math.max(msUntilRenewal(token), piso));
     };
 
-    const alVolverLaPestaña = () => {
-      if (document.visibilityState !== "visible" || cancelado || enCurso) return;
+    const onGoBackTab = () => {
+      if (document.visibilityState !== "visible" || cancelled || inProgress) return;
 
       // Si ya llegó la hora de renovar (el temporizador se frenó), se hace
       // ahora mismo; si no, se reajusta el temporizador al reloj real.
@@ -117,12 +117,12 @@ export function useSessionRenewal(token, { onRenovada, onVencida }) {
     };
 
     reprogramar();
-    document.addEventListener("visibilitychange", alVolverLaPestaña);
+    document.addEventListener("visibilitychange", onGoBackTab);
 
     return () => {
-      cancelado = true;
+      cancelled = true;
       clean();
-      document.removeEventListener("visibilitychange", alVolverLaPestaña);
+      document.removeEventListener("visibilitychange", onGoBackTab);
     };
   }, [token]);
 }

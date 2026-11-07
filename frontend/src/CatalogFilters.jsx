@@ -16,17 +16,17 @@ import { ArrowIcon } from "./Icons";
 
 const VISIBLE_COUNT = 6;
 
-function Section({ titulo, abiertaAlInicio = true, children }) {
-  const [abierta, setAbierta] = useState(abiertaAlInicio);
+function Section({ title, openToHome = true, children }) {
+  const [isShown, setIsShown] = useState(openToHome);
 
   return (
     <details
-      open={abierta}
-      onToggle={(e) => setAbierta(e.currentTarget.open)}
+      open={isShown}
+      onToggle={(e) => setIsShown(e.currentTarget.open)}
       className="group border-b border-gray-100 py-4"
     >
       <summary className="flex items-center justify-between cursor-pointer list-none text-xs font-black uppercase tracking-wide [&::-webkit-details-marker]:hidden">
-        {titulo}
+        {title}
         <ArrowIcon className="w-4 h-4 text-gray-400 transition group-open:rotate-180" />
       </summary>
 
@@ -35,52 +35,52 @@ function Section({ titulo, abiertaAlInicio = true, children }) {
   );
 }
 
-function Counter({ cantidad }) {
+function Counter({ quantity }) {
   return (
     <span className="ml-auto text-xs text-gray-400 tabular-nums">
-      {cantidad}
+      {quantity}
     </span>
   );
 }
 
-function CheckList({ opciones, seleccionados, onAlternar }) {
-  const [verTodos, setVerTodos] = useState(false);
+function CheckList({ opciones, selected, onToggle }) {
+  const [seeAll, setSeeAll] = useState(false);
 
   // Las que más repuestos tienen primero; las tildadas siempre a la vista.
-  const porCantidad = [...opciones].sort(
+  const byQuantity = [...opciones].sort(
     ([a, ca], [b, cb]) => cb - ca || a.localeCompare(b, "es")
   );
-  const visibles = verTodos
-    ? porCantidad
-    : porCantidad.filter(
-        ([nombre], i) => i < VISIBLE_COUNT || seleccionados.includes(nombre)
+  const visible = seeAll
+    ? byQuantity
+    : byQuantity.filter(
+        ([displayName], i) => i < VISIBLE_COUNT || selected.includes(displayName)
       );
 
   return (
     <>
-      {visibles.map(([nombre, cantidad]) => (
+      {visible.map(([displayName, quantity]) => (
         <label
-          key={nombre}
+          key={displayName}
           className="flex items-center gap-2 py-1.5 cursor-pointer text-sm text-gray-700 hover:text-gray-900"
         >
           <input
             type="checkbox"
             className="w-4 h-4 accent-orange-500"
-            checked={seleccionados.includes(nombre)}
-            onChange={() => onAlternar(nombre)}
+            checked={selected.includes(displayName)}
+            onChange={() => onToggle(displayName)}
           />
-          <span>{nombre}</span>
-          <Counter cantidad={cantidad} />
+          <span>{displayName}</span>
+          <Counter quantity={quantity} />
         </label>
       ))}
 
-      {porCantidad.length > VISIBLE_COUNT && (
+      {byQuantity.length > VISIBLE_COUNT && (
         <button
           type="button"
-          onClick={() => setVerTodos((v) => !v)}
+          onClick={() => setSeeAll((v) => !v)}
           className="mt-2 text-xs font-bold text-orange-500 hover:underline"
         >
-          {verTodos ? "Ver menos" : `Ver todos (${porCantidad.length})`}
+          {seeAll ? "Ver menos" : `Ver todos (${byQuantity.length})`}
         </button>
       )}
     </>
@@ -88,24 +88,24 @@ function CheckList({ opciones, seleccionados, onAlternar }) {
 }
 
 export default function CatalogFilters({
-  categorias,
-  cargandoCategorias,
-  errorCategorias,
-  onReintentarCategorias,
+  categories,
+  loadingCategories,
+  categoriesError,
+  onRetryCategories,
   categoria,
-  onCategoria,
-  opcionesFabricante,
-  fabricantes,
-  onAlternarFabricante,
-  opcionesMarca,
-  marcasAuto,
-  onAlternarMarca,
-  precioMin,
-  precioMax,
-  onPrecioMin,
-  onPrecioMax,
-  soloConStock,
-  onSoloConStock,
+  onCategory,
+  manufacturerOptions,
+  manufacturers,
+  onToggleManufacturer,
+  brandOptions,
+  brandsCar,
+  onToggleBrand,
+  priceMin,
+  priceMax,
+  onPriceMin,
+  onPriceMax,
+  onlyWithStock,
+  onOnlyWithStock,
 }) {
   return (
     <div>
@@ -113,36 +113,36 @@ export default function CatalogFilters({
       {/* 100% data-driven: nombres y cantidades de
           GET /api/v1/parts/categories, sin lista fija. */}
 
-      <Section titulo="Categoría">
-        {cargandoCategorias && (
+      <Section title="Categoría">
+        {loadingCategories && (
           <p className="py-2 text-xs text-gray-400">Cargando categorías…</p>
         )}
 
         <div className="space-y-0.5">
-          {categorias.map((item) => (
+          {categories.map((item) => (
             <button
-              key={item.nombre}
+              key={item.displayName}
               type="button"
-              onClick={() => onCategoria(item.nombre)}
-              aria-pressed={categoria === item.nombre}
+              onClick={() => onCategory(item.displayName)}
+              aria-pressed={categoria === item.displayName}
               className={`w-[calc(100%+1.5rem)] -mx-3 flex items-center gap-2 px-3 py-2 rounded-md text-left text-sm transition ${
-                categoria === item.nombre
+                categoria === item.displayName
                   ? "bg-orange-50 text-orange-600 font-bold"
                   : "text-gray-700 hover:bg-gray-50"
               }`}
             >
-              <span>{item.nombre}</span>
-              <Counter cantidad={item.cantidad} />
+              <span>{item.displayName}</span>
+              <Counter quantity={item.quantity} />
             </button>
           ))}
         </div>
 
-        {!cargandoCategorias && errorCategorias && (
+        {!loadingCategories && categoriesError && (
           <div className="py-2">
-            <p className="text-xs text-gray-400">{errorCategorias}</p>
+            <p className="text-xs text-gray-400">{categoriesError}</p>
             <button
               type="button"
-              onClick={onReintentarCategorias}
+              onClick={onRetryCategories}
               className="text-xs font-bold text-orange-500 underline mt-1"
             >
               Reintentar
@@ -155,19 +155,19 @@ export default function CatalogFilters({
       {/* Salen de los repuestos cargados (categoría y vehículo ya
           aplicados): solo aparecen los que tienen algo para mostrar. */}
 
-      {opcionesFabricante.length > 0 && (
-        <Section titulo="Fabricante">
+      {manufacturerOptions.length > 0 && (
+        <Section title="Fabricante">
           <CheckList
-            opciones={opcionesFabricante}
-            seleccionados={fabricantes}
-            onAlternar={onAlternarFabricante}
+            opciones={manufacturerOptions}
+            selected={manufacturers}
+            onToggle={onToggleManufacturer}
           />
         </Section>
       )}
 
       {/* PRECIO */}
 
-      <Section titulo="Precio" abiertaAlInicio={precioMin !== "" || precioMax !== ""}>
+      <Section title="Precio" openToHome={priceMin !== "" || priceMax !== ""}>
         <div className="flex items-center gap-2">
           <input
             type="number"
@@ -175,8 +175,8 @@ export default function CatalogFilters({
             inputMode="numeric"
             aria-label="Precio mínimo"
             placeholder="Mín"
-            value={precioMin}
-            onChange={(e) => onPrecioMin(e.target.value)}
+            value={priceMin}
+            onChange={(e) => onPriceMin(e.target.value)}
             className="w-full min-w-0 border border-gray-200 rounded-md px-3 py-2 text-sm outline-hidden focus:border-orange-500"
           />
           <span className="text-gray-400">–</span>
@@ -186,8 +186,8 @@ export default function CatalogFilters({
             inputMode="numeric"
             aria-label="Precio máximo"
             placeholder="Máx"
-            value={precioMax}
-            onChange={(e) => onPrecioMax(e.target.value)}
+            value={priceMax}
+            onChange={(e) => onPriceMax(e.target.value)}
             className="w-full min-w-0 border border-gray-200 rounded-md px-3 py-2 text-sm outline-hidden focus:border-orange-500"
           />
         </div>
@@ -195,13 +195,13 @@ export default function CatalogFilters({
 
       {/* DISPONIBILIDAD */}
 
-      <Section titulo="Disponibilidad" abiertaAlInicio={soloConStock}>
+      <Section title="Disponibilidad" openToHome={onlyWithStock}>
         <label className="flex items-center gap-2 py-1.5 cursor-pointer text-sm text-gray-700">
           <input
             type="checkbox"
             className="w-4 h-4 accent-orange-500"
-            checked={soloConStock}
-            onChange={(e) => onSoloConStock(e.target.checked)}
+            checked={onlyWithStock}
+            onChange={(e) => onOnlyWithStock(e.target.checked)}
           />
           Solo con stock
         </label>
@@ -211,12 +211,12 @@ export default function CatalogFilters({
       {/* Las marcas compatibles de lo cargado. Con un vehículo activo
           todo es de esa marca, así que no se muestra. */}
 
-      {opcionesMarca.length > 1 && (
-        <Section titulo="Marca del auto" abiertaAlInicio={marcasAuto.length > 0}>
+      {brandOptions.length > 1 && (
+        <Section title="Marca del auto" openToHome={brandsCar.length > 0}>
           <CheckList
-            opciones={opcionesMarca}
-            seleccionados={marcasAuto}
-            onAlternar={onAlternarMarca}
+            opciones={brandOptions}
+            selected={brandsCar}
+            onToggle={onToggleBrand}
           />
         </Section>
       )}

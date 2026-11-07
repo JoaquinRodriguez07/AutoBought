@@ -16,35 +16,35 @@ const FIELD = "mt-1 w-full h-11 border border-gray-300 rounded-lg px-3 text-sm b
  * de esa marca y años de ese modelo). Al confirmar, `onListo` recibe
  * `{ brand, model, year }`, que es el vehículo activo de todo el sitio.
  */
-export default function PitVehiclePicker({ vehiculo, onListo, onCancelar, aviso }) {
-  const [marca, setMarca] = useState(vehiculo?.brand || "");
-  const [modelo, setModelo] = useState(vehiculo?.model || "");
-  const [anio, setAnio] = useState(vehiculo?.year ? String(vehiculo.year) : "");
-  const [anios, setAnios] = useState([]);
+export default function PitVehiclePicker({ vehicle, onReady, onCancel, aviso }) {
+  const [marca, setBrand] = useState(vehicle?.brand || "");
+  const [modelo, setModel] = useState(vehicle?.model || "");
+  const [anio, setYear] = useState(vehicle?.year ? String(vehicle.year) : "");
+  const [years, setYears] = useState([]);
 
   // Los años dependen de la marca y el modelo elegidos.
   useEffect(() => {
     if (!marca || !modelo) return undefined;
     let vigente = true;
     getYears(marca, modelo)
-      .then((lista) => vigente && setAnios(lista))
-      .catch(() => vigente && setAnios([]));
+      .then((list) => vigente && setYears(list))
+      .catch(() => vigente && setYears([]));
     return () => {
       vigente = false;
     };
   }, [marca, modelo]);
 
-  const elegirMarca = (valor) => {
-    setMarca(valor);
-    setModelo("");
-    setAnio("");
-    setAnios([]);
+  const chooseBrand = (rawValue) => {
+    setBrand(rawValue);
+    setModel("");
+    setYear("");
+    setYears([]);
   };
 
-  const elegirModelo = (valor) => {
-    setModelo(valor);
-    setAnio("");
-    setAnios([]);
+  const chooseModel = (rawValue) => {
+    setModel(rawValue);
+    setYear("");
+    setYears([]);
   };
 
   const completo = Boolean(marca && modelo && anio);
@@ -54,7 +54,7 @@ export default function PitVehiclePicker({ vehiculo, onListo, onCancelar, aviso 
       aria-label="Elegir vehículo"
       onSubmit={(e) => {
         e.preventDefault();
-        if (completo) onListo({ brand: marca, model: modelo, year: anio });
+        if (completo) onReady({ brand: marca, model: modelo, year: anio });
       }}
       className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col gap-3 motion-safe:animate-aparecer"
     >
@@ -62,24 +62,24 @@ export default function PitVehiclePicker({ vehiculo, onListo, onCancelar, aviso 
 
       <label className="text-xs font-bold text-gray-600">
         Marca
-        <BrandDropdown value={marca} onChange={elegirMarca} className={FIELD} />
+        <BrandDropdown value={marca} onChange={chooseBrand} className={FIELD} />
       </label>
       <label className="text-xs font-bold text-gray-600">
         Modelo
-        <ModelDropdown brand={marca} value={modelo} onChange={elegirModelo} className={FIELD} />
+        <ModelDropdown brand={marca} value={modelo} onChange={chooseModel} className={FIELD} />
       </label>
       <label className="text-xs font-bold text-gray-600">
         Año
         <select
           value={anio}
-          onChange={(e) => setAnio(e.target.value)}
+          onChange={(e) => setYear(e.target.value)}
           disabled={!modelo}
           className={`${FIELD} disabled:bg-gray-100 disabled:text-gray-400`}
         >
           <option value="">{modelo ? "Elegí el año" : "Elegí el modelo primero"}</option>
-          {anios.map((opcion) => (
-            <option key={opcion} value={String(opcion)}>
-              {opcion}
+          {years.map((option) => (
+            <option key={option} value={String(option)}>
+              {option}
             </option>
           ))}
         </select>
@@ -95,10 +95,10 @@ export default function PitVehiclePicker({ vehiculo, onListo, onCancelar, aviso 
         >
           Listo
         </button>
-        {onCancelar && (
+        {onCancel && (
           <button
             type="button"
-            onClick={onCancelar}
+            onClick={onCancel}
             className="h-11 px-4 rounded-lg border border-gray-300 hover:border-orange-500 text-sm font-bold"
           >
             Cancelar

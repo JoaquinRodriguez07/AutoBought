@@ -8,14 +8,14 @@ import { CheckIcon } from "./Icons";
 import repuestos from "./assets/repuestos.jpg";
 
 /** Etiqueta, campo y, debajo, el error o una ayuda. `accion` va a la derecha de la etiqueta. */
-export function FormField({ id, etiqueta, accion, ayuda, error, children }) {
+export function FormField({ id, label, action, ayuda, error, children }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-1.5">
         <label htmlFor={id} className="text-xs font-bold text-gray-700">
-          {etiqueta}
+          {label}
         </label>
-        {accion}
+        {action}
       </div>
       {children}
       {error ?? (ayuda && <div className="text-xs text-gray-500 mt-1.5">{ayuda}</div>)}
@@ -31,7 +31,7 @@ export function PasswordField({ className, ...props }) {
       <input {...props} type={visible ? "text" : "password"} className={`${className} pr-12`} />
       <button
         type="button"
-        onClick={() => setVisible((actual) => !actual)}
+        onClick={() => setVisible((current) => !current)}
         aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
         aria-pressed={visible}
         className="absolute right-1.5 top-1/2 -translate-y-1/2 w-9 h-9 rounded-md flex items-center justify-center text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition"
@@ -56,14 +56,14 @@ export function ErrorNotice({ children }) {
  * El marco del registro: el formulario a la izquierda y, a la derecha, la
  * foto con lo que gana el cliente (en celular, solo el formulario).
  */
-export default function AccessScreen({ propsNavbar, etiqueta, titulo, beneficios, ancho = "max-w-[980px]", children }) {
+export default function AccessScreen({ propsNavbar, label, title, beneficios, ancho = "max-w-[980px]", children }) {
   return (
     <div
       className="min-h-screen flex flex-col font-sans"
       // El mismo fondo que el login.
       style={{ backgroundImage: "linear-gradient(rgba(0,0,0,1), rgb(73, 34, 2))" }}
     >
-      <Navbar paginaActual="login" {...propsNavbar} />
+      <Navbar currentPage="login" {...propsNavbar} />
 
       <main className="flex-1 flex items-center justify-center px-5 pt-24 pb-10">
         <div
@@ -83,11 +83,11 @@ export default function AccessScreen({ propsNavbar, etiqueta, titulo, beneficios
             <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent" />
 
             <div className="relative">
-              <p className="text-orange-500 text-xs font-black tracking-[4px]">{etiqueta}</p>
+              <p className="text-orange-500 text-xs font-black tracking-[4px]">{label}</p>
               <h2 className="text-3xl font-black italic uppercase leading-[0.95] mt-3">
-                {titulo.map((linea) => (
-                  <span key={linea} className="block">
-                    {linea}{" "}
+                {title.map((line) => (
+                  <span key={line} className="block">
+                    {line}{" "}
                   </span>
                 ))}
               </h2>
@@ -111,12 +111,12 @@ export default function AccessScreen({ propsNavbar, etiqueta, titulo, beneficios
 }
 
 /** Encabezado del formulario: etiqueta naranja, título y bajada. */
-export function AccessHeader({ titulo, bajada }) {
+export function AccessHeader({ title, drop }) {
   return (
     <>
       <p className="text-orange-500 text-xs font-black tracking-[4px]">AUTOBOUGHT</p>
-      <h1 className="text-3xl font-black italic uppercase mt-2">{titulo}</h1>
-      <p className="text-gray-500 text-sm mt-2">{bajada}</p>
+      <h1 className="text-3xl font-black italic uppercase mt-2">{title}</h1>
+      <p className="text-gray-500 text-sm mt-2">{drop}</p>
     </>
   );
 }

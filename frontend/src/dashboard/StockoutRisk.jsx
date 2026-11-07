@@ -14,53 +14,53 @@ const PAGE_SIZE = 50;
 // "Para reponer" (alto y medio) es lo mismo que cuenta el resumen, y es
 // con lo que abre la sección.
 const LEVELS = {
-  reponer: { texto: "Para reponer", riesgos: ["high", "medium"] },
-  high: { texto: RISKS.high.etiqueta, riesgos: ["high"] },
-  medium: { texto: RISKS.medium.etiqueta, riesgos: ["medium"] },
-  low: { texto: RISKS.low.etiqueta, riesgos: ["low"] },
-  todos: { texto: "Todos", riesgos: ["high", "medium", "low"] },
+  restock: { texto: "Para reponer", riesgos: ["high", "medium"] },
+  high: { texto: RISKS.high.label, riesgos: ["high"] },
+  medium: { texto: RISKS.medium.label, riesgos: ["medium"] },
+  low: { texto: RISKS.low.label, riesgos: ["low"] },
+  all: { texto: "Todos", riesgos: ["high", "medium", "low"] },
 };
 
 // Riesgo de agotamiento (HU 5.6): días de cobertura = stock / demanda
 // diaria proyectada. Viene ordenado del más urgente al menos urgente. Abre
 // con los que hay que reponer (riesgo alto y medio), se puede filtrar por
 // nivel y reponer desde cada fila (HU 5.10).
-export default function StockoutRisk({ filtros, onDetalle, onReponer }) {
-  const [visibles, setVisibles] = useState(PAGE_SIZE);
-  const [nivel, setNivel] = useState("reponer");
-  const consulta = useQuery(
-    () => getStockoutRisk(filtros),
-    `${filtros.categoria}|${filtros.busqueda}`
+export default function StockoutRisk({ filters, onDetail, onRestock }) {
+  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [level, setLevel] = useState("restock");
+  const queryState = useQuery(
+    () => getStockoutRisk(filters),
+    `${filters.categoria}|${filters.search}`
   );
 
   return (
     <Panel
-      titulo="Riesgo de agotamiento"
+      title="Riesgo de agotamiento"
       id="titulo-riesgo"
-      detalle={
-        consulta.datos
-          ? `Para cuántos días alcanza el stock al ritmo proyectado para ${formatMonth(consulta.datos.mes, { largo: true })}. Alto: menos de ${consulta.datos.umbrales.alto} días; medio: de ${consulta.datos.umbrales.alto} a ${consulta.datos.umbrales.medio}; bajo: más de ${consulta.datos.umbrales.medio}.`
+      details={
+        queryState.info
+          ? `Para cuántos días alcanza el stock al ritmo proyectado para ${formatMonth(queryState.info.month, { long: true })}. Alto: menos de ${queryState.info.umbrales.high} días; medio: de ${queryState.info.umbrales.high} a ${queryState.info.umbrales.medium}; bajo: más de ${queryState.info.umbrales.medium}.`
           : null
       }
     >
-      <QueryState consulta={consulta}>
+      <QueryState queryState={queryState}>
         {({ repuestos }) => {
           if (repuestos.length === 0) return <NoData>No hay repuestos con estos filtros.</NoData>;
-          const de = (valor) => repuestos.filter((r) => LEVELS[valor].riesgos.includes(r.riesgo));
-          const filtrados = de(nivel);
+          const of = (rawValue) => repuestos.filter((r) => LEVELS[rawValue].riesgos.includes(r.risk));
+          const filtered = of(level);
           return (
             <>
               <div className="mb-4">
                 <Options
-                  etiqueta="Nivel de riesgo"
-                  valor={nivel}
-                  onCambiar={(valor) => {
-                    setNivel(valor);
-                    setVisibles(PAGE_SIZE);
+                  label="Nivel de riesgo"
+                  rawValue={level}
+                  onChange={(rawValue) => {
+                    setLevel(rawValue);
+                    setVisible(PAGE_SIZE);
                   }}
-                  opciones={Object.entries(LEVELS).map(([valor, { texto }]) => [
-                    valor,
-                    `${texto} (${formatNumber(de(valor).length)})`,
+                  opciones={Object.entries(LEVELS).map(([rawValue, { texto }]) => [
+                    rawValue,
+                    `${texto} (${formatNumber(of(rawValue).length)})`,
                   ])}
                 />
               </div>
@@ -73,30 +73,30 @@ export default function StockoutRisk({ filtros, onDetalle, onReponer }) {
                       <TableHead className="text-right">Alcanza para</TableHead>
                       <TableHead className="text-right">Stock</TableHead>
                       <TableHead className="text-right hidden md:table-cell">Demanda proyectada</TableHead>
-                      {onReponer && <TableHead className="pr-4 sm:pr-5"><span className="sr-only">Acciones</span></TableHead>}
+                      {onRestock && <TableHead className="pr-4 sm:pr-5"><span className="sr-only">Acciones</span></TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtrados.slice(0, visibles).map((repuesto) => (
-                      <TableRow key={repuesto.id}>
+                    {filtered.slice(0, visible).map((part) => (
+                      <TableRow key={part.id}>
                         <TableCell className="pl-4 sm:pl-5">
-                          <PartName repuesto={repuesto} onDetalle={onDetalle} conCodigo />
+                          <PartName part={part} onDetail={onDetail} withCode />
                         </TableCell>
                         <TableCell>
-                          <RiskBadge riesgo={repuesto.riesgo} />
+                          <RiskBadge risk={part.risk} />
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{formatDays(repuesto.diasCobertura)}</TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums">{formatNumber(repuesto.stock)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatDays(part.coverageDays)}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{formatNumber(part.stock)}</TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground hidden md:table-cell">
-                          {formatNumber(repuesto.demandaProyectada)} / mes
+                          {formatNumber(part.projectedDemand)} / mes
                         </TableCell>
-                        {onReponer && (
+                        {onRestock && (
                           <TableCell className="pr-4 sm:pr-5 text-right">
                             <Button
-                              variant={repuesto.riesgo === "low" ? "ghost" : "outline"}
+                              variant={part.risk === "low" ? "ghost" : "outline"}
                               size="sm"
-                              onClick={() => onReponer(repuesto)}
-                              aria-label={`Reponer ${repuesto.nombre} (${repuesto.codigo})`}
+                              onClick={() => onRestock(part)}
+                              aria-label={`Reponer ${part.displayName} (${part.code})`}
                               className="h-7 px-2.5 text-xs"
                             >
                               <PackagePlusIcon />
@@ -111,10 +111,10 @@ export default function StockoutRisk({ filtros, onDetalle, onReponer }) {
               </div>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">
-                  Mostrando {formatNumber(Math.min(visibles, filtrados.length))} de {formatNumber(filtrados.length)} repuestos.
+                  Mostrando {formatNumber(Math.min(visible, filtered.length))} de {formatNumber(filtered.length)} repuestos.
                 </p>
-                {filtrados.length > visibles && (
-                  <Button variant="outline" size="sm" onClick={() => setVisibles((actual) => actual + PAGE_SIZE)} className="text-xs">
+                {filtered.length > visible && (
+                  <Button variant="outline" size="sm" onClick={() => setVisible((current) => current + PAGE_SIZE)} className="text-xs">
                     Mostrar más
                   </Button>
                 )}

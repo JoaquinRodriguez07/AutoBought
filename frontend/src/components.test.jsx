@@ -138,28 +138,28 @@ import {
 
 const navigationProps = () => ({
   onHome: jest.fn(),
-  esFavorito: jest.fn(() => false),
+  isFavorite: jest.fn(() => false),
   onCatalogo: jest.fn(),
   onLogin: jest.fn(),
-  onMarcas: jest.fn(),
-  onCarrito: jest.fn(),
-  onFavoritos: jest.fn(),
-  cantidadCarrito: 0,
-  cantidadFavoritos: 0,
+  onBrands: jest.fn(),
+  onCart: jest.fn(),
+  onFavorites: jest.fn(),
+  cartQuantity: 0,
+  favoritesQuantity: 0,
 });
 
 const product = {
   id: "TEST-001",
   marca: "BOSCH",
-  nombre: "Pastillas de prueba",
-  codigo: "TEST-001",
-  precio: 1500,
+  displayName: "Pastillas de prueba",
+  code: "TEST-001",
+  price: 1500,
   categoria: "Frenos",
-  imagen: "test-image.jpg",
-  descripcion: "Descripcion de prueba",
+  image: "test-image.jpg",
+  description: "Descripcion de prueba",
   stock: 5,
-  especificaciones: [["Material", "Semi-metalico"]],
-  aplicaciones: ["Volkswagen Gol"],
+  specifications: [["Material", "Semi-metalico"]],
+  fitments: ["Volkswagen Gol"],
   garantia: "6 meses",
 };
 
@@ -167,8 +167,8 @@ const catalogProducts = [
   {
     ...product,
     id: "BP1234",
-    codigo: "BP1234",
-    nombre: "Pastillas de Freno Delanteras Bosch",
+    code: "BP1234",
+    displayName: "Pastillas de Freno Delanteras Bosch",
     fabricante: "Bosch",
     marca: "Bosch",
     categoria: "Frenos",
@@ -176,8 +176,8 @@ const catalogProducts = [
   {
     ...product,
     id: "DB5678",
-    codigo: "DB5678",
-    nombre: "Discos de Freno Delanteros",
+    code: "DB5678",
+    displayName: "Discos de Freno Delanteros",
     fabricante: "Brembo",
     marca: "Brembo",
     categoria: "Frenos",
@@ -185,8 +185,8 @@ const catalogProducts = [
   {
     ...product,
     id: "FA9012",
-    codigo: "FA9012",
-    nombre: "Filtro de Aire",
+    code: "FA9012",
+    displayName: "Filtro de Aire",
     fabricante: "Mann",
     marca: "Mann",
     categoria: "Motor",
@@ -199,7 +199,7 @@ const originalFetch = global.fetch;
 const startClientSession = () => {
   localStorage.setItem(
     "autobought-sesion",
-    JSON.stringify({ id: 1, nombre: "Test User" })
+    JSON.stringify({ id: 1, displayName: "Test User" })
   );
 };
 
@@ -226,7 +226,7 @@ function render(ui, options = {}) {
   );
 }
 
-function RutaActual() {
+function CurrentRoute() {
   const { useLocation } = require("react-router-dom");
   const location = useLocation();
 
@@ -238,7 +238,7 @@ function RutaActual() {
   );
 }
 
-function ControlesHistorialDetalle() {
+function ControlsHistoryDetail() {
   const navigate = useNavigate();
   return (
     <div>
@@ -249,9 +249,9 @@ function ControlesHistorialDetalle() {
   );
 }
 
-function ActivarVehiculo({ vehiculo }) {
-  const { activarVehiculo } = useVehicle();
-  useEffect(() => activarVehiculo(vehiculo), [activarVehiculo, vehiculo]);
+function ActivateVehicle({ vehicle }) {
+  const { activateVehicle } = useVehicle();
+  useEffect(() => activateVehicle(vehicle), [activateVehicle, vehicle]);
   return null;
 }
 
@@ -267,8 +267,8 @@ beforeEach(() => {
     )
   );
   getCategories.mockResolvedValue([
-    { nombre: "Frenos", cantidad: 2 },
-    { nombre: "Motor", cantidad: 1 },
+    { displayName: "Frenos", quantity: 2 },
+    { displayName: "Motor", quantity: 1 },
   ]);
   getBestSellers.mockResolvedValue([]);
   getCart.mockResolvedValue(emptyCart);
@@ -302,7 +302,7 @@ afterEach(() => {
 describe("Navbar", () => {
   it("bounces the favorites counter only when it goes up", () => {
     const props = navigationProps();
-    const { rerender } = render(<Navbar paginaActual="home" {...props} cantidadFavoritos={1} />);
+    const { rerender } = render(<Navbar currentPage="home" {...props} favoritesQuantity={1} />);
     const contador = () => within(screen.getByTitle("Favoritos")).getByText(/^\d+$/);
 
     // Al montar (ej. al cambiar de pantalla) no rebota.
@@ -310,7 +310,7 @@ describe("Navbar", () => {
 
     rerender(
       <MemoryRouter><CartProvider><VehicleProvider><PitProvider>
-        <Navbar paginaActual="home" {...props} cantidadFavoritos={2} />
+        <Navbar currentPage="home" {...props} favoritesQuantity={2} />
       </PitProvider></VehicleProvider></CartProvider></MemoryRouter>
     );
     expect(contador()).toHaveTextContent("2");
@@ -321,8 +321,8 @@ describe("Navbar", () => {
     const user = userEvent.setup();
     render(
       <>
-        <Navbar paginaActual="favoritos" {...navigationProps()} />
-        <RutaActual />
+        <Navbar currentPage="favorites" {...navigationProps()} />
+        <CurrentRoute />
       </>,
       { initialEntries: ["/favoritos"] }
     );
@@ -345,7 +345,7 @@ describe("Navbar", () => {
 
   it("closes the global search with Escape, restores focus, and closes on outside click", async () => {
     const user = userEvent.setup();
-    render(<Navbar paginaActual="home" {...navigationProps()} />);
+    render(<Navbar currentPage="home" {...navigationProps()} />);
 
     const openButton = screen.getByRole("button", { name: "Abrir búsqueda" });
     await user.click(openButton);
@@ -362,7 +362,7 @@ describe("Navbar", () => {
     const user = userEvent.setup();
     render(
       <>
-        <Navbar paginaActual="catalogo" {...navigationProps()} />
+        <Navbar currentPage="catalogo" {...navigationProps()} />
         <input id="buscador-catalogo" aria-label="Buscador de la página" />
       </>
     );
@@ -377,7 +377,7 @@ describe("Navbar", () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
-    render(<Navbar paginaActual="home" {...props} />);
+    render(<Navbar currentPage="home" {...props} />);
 
     await user.click(screen.getByRole("button", { name: "Abrir menú" }));
     const menu = document.getElementById("navbar-menu-celular");
@@ -385,7 +385,7 @@ describe("Navbar", () => {
 
     await user.click(within(menu).getByRole("button", { name: "Marcas" }));
 
-    expect(props.onMarcas).toHaveBeenCalledTimes(1);
+    expect(props.onBrands).toHaveBeenCalledTimes(1);
     expect(document.getElementById("navbar-menu-celular")).toBeNull();
     expect(screen.getByRole("button", { name: "Abrir menú" })).toHaveAttribute("aria-expanded", "false");
   });
@@ -393,13 +393,13 @@ describe("Navbar", () => {
   it("the mobile menu also has the orders, favorites and the account", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    render(<Navbar paginaActual="home" {...props} />);
+    render(<Navbar currentPage="home" {...props} />);
 
     await user.click(screen.getByRole("button", { name: "Abrir menú" }));
     const menu = document.getElementById("navbar-menu-celular");
     expect(within(menu).getByRole("button", { name: "Mis compras" })).toBeInTheDocument();
     await user.click(within(menu).getByRole("button", { name: "Favoritos" }));
-    expect(props.onFavoritos).toHaveBeenCalled();
+    expect(props.onFavorites).toHaveBeenCalled();
 
     // Sin sesión, la cuenta lleva al login.
     await user.click(screen.getByRole("button", { name: "Abrir menú" }));
@@ -409,7 +409,7 @@ describe("Navbar", () => {
 
   it("closes the mobile menu on an outside click or when the search opens", async () => {
     const user = userEvent.setup();
-    render(<Navbar paginaActual="home" {...navigationProps()} />);
+    render(<Navbar currentPage="home" {...navigationProps()} />);
 
     await user.click(screen.getByRole("button", { name: "Abrir menú" }));
     fireEvent.mouseDown(document.body);
@@ -429,8 +429,8 @@ describe("Navbar", () => {
     const user = userEvent.setup();
     render(
       <>
-        <Navbar paginaActual="detalle" {...navigationProps()} />
-        <RutaActual />
+        <Navbar currentPage="detalle" {...navigationProps()} />
+        <CurrentRoute />
       </>,
       { initialEntries: ["/producto/kit-de-freno-3"] }
     );
@@ -447,10 +447,10 @@ describe("Navbar", () => {
   it("calls navigation handlers and displays the cart count", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    localStorage.setItem("autobought-sesion", JSON.stringify({ nombre: "Ana" }));
-    getCart.mockResolvedValue({ items: [{ ...product, cantidad: 2 }], total: 3000 });
+    localStorage.setItem("autobought-sesion", JSON.stringify({ displayName: "Ana" }));
+    getCart.mockResolvedValue({ items: [{ ...product, quantity: 2 }], total: 3000 });
 
-    render(<Navbar paginaActual="home" {...props} />);
+    render(<Navbar currentPage="home" {...props} />);
 
     await user.click(screen.getByRole("button", { name: "Inicio" }));
     await user.click(screen.getByRole("button", { name: "Marcas" }));
@@ -460,27 +460,27 @@ describe("Navbar", () => {
     await user.click(screen.getByTitle("Carrito"));
 
     expect(props.onHome).toHaveBeenCalled();
-    expect(props.onMarcas).toHaveBeenCalled();
+    expect(props.onBrands).toHaveBeenCalled();
     expect(props.onCatalogo).toHaveBeenCalledWith();
     expect(props.onLogin).toHaveBeenCalled();
-    expect(props.onFavoritos).toHaveBeenCalled();
-    expect(props.onCarrito).toHaveBeenCalled();
+    expect(props.onFavorites).toHaveBeenCalled();
+    expect(props.onCart).toHaveBeenCalled();
     expect(await screen.findByText("2")).toBeInTheDocument();
   });
 
   it("opens the authenticated account menu and closes it outside the menu", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onCerrarSesion = jest.fn();
+    props.onCloseSession = jest.fn();
 
     render(
       <>
         <Navbar
-          paginaActual="home"
-          usuario={{ nombre: "Ana", apellido: "Perez", email: "ana@example.com" }}
+          currentPage="home"
+          sessionUser={{ displayName: "Ana", lastName: "Perez", email: "ana@example.com" }}
           {...props}
         />
-        <RutaActual />
+        <CurrentRoute />
       </>
     );
 
@@ -495,12 +495,12 @@ describe("Navbar", () => {
     await user.click(screen.getByRole("button", { name: "Direcciones" }));
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/direcciones");
     await user.click(screen.getByTitle("Mi cuenta"));
-    const desplegable = screen.getByRole("button", { name: "Ver toda mi cuenta" }).closest("div.absolute");
-    await user.click(within(desplegable).getByRole("button", { name: "Mis compras" }));
+    const dropdown = screen.getByRole("button", { name: "Ver toda mi cuenta" }).closest("div.absolute");
+    await user.click(within(dropdown).getByRole("button", { name: "Mis compras" }));
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/pedidos");
     await user.click(screen.getByTitle("Mi cuenta"));
     await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
-    expect(props.onCerrarSesion).toHaveBeenCalled();
+    expect(props.onCloseSession).toHaveBeenCalled();
 
     await user.click(screen.getByTitle("Mi cuenta"));
     fireEvent.mouseDown(document.body);
@@ -522,8 +522,8 @@ describe("Footer", () => {
 
 describe("Footer dentro del catálogo (App)", () => {
   const autos = [
-    { ...catalogProducts[0], marcas: ["Chevrolet"] },
-    { ...catalogProducts[1], marcas: ["Fiat"] },
+    { ...catalogProducts[0], brands: ["Chevrolet"] },
+    { ...catalogProducts[1], brands: ["Fiat"] },
   ];
 
   it("filtra por la marca tocada aunque ya se esté en el catálogo", async () => {
@@ -583,10 +583,10 @@ describe("Home", () => {
     expect(screen.getByRole("heading", { name: /repuestos que te/i })).toBeInTheDocument();
     expect(screen.getByText("¿Qué auto tenés?")).toBeInTheDocument();
     // Sin auto elegido no se puede buscar ni hay nada para borrar.
-    const buscar = screen.getByRole("button", { name: "Buscar repuestos" });
-    expect(buscar).toBeDisabled();
+    const runSearch = screen.getByRole("button", { name: "Buscar repuestos" });
+    expect(runSearch).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Borrar filtros" })).not.toBeInTheDocument();
-    await user.click(buscar);
+    await user.click(runSearch);
 
     expect(props.onCatalogo).not.toHaveBeenCalled();
   });
@@ -652,24 +652,24 @@ describe("Home", () => {
     render(<Home {...navigationProps()} />);
 
     expect(screen.getByRole("heading", { name: "Cómo comprar" })).toBeInTheDocument();
-    ["Elegí tu auto", "Agregá tus repuestos", "Pagá y recibilo"].forEach((paso) =>
-      expect(screen.getByRole("heading", { name: paso })).toBeInTheDocument()
+    ["Elegí tu auto", "Agregá tus repuestos", "Pagá y recibilo"].forEach((step) =>
+      expect(screen.getByRole("heading", { name: step })).toBeInTheDocument()
     );
   });
 
   it("asks for 8 best sellers and adds one to the cart without opening its detail", async () => {
     const user = userEvent.setup();
-    const props = { ...navigationProps(), onDetalle: jest.fn() };
+    const props = { ...navigationProps(), onDetail: jest.fn() };
     getBestSellers.mockResolvedValue([catalogProducts[0]]);
     startClientSession();
 
     render(<Home {...props} />);
 
-    expect(getBestSellers).toHaveBeenCalledWith({ limite: 8 });
+    expect(getBestSellers).toHaveBeenCalledWith({ limit: 8 });
     await user.click(await screen.findByRole("button", { name: /^agregar$/i }));
 
     await waitFor(() => expect(addCartItem).toHaveBeenCalledWith(catalogProducts[0].id, 1));
-    expect(props.onDetalle).not.toHaveBeenCalled();
+    expect(props.onDetail).not.toHaveBeenCalled();
   });
 
   it("keeps the landing page available when categories fail to load", async () => {
@@ -686,28 +686,28 @@ describe("Home", () => {
 
   it("shows the real best sellers and opens the detail of the one clicked", async () => {
     const user = userEvent.setup();
-    const props = { ...navigationProps(), onDetalle: jest.fn() };
+    const props = { ...navigationProps(), onDetail: jest.fn() };
     getBestSellers.mockResolvedValue([catalogProducts[0]]);
 
     render(<Home {...props} />);
 
-    expect(await screen.findByText(catalogProducts[0].nombre)).toBeInTheDocument();
-    expect(screen.getByText(`$${catalogProducts[0].precio.toLocaleString("es-UY")}`))
+    expect(await screen.findByText(catalogProducts[0].displayName)).toBeInTheDocument();
+    expect(screen.getByText(`$${catalogProducts[0].price.toLocaleString("es-UY")}`))
       .toBeInTheDocument();
     // Arriba va el fabricante, no la marca del auto.
     expect(screen.getAllByText("Bosch").length).toBeGreaterThan(0);
     // Toda la tarjeta lleva al repuesto: el nombre es el botón.
-    await user.click(screen.getByRole("button", { name: catalogProducts[0].nombre }));
+    await user.click(screen.getByRole("button", { name: catalogProducts[0].displayName }));
 
-    expect(props.onDetalle).toHaveBeenCalledWith(catalogProducts[0]);
+    expect(props.onDetail).toHaveBeenCalledWith(catalogProducts[0]);
   });
 
   it("opens the catalog filtered by the manufacturer clicked", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
     getManufacturers.mockResolvedValueOnce([
-      { nombre: "Bosch", cantidad: 40 },
-      { nombre: "Brembo", cantidad: 30 },
+      { displayName: "Bosch", quantity: 40 },
+      { displayName: "Brembo", quantity: 30 },
     ]);
 
     render(<Home {...props} />);
@@ -730,8 +730,8 @@ describe("Home", () => {
   it.each([
     ["there are no sales", () => getBestSellers.mockResolvedValue([])],
     ["the request fails", () => getBestSellers.mockRejectedValue(new Error("API unavailable"))],
-  ])("hides the best sellers section when %s", async (_caso, preparar) => {
-    preparar();
+  ])("hides the best sellers section when %s", async (_caso, prepare) => {
+    prepare();
 
     render(<Home {...navigationProps()} />);
 
@@ -833,9 +833,9 @@ describe("ModelDropdown", () => {
 describe("Catalogo", () => {
   it("shows 24 parts at first and the rest with Ver más", async () => {
     const user = userEvent.setup();
-    const props = { ...navigationProps(), onAlternarFavorito: jest.fn(), onDetalle: jest.fn(), esFavorito: jest.fn(() => false) };
+    const props = { ...navigationProps(), onToggleFavorite: jest.fn(), onDetail: jest.fn(), isFavorite: jest.fn(() => false) };
     getParts.mockResolvedValue(
-      Array.from({ length: 30 }, (_, i) => ({ ...product, id: `P-${i}`, codigo: `P-${i}`, nombre: `Repuesto número ${i}` }))
+      Array.from({ length: 30 }, (_, i) => ({ ...product, id: `P-${i}`, code: `P-${i}`, displayName: `Repuesto número ${i}` }))
     );
 
     render(<Catalog {...props} />);
@@ -852,9 +852,9 @@ describe("Catalogo", () => {
 
   it("keeps the desktop filters sticky and scrollable within the viewport", () => {
     const props = navigationProps();
-    props.onAlternarFavorito = jest.fn();
-    props.onDetalle = jest.fn();
-    props.esFavorito = jest.fn(() => false);
+    props.onToggleFavorite = jest.fn();
+    props.onDetail = jest.fn();
+    props.isFavorite = jest.fn(() => false);
 
     render(<Catalog {...props} />);
 
@@ -866,12 +866,12 @@ describe("Catalogo", () => {
   it("filters products and adds the selected quantity to the cart", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onAlternarFavorito = jest.fn();
-    props.onDetalle = jest.fn();
-    props.esFavorito = jest.fn(() => false);
+    props.onToggleFavorite = jest.fn();
+    props.onDetail = jest.fn();
+    props.isFavorite = jest.fn(() => false);
 
     startClientSession();
-    render(<Catalog {...props} categoriaInicial="Frenos" />);
+    render(<Catalog {...props} initialCategory="Frenos" />);
 
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     const search = screen.getByPlaceholderText(/buscar repuesto/i);
@@ -888,69 +888,69 @@ describe("Catalogo", () => {
 
   // Después de agregar, el botón dice "Agregado" por un momento: se
   // buscan los dos textos para seguir encontrando el mismo botón.
-  const botonesAgregar = () =>
+  const buttonsAdd = () =>
     screen.getAllByRole("button", { name: /^(agregar|agregado)$/i });
   const esperarCatalogo = () =>
     screen.findAllByRole("button", { name: /^agregar$/i });
-  const avisoCarrito = () =>
+  const cartNotice = () =>
     screen.getByText("Agregado al carrito").closest("[aria-live]");
   const catalogoProps = () => ({
     ...navigationProps(),
-    onAlternarFavorito: jest.fn(),
-    onDetalle: jest.fn(),
-    esFavorito: jest.fn(() => false),
+    onToggleFavorite: jest.fn(),
+    onDetail: jest.fn(),
+    isFavorite: jest.fn(() => false),
   });
-  const carritoConPastillas = (cantidad) => ({
+  const cartWithPads = (quantity) => ({
     items: [{
       id: "BP1234",
       partId: "BP1234",
-      nombre: "Pastillas de Freno Delanteras Bosch",
-      precio: 1500,
-      cantidad,
+      displayName: "Pastillas de Freno Delanteras Bosch",
+      price: 1500,
+      quantity,
       stock: 5,
     }],
-    total: 1500 * cantidad,
+    total: 1500 * quantity,
   });
 
   it("shows a non-blocking notice that merges repeated adds and closes or goes to the cart", async () => {
     const user = userEvent.setup();
     startClientSession();
     addCartItem
-      .mockResolvedValueOnce(carritoConPastillas(1))
-      .mockResolvedValueOnce(carritoConPastillas(2));
+      .mockResolvedValueOnce(cartWithPads(1))
+      .mockResolvedValueOnce(cartWithPads(2));
 
-    render(<><Catalog {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
+    render(<><Catalog {...catalogoProps()} initialCategory="Frenos" /><CurrentRoute /></>);
     await esperarCatalogo();
-    await user.click(botonesAgregar()[0]);
+    await user.click(buttonsAdd()[0]);
 
     expect(await screen.findByText("Agregado al carrito")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(botonesAgregar()[0]).toHaveTextContent("Agregado");
-    expect(within(avisoCarrito()).getByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
-    expect(within(avisoCarrito()).getByText(/×1/)).toBeInTheDocument();
-    expect(within(avisoCarrito()).getByText(/Tu carrito \(1 producto\)/)).toBeInTheDocument();
+    expect(buttonsAdd()[0]).toHaveTextContent("Agregado");
+    expect(within(cartNotice()).getByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+    expect(within(cartNotice()).getByText(/×1/)).toBeInTheDocument();
+    expect(within(cartNotice()).getByText(/Tu carrito \(1 producto\)/)).toBeInTheDocument();
     expect(within(screen.getByTitle("Carrito")).getByText("1"))
       .toHaveClass("motion-safe:animate-rebote");
 
     // Agregar otra vez el mismo repuesto actualiza el aviso, no apila otro.
-    await user.click(botonesAgregar()[0]);
-    await waitFor(() => expect(within(avisoCarrito()).getByText(/×2/)).toBeInTheDocument());
+    await user.click(buttonsAdd()[0]);
+    await waitFor(() => expect(within(cartNotice()).getByText(/×2/)).toBeInTheDocument());
     expect(screen.getAllByText("Agregado al carrito")).toHaveLength(1);
-    expect(within(avisoCarrito()).getByText(/Tu carrito \(2 productos\)/)).toBeInTheDocument();
+    expect(within(cartNotice()).getByText(/Tu carrito \(2 productos\)/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Seguir comprando" }));
     expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
 
-    await user.click(botonesAgregar()[0]);
+    await user.click(buttonsAdd()[0]);
     await user.click(await screen.findByRole("button", { name: "Cerrar aviso" }));
     expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
 
-    await user.click(botonesAgregar()[0]);
+    await user.click(buttonsAdd()[0]);
     await screen.findByText("Agregado al carrito");
     await user.keyboard("{Escape}");
     expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
 
-    await user.click(botonesAgregar()[0]);
+    await user.click(buttonsAdd()[0]);
     await user.click(await screen.findByRole("button", { name: "Ver carrito" }));
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/carrito");
     expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
@@ -962,24 +962,24 @@ describe("Catalogo", () => {
     let responder;
     addCartItem.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
 
-    render(<Catalog {...catalogoProps()} categoriaInicial="Frenos" />);
+    render(<Catalog {...catalogoProps()} initialCategory="Frenos" />);
     await esperarCatalogo();
-    await user.click(botonesAgregar()[0]);
+    await user.click(buttonsAdd()[0]);
 
     expect(screen.getByRole("button", { name: "Agregando…" })).toBeDisabled();
 
-    responder(carritoConPastillas(1));
+    responder(cartWithPads(1));
     expect(await screen.findByRole("button", { name: "Agregado" })).toBeEnabled();
   });
 
   it("undo removes the line when nothing was in the cart before", async () => {
     const user = userEvent.setup();
     startClientSession();
-    addCartItem.mockResolvedValue(carritoConPastillas(1));
+    addCartItem.mockResolvedValue(cartWithPads(1));
 
-    render(<Catalog {...catalogoProps()} categoriaInicial="Frenos" />);
+    render(<Catalog {...catalogoProps()} initialCategory="Frenos" />);
     await esperarCatalogo();
-    await user.click(botonesAgregar()[0]);
+    await user.click(buttonsAdd()[0]);
 
     await user.click(await screen.findByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(removeCartItem).toHaveBeenCalledWith("BP1234"));
@@ -990,11 +990,11 @@ describe("Catalogo", () => {
     const user = userEvent.setup();
     startClientSession();
     // El carrito ya tenía 2 unidades: después de agregar 1 quedan 3.
-    addCartItem.mockResolvedValue(carritoConPastillas(3));
+    addCartItem.mockResolvedValue(cartWithPads(3));
 
-    render(<Catalog {...catalogoProps()} categoriaInicial="Frenos" />);
+    render(<Catalog {...catalogoProps()} initialCategory="Frenos" />);
     await esperarCatalogo();
-    await user.click(botonesAgregar()[0]);
+    await user.click(buttonsAdd()[0]);
 
     await user.click(await screen.findByRole("button", { name: "Deshacer" }));
 
@@ -1005,31 +1005,31 @@ describe("Catalogo", () => {
   it("explains a stock conflict with the units already in the cart", async () => {
     const user = userEvent.setup();
     startClientSession();
-    getCart.mockResolvedValue(carritoConPastillas(4));
+    getCart.mockResolvedValue(cartWithPads(4));
     addCartItem.mockRejectedValue(
       Object.assign(new Error("No hay stock suficiente. Disponible: 5 unidades."), { status: 409 })
     );
 
-    render(<Catalog {...catalogoProps()} categoriaInicial="Frenos" />);
+    render(<Catalog {...catalogoProps()} initialCategory="Frenos" />);
     await esperarCatalogo();
     await waitFor(() =>
       expect(within(screen.getByTitle("Carrito")).getByText("4")).toBeInTheDocument()
     );
-    await user.click(botonesAgregar()[0]);
+    await user.click(buttonsAdd()[0]);
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Solo quedan 5 unidades y ya tenés 4 en el carrito.")
     );
     expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
-    expect(botonesAgregar()[0]).toHaveTextContent(/^Agregar$/);
+    expect(buttonsAdd()[0]).toHaveTextContent(/^Agregar$/);
   });
 
   it("asks an anonymous visitor to log in with a button instead of only a message", async () => {
     const user = userEvent.setup();
 
-    render(<><Catalog {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
+    render(<><Catalog {...catalogoProps()} initialCategory="Frenos" /><CurrentRoute /></>);
     await esperarCatalogo();
-    await user.click(botonesAgregar()[0]);
+    await user.click(buttonsAdd()[0]);
 
     const aviso = screen
       .getByText("Iniciá sesión para agregar productos al carrito.")
@@ -1044,11 +1044,11 @@ describe("Catalogo", () => {
   it("filters by the manufacturers of the loaded products and clears them", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onAlternarFavorito = jest.fn();
-    props.onDetalle = jest.fn();
-    props.esFavorito = jest.fn(() => false);
+    props.onToggleFavorite = jest.fn();
+    props.onDetail = jest.fn();
+    props.isFavorite = jest.fn(() => false);
 
-    render(<Catalog {...props} categoriaInicial="Frenos" />);
+    render(<Catalog {...props} initialCategory="Frenos" />);
 
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     // Solo los fabricantes de lo cargado (Frenos): Mann es de Motor.
@@ -1069,13 +1069,13 @@ describe("Catalogo", () => {
   it("filters by price, stock and car brand and shows each filter as a removable chip", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onAlternarFavorito = jest.fn();
-    props.onDetalle = jest.fn();
-    props.esFavorito = jest.fn(() => false);
+    props.onToggleFavorite = jest.fn();
+    props.onDetail = jest.fn();
+    props.isFavorite = jest.fn(() => false);
     getParts.mockResolvedValue([
-      { ...catalogProducts[0], precio: 1500, stock: 0, marcas: ["Chevrolet"], modelos: ["Onix"] },
-      { ...catalogProducts[1], precio: 4200, stock: 3, marcas: ["Ford"], modelos: ["Ka"] },
-      { ...catalogProducts[2], precio: 900, stock: 8, marcas: ["Chevrolet", "Ford"], modelos: [] },
+      { ...catalogProducts[0], price: 1500, stock: 0, brands: ["Chevrolet"], models: ["Onix"] },
+      { ...catalogProducts[1], price: 4200, stock: 3, brands: ["Ford"], models: ["Ka"] },
+      { ...catalogProducts[2], price: 900, stock: 8, brands: ["Chevrolet", "Ford"], models: [] },
     ]);
 
     render(<Catalog {...props} />);
@@ -1105,11 +1105,11 @@ describe("Catalogo", () => {
   it("changes category and toggles a product favorite", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onAlternarFavorito = jest.fn();
-    props.onDetalle = jest.fn();
-    props.esFavorito = jest.fn(() => false);
+    props.onToggleFavorite = jest.fn();
+    props.onDetail = jest.fn();
+    props.isFavorite = jest.fn(() => false);
 
-    render(<Catalog {...props} categoriaInicial="Frenos" />);
+    render(<Catalog {...props} initialCategory="Frenos" />);
 
     await user.click(await screen.findByRole("button", { name: /Motor/ }));
     expect(await screen.findByText("Filtro de Aire")).toBeInTheDocument();
@@ -1121,8 +1121,8 @@ describe("Catalogo", () => {
     const favoriteButtons = screen.getAllByRole("button", { name: "Marcar como favorito" });
     await user.click(favoriteButtons[favoriteButtons.length - 1]);
 
-    expect(props.onAlternarFavorito).toHaveBeenCalledWith(
-      expect.objectContaining({ nombre: "Filtro de Aire" })
+    expect(props.onToggleFavorite).toHaveBeenCalledWith(
+      expect.objectContaining({ displayName: "Filtro de Aire" })
     );
   });
 
@@ -1139,10 +1139,10 @@ it("exits free search mode when changing category", async () => {
     <>
       <Catalog
         {...props}
-        categoriaInicial="Frenos"
-        esFavorito={() => false}
+        initialCategory="Frenos"
+        isFavorite={() => false}
       />
-      <RutaActual />
+      <CurrentRoute />
     </>,
     { initialEntries: ["/catalogo?q=pastillas"] }
   );
@@ -1174,7 +1174,7 @@ it("shows free search results and activates the detected vehicle", async () => {
   });
 
   render(
-    <Catalog {...props} esFavorito={() => false} />,
+    <Catalog {...props} isFavorite={() => false} />,
     { initialEntries: ["/catalogo?q=pastillas%20de%20freno%20onix%202020"] }
   );
 
@@ -1196,8 +1196,8 @@ it("runs the server search from the catalog bar on Enter and hides the header se
 
   render(
     <>
-      <Catalog {...props} esFavorito={() => false} />
-      <RutaActual />
+      <Catalog {...props} isFavorite={() => false} />
+      <CurrentRoute />
     </>
   );
 
@@ -1215,7 +1215,7 @@ it("opens with the manufacturer from the URL already checked", async () => {
   const props = navigationProps();
 
   render(
-    <Catalog {...props} esFavorito={() => false} />,
+    <Catalog {...props} isFavorite={() => false} />,
     { initialEntries: ["/catalogo?fabricante=Brembo"] }
   );
 
@@ -1226,12 +1226,12 @@ it("opens with the manufacturer from the URL already checked", async () => {
 
 it("opens with the car brand from the URL already checked", async () => {
   getParts.mockResolvedValue([
-    { ...catalogProducts[0], marcas: ["Chevrolet"] },
-    { ...catalogProducts[1], marcas: ["Ford"] },
+    { ...catalogProducts[0], brands: ["Chevrolet"] },
+    { ...catalogProducts[1], brands: ["Ford"] },
   ]);
 
   render(
-    <Catalog {...navigationProps()} esFavorito={() => false} />,
+    <Catalog {...navigationProps()} isFavorite={() => false} />,
     { initialEntries: ["/catalogo?marca=Ford"] }
   );
 
@@ -1249,8 +1249,8 @@ it("offers the server search for what was typed, also when nothing on screen mat
 
   render(
     <>
-      <Catalog {...navigationProps()} esFavorito={() => false} />
-      <RutaActual />
+      <Catalog {...navigationProps()} isFavorite={() => false} />
+      <CurrentRoute />
     </>
   );
   await screen.findByText("Pastillas de Freno Delanteras Bosch");
@@ -1280,7 +1280,7 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
   });
 
   render(
-    <Catalog {...props} esFavorito={() => false} />,
+    <Catalog {...props} isFavorite={() => false} />,
     { initialEntries: ["/catalogo?q=xyz%20qwerty"] }
   );
 
@@ -1301,8 +1301,8 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
     render(
       <Catalog
         {...navigationProps()}
-        categoriaInicial="Frenos"
-        esFavorito={() => false}
+        initialCategory="Frenos"
+        isFavorite={() => false}
       />
     );
 
@@ -1325,7 +1325,7 @@ describe("ActiveVehicleBanner", () => {
     getYears.mockResolvedValue([2020]);
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <ActivateVehicle vehicle={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
         <ActiveVehicleBanner />
       </>
     );
@@ -1348,7 +1348,7 @@ describe("ActiveVehicleBanner", () => {
     ]);
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <ActivateVehicle vehicle={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
         <ActiveVehicleBanner />
       </>
     );
@@ -1366,7 +1366,7 @@ describe("ActiveVehicleBanner", () => {
 describe("DetalleProducto", () => {
   it("shows the parts usually bought together and adds one to the cart", async () => {
     const user = userEvent.setup();
-    const sugerencia = mapPart({
+    const suggestionItem = mapPart({
       id: 9, name: "Aceite de motor 5W30 4L Castrol", manufacturer: "Castrol", part_code: "LUB-0001",
       category: "Lubricantes", price: 3900, stock: 10, compatibilities: [],
     });
@@ -1374,7 +1374,7 @@ describe("DetalleProducto", () => {
       id: 7, name: "Filtro compatible", manufacturer: "Bosch", part_code: "FIL-0007",
       category: "Filtros", price: 790, stock: 3, compatibilities: [],
     }));
-    getRecommendations.mockResolvedValue([sugerencia]);
+    getRecommendations.mockResolvedValue([suggestionItem]);
     startClientSession();
 
     render(
@@ -1384,33 +1384,33 @@ describe("DetalleProducto", () => {
       { initialEntries: ["/producto/filtro-compatible-7"] }
     );
 
-    const seccion = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
+    const section = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
     expect(getRecommendations).toHaveBeenCalledWith([7]);
-    expect(within(seccion).getByText("Aceite de motor 5W30 4L Castrol")).toBeInTheDocument();
+    expect(within(section).getByText("Aceite de motor 5W30 4L Castrol")).toBeInTheDocument();
 
-    await user.click(within(seccion).getByRole("button", { name: /^agregar$/i }));
+    await user.click(within(section).getByRole("button", { name: /^agregar$/i }));
     await waitFor(() => expect(addCartItem).toHaveBeenCalledWith(9, 1));
   });
 
   it("con un vehículo activo, las sugerencias son solo las compatibles con ese auto", async () => {
-    const sugerida = (id, nombre, compatibilities) => mapPart({
-      id, name: nombre, manufacturer: "Castrol", part_code: `LUB-${id}`,
+    const suggested = (id, displayName, compatibilities) => mapPart({
+      id, name: displayName, manufacturer: "Castrol", part_code: `LUB-${id}`,
       category: "Lubricantes", price: 3900, stock: 10, compatibilities,
     });
     const onix = { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 };
     const gol = { brand: "Volkswagen", model: "Gol", engine_code: "1.6 MSI", year_from: 2013, year_to: 2019 };
-    const onixNuevo = { ...onix, year_from: 2020, year_to: 2023 };
-    getPart.mockResolvedValue(repuestoCompatible());
+    const onixNew = { ...onix, year_from: 2020, year_to: 2023 };
+    getPart.mockResolvedValue(partCompatible());
     getRecommendations.mockResolvedValue([
-      sugerida(21, "Aceite para Onix", [onix]),
-      sugerida(22, "Aceite para Gol", [gol]),
-      sugerida(23, "Aceite para Onix 2020 en adelante", [onixNuevo]),
-      sugerida(24, "Aceite sin datos de auto", []),
+      suggested(21, "Aceite para Onix", [onix]),
+      suggested(22, "Aceite para Gol", [gol]),
+      suggested(23, "Aceite para Onix 2020 en adelante", [onixNew]),
+      suggested(24, "Aceite sin datos de auto", []),
     ]);
 
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: 2016 }} />
+        <ActivateVehicle vehicle={{ brand: "Chevrolet", model: "Onix", year: 2016 }} />
         <Routes>
           <Route path="/producto/:id" element={<ProductDetail {...navigationProps()} />} />
         </Routes>
@@ -1418,15 +1418,15 @@ describe("DetalleProducto", () => {
       { initialEntries: ["/producto/filtro-compatible-7"] }
     );
 
-    const seccion = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
-    expect(within(seccion).getByText("Aceite para Onix")).toBeInTheDocument();
-    expect(within(seccion).queryByText("Aceite para Gol")).not.toBeInTheDocument();
-    expect(within(seccion).queryByText("Aceite para Onix 2020 en adelante")).not.toBeInTheDocument();
-    expect(within(seccion).queryByText("Aceite sin datos de auto")).not.toBeInTheDocument();
+    const section = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
+    expect(within(section).getByText("Aceite para Onix")).toBeInTheDocument();
+    expect(within(section).queryByText("Aceite para Gol")).not.toBeInTheDocument();
+    expect(within(section).queryByText("Aceite para Onix 2020 en adelante")).not.toBeInTheDocument();
+    expect(within(section).queryByText("Aceite sin datos de auto")).not.toBeInTheDocument();
   });
 
   it("oculta la sección si ninguna sugerencia es compatible con el vehículo activo", async () => {
-    getPart.mockResolvedValue(repuestoCompatible());
+    getPart.mockResolvedValue(partCompatible());
     getRecommendations.mockResolvedValue([
       mapPart({
         id: 22, name: "Aceite para Gol", manufacturer: "Castrol", part_code: "LUB-22",
@@ -1437,7 +1437,7 @@ describe("DetalleProducto", () => {
 
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: 2016 }} />
+        <ActivateVehicle vehicle={{ brand: "Chevrolet", model: "Onix", year: 2016 }} />
         <Routes>
           <Route path="/producto/:id" element={<ProductDetail {...navigationProps()} />} />
         </Routes>
@@ -1450,7 +1450,7 @@ describe("DetalleProducto", () => {
     expect(screen.queryByRole("region", { name: "Suelen comprarse juntos" })).not.toBeInTheDocument();
   });
 
-  const repuestoCompatible = () => mapPart({
+  const partCompatible = () => mapPart({
     id: 7,
     name: "Filtro compatible",
     manufacturer: "Bosch",
@@ -1467,8 +1467,8 @@ describe("DetalleProducto", () => {
 
   it("loads the requested product from the URL and follows back/forward history", async () => {
     const user = userEvent.setup();
-    const primerRepuesto = repuestoCompatible();
-    const segundoRepuesto = mapPart({
+    const firstPart = partCompatible();
+    const secondPart = mapPart({
       id: 8,
       name: "Filtro de aire",
       manufacturer: "Mann-Filter",
@@ -1478,12 +1478,12 @@ describe("DetalleProducto", () => {
       stock: 2,
       compatibilities: [],
     });
-    getPart.mockImplementation(async (id) => id === "7" ? primerRepuesto : segundoRepuesto);
+    getPart.mockImplementation(async (id) => id === "7" ? firstPart : secondPart);
     const props = navigationProps();
 
     render(
       <Routes>
-        <Route path="/producto/:id" element={<><ProductDetail {...props} /><ControlesHistorialDetalle /></>} />
+        <Route path="/producto/:id" element={<><ProductDetail {...props} /><ControlsHistoryDetail /></>} />
       </Routes>,
       { initialEntries: ["/producto/filtro-compatible-7"] }
     );
@@ -1523,7 +1523,7 @@ describe("DetalleProducto", () => {
 
   it("opens the selector in the header when no vehicle is selected", async () => {
     const user = userEvent.setup();
-    render(<ProductDetail {...navigationProps()} producto={repuestoCompatible()} />);
+    render(<ProductDetail {...navigationProps()} product={partCompatible()} />);
     expect(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Seleccionar vehículo" }))
       .toBeInTheDocument();
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "sin-vehiculo");
@@ -1545,12 +1545,12 @@ describe("DetalleProducto", () => {
   });
 
   it("matches normalized brand and model and includes the first and last range years", () => {
-    const repuesto = repuestoCompatible();
+    const part = partCompatible();
     const props = navigationProps();
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "  CHEVROLET ", model: " Onix  ", year: "2013" }} />
-        <ProductDetail {...props} producto={repuesto} />
+        <ActivateVehicle vehicle={{ brand: "  CHEVROLET ", model: " Onix  ", year: "2013" }} />
+        <ProductDetail {...props} product={part} />
       </>
     );
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
@@ -1561,8 +1561,8 @@ describe("DetalleProducto", () => {
   it("includes the last year of a compatibility range", () => {
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2019" }} />
-        <ProductDetail {...navigationProps()} producto={repuestoCompatible()} />
+        <ActivateVehicle vehicle={{ brand: "Chevrolet", model: "Onix", year: "2019" }} />
+        <ProductDetail {...navigationProps()} product={partCompatible()} />
       </>
     );
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
@@ -1571,8 +1571,8 @@ describe("DetalleProducto", () => {
   it("shows incompatibility when the selected year is outside the inclusive range", () => {
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2020" }} />
-        <ProductDetail {...navigationProps()} producto={repuestoCompatible()} />
+        <ActivateVehicle vehicle={{ brand: "Chevrolet", model: "Onix", year: "2020" }} />
+        <ProductDetail {...navigationProps()} product={partCompatible()} />
       </>
     );
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "incompatible");
@@ -1582,8 +1582,8 @@ describe("DetalleProducto", () => {
   it("accepts a matching brand when no model is selected", () => {
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "chevrolet", model: "", year: "" }} />
-        <ProductDetail {...navigationProps()} producto={repuestoCompatible()} />
+        <ActivateVehicle vehicle={{ brand: "chevrolet", model: "", year: "" }} />
+        <ProductDetail {...navigationProps()} product={partCompatible()} />
       </>
     );
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
@@ -1598,17 +1598,17 @@ describe("DetalleProducto", () => {
         brand: "Chevrolet", model: `Modelo ${i + 1}`, year_from: 2010, year_to: 2020,
       })),
     });
-    render(<ProductDetail {...navigationProps()} producto={aceite} />);
+    render(<ProductDetail {...navigationProps()} product={aceite} />);
 
-    const tarjeta = within(screen.getByTestId("compatibility-card"));
-    expect(tarjeta.getByText("Chevrolet Modelo 6")).toBeInTheDocument();
-    expect(tarjeta.queryByText("Chevrolet Modelo 7")).not.toBeInTheDocument();
+    const cardElement = within(screen.getByTestId("compatibility-card"));
+    expect(cardElement.getByText("Chevrolet Modelo 6")).toBeInTheDocument();
+    expect(cardElement.queryByText("Chevrolet Modelo 7")).not.toBeInTheDocument();
 
-    await user.click(tarjeta.getByRole("button", { name: "Ver los 10 autos compatibles" }));
-    expect(tarjeta.getByText("Chevrolet Modelo 10")).toBeInTheDocument();
+    await user.click(cardElement.getByRole("button", { name: "Ver los 10 autos compatibles" }));
+    expect(cardElement.getByText("Chevrolet Modelo 10")).toBeInTheDocument();
 
-    await user.click(tarjeta.getByRole("button", { name: "Ver menos" }));
-    expect(tarjeta.queryByText("Chevrolet Modelo 7")).not.toBeInTheDocument();
+    await user.click(cardElement.getByRole("button", { name: "Ver menos" }));
+    expect(cardElement.queryByText("Chevrolet Modelo 7")).not.toBeInTheDocument();
   });
 
   it("shows unavailable when no compatibility records exist", () => {
@@ -1620,8 +1620,8 @@ describe("DetalleProducto", () => {
     });
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
-        <ProductDetail {...navigationProps()} producto={productWithoutCompatibility} />
+        <ActivateVehicle vehicle={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
+        <ProductDetail {...navigationProps()} product={productWithoutCompatibility} />
       </>
     );
 
@@ -1642,8 +1642,8 @@ describe("DetalleProducto", () => {
     });
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
-        <ProductDetail {...navigationProps()} producto={productWithIncompleteRange} />
+        <ActivateVehicle vehicle={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
+        <ProductDetail {...navigationProps()} product={productWithIncompleteRange} />
       </>
     );
 
@@ -1655,7 +1655,7 @@ describe("DetalleProducto", () => {
 
   it("keeps the compatibility card focused on applications and opens the existing header selector", async () => {
     const user = userEvent.setup();
-    render(<ProductDetail {...navigationProps()} producto={repuestoCompatible()} />);
+    render(<ProductDetail {...navigationProps()} product={partCompatible()} />);
 
     const card = within(screen.getByTestId("compatibility-card"));
     expect(card.getByText("Chevrolet Onix")).toBeInTheDocument();
@@ -1678,8 +1678,8 @@ describe("DetalleProducto", () => {
     getYears.mockResolvedValue([2018, 2019, 2020]);
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
-        <ProductDetail {...props} producto={repuestoCompatible()} />
+        <ActivateVehicle vehicle={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <ProductDetail {...props} product={partCompatible()} />
       </>
     );
 
@@ -1727,8 +1727,8 @@ describe("DetalleProducto", () => {
     ]);
     render(
       <>
-        <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
-        <ProductDetail {...navigationProps()} producto={repuestoCompatible()} />
+        <ActivateVehicle vehicle={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
+        <ProductDetail {...navigationProps()} product={partCompatible()} />
       </>
     );
 
@@ -1747,7 +1747,7 @@ describe("DetalleProducto", () => {
   });
 
   it("lists all structured applications in the compatibility card", () => {
-    render(<ProductDetail {...navigationProps()} producto={repuestoCompatible()} />);
+    render(<ProductDetail {...navigationProps()} product={partCompatible()} />);
 
     const card = within(screen.getByTestId("compatibility-card"));
     expect(card.getByText("Chevrolet Onix")).toBeInTheDocument();
@@ -1758,11 +1758,11 @@ describe("DetalleProducto", () => {
 
   it("separates vehicle, engine, and years from text applications", () => {
     const productWithTextApplications = {
-      ...repuestoCompatible(),
+      ...partCompatible(),
       compatibilidades: [],
-      aplicaciones: ["Volkswagen Gol 2019 Highline 1.6 MSI"],
+      fitments: ["Volkswagen Gol 2019 Highline 1.6 MSI"],
     };
-    render(<ProductDetail {...navigationProps()} producto={productWithTextApplications} />);
+    render(<ProductDetail {...navigationProps()} product={productWithTextApplications} />);
 
     const card = within(screen.getByTestId("compatibility-card"));
     expect(card.getByText("Volkswagen Gol")).toBeInTheDocument();
@@ -1772,9 +1772,9 @@ describe("DetalleProducto", () => {
 
   it("shows the manufacturer above the name, never a compatible car brand, and the new details", async () => {
     const props = navigationProps();
-    props.onAlternarFavorito = jest.fn();
-    props.esFavorito = jest.fn(() => false);
-    const repuesto = mapPart({
+    props.onToggleFavorite = jest.fn();
+    props.isFavorite = jest.fn(() => false);
+    const part = mapPart({
       id: 7,
       name: "Filtro de aceite Mann-Filter 1.4 8V",
       manufacturer: "Mann-Filter",
@@ -1793,9 +1793,9 @@ describe("DetalleProducto", () => {
       ],
     });
 
-    render(<ProductDetail {...props} producto={repuesto} />);
+    render(<ProductDetail {...props} product={part} />);
 
-    expect(screen.getByRole("heading", { level: 1, name: repuesto.nombre })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: part.displayName })).toBeInTheDocument();
     expect(screen.getByText("Mann-Filter", { selector: "p" })).toBeInTheDocument();
     expect(screen.queryByText("Chevrolet", { exact: true })).not.toBeInTheDocument();
     expect(screen.getByText(/Retiene las impurezas/)).toBeInTheDocument();
@@ -1818,7 +1818,7 @@ describe("DetalleProducto", () => {
   });
 
   it("does not invent warranty data when the product has no warranty fields", async () => {
-    const repuestoSinGarantia = mapPart({
+    const partWithoutWarranty = mapPart({
       id: 8,
       name: "Filtro sin garantía informada",
       price: 500,
@@ -1826,7 +1826,7 @@ describe("DetalleProducto", () => {
       compatibilities: [],
     });
 
-    render(<ProductDetail {...navigationProps()} producto={repuestoSinGarantia} />);
+    render(<ProductDetail {...navigationProps()} product={partWithoutWarranty} />);
     expect(within(screen.getByTestId("warranty-details")).getAllByText("No especificado")).toHaveLength(2);
     expect(within(screen.getByTestId("warranty-details")).getByText("Proveedor")).toBeInTheDocument();
     expect(within(screen.getByTestId("warranty-details")).queryByText("Condiciones")).not.toBeInTheDocument();
@@ -1835,14 +1835,14 @@ describe("DetalleProducto", () => {
   });
 
   it("shows warranty conditions only when the product has real condition data", () => {
-    const repuesto = {
-      ...repuestoCompatible(),
-      garantiaMeses: 12,
-      proveedorGarantia: "fabricante",
-      condicionesGarantia: "Presentar comprobante de compra.",
+    const part = {
+      ...partCompatible(),
+      monthsWarranty: 12,
+      warrantyProvider: "fabricante",
+      condicionesWarranty: "Presentar comprobante de compra.",
     };
 
-    render(<ProductDetail {...navigationProps()} producto={repuesto} />);
+    render(<ProductDetail {...navigationProps()} product={part} />);
 
     const warranty = screen.getByTestId("warranty-details");
     expect(within(warranty).getByText("12 meses")).toBeInTheDocument();
@@ -1857,11 +1857,11 @@ describe("DetalleProducto", () => {
       parts: [],
       entities: { part: true },
     });
-    props.onAlternarFavorito = jest.fn();
-    props.esFavorito = jest.fn(() => false);
+    props.onToggleFavorite = jest.fn();
+    props.isFavorite = jest.fn(() => false);
 
     startClientSession();
-    render(<><ProductDetail {...props} producto={product} /><RutaActual /></>);
+    render(<><ProductDetail {...props} product={product} /><CurrentRoute /></>);
 
     await user.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
@@ -1900,17 +1900,17 @@ describe("Carrito", () => {
   it("loads the server cart and updates quantity and removal through the API", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onDetalle = jest.fn();
-    const cartProduct = { ...product, cantidad: 2 };
+    props.onDetail = jest.fn();
+    const cartProduct = { ...product, quantity: 2 };
 
     startClientSession();
     getCart.mockResolvedValue({ items: [cartProduct], total: 3000 });
-    updateCartItem.mockImplementation(async (_id, cantidad) => ({
-      items: [{ ...product, cantidad }],
-      total: 1500 * cantidad,
+    updateCartItem.mockImplementation(async (_id, quantity) => ({
+      items: [{ ...product, quantity }],
+      total: 1500 * quantity,
     }));
     render(<CartPage {...props} />);
-    expect(await screen.findByText(product.nombre)).toBeInTheDocument();
+    expect(await screen.findByText(product.displayName)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "+" }));
     expect(await screen.findAllByText("3", { exact: true })).toHaveLength(2);
     await user.click(screen.getByRole("button", { name: "−" }));
@@ -1928,8 +1928,8 @@ describe("Carrito", () => {
     const user = userEvent.setup();
     startClientSession();
     getCart.mockResolvedValue({
-      items: [{ ...product, cantidad: 1 }],
-      total: product.precio,
+      items: [{ ...product, quantity: 1 }],
+      total: product.price,
     });
     render(<CartPage {...navigationProps()} />);
 
@@ -1945,7 +1945,7 @@ describe("Favoritos", () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
-    render(<Favorites {...props} favoritos={[]} />);
+    render(<Favorites {...props} favorites={[]} />);
     await user.click(screen.getByRole("button", { name: /explorar repuestos/i }));
 
     expect(screen.getByText("Todavía no tenés favoritos")).toBeInTheDocument();
@@ -1956,7 +1956,7 @@ describe("Favoritos", () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
-    render(<Favorites {...props} favoritos={[]} />);
+    render(<Favorites {...props} favorites={[]} />);
 
     const migas = screen.getByRole("navigation", { name: "Estás en" });
     await user.click(within(migas).getByRole("button", { name: "Inicio" }));
@@ -1968,18 +1968,18 @@ describe("Favoritos", () => {
   it("renders favorites and supports remove, detail, and add actions", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onAlternarFavorito = jest.fn();
-    props.onDetalle = jest.fn();
+    props.onToggleFavorite = jest.fn();
+    props.onDetail = jest.fn();
 
     startClientSession();
-    render(<Favorites {...props} favoritos={[product]} />);
+    render(<Favorites {...props} favorites={[product]} />);
     const favoriteButtons = screen.getAllByRole("button", { name: "Quitar de favoritos" });
     await user.click(favoriteButtons[favoriteButtons.length - 1]);
-    await user.click(screen.getByRole("button", { name: product.nombre }));
+    await user.click(screen.getByRole("button", { name: product.displayName }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
 
-    expect(props.onAlternarFavorito).toHaveBeenCalledWith(product);
-    expect(props.onDetalle).toHaveBeenCalledWith(product);
+    expect(props.onToggleFavorite).toHaveBeenCalledWith(product);
+    expect(props.onDetail).toHaveBeenCalledWith(product);
     await waitFor(() => expect(addCartItem).toHaveBeenCalledWith("TEST-001", 1));
   });
 
@@ -1987,12 +1987,12 @@ describe("Favoritos", () => {
     const user = userEvent.setup();
     const props = navigationProps();
     startClientSession();
-    render(<Favorites {...props} favoritos={[product]} />);
+    render(<Favorites {...props} favorites={[product]} />);
 
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
 
     const aviso = (await screen.findByText("Agregado al carrito")).closest("[aria-live]");
-    expect(within(aviso).getByText(product.nombre)).toBeInTheDocument();
+    expect(within(aviso).getByText(product.displayName)).toBeInTheDocument();
     await user.click(within(aviso).getByRole("button", { name: "Deshacer" }));
     await waitFor(() => expect(removeCartItem).toHaveBeenCalledWith("TEST-001"));
     expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
@@ -2004,35 +2004,35 @@ describe("ConfirmacionAgregarCarrito", () => {
 
   it("closes by itself after a few seconds, but waits while the mouse is over it", () => {
     jest.useFakeTimers();
-    const onCerrar = jest.fn();
+    const onClose = jest.fn();
     renderBase(
       <AddedToCartNotice
-        aviso={{ tipo: "agregado", producto: product, cantidadAgregada: 1 }}
-        cantidadCarrito={1}
+        aviso={{ tipo: "added", product: product, addedQuantity: 1 }}
+        cartQuantity={1}
         total={1500}
-        onDeshacer={jest.fn()}
-        onCerrar={onCerrar}
-        onVerCarrito={jest.fn()}
+        onUndo={jest.fn()}
+        onClose={onClose}
+        onSeeCart={jest.fn()}
       />
     );
-    const tarjeta = screen.getByText("Agregado al carrito").closest("[aria-live] > div");
+    const cardElement = screen.getByText("Agregado al carrito").closest("[aria-live] > div");
 
-    fireEvent.mouseEnter(tarjeta);
+    fireEvent.mouseEnter(cardElement);
     act(() => jest.advanceTimersByTime(NOTICE_DURATION_MS + 1000));
-    expect(onCerrar).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
 
-    fireEvent.mouseLeave(tarjeta);
+    fireEvent.mouseLeave(cardElement);
     act(() => jest.advanceTimersByTime(NOTICE_DURATION_MS - 1));
-    expect(onCerrar).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
     act(() => jest.advanceTimersByTime(1));
-    expect(onCerrar).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("the next notice closes by itself even if the previous one was closed with the mouse over it", () => {
     jest.useFakeTimers();
-    const onCerrar = jest.fn();
-    const props = { cantidadCarrito: 1, total: 1500, onDeshacer: jest.fn(), onCerrar, onVerCarrito: jest.fn() };
-    const aviso = () => ({ tipo: "agregado", producto: product, cantidadAgregada: 1 });
+    const onClose = jest.fn();
+    const props = { cartQuantity: 1, total: 1500, onUndo: jest.fn(), onClose, onSeeCart: jest.fn() };
+    const aviso = () => ({ tipo: "added", product: product, addedQuantity: 1 });
     const { rerender } = renderBase(<AddedToCartNotice {...props} aviso={aviso()} />);
 
     // Se cierra con el mouse encima: el mouseLeave nunca llega.
@@ -2041,7 +2041,7 @@ describe("ConfirmacionAgregarCarrito", () => {
     rerender(<AddedToCartNotice {...props} aviso={aviso()} />);
 
     act(() => jest.advanceTimersByTime(NOTICE_DURATION_MS));
-    expect(onCerrar).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -2075,7 +2075,7 @@ describe("Login", () => {
   it("validates credentials and completes a successful login", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onIniciarSesion = jest.fn();
+    props.onStartSession = jest.fn();
     const payload = btoa(
       JSON.stringify({ sub: "7", user_type: "client", exp: Math.floor(Date.now() / 1000) + 3600 })
     );
@@ -2093,19 +2093,19 @@ describe("Login", () => {
     await user.click(screen.getByRole("checkbox"));
     await user.click(within(document.querySelector("form")).getByRole("button", { name: "Iniciar sesión" }));
 
-    await waitFor(() => expect(props.onIniciarSesion).toHaveBeenCalledWith(
+    await waitFor(() => expect(props.onStartSession).toHaveBeenCalledWith(
       expect.objectContaining({ email: "client@example.com", userId: "7" }),
       true
     ));
   });
 
-  const loginConPerfil = async (perfil) => {
+  const loginWithProfile = async (profile) => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onIniciarSesion = jest.fn();
+    props.onStartSession = jest.fn();
     const payload = btoa(JSON.stringify({ sub: "7", user_type: "client" }));
     login.mockResolvedValue({ access_token: `h.${payload}.s`, token_type: "bearer" });
-    perfil();
+    profile();
 
     render(<Login {...props} onRegistro={jest.fn()} />);
     await user.type(screen.getByPlaceholderText("tu@email.com"), "Lucia@Example.com");
@@ -2115,39 +2115,39 @@ describe("Login", () => {
   };
 
   it("loads name and phone from the backend profile into the session", async () => {
-    const props = await loginConPerfil(() =>
+    const props = await loginWithProfile(() =>
       getProfile.mockResolvedValue({
-        nombre: "Lucia Gomez",
-        apellido: "",
+        displayName: "Lucia Gomez",
+        lastName: "",
         email: "lucia@example.com",
-        telefono: "099 123 456",
+        phone: "099 123 456",
       })
     );
 
-    await waitFor(() => expect(props.onIniciarSesion).toHaveBeenCalled());
+    await waitFor(() => expect(props.onStartSession).toHaveBeenCalled());
     expect(getProfile).toHaveBeenCalledWith(expect.stringMatching(/^h\./));
-    expect(props.onIniciarSesion).toHaveBeenCalledWith(
+    expect(props.onStartSession).toHaveBeenCalledWith(
       expect.objectContaining({
         token: expect.any(String),
         userId: "7",
-        nombre: "Lucia Gomez",
+        displayName: "Lucia Gomez",
         email: "lucia@example.com",
-        telefono: "099 123 456",
+        phone: "099 123 456",
       }),
       false
     );
   });
 
   it("still logs in when the profile cannot be loaded", async () => {
-    const props = await loginConPerfil(() =>
+    const props = await loginWithProfile(() =>
       getProfile.mockRejectedValue(new Error("No pudimos cargar tu perfil."))
     );
 
-    await waitFor(() => expect(props.onIniciarSesion).toHaveBeenCalled());
-    expect(props.onIniciarSesion.mock.calls[0][0]).toEqual(
+    await waitFor(() => expect(props.onStartSession).toHaveBeenCalled());
+    expect(props.onStartSession.mock.calls[0][0]).toEqual(
       expect.objectContaining({ userId: "7", email: "Lucia@Example.com" })
     );
-    expect(props.onIniciarSesion.mock.calls[0][0].telefono).toBeUndefined();
+    expect(props.onStartSession.mock.calls[0][0].phone).toBeUndefined();
   });
 
   it("shows the API error when login fails and forwards registration", async () => {
@@ -2177,7 +2177,7 @@ describe("Authentication helpers", () => {
     expect(isSessionValid({ token })).toBe(true);
     expect(isSessionValid({ token: "header.invalid.signature" })).toBe(false);
     expect(isSessionValid({ token: `header.${btoa(JSON.stringify({ exp: 1 }))}.signature` })).toBe(false);
-    expect(isSessionValid({ nombre: "Local User" })).toBe(true);
+    expect(isSessionValid({ displayName: "Local User" })).toBe(true);
     expect(isSessionValid(null)).toBe(false);
   });
 
@@ -2238,11 +2238,11 @@ describe("App", () => {
     const user = userEvent.setup();
     localStorage.setItem(
       "autobought-sesion",
-      JSON.stringify({ id: 1, nombre: "Test User" })
+      JSON.stringify({ id: 1, displayName: "Test User" })
     );
     addCartItem.mockResolvedValue({
-      items: [{ ...catalogProducts[0], cantidad: 1 }],
-      total: catalogProducts[0].precio,
+      items: [{ ...catalogProducts[0], quantity: 1 }],
+      total: catalogProducts[0].price,
     });
     renderBase(
       <MemoryRouter>
@@ -2263,23 +2263,23 @@ describe("App", () => {
 describe("App y Pit", () => {
   const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
 
-  const renderEn = (ruta) =>
+  const renderIn = (route) =>
     renderBase(
-      <MemoryRouter initialEntries={[ruta]}>
+      <MemoryRouter initialEntries={[route]}>
         <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
   it("shows the floating Pit to a client on the store pages", () => {
-    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
-    renderEn("/");
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, displayName: "Ana", token: `x.${payload}.y` }));
+    renderIn("/");
 
     expect(screen.getByRole("button", { name: "Abrir Pit, el asistente con IA" })).toBeInTheDocument();
   });
 
   it("does not show it without a session: the invitation asks to log in", async () => {
     const user = userEvent.setup();
-    renderEn("/");
+    renderIn("/");
 
     expect(screen.queryByRole("button", { name: /Abrir Pit/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Consultar a Pit" }));
@@ -2288,8 +2288,8 @@ describe("App y Pit", () => {
 
   it("opens Pit at the side from the home invitation, without a page of its own", async () => {
     const user = userEvent.setup();
-    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
-    renderEn("/");
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, displayName: "Ana", token: `x.${payload}.y` }));
+    renderIn("/");
 
     await user.click(screen.getByRole("button", { name: "Consultar a Pit" }));
 
@@ -2300,33 +2300,33 @@ describe("App y Pit", () => {
 
 describe("Accesos a Pit", () => {
   const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
-  const conSesion = () =>
-    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` }));
+  const withSession = () =>
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, displayName: "Ana", token: `x.${payload}.y` }));
 
   it("opens Pit from the menu; without a session it asks to log in", async () => {
     const user = userEvent.setup();
     const onLogin = jest.fn();
-    const { unmount } = render(<Navbar usuario={null} onLogin={onLogin} />);
+    const { unmount } = render(<Navbar sessionUser={null} onLogin={onLogin} />);
 
     await user.click(screen.getByRole("button", { name: /Pit IA/ }));
     expect(onLogin).toHaveBeenCalled();
     unmount();
 
-    conSesion();
-    render(<><Navbar usuario={{ id: 1, nombre: "Ana" }} onLogin={onLogin} /><PitPanel /></>);
+    withSession();
+    render(<><Navbar sessionUser={{ id: 1, displayName: "Ana" }} onLogin={onLogin} /><PitPanel /></>);
     await user.click(screen.getByRole("button", { name: /Pit IA/ }));
     expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
   });
 
   it("does not show Pit in the menu to the seller", () => {
-    render(<Navbar usuario={{ id: 1, nombre: "Vendedor", userType: SELLER_TYPE }} onLogin={jest.fn()} />);
+    render(<Navbar sessionUser={{ id: 1, displayName: "Vendedor", userType: SELLER_TYPE }} onLogin={jest.fn()} />);
 
     expect(screen.queryByRole("button", { name: /Pit IA/ })).not.toBeInTheDocument();
   });
 
   it("suggests Pit when a catalog search finds nothing, with the search already written", async () => {
     const user = userEvent.setup();
-    conSesion();
+    withSession();
     render(<><AssistantInvite variante="sinResultados" termino="ruido al frenar" /><PitPanel /></>);
 
     expect(screen.getByText("¿Buscabas por un problema del auto?")).toBeInTheDocument();
@@ -2339,11 +2339,11 @@ describe("Accesos a Pit", () => {
 
 describe("App avisos de stock", () => {
   const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
-  const agotado = { ...catalogProducts[2], id: "FAR-77", partId: 77, nombre: "Faro Agotado", stock: 0 };
+  const soldOut = { ...catalogProducts[2], id: "FAR-77", partId: 77, displayName: "Faro Agotado", stock: 0 };
 
   const renderCatalogo = async () => {
     const user = userEvent.setup();
-    getParts.mockResolvedValue([catalogProducts[0], agotado]);
+    getParts.mockResolvedValue([catalogProducts[0], soldOut]);
     renderBase(
       <MemoryRouter initialEntries={["/catalogo"]}>
         <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
@@ -2353,10 +2353,10 @@ describe("App avisos de stock", () => {
     return user;
   };
 
-  const conSesion = () =>
+  const withSession = () =>
     localStorage.setItem(
       "autobought-sesion",
-      JSON.stringify({ id: 1, nombre: "Ana", token: `x.${payload}.y` })
+      JSON.stringify({ id: 1, displayName: "Ana", token: `x.${payload}.y` })
     );
 
   it("solo los repuestos sin stock ofrecen el aviso", async () => {
@@ -2366,7 +2366,7 @@ describe("App avisos de stock", () => {
   });
 
   it("pide y cancela el aviso de un repuesto agotado", async () => {
-    conSesion();
+    withSession();
     const user = await renderCatalogo();
 
     await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
@@ -2383,7 +2383,7 @@ describe("App avisos de stock", () => {
   });
 
   it("muestra los avisos que ya había pedido", async () => {
-    conSesion();
+    withSession();
     getStockAlerts.mockResolvedValue([77]);
     await renderCatalogo();
 
@@ -2391,7 +2391,7 @@ describe("App avisos de stock", () => {
   });
 
   it("si falla, vuelve atrás y muestra el error", async () => {
-    conSesion();
+    withSession();
     addStockAlert.mockRejectedValue(new Error("No pudimos actualizar el aviso."));
     const user = await renderCatalogo();
 
@@ -2417,22 +2417,22 @@ describe("App favoritos", () => {
     return `x.${payload}.y`;
   };
 
-  const corazon = async (nombre) => {
-    const imagen = await screen.findByAltText(nombre);
-    return within(imagen.parentElement).getByRole("button");
+  const corazon = async (displayName) => {
+    const image = await screen.findByAltText(displayName);
+    return within(image.parentElement).getByRole("button");
   };
 
-  const renderApp = (ruta = "/") =>
+  const renderApp = (route = "/") =>
     renderBase(
-      <MemoryRouter initialEntries={[ruta]}>
-        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
+      <MemoryRouter initialEntries={[route]}>
+        <CartProvider><VehicleProvider><PitProvider><App /><CurrentRoute /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
   beforeEach(() => {
     localStorage.setItem(
       "autobought-sesion",
-      JSON.stringify({ id: 1, nombre: "Test User", token: tokenValido() })
+      JSON.stringify({ id: 1, displayName: "Test User", token: tokenValido() })
     );
   });
 
@@ -2455,25 +2455,25 @@ describe("App favoritos", () => {
     renderApp();
 
     await user.click(screen.getByTitle("Favoritos"));
-    await user.click(await screen.findByRole("button", { name: favorite.nombre }));
+    await user.click(await screen.findByRole("button", { name: favorite.displayName }));
 
-    expect(await screen.findByRole("heading", { level: 1, name: favorite.nombre })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: favorite.displayName })).toBeInTheDocument();
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/discos-de-freno-delanteros-22");
     expect(getPart).toHaveBeenCalledWith("22");
   });
 
   it("opens a cart suggestion using its backend ID in the URL", async () => {
     const user = userEvent.setup();
-    const itemCarrito = { ...catalogProducts[0], id: "21", partId: 21, cantidad: 1 };
+    const itemCart = { ...catalogProducts[0], id: "21", partId: 21, quantity: 1 };
     const suggestion = { ...catalogProducts[1], id: "22", partId: 22 };
-    getCart.mockResolvedValue({ items: [itemCarrito], total: itemCarrito.precio });
+    getCart.mockResolvedValue({ items: [itemCart], total: itemCart.price });
     getRecommendations.mockResolvedValue([suggestion]);
     getPart.mockResolvedValue(suggestion);
     renderApp("/carrito");
 
-    await user.click(await screen.findByRole("button", { name: suggestion.nombre }));
+    await user.click(await screen.findByRole("button", { name: suggestion.displayName }));
 
-    expect(await screen.findByRole("heading", { level: 1, name: suggestion.nombre })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: suggestion.displayName })).toBeInTheDocument();
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/discos-de-freno-delanteros-22");
     expect(getPart).toHaveBeenCalledWith("22");
   });
@@ -2489,17 +2489,17 @@ describe("App favoritos", () => {
     const user = userEvent.setup();
     renderApp();
 
-    const nombre = "Pastillas de Freno Delanteras Bosch";
+    const displayName = "Pastillas de Freno Delanteras Bosch";
     await user.click(screen.getByRole("button", { name: "Repuestos" }));
-    await user.click(await corazon(nombre));
+    await user.click(await corazon(displayName));
 
     expect(addFavoriteApi).toHaveBeenCalledWith("BP1234");
-    expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "true");
+    expect(await corazon(displayName)).toHaveAttribute("aria-pressed", "true");
 
-    await user.click(await corazon(nombre));
+    await user.click(await corazon(displayName));
 
     expect(removeFavoriteApi).toHaveBeenCalledWith("BP1234");
-    expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "false");
+    expect(await corazon(displayName)).toHaveAttribute("aria-pressed", "false");
   });
 
   it("reverts the heart and shows the error when the API fails", async () => {
@@ -2507,11 +2507,11 @@ describe("App favoritos", () => {
     addFavoriteApi.mockRejectedValue(new Error("No pudimos actualizar tus favoritos."));
     renderApp();
 
-    const nombre = "Pastillas de Freno Delanteras Bosch";
+    const displayName = "Pastillas de Freno Delanteras Bosch";
     await user.click(screen.getByRole("button", { name: "Repuestos" }));
-    await user.click(await corazon(nombre));
+    await user.click(await corazon(displayName));
 
-    await waitFor(async () => expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "false"));
+    await waitFor(async () => expect(await corazon(displayName)).toHaveAttribute("aria-pressed", "false"));
     expect(toast.error).toHaveBeenCalledWith("No pudimos actualizar tus favoritos.");
   });
 });
@@ -2523,9 +2523,9 @@ describe("App sesión", () => {
     const token = `x.${payload}.y`;
     localStorage.setItem(
       "autobought-sesion",
-      JSON.stringify({ id: 1, nombre: "Ana", email: "ana@example.com", token })
+      JSON.stringify({ id: 1, displayName: "Ana", email: "ana@example.com", token })
     );
-    getProfile.mockResolvedValue({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
+    getProfile.mockResolvedValue({ displayName: "Ana", lastName: "", email: "ana@example.com", phone: "" });
     let responder;
     updateProfile.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
 
@@ -2537,7 +2537,7 @@ describe("App sesión", () => {
     await user.click(await screen.findByRole("button", { name: "Editar" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
     await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
-    responder({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
+    responder({ displayName: "Ana", lastName: "", email: "ana@example.com", phone: "" });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
@@ -2547,12 +2547,12 @@ describe("App sesión", () => {
 
 describe("App verificación del correo", () => {
   const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
-  const sesionSinVerificar = {
-    userId: "1", nombre: "Ana", email: "ana@example.com", token: `x.${payload}.y`, emailVerificado: false,
+  const sessionWithoutVerify = {
+    userId: "1", displayName: "Ana", email: "ana@example.com", token: `x.${payload}.y`, verifiedEmail: false,
   };
 
   it("muestra el aviso a un cliente sin verificar", () => {
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
+    localStorage.setItem("autobought-sesion", JSON.stringify(sessionWithoutVerify));
 
     renderBase(
       <MemoryRouter>
@@ -2564,7 +2564,7 @@ describe("App verificación del correo", () => {
   });
 
   it("al abrir el enlace del mail con la sesión iniciada, saca el aviso", async () => {
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
+    localStorage.setItem("autobought-sesion", JSON.stringify(sessionWithoutVerify));
     verifyEmail.mockResolvedValue();
 
     renderBase(
@@ -2575,7 +2575,7 @@ describe("App verificación del correo", () => {
 
     expect(await screen.findByText(/Tu correo quedó verificado/)).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Verificación del correo" })).not.toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem("autobought-sesion")).emailVerificado).toBe(true);
+    expect(JSON.parse(localStorage.getItem("autobought-sesion")).verifiedEmail).toBe(true);
   });
 
   it("el enlace del mail también funciona sin sesión", async () => {
@@ -2593,10 +2593,10 @@ describe("App verificación del correo", () => {
 });
 
 describe("App rutas", () => {
-  const renderEn = (ruta) =>
+  const renderIn = (route) =>
     renderBase(
-      <MemoryRouter initialEntries={[ruta]}>
-        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
+      <MemoryRouter initialEntries={[route]}>
+        <CartProvider><VehicleProvider><PitProvider><App /><CurrentRoute /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -2606,18 +2606,18 @@ describe("App rutas", () => {
     getParts.mockResolvedValue([catalogProduct]);
     getPart.mockResolvedValue(catalogProduct);
 
-    renderEn("/catalogo");
+    renderIn("/catalogo");
     await user.click(await screen.findByRole("button", { name: /^Ver detalle de / }));
 
-    expect(await screen.findByRole("heading", { level: 1, name: catalogProduct.nombre })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: catalogProduct.displayName })).toBeInTheDocument();
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/pastillas-de-freno-delanteras-bosch-21");
     expect(getPart).toHaveBeenCalledWith("21");
   });
 
   it.each(["/favoritos", "/perfil", "/direcciones", "/historial", "/pago?pedido=1"])(
     "sends anonymous users from %s to the login instead of a blank page",
-    (ruta) => {
-      renderEn(ruta);
+    (route) => {
+      renderIn(route);
 
       expect(screen.getByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
     }
@@ -2625,7 +2625,7 @@ describe("App rutas", () => {
 
   it("shows the not found page for an unknown address and goes back home", async () => {
     const user = userEvent.setup();
-    renderEn("/no-existe");
+    renderIn("/no-existe");
 
     expect(screen.getByRole("heading", { name: "Esta página no existe" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Volver al inicio" }));
@@ -2636,12 +2636,12 @@ describe("App rutas", () => {
 
 describe("App renovación de sesión", () => {
   const MIN = 60 * 1000;
-  const sesionQueVenceEn = (minutos) => ({
+  const sessionThatExpiresIn = (minutes) => ({
     id: 1,
     userId: "1",
-    nombre: "Ana",
+    displayName: "Ana",
     email: "ana@example.com",
-    token: createToken(Date.now() + minutos * MIN),
+    token: createToken(Date.now() + minutes * MIN),
     tokenType: "bearer",
   });
 
@@ -2653,17 +2653,17 @@ describe("App renovación de sesión", () => {
     );
 
   it("replaces the token of a remembered session before it expires, keeping the rest of the session", async () => {
-    const sesion = sesionQueVenceEn(4);
-    const nuevo = createToken(Date.now() + 60 * MIN);
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
-    renewToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+    const session = sessionThatExpiresIn(4);
+    const newItem = createToken(Date.now() + 60 * MIN);
+    localStorage.setItem("autobought-sesion", JSON.stringify(session));
+    renewToken.mockResolvedValueOnce({ access_token: newItem, token_type: "bearer" });
 
     renderApp();
 
     await waitFor(() =>
-      expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe(nuevo)
+      expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe(newItem)
     );
-    expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({ ...sesion, token: nuevo });
+    expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({ ...session, token: newItem });
     expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
     expect(renewToken).toHaveBeenCalledTimes(1);
     expect(toast.error).not.toHaveBeenCalled();
@@ -2672,20 +2672,20 @@ describe("App renovación de sesión", () => {
   });
 
   it("keeps a non-remembered session in sessionStorage after renewing", async () => {
-    const nuevo = createToken(Date.now() + 60 * MIN);
-    sessionStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
-    renewToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+    const newItem = createToken(Date.now() + 60 * MIN);
+    sessionStorage.setItem("autobought-sesion", JSON.stringify(sessionThatExpiresIn(4)));
+    renewToken.mockResolvedValueOnce({ access_token: newItem, token_type: "bearer" });
 
     renderApp();
 
     await waitFor(() =>
-      expect(JSON.parse(sessionStorage.getItem("autobought-sesion")).token).toBe(nuevo)
+      expect(JSON.parse(sessionStorage.getItem("autobought-sesion")).token).toBe(newItem)
     );
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
   });
 
   it("does not ask for a new token while the current one is far from expiring", async () => {
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(60)));
+    localStorage.setItem("autobought-sesion", JSON.stringify(sessionThatExpiresIn(60)));
 
     renderApp();
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -2694,7 +2694,7 @@ describe("App renovación de sesión", () => {
   });
 
   it("closes the session and warns the client when the API answers 401", async () => {
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
+    localStorage.setItem("autobought-sesion", JSON.stringify(sessionThatExpiresIn(4)));
     renewToken.mockRejectedValueOnce(Object.assign(new Error("vencida"), { status: 401 }));
 
     renderApp();
@@ -2706,23 +2706,23 @@ describe("App renovación de sesión", () => {
 
 describe("App sesión inválida (401)", () => {
   const MIN = 60 * 1000;
-  const sesion = {
+  const session = {
     id: 1,
     userId: "1",
-    nombre: "Ana",
+    displayName: "Ana",
     email: "ana@example.com",
     token: createToken(Date.now() + 60 * MIN),
     tokenType: "bearer",
   };
 
   // Captura el manejador que App registra en api.js con alSesionInvalida.
-  const renderApp = (ruta = "/favoritos") => {
+  const renderApp = (route = "/favoritos") => {
     const desregistrar = jest.fn();
     onInvalidSession.mockReturnValue(desregistrar);
 
     const vista = renderBase(
-      <MemoryRouter initialEntries={[ruta]}>
-        <CartProvider><VehicleProvider><PitProvider><App /><RutaActual /></PitProvider></VehicleProvider></CartProvider>
+      <MemoryRouter initialEntries={[route]}>
+        <CartProvider><VehicleProvider><PitProvider><App /><CurrentRoute /></PitProvider></VehicleProvider></CartProvider>
       </MemoryRouter>
     );
 
@@ -2730,7 +2730,7 @@ describe("App sesión inválida (401)", () => {
   };
 
   it("closes the session, warns once and goes to the login when the handler fires", async () => {
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    localStorage.setItem("autobought-sesion", JSON.stringify(session));
     const { manejador } = renderApp();
 
     act(() => manejador());
@@ -2742,7 +2742,7 @@ describe("App sesión inválida (401)", () => {
   });
 
   it("warns and navigates only once when several requests answer 401 at once", async () => {
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    localStorage.setItem("autobought-sesion", JSON.stringify(session));
     const { manejador } = renderApp();
 
     act(() => {
@@ -2766,13 +2766,13 @@ describe("App sesión inválida (401)", () => {
 
   it("rolls back a favorite without a second toast when the API answers 401", async () => {
     const user = userEvent.setup();
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    localStorage.setItem("autobought-sesion", JSON.stringify(session));
     addFavoriteApi.mockRejectedValueOnce(Object.assign(new Error("Tu sesión venció."), { status: 401 }));
     renderApp("/");
 
-    const nombre = "Pastillas de Freno Delanteras Bosch";
+    const displayName = "Pastillas de Freno Delanteras Bosch";
     const corazon = async () =>
-      within((await screen.findByAltText(nombre)).parentElement).getByRole("button");
+      within((await screen.findByAltText(displayName)).parentElement).getByRole("button");
     await user.click(screen.getByRole("button", { name: "Repuestos" }));
     await user.click(await corazon());
 
@@ -2791,7 +2791,7 @@ describe("App sesión inválida (401)", () => {
   });
 
   it("follows the token saved by another screen, so renewal works on the new token", async () => {
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
+    localStorage.setItem("autobought-sesion", JSON.stringify(session));
     renderApp("/");
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(renewToken).not.toHaveBeenCalled();
@@ -2815,40 +2815,40 @@ describe("Direcciones ante un 401", () => {
   // El 401 ya lo maneja alSesionInvalida (cierra la sesión y va a /login):
   // la pantalla no tiene que sumar un aviso propio.
   const error401 = () => Object.assign(new Error("Tu sesión venció. Iniciá sesión de nuevo."), { status: 401 });
-  const direccion = {
-    id: 1, nombre: "Casa", calle: "Av. Italia", numero: "1234", apartamento: "",
-    ciudad: "Montevideo", departamento: "Montevideo", codigoPostal: "", principal: false,
+  const shippingAddress = {
+    id: 1, displayName: "Casa", street: "Av. Italia", number: "1234", apartamento: "",
+    city: "Montevideo", departamento: "Montevideo", codePostal: "", primary: false,
   };
-  const eliminar = async (user) => {
+  const deleteValue = async (user) => {
     await user.click(await screen.findByRole("button", { name: "Eliminar la dirección Casa" }));
     await user.click(screen.getByRole("button", { name: "Sí, eliminar" }));
   };
-  const usarComoPrincipal = async (user) => {
+  const useAsPrimary = async (user) => {
     await user.click(await screen.findByRole("button", { name: "Usar como principal" }));
   };
 
   it.each([
-    ["deleting", eliminar, () => deleteAddressApi],
-    ["marking as primary", usarComoPrincipal, () => setPrimaryAddress],
-  ])("%s does not show an error on 401", async (_caso, hacer, accion) => {
+    ["deleting", deleteValue, () => deleteAddressApi],
+    ["marking as primary", useAsPrimary, () => setPrimaryAddress],
+  ])("%s does not show an error on 401", async (_caso, hacer, action) => {
     const user = userEvent.setup();
-    getAddresses.mockResolvedValue([direccion]);
-    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
-    accion().mockRejectedValueOnce(error401());
+    getAddresses.mockResolvedValue([shippingAddress]);
+    render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
+    action().mockRejectedValueOnce(error401());
 
     await hacer(user);
 
-    await waitFor(() => expect(accion()).toHaveBeenCalled());
+    await waitFor(() => expect(action()).toHaveBeenCalled());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("still shows other errors in the page", async () => {
     const user = userEvent.setup();
-    getAddresses.mockResolvedValue([direccion]);
+    getAddresses.mockResolvedValue([shippingAddress]);
     deleteAddressApi.mockRejectedValueOnce(new Error("No encontramos esa dirección."));
-    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
+    render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
 
-    await eliminar(user);
+    await deleteValue(user);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("No encontramos esa dirección.");
   });
@@ -2858,25 +2858,25 @@ describe("Perfil", () => {
   it("edits personal information and exposes profile actions", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onActualizarUsuario = jest.fn();
-    props.onDirecciones = jest.fn();
-    props.onHistorial = jest.fn();
-    props.onCerrarSesion = jest.fn();
-    const usuario = {
+    props.onUpdateUser = jest.fn();
+    props.onAddresses = jest.fn();
+    props.onHistory = jest.fn();
+    props.onCloseSession = jest.fn();
+    const sessionUser = {
       id: 1,
-      nombre: "Ana",
-      apellido: "Perez",
+      displayName: "Ana",
+      lastName: "Perez",
       email: "ana@example.com",
-      telefono: "099123456",
+      phone: "099123456",
     };
     updateProfile.mockResolvedValue({
-      nombre: "Ana Maria Perez",
-      apellido: "",
+      displayName: "Ana Maria Perez",
+      lastName: "",
       email: "ana@example.com",
-      telefono: "099 123 456",
+      phone: "099 123 456",
     });
 
-    render(<Profile {...props} usuario={usuario} />);
+    render(<Profile {...props} sessionUser={sessionUser} />);
     expect(screen.getByRole("heading", { name: "Mis datos" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Editar" }));
     expect(screen.queryByText("APELLIDO")).not.toBeInTheDocument();
@@ -2887,23 +2887,23 @@ describe("Perfil", () => {
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));
 
     expect(updateProfile).toHaveBeenCalledWith(
-      expect.objectContaining({ nombre: "Ana Maria Perez", apellido: "" })
+      expect.objectContaining({ displayName: "Ana Maria Perez", lastName: "" })
     );
-    expect(props.onActualizarUsuario).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 1, nombre: "Ana Maria Perez" })
+    expect(props.onUpdateUser).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1, displayName: "Ana Maria Perez" })
     );
-    expect(props.onCerrarSesion).toHaveBeenCalled();
+    expect(props.onCloseSession).toHaveBeenCalled();
   });
 
   it("keeps editing and shows the error when saving fails", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onActualizarUsuario = jest.fn();
+    props.onUpdateUser = jest.fn();
     updateProfile.mockRejectedValue(
       new Error("Revisá el nombre y el teléfono (ej: 099 123 456).")
     );
 
-    render(<Profile {...props} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
+    render(<Profile {...props} sessionUser={{ displayName: "Ana", email: "ana@example.com", phone: "099 123 456" }} />);
     await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
@@ -2911,12 +2911,12 @@ describe("Perfil", () => {
       await screen.findByText("Revisá el nombre y el teléfono (ej: 099 123 456).")
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /guardar cambios/i })).toBeInTheDocument();
-    expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+    expect(props.onUpdateUser).not.toHaveBeenCalled();
   });
 
   it("does not let the user remove the phone, only change it", async () => {
     const user = userEvent.setup();
-    render(<Profile {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
+    render(<Profile {...navigationProps()} sessionUser={{ displayName: "Ana", email: "ana@example.com", phone: "099 123 456" }} />);
 
     await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.clear(screen.getByDisplayValue("099 123 456"));
@@ -2929,24 +2929,24 @@ describe("Perfil", () => {
   it("ignores a late profile response once the user started editing", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    props.onActualizarUsuario = jest.fn();
+    props.onUpdateUser = jest.fn();
     let responder;
     getProfile.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
 
-    render(<Profile {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Profile {...props} sessionUser={{ token: "t", displayName: "Ana", email: "ana@example.com" }} />);
     await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.type(screen.getByDisplayValue("Ana"), " Maria");
-    responder({ nombre: "Ana vieja", apellido: "", email: "ana@example.com", telefono: "" });
+    responder({ displayName: "Ana vieja", lastName: "", email: "ana@example.com", phone: "" });
     await waitFor(() => expect(getProfile).toHaveBeenCalled());
 
-    expect(props.onActualizarUsuario).not.toHaveBeenCalled();
+    expect(props.onUpdateUser).not.toHaveBeenCalled();
     expect(screen.getByDisplayValue("Ana Maria")).toBeInTheDocument();
   });
 
   it("warns when the saved profile could not be loaded", async () => {
     getProfile.mockRejectedValue(new Error("No pudimos cargar tu perfil."));
 
-    render(<Profile {...navigationProps()} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Profile {...navigationProps()} sessionUser={{ token: "t", displayName: "Ana", email: "ana@example.com" }} />);
 
     expect(
       await screen.findByText("No pudimos actualizar tus datos, puede que no estén al día.")
@@ -2956,7 +2956,7 @@ describe("Perfil", () => {
   it("clears the save error when the user edits the data again", async () => {
     const user = userEvent.setup();
     updateProfile.mockRejectedValue(new Error("Revisá el nombre y el teléfono (ej: 099 123 456)."));
-    render(<Profile {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
+    render(<Profile {...navigationProps()} sessionUser={{ displayName: "Ana", email: "ana@example.com", phone: "099 123 456" }} />);
 
     await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
@@ -2969,26 +2969,26 @@ describe("Perfil", () => {
 
   it("refreshes the session with the profile from the backend", async () => {
     const props = navigationProps();
-    props.onActualizarUsuario = jest.fn();
+    props.onUpdateUser = jest.fn();
     getProfile.mockResolvedValue({
-      nombre: "Ana desde otro dispositivo",
-      apellido: "",
+      displayName: "Ana desde otro dispositivo",
+      lastName: "",
       email: "ana@example.com",
-      telefono: "",
+      phone: "",
     });
 
-    render(<Profile {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Profile {...props} sessionUser={{ token: "t", displayName: "Ana", email: "ana@example.com" }} />);
 
     await waitFor(() =>
-      expect(props.onActualizarUsuario).toHaveBeenCalledWith(
-        expect.objectContaining({ token: "t", nombre: "Ana desde otro dispositivo" })
+      expect(props.onUpdateUser).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "t", displayName: "Ana desde otro dispositivo" })
       )
     );
     expect(getProfile).toHaveBeenCalledWith("t");
   });
 
   it("shows whether the email is verified", () => {
-    render(<Profile {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", emailVerificado: true }} />);
+    render(<Profile {...navigationProps()} sessionUser={{ displayName: "Ana", email: "ana@example.com", verifiedEmail: true }} />);
 
     expect(screen.getByText("Verificado")).toBeInTheDocument();
   });
@@ -2997,8 +2997,8 @@ describe("Perfil", () => {
     const user = userEvent.setup();
     render(
       <>
-        <Profile {...navigationProps()} usuario={{ nombre: "Ana", apellido: "Pérez", email: "ana@example.com" }} />
-        <RutaActual />
+        <Profile {...navigationProps()} sessionUser={{ displayName: "Ana", lastName: "Pérez", email: "ana@example.com" }} />
+        <CurrentRoute />
       </>
     );
 
@@ -3007,25 +3007,25 @@ describe("Perfil", () => {
     // El nombre y el correo, arriba del menú.
     expect(within(menu.closest("aside")).getByText("Ana Pérez")).toBeInTheDocument();
 
-    for (const [seccion, ruta] of [
+    for (const [section, route] of [
       ["Mis compras", "/pedidos"],
       ["Direcciones", "/direcciones"],
       ["Seguridad", "/seguridad"],
       ["Notificaciones", "/notificaciones"],
     ]) {
-      await user.click(within(menu).getByRole("button", { name: seccion }));
-      expect(screen.getByTestId("ruta-actual")).toHaveTextContent(ruta);
+      await user.click(within(menu).getByRole("button", { name: section }));
+      expect(screen.getByTestId("ruta-actual")).toHaveTextContent(route);
     }
   });
 
   it("the password and the mails have their own sections", () => {
-    const usuario = { nombre: "Ana", email: "ana@example.com", recibeMarketing: true };
-    const { unmount } = render(<Security {...navigationProps()} usuario={usuario} />);
+    const sessionUser = { displayName: "Ana", email: "ana@example.com", recibeMarketing: true };
+    const { unmount } = render(<Security {...navigationProps()} sessionUser={sessionUser} />);
     expect(screen.getByRole("heading", { name: "Seguridad" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cambiar contraseña" })).toBeInTheDocument();
     unmount();
 
-    render(<Notifications {...navigationProps()} usuario={usuario} />);
+    render(<Notifications {...navigationProps()} sessionUser={sessionUser} />);
     expect(screen.getByRole("heading", { name: "Notificaciones" })).toBeInTheDocument();
     expect(screen.getByText("Ofertas y recordatorios por mail")).toBeInTheDocument();
   });
@@ -3034,8 +3034,8 @@ describe("Perfil", () => {
     const user = userEvent.setup();
     render(
       <>
-        <AccountHome {...navigationProps()} usuario={{ nombre: "Ana Pérez", email: "ana@example.com" }} />
-        <RutaActual />
+        <AccountHome {...navigationProps()} sessionUser={{ displayName: "Ana Pérez", email: "ana@example.com" }} />
+        <CurrentRoute />
       </>
     );
 
@@ -3046,8 +3046,8 @@ describe("Perfil", () => {
 
   it("cancels profile edits and restores the saved values", async () => {
     const user = userEvent.setup();
-    const usuario = { nombre: "Ana", email: "ana@example.com" };
-    render(<Profile {...navigationProps()} usuario={usuario} />);
+    const sessionUser = { displayName: "Ana", email: "ana@example.com" };
+    render(<Profile {...navigationProps()} sessionUser={sessionUser} />);
     await user.click(screen.getByRole("button", { name: "Editar" }));
     const nameInput = screen.getByDisplayValue("Ana");
     await user.clear(nameInput);
@@ -3060,22 +3060,22 @@ describe("Perfil", () => {
 });
 
 describe("CambiarPassword", () => {
-  const completar = async (user, { actual, nueva, repetir }) => {
+  const complete = async (user, { current, newPassword, repeat }) => {
     await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
-    if (actual) await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), actual);
-    if (nueva) await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), nueva);
-    if (repetir) await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), repetir);
+    if (current) await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), current);
+    if (newPassword) await user.type(screen.getByLabelText("NUEVA CONTRASEÑA"), newPassword);
+    if (repeat) await user.type(screen.getByLabelText("REPETIR NUEVA CONTRASEÑA"), repeat);
     await user.click(screen.getByRole("button", { name: "Guardar contraseña" }));
   };
 
-  const respuesta = { access_token: "jwt-nuevo", token_type: "bearer" };
+  const response = { access_token: "jwt-nuevo", token_type: "bearer" };
 
   it("changes the password and shows a confirmation", async () => {
     const user = userEvent.setup();
-    changePassword.mockResolvedValue(respuesta);
+    changePassword.mockResolvedValue(response);
     render(<ChangePassword />);
 
-    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    await complete(user, { current: "secreto123", newPassword: "nueva-clave-1", repeat: "nueva-clave-1" });
 
     expect(changePassword).toHaveBeenCalledWith("secreto123", "nueva-clave-1");
     expect(await screen.findByText("Tu contraseña se actualizó correctamente.")).toBeInTheDocument();
@@ -3084,16 +3084,16 @@ describe("CambiarPassword", () => {
 
   it("saves the new token in the session, keeping the rest of it, before showing the success", async () => {
     const user = userEvent.setup();
-    const sesion = { id: 1, nombre: "Ana", email: "ana@example.com", token: "jwt-viejo", tokenType: "bearer" };
-    localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
-    changePassword.mockResolvedValue(respuesta);
+    const session = { id: 1, displayName: "Ana", email: "ana@example.com", token: "jwt-viejo", tokenType: "bearer" };
+    localStorage.setItem("autobought-sesion", JSON.stringify(session));
+    changePassword.mockResolvedValue(response);
     render(<ChangePassword />);
 
-    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    await complete(user, { current: "secreto123", newPassword: "nueva-clave-1", repeat: "nueva-clave-1" });
 
     expect(await screen.findByText("Tu contraseña se actualizó correctamente.")).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({
-      ...sesion,
+      ...session,
       token: "jwt-nuevo",
       tokenType: "bearer",
     });
@@ -3103,10 +3103,10 @@ describe("CambiarPassword", () => {
   it("keeps a non-remembered session in sessionStorage when saving the new token", async () => {
     const user = userEvent.setup();
     sessionStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
-    changePassword.mockResolvedValue(respuesta);
+    changePassword.mockResolvedValue(response);
     render(<ChangePassword />);
 
-    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    await complete(user, { current: "secreto123", newPassword: "nueva-clave-1", repeat: "nueva-clave-1" });
 
     await screen.findByText("Tu contraseña se actualizó correctamente.");
     expect(JSON.parse(sessionStorage.getItem("autobought-sesion")).token).toBe("jwt-nuevo");
@@ -3119,7 +3119,7 @@ describe("CambiarPassword", () => {
     changePassword.mockResolvedValue(null);
     render(<ChangePassword />);
 
-    await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    await complete(user, { current: "secreto123", newPassword: "nueva-clave-1", repeat: "nueva-clave-1" });
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/iniciá sesión de nuevo/i);
     expect(screen.queryByText("Tu contraseña se actualizó correctamente.")).not.toBeInTheDocument();
@@ -3132,7 +3132,7 @@ describe("CambiarPassword", () => {
     changePassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
     render(<ChangePassword />);
 
-    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    await complete(user, { current: "mal", newPassword: "nueva-clave-1", repeat: "nueva-clave-1" });
 
     await screen.findByText("La contraseña actual es incorrecta.");
     expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe("jwt-viejo");
@@ -3142,7 +3142,7 @@ describe("CambiarPassword", () => {
     const user = userEvent.setup();
     render(<ChangePassword />);
 
-    await completar(user, {});
+    await complete(user, {});
 
     expect(screen.getByText("Ingresá tu contraseña actual.")).toBeInTheDocument();
     expect(screen.getByText("La contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
@@ -3156,13 +3156,13 @@ describe("CambiarPassword", () => {
     ["equal to the current one", "secreto123", "secreto123", "La nueva contraseña tiene que ser distinta de la actual."],
     ["containing the email", "lucia2026", "lucia2026", "La contraseña no puede contener tu correo."],
     ["not repeated", "nueva-clave-1", "otra-clave-1", "Las contraseñas no coinciden."],
-  ])("rejects a new password %s", async (_caso, nueva, repetir, mensaje) => {
+  ])("rejects a new password %s", async (_caso, newPassword, repeat, message) => {
     const user = userEvent.setup();
     render(<ChangePassword email="lucia@example.com" />);
 
-    await completar(user, { actual: "secreto123", nueva, repetir });
+    await complete(user, { current: "secreto123", newPassword, repeat });
 
-    expect(screen.getByText(mensaje)).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
     expect(changePassword).not.toHaveBeenCalled();
   });
 
@@ -3171,7 +3171,7 @@ describe("CambiarPassword", () => {
     changePassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
     render(<ChangePassword />);
 
-    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    await complete(user, { current: "mal", newPassword: "nueva-clave-1", repeat: "nueva-clave-1" });
 
     expect(await screen.findByText("La contraseña actual es incorrecta.")).toBeInTheDocument();
     expect(screen.getByLabelText("CONTRASEÑA ACTUAL")).toBeInTheDocument();
@@ -3182,7 +3182,7 @@ describe("CambiarPassword", () => {
     changePassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
     render(<ChangePassword />);
 
-    await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
+    await complete(user, { current: "mal", newPassword: "nueva-clave-1", repeat: "nueva-clave-1" });
     expect(await screen.findByText("La contraseña actual es incorrecta.")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), "x");
@@ -3218,24 +3218,24 @@ describe("Registro", () => {
     return { user, props };
   };
 
-  const completar = async (user, datos = {}) => {
+  const complete = async (user, info = {}) => {
     const d = {
-      nombre: "Lucia",
-      apellido: "Gomez",
+      displayName: "Lucia",
+      lastName: "Gomez",
       email: "Lucia@Example.com",
-      telefono: "099123456",
+      phone: "099123456",
       password: "secreto123",
-      confirmar: "secreto123",
-      terminos: true,
-      ...datos,
+      confirm: "secreto123",
+      terms: true,
+      ...info,
     };
-    await user.type(screen.getByPlaceholderText("Tu nombre"), d.nombre);
-    await user.type(screen.getByPlaceholderText("Tu apellido"), d.apellido);
+    await user.type(screen.getByPlaceholderText("Tu nombre"), d.displayName);
+    await user.type(screen.getByPlaceholderText("Tu apellido"), d.lastName);
     await user.type(screen.getByPlaceholderText("tu@email.com"), d.email);
-    await user.type(screen.getByPlaceholderText("099 123 456"), d.telefono);
+    await user.type(screen.getByPlaceholderText("099 123 456"), d.phone);
     await user.type(screen.getByPlaceholderText("Mínimo 8 caracteres"), d.password);
-    await user.type(screen.getByPlaceholderText("Repetí tu contraseña"), d.confirmar);
-    if (d.terminos) await user.click(screen.getByRole("checkbox"));
+    await user.type(screen.getByPlaceholderText("Repetí tu contraseña"), d.confirm);
+    if (d.terms) await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
   };
 
@@ -3243,14 +3243,14 @@ describe("Registro", () => {
     register.mockResolvedValue({ access_token: fakeToken(), token_type: "bearer" });
     const { user, props } = renderRegistro();
 
-    await completar(user);
+    await complete(user);
 
     await waitFor(() => expect(props.onRegistroExitoso).toHaveBeenCalled());
     expect(register).toHaveBeenCalledWith({
-      nombre: "Lucia",
-      apellido: "Gomez",
+      displayName: "Lucia",
+      lastName: "Gomez",
       email: "Lucia@Example.com",
-      telefono: "099123456",
+      phone: "099123456",
       password: "secreto123",
     });
     expect(props.onRegistroExitoso).toHaveBeenCalledWith(
@@ -3259,9 +3259,9 @@ describe("Registro", () => {
         userId: "7",
         userType: "client",
         email: "lucia@example.com",
-        nombre: "Lucia Gomez",
-        apellido: "",
-        telefono: "099 123 456",
+        displayName: "Lucia Gomez",
+        lastName: "",
+        phone: "099 123 456",
       })
     );
     // Ya no se guardan usuarios (y menos contraseñas) en el navegador.
@@ -3272,7 +3272,7 @@ describe("Registro", () => {
     register.mockRejectedValue(new Error("El correo ya está en uso."));
     const { user, props } = renderRegistro();
 
-    await completar(user, { email: "test@autobought.com" });
+    await complete(user, { email: "test@autobought.com" });
 
     expect(await screen.findByText("El correo ya está en uso.")).toBeInTheDocument();
     expect(props.onRegistroExitoso).not.toHaveBeenCalled();
@@ -3295,38 +3295,38 @@ describe("Registro", () => {
   });
 
   it.each([
-    ["a name with numbers", { nombre: "Lucia2" }, "El nombre solo puede tener letras, espacios, apóstrofos y guiones."],
-    ["a one letter surname", { apellido: "G" }, "El apellido tiene que tener al menos 2 letras."],
+    ["a name with numbers", { displayName: "Lucia2" }, "El nombre solo puede tener letras, espacios, apóstrofos y guiones."],
+    ["a one letter surname", { lastName: "G" }, "El apellido tiene que tener al menos 2 letras."],
     ["a malformed email", { email: "no-es-un-correo" }, "Ingresá un correo electrónico válido."],
-    ["a non-Uruguayan phone", { telefono: "+54 9 11 1234 5678" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
-    ["a too short phone", { telefono: "099 12" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
+    ["a non-Uruguayan phone", { phone: "+54 9 11 1234 5678" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
+    ["a too short phone", { phone: "099 12" }, "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."],
     [
       "a password shorter than 8 characters",
-      { password: "clave12", confirmar: "clave12" },
+      { password: "clave12", confirm: "clave12" },
       "La contraseña tiene que tener al menos 8 caracteres.",
     ],
     [
       "a password without numbers",
-      { password: "solotexto", confirmar: "solotexto" },
+      { password: "solotexto", confirm: "solotexto" },
       "La contraseña tiene que tener al menos una letra y un número.",
     ],
     [
       "a password that contains the email",
-      { password: "lucia2026", confirmar: "lucia2026" },
+      { password: "lucia2026", confirm: "lucia2026" },
       "La contraseña no puede contener tu correo.",
     ],
     [
       "passwords that do not match",
-      { confirmar: "otra-cosa-123" },
+      { confirm: "otra-cosa-123" },
       "Las contraseñas no coinciden.",
     ],
-    ["unaccepted terms", { terminos: false }, "Tenés que aceptar los términos y condiciones."],
-  ])("does not call the API with %s", async (_caso, datos, mensaje) => {
+    ["unaccepted terms", { terms: false }, "Tenés que aceptar los términos y condiciones."],
+  ])("does not call the API with %s", async (_caso, info, message) => {
     const { user, props } = renderRegistro();
 
-    await completar(user, datos);
+    await complete(user, info);
 
-    expect(screen.getByText(mensaje)).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
     expect(register).not.toHaveBeenCalled();
     expect(props.onRegistroExitoso).not.toHaveBeenCalled();
   });
@@ -3334,12 +3334,12 @@ describe("Registro", () => {
   it("shows backend validation errors under their field", async () => {
     register.mockRejectedValue(
       Object.assign(new Error("Revisá los datos ingresados."), {
-        campos: { password: "Esa contraseña es muy común. Elegí otra." },
+        fields: { password: "Esa contraseña es muy común. Elegí otra." },
       })
     );
     const { user } = renderRegistro();
 
-    await completar(user);
+    await complete(user);
 
     expect(await screen.findByText("Esa contraseña es muy común. Elegí otra.")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Mínimo 8 caracteres")).toHaveAttribute("aria-invalid", "true");
@@ -3350,7 +3350,7 @@ describe("Registro", () => {
     register.mockReturnValue(new Promise((resolve) => (resolver = resolve)));
     const { user } = renderRegistro();
 
-    await completar(user);
+    await complete(user);
 
     expect(await screen.findByRole("button", { name: /creando cuenta/i })).toBeDisabled();
     resolver({ access_token: fakeToken(), token_type: "bearer" });
@@ -3363,12 +3363,12 @@ describe("Direcciones", () => {
     let savedAddresses = [];
     getAddresses.mockImplementation(() => Promise.resolve(savedAddresses));
     createAddress.mockImplementation(async (address) => {
-      savedAddresses = [{ ...address, id: 1, principal: true }];
+      savedAddresses = [{ ...address, id: 1, primary: true }];
     });
     deleteAddressApi.mockImplementation(async (id) => {
       savedAddresses = savedAddresses.filter((address) => address.id !== id);
     });
-    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
+    render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
 
     await user.click(await screen.findByRole("button", { name: /agregar dirección/i }));
     await user.type(screen.getByLabelText("NOMBRE DE LA DIRECCIÓN *"), "Casa");
@@ -3386,29 +3386,29 @@ describe("Direcciones", () => {
     await user.click(screen.getByRole("button", { name: "Sí, eliminar" }));
     expect(await screen.findByText("Todavía no tenés direcciones guardadas.")).toBeInTheDocument();
     expect(createAddress).toHaveBeenCalledWith(expect.objectContaining({
-      nombre: "Casa",
+      displayName: "Casa",
       departamento: "Montevideo",
     }));
     expect(deleteAddressApi).toHaveBeenCalledWith(1);
   });
 
-  const completarDireccion = async (user, d = {}) => {
-    const datos = { nombre: "Casa", ciudad: "Montevideo", calle: "Av. Italia", numero: "1234", departamento: "Montevideo", ...d };
+  const completeAddress = async (user, d = {}) => {
+    const info = { displayName: "Casa", city: "Montevideo", street: "Av. Italia", number: "1234", departamento: "Montevideo", ...d };
     await user.click(await screen.findByRole("button", { name: /agregar dirección/i }));
-    if (datos.nombre) await user.type(screen.getByPlaceholderText("Ej: Casa"), datos.nombre);
-    if (datos.ciudad) await user.type(screen.getByPlaceholderText("Ej: Montevideo"), datos.ciudad);
-    if (datos.calle) await user.type(screen.getByPlaceholderText("Ej: Av. Italia"), datos.calle);
-    if (datos.numero) await user.type(screen.getByPlaceholderText("Ej: 1234 o S/N"), datos.numero);
-    if (datos.codigoPostal) await user.type(screen.getByPlaceholderText("Opcional (ej: 11300)"), datos.codigoPostal);
-    if (datos.departamento) await user.selectOptions(screen.getByRole("combobox"), datos.departamento);
+    if (info.displayName) await user.type(screen.getByPlaceholderText("Ej: Casa"), info.displayName);
+    if (info.city) await user.type(screen.getByPlaceholderText("Ej: Montevideo"), info.city);
+    if (info.street) await user.type(screen.getByPlaceholderText("Ej: Av. Italia"), info.street);
+    if (info.number) await user.type(screen.getByPlaceholderText("Ej: 1234 o S/N"), info.number);
+    if (info.codePostal) await user.type(screen.getByPlaceholderText("Opcional (ej: 11300)"), info.codePostal);
+    if (info.departamento) await user.selectOptions(screen.getByRole("combobox"), info.departamento);
     await user.click(screen.getByRole("button", { name: /guardar dirección/i }));
   };
 
   it("shows an error under each required field", async () => {
     const user = userEvent.setup();
-    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
+    render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
 
-    await completarDireccion(user, { nombre: "", ciudad: "", calle: "", numero: "", departamento: "" });
+    await completeAddress(user, { displayName: "", city: "", street: "", number: "", departamento: "" });
 
     expect(screen.getByText("Poné un nombre para la dirección (ej: Casa).")).toBeInTheDocument();
     expect(screen.getByText("La calle no puede estar vacía.")).toBeInTheDocument();
@@ -3419,36 +3419,36 @@ describe("Direcciones", () => {
   });
 
   it.each([
-    ["a city of another department", { ciudad: "Montevideo", departamento: "Artigas" }, "Montevideo no está en el departamento de Artigas."],
-    ["a door number with letters only", { numero: "abc" }, "Ingresá un número de puerta válido (ej: 1234, 1234B, 1234 bis o S/N)."],
-    ["a street without letters", { calle: "1234" }, "Ingresá un nombre de calle válido (ej: Av. Italia, 18 de Julio)."],
-    ["a postal code that is not 5 digits", { codigoPostal: "113" }, "El código postal tiene que tener 5 dígitos."],
-  ])("rejects %s", async (_caso, datos, mensaje) => {
+    ["a city of another department", { city: "Montevideo", departamento: "Artigas" }, "Montevideo no está en el departamento de Artigas."],
+    ["a door number with letters only", { number: "abc" }, "Ingresá un número de puerta válido (ej: 1234, 1234B, 1234 bis o S/N)."],
+    ["a street without letters", { street: "1234" }, "Ingresá un nombre de calle válido (ej: Av. Italia, 18 de Julio)."],
+    ["a postal code that is not 5 digits", { codePostal: "113" }, "El código postal tiene que tener 5 dígitos."],
+  ])("rejects %s", async (_caso, info, message) => {
     const user = userEvent.setup();
-    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
+    render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
 
-    await completarDireccion(user, datos);
+    await completeAddress(user, info);
 
-    expect(screen.getByText(mensaje)).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
     expect(createAddress).not.toHaveBeenCalled();
   });
 
   it("shows a duplicated address error from the API", async () => {
     const user = userEvent.setup();
-    createAddress.mockRejectedValue(Object.assign(new Error("Ya tenés guardada esta dirección."), { campos: {} }));
-    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
+    createAddress.mockRejectedValue(Object.assign(new Error("Ya tenés guardada esta dirección."), { fields: {} }));
+    render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
 
-    await completarDireccion(user);
+    await completeAddress(user);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Ya tenés guardada esta dirección.");
   });
 
   it("shows the account menu with the current section marked and a log out", async () => {
     const user = userEvent.setup();
-    const props = { ...navigationProps(), onCerrarSesion: jest.fn() };
+    const props = { ...navigationProps(), onCloseSession: jest.fn() };
     getAddresses.mockResolvedValue([]);
 
-    render(<Addresses {...props} usuario={{ nombre: "Ana Pérez" }} />);
+    render(<Addresses {...props} sessionUser={{ displayName: "Ana Pérez" }} />);
 
     const menu = screen.getByRole("navigation", { name: "Mi cuenta" });
     expect(within(menu).getByRole("button", { name: "Direcciones" })).toHaveAttribute("aria-current", "page");
@@ -3457,7 +3457,7 @@ describe("Direcciones", () => {
     expect(within(menu).queryByRole("button", { name: "Métodos de pago" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cerrar sesión" }));
 
-    expect(props.onCerrarSesion).toHaveBeenCalled();
+    expect(props.onCloseSession).toHaveBeenCalled();
   });
 
   it("opens the account menu from the navbar also inside the account pages", async () => {
@@ -3466,15 +3466,15 @@ describe("Direcciones", () => {
 
     render(
       <>
-        <Addresses {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com" }} />
-        <RutaActual />
+        <Addresses {...navigationProps()} sessionUser={{ displayName: "Ana", email: "ana@example.com" }} />
+        <CurrentRoute />
       </>
     );
 
     await user.click(screen.getByTitle("Mi cuenta"));
     // "Ver toda mi cuenta" está solo en el menú desplegable.
-    const desplegable = screen.getByRole("button", { name: "Ver toda mi cuenta" }).closest("div.absolute");
-    await user.click(within(desplegable).getByRole("button", { name: /Mis compras/ }));
+    const dropdown = screen.getByRole("button", { name: "Ver toda mi cuenta" }).closest("div.absolute");
+    await user.click(within(dropdown).getByRole("button", { name: /Mis compras/ }));
 
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/pedidos");
   });
@@ -3482,9 +3482,9 @@ describe("Direcciones", () => {
   it("can cancel deleting an address", async () => {
     const user = userEvent.setup();
     getAddresses.mockResolvedValue([
-      { id: 1, nombre: "Casa", calle: "A", numero: "1", ciudad: "MVD", departamento: "MVD", principal: true },
+      { id: 1, displayName: "Casa", street: "A", number: "1", city: "MVD", departamento: "MVD", primary: true },
     ]);
-    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
+    render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
 
     await user.click(await screen.findByRole("button", { name: "Eliminar la dirección Casa" }));
     expect(screen.getByText("¿Eliminar esta dirección?")).toBeInTheDocument();
@@ -3496,22 +3496,22 @@ describe("Direcciones", () => {
 
   it("changes the primary address and returns to the profile", async () => {
     const user = userEvent.setup();
-    const onPerfil = jest.fn();
+    const onProfile = jest.fn();
     let savedAddresses = [
-      { id: 1, nombre: "Casa", calle: "A", numero: "1", ciudad: "MVD", departamento: "MVD", principal: true },
-      { id: 2, nombre: "Oficina", calle: "B", numero: "2", ciudad: "MVD", departamento: "MVD", principal: false },
+      { id: 1, displayName: "Casa", street: "A", number: "1", city: "MVD", departamento: "MVD", primary: true },
+      { id: 2, displayName: "Oficina", street: "B", number: "2", city: "MVD", departamento: "MVD", primary: false },
     ];
     getAddresses.mockImplementation(() => Promise.resolve(savedAddresses));
     setPrimaryAddress.mockImplementation(async (id) => {
       savedAddresses = savedAddresses.map((address) => ({
         ...address,
-        principal: address.id === id,
+        primary: address.id === id,
       }));
     });
     render(
       <>
-        <Addresses {...navigationProps()} onPerfil={onPerfil} />
-        <RutaActual />
+        <Addresses {...navigationProps()} onProfile={onProfile} />
+        <CurrentRoute />
       </>
     );
 
@@ -3532,7 +3532,7 @@ describe("Direcciones", () => {
 describe("HistorialCompras", () => {
   it("renders an empty state and API-provided purchase details", async () => {
     const props = navigationProps();
-    render(<PurchaseHistory {...props} onPerfil={jest.fn()} />);
+    render(<PurchaseHistory {...props} onProfile={jest.fn()} />);
     expect(
       await screen.findByText("Todavía no tenés compras terminadas.")
     ).toBeInTheDocument();
@@ -3540,13 +3540,13 @@ describe("HistorialCompras", () => {
     getPurchaseHistory.mockResolvedValue([
       {
         id: "ORD-1",
-        fecha: "2026-01-15T00:00:00.000Z",
+        date: "2026-01-15T00:00:00.000Z",
         estado: "delivered",
         total: 2500,
         items: [],
       },
     ]);
-    render(<PurchaseHistory {...props} onPerfil={jest.fn()} />);
+    render(<PurchaseHistory {...props} onProfile={jest.fn()} />);
 
     expect(await screen.findByText("#ORD-1")).toBeInTheDocument();
   });
@@ -3566,7 +3566,7 @@ describe("ProtectedRoute", () => {
     );
 
     expect(screen.getByText("Pantalla de login")).toBeInTheDocument();
-    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, nombre: "Ana" }));
+    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, displayName: "Ana" }));
     window.history.pushState({}, "", "/privado");
     renderBase(
       <MemoryRouter initialEntries={["/privado"]}>
@@ -3590,49 +3590,49 @@ describe("SearchBar and search helpers", () => {
     render(<SearchBar value="" onChange={onChange} onSubmit={onSubmit} />);
 
     const input = screen.getByRole("searchbox");
-    await user.type(input, "filtro");
+    await user.type(input, "filter");
     await user.keyboard("{Enter}");
-    expect(onChange).toHaveBeenLastCalledWith("filtro");
-    expect(onSubmit).toHaveBeenLastCalledWith("filtro");
+    expect(onChange).toHaveBeenLastCalledWith("filter");
+    expect(onSubmit).toHaveBeenLastCalledWith("filter");
     await user.click(screen.getByRole("button", { name: "Limpiar búsqueda" }));
     expect(onSubmit).toHaveBeenLastCalledWith("");
 
     expect(
       filterParts(
         [{ name: "Filtro API", part_code: "API-1", category: "Filters", price: 300 }],
-        { busqueda: "api" }
+        { search: "api" }
       )
     ).toHaveLength(1);
 
     const repuestos = [
-      { nombre: "Bujía 1.4", fabricante: "NGK" },
-      { nombre: "Bujía 1.4", fabricante: "Bosch" },
-      { nombre: "Filtro 1.4", fabricante: "Mann-Filter" },
+      { displayName: "Bujía 1.4", fabricante: "NGK" },
+      { displayName: "Bujía 1.4", fabricante: "Bosch" },
+      { displayName: "Filtro 1.4", fabricante: "Mann-Filter" },
     ];
-    expect(filterParts(repuestos, { fabricantes: ["NGK", "Mann-Filter"] }))
+    expect(filterParts(repuestos, { manufacturers: ["NGK", "Mann-Filter"] }))
       .toEqual([repuestos[0], repuestos[2]]);
-    expect(filterParts(repuestos, { busqueda: "bosch" })).toEqual([repuestos[1]]);
+    expect(filterParts(repuestos, { search: "bosch" })).toEqual([repuestos[1]]);
     // Por palabras, en cualquier orden y sin importar las tildes.
-    expect(filterParts(repuestos, { busqueda: "ngk bujia" })).toEqual([repuestos[0]]);
+    expect(filterParts(repuestos, { search: "ngk bujia" })).toEqual([repuestos[0]]);
     // El auto no está en el nombre: se encuentra por los modelos compatibles.
     const radiadores = [
-      { nombre: "Radiador Valeo", marcas: ["Chevrolet"], modelos: ["Onix"] },
-      { nombre: "Radiador Valeo", marcas: ["Fiat"], modelos: ["Cronos"] },
+      { displayName: "Radiador Valeo", brands: ["Chevrolet"], models: ["Onix"] },
+      { displayName: "Radiador Valeo", brands: ["Fiat"], models: ["Cronos"] },
     ];
-    expect(filterParts(radiadores, { busqueda: "radiador onix" })).toEqual([radiadores[0]]);
+    expect(filterParts(radiadores, { search: "radiador onix" })).toEqual([radiadores[0]]);
 
-    const conPrecio = [
-      { nombre: "Faro", precio: 6900, stock: 0, marcas: ["Ford"] },
-      { nombre: "Bujía", precio: 620, stock: 4, marcas: ["Fiat", "Ford"] },
-      { nombre: "Aceite", precio: 2600, stock: 9, marcas: ["Fiat"] },
+    const withPrice = [
+      { displayName: "Faro", price: 6900, stock: 0, brands: ["Ford"] },
+      { displayName: "Bujía", price: 620, stock: 4, brands: ["Fiat", "Ford"] },
+      { displayName: "Aceite", price: 2600, stock: 9, brands: ["Fiat"] },
     ];
-    const nombres = (lista) => lista.map((p) => p.nombre);
-    expect(nombres(filterParts(conPrecio, { precioMin: "600", precioMax: "3000" })))
+    const names = (list) => list.map((p) => p.displayName);
+    expect(names(filterParts(withPrice, { priceMin: "600", priceMax: "3000" })))
       .toEqual(["Bujía", "Aceite"]);
-    expect(nombres(filterParts(conPrecio, { precioMax: "", soloConStock: true })))
+    expect(names(filterParts(withPrice, { priceMax: "", onlyWithStock: true })))
       .toEqual(["Bujía", "Aceite"]);
-    expect(nombres(filterParts(conPrecio, { marcasAuto: ["Ford"] }))).toEqual(["Faro", "Bujía"]);
-    expect(nombres(filterParts(conPrecio, { orden: "Nombre A-Z" })))
+    expect(names(filterParts(withPrice, { brandsCar: ["Ford"] }))).toEqual(["Faro", "Bujía"]);
+    expect(names(filterParts(withPrice, { sort: "Nombre A-Z" })))
       .toEqual(["Aceite", "Bujía", "Faro"]);
   });
 
@@ -3666,7 +3666,7 @@ describe("BusquedaCabecera", () => {
     render(
       <>
         <HeaderSearch />
-        <RutaActual />
+        <CurrentRoute />
       </>
     );
 
@@ -3684,7 +3684,7 @@ describe("BusquedaCabecera", () => {
   render(
     <>
       <HeaderSearch />
-      <RutaActual />
+      <CurrentRoute />
     </>
   );
 

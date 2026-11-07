@@ -13,32 +13,32 @@ import { changeOrderStatus, updateOrder, getOrder } from "./dashboardApi";
 
 const pedido = (extra = {}) => ({
   id: 42,
-  fecha: "2026-11-05T14:30:00Z",
+  date: "2026-11-05T14:30:00Z",
   estado: "confirmed",
-  estadoPago: "approved",
+  paymentStatus: "approved",
   total: 4300,
-  metodoPago: "Mercado Pago",
-  idPagoMP: "1234567890",
-  cliente: { nombre: "Ana Pérez", email: "ana@example.com", telefono: "099123456" },
-  envio: {
-    nombreDireccion: "Casa",
-    calle: "Av. Italia",
-    numero: "1234",
+  paymentMethod: "Mercado Pago",
+  idPaymentMP: "1234567890",
+  customer: { displayName: "Ana Pérez", email: "ana@example.com", phone: "099123456" },
+  shipping: {
+    addressName: "Casa",
+    street: "Av. Italia",
+    number: "1234",
     apartamento: "301",
-    ciudad: "Montevideo",
+    city: "Montevideo",
     departamento: "Montevideo",
-    codigoPostal: "11300",
+    codePostal: "11300",
   },
   items: [
-    { repuestoId: 7, codigo: "FRE-001", nombre: "Pastillas Bosch", cantidad: 2, precio: 1500 },
-    { repuestoId: 9, codigo: "FIL-002", nombre: "Filtro de aceite", cantidad: 1, precio: 1300 },
+    { idPart: 7, code: "FRE-001", displayName: "Pastillas Bosch", quantity: 2, price: 1500 },
+    { idPart: 9, code: "FIL-002", displayName: "Filtro de aceite", quantity: 1, price: 1300 },
   ],
-  siguienteEstado: "packing",
-  anteriorEstado: null,
-  sePuedeCancelar: true,
-  sePuedeEditarEnvio: true,
-  motivoCancelacion: null,
-  notaInterna: null,
+  nextStatus: "packing",
+  previousStatus: null,
+  canCancel: true,
+  canEditShipping: true,
+  reasonCancellation: null,
+  internalNote: null,
   ...extra,
 });
 
@@ -48,11 +48,11 @@ function Lugar() {
   return <p>Estoy en {id ? `repuesto ${id}` : `dashboard${location.search}`}</p>;
 }
 
-function renderDetalle(desde) {
+function renderDetail(from) {
   return render(
-    <MemoryRouter initialEntries={[{ pathname: "/dashboard/pedidos/42", state: desde !== undefined ? { desde } : undefined }]}>
+    <MemoryRouter initialEntries={[{ pathname: "/dashboard/pedidos/42", state: from !== undefined ? { from } : undefined }]}>
       <Routes>
-        <Route path="/dashboard/pedidos/:id" element={<SellerOrderDetail usuario={{ email: "vendedor@example.com" }} />} />
+        <Route path="/dashboard/pedidos/:id" element={<SellerOrderDetail sessionUser={{ email: "vendedor@example.com" }} />} />
         <Route path="/dashboard" element={<Lugar />} />
         <Route path="/dashboard/repuestos/:id" element={<Lugar />} />
       </Routes>
@@ -60,58 +60,58 @@ function renderDetalle(desde) {
   );
 }
 
-const panel = (titulo) => screen.getByRole("heading", { name: titulo }).closest("section, div.rounded-xl");
+const panel = (title) => screen.getByRole("heading", { name: title }).closest("section, div.rounded-xl");
 
 beforeEach(() => getOrder.mockResolvedValue(pedido()));
 afterEach(() => jest.clearAllMocks());
 
 it("shows the products with their prices and the total", async () => {
-  renderDetalle();
+  renderDetail();
 
   expect(screen.getByRole("heading", { level: 1, name: "Pedido #42" })).toBeInTheDocument();
-  const tabla = await screen.findByRole("table");
-  const filas = within(tabla).getAllByRole("row");
-  expect(filas[1]).toHaveTextContent("FRE-001");
-  expect(filas[1]).toHaveTextContent("Pastillas Bosch");
-  expect(filas[1]).toHaveTextContent("$ 3.000");
-  expect(filas[2]).toHaveTextContent("Filtro de aceite");
+  const table = await screen.findByRole("table");
+  const rows = within(table).getAllByRole("row");
+  expect(rows[1]).toHaveTextContent("FRE-001");
+  expect(rows[1]).toHaveTextContent("Pastillas Bosch");
+  expect(rows[1]).toHaveTextContent("$ 3.000");
+  expect(rows[2]).toHaveTextContent("Filtro de aceite");
   expect(screen.getByText("3 unidades para preparar. Precios del momento de la compra.")).toBeInTheDocument();
   expect(getOrder).toHaveBeenCalledWith("42");
 });
 
 it("shows where to ship it, who ordered it and how it was paid", async () => {
-  renderDetalle();
+  renderDetail();
   await screen.findByRole("table");
 
-  const envio = panel("Envío");
-  expect(envio).toHaveTextContent("RecibeAna Pérez");
-  expect(envio).toHaveTextContent("Dirección («Casa»)");
-  expect(envio).toHaveTextContent("Av. Italia 1234, apto. 301");
-  expect(envio).toHaveTextContent("Montevideo, Montevideo · CP 11300");
+  const shipping = panel("Envío");
+  expect(shipping).toHaveTextContent("RecibeAna Pérez");
+  expect(shipping).toHaveTextContent("Dirección («Casa»)");
+  expect(shipping).toHaveTextContent("Av. Italia 1234, apto. 301");
+  expect(shipping).toHaveTextContent("Montevideo, Montevideo · CP 11300");
 
-  const cliente = panel("Cliente");
-  expect(within(cliente).getByRole("link", { name: "ana@example.com" })).toHaveAttribute("href", "mailto:ana@example.com");
-  expect(within(cliente).getByRole("link", { name: "099123456" })).toHaveAttribute("href", "tel:099123456");
+  const customer = panel("Cliente");
+  expect(within(customer).getByRole("link", { name: "ana@example.com" })).toHaveAttribute("href", "mailto:ana@example.com");
+  expect(within(customer).getByRole("link", { name: "099123456" })).toHaveAttribute("href", "tel:099123456");
 
-  const pago = panel("Pago");
-  expect(pago).toHaveTextContent("Pagado");
-  expect(pago).toHaveTextContent("Mercado Pago");
-  expect(pago).toHaveTextContent("1234567890");
+  const payment = panel("Pago");
+  expect(payment).toHaveTextContent("Pagado");
+  expect(payment).toHaveTextContent("Mercado Pago");
+  expect(payment).toHaveTextContent("1234567890");
 });
 
 it("says when the client has no phone", async () => {
-  getOrder.mockResolvedValue(pedido({ cliente: { nombre: "Ana", email: "ana@example.com", telefono: null } }));
-  renderDetalle();
+  getOrder.mockResolvedValue(pedido({ customer: { displayName: "Ana", email: "ana@example.com", phone: null } }));
+  renderDetail();
 
   expect(await screen.findByText("No lo cargó")).toBeInTheDocument();
 });
 
 it("moves the order to the next status from the detail and reloads it", async () => {
   const user = userEvent.setup();
-  changeOrderStatus.mockResolvedValue(pedido({ estado: "packing", siguienteEstado: "shipped" }));
-  renderDetalle();
+  changeOrderStatus.mockResolvedValue(pedido({ estado: "packing", nextStatus: "shipped" }));
+  renderDetail();
   await screen.findByRole("table");
-  getOrder.mockResolvedValue(pedido({ estado: "packing", siguienteEstado: "shipped" }));
+  getOrder.mockResolvedValue(pedido({ estado: "packing", nextStatus: "shipped" }));
 
   await user.click(screen.getByRole("button", { name: "Pasar el pedido #42 a Empaquetando" }));
 
@@ -122,8 +122,8 @@ it("moves the order to the next status from the detail and reloads it", async ()
 
 it("cancels with a reason from the detail", async () => {
   const user = userEvent.setup();
-  changeOrderStatus.mockResolvedValue(pedido({ estado: "cancelled", siguienteEstado: null, sePuedeCancelar: false }));
-  renderDetalle();
+  changeOrderStatus.mockResolvedValue(pedido({ estado: "cancelled", nextStatus: null, canCancel: false }));
+  renderDetail();
   await screen.findByRole("table");
 
   await user.click(screen.getByRole("button", { name: "Cancelar el pedido #42" }));
@@ -137,9 +137,9 @@ it("cancels with a reason from the detail", async () => {
 
 it("shows why the store cancelled it and offers no actions", async () => {
   getOrder.mockResolvedValue(
-    pedido({ estado: "cancelled", siguienteEstado: null, sePuedeCancelar: false, motivoCancelacion: "Sin stock real" })
+    pedido({ estado: "cancelled", nextStatus: null, canCancel: false, reasonCancellation: "Sin stock real" })
   );
-  renderDetalle();
+  renderDetail();
 
   expect(await screen.findByText(/Motivo: Sin stock real/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Pasar el pedido/ })).not.toBeInTheDocument();
@@ -148,7 +148,7 @@ it("shows why the store cancelled it and offers no actions", async () => {
 
 it("goes back to the list it came from, and to a part's detail", async () => {
   const user = userEvent.setup();
-  renderDetalle("?vista=pedidos&estado=packing");
+  renderDetail("?vista=orders&estado=packing");
   await screen.findByRole("table");
 
   await user.click(screen.getByRole("button", { name: "Pastillas Bosch" }));
@@ -157,16 +157,16 @@ it("goes back to the list it came from, and to a part's detail", async () => {
 
 it("goes back to the order list", async () => {
   const user = userEvent.setup();
-  renderDetalle("?vista=pedidos&estado=packing");
+  renderDetail("?vista=orders&estado=packing");
   await screen.findByRole("table");
 
   await user.click(screen.getByRole("button", { name: "Volver a los pedidos" }));
-  expect(screen.getByText("Estoy en dashboard?vista=pedidos&estado=packing")).toBeInTheDocument();
+  expect(screen.getByText("Estoy en dashboard?vista=orders&estado=packing")).toBeInTheDocument();
 });
 
 it("goes back to the dashboard summary when it came from there", async () => {
   const user = userEvent.setup();
-  renderDetalle("");
+  renderDetail("");
   await screen.findByRole("table");
 
   await user.click(screen.getByRole("button", { name: "Volver al dashboard" }));
@@ -175,7 +175,7 @@ it("goes back to the dashboard summary when it came from there", async () => {
 
 it("shows the error if the order does not exist", async () => {
   getOrder.mockRejectedValue(Object.assign(new Error("Pedido no encontrado."), { status: 404 }));
-  renderDetalle();
+  renderDetail();
 
   expect(await screen.findByText("Pedido no encontrado.")).toBeInTheDocument();
 });
@@ -183,9 +183,9 @@ it("shows the error if the order does not exist", async () => {
 describe("volver un paso atrás", () => {
   it("asks before going back and says the client gets no mail", async () => {
     const user = userEvent.setup();
-    getOrder.mockResolvedValue(pedido({ estado: "shipped", siguienteEstado: "delivered", anteriorEstado: "packing" }));
-    changeOrderStatus.mockResolvedValue(pedido({ estado: "packing", siguienteEstado: "shipped", anteriorEstado: "confirmed" }));
-    renderDetalle();
+    getOrder.mockResolvedValue(pedido({ estado: "shipped", nextStatus: "delivered", previousStatus: "packing" }));
+    changeOrderStatus.mockResolvedValue(pedido({ estado: "packing", nextStatus: "shipped", previousStatus: "confirmed" }));
+    renderDetail();
     await screen.findByRole("table");
 
     await user.click(screen.getByRole("button", { name: "Volver el pedido #42 a Empaquetando" }));
@@ -196,7 +196,7 @@ describe("volver un paso atrás", () => {
     await user.click(within(dialogo).getByRole("button", { name: "No, dejarlo así" }));
     expect(changeOrderStatus).not.toHaveBeenCalled();
 
-    getOrder.mockResolvedValue(pedido({ estado: "packing", siguienteEstado: "shipped", anteriorEstado: "confirmed" }));
+    getOrder.mockResolvedValue(pedido({ estado: "packing", nextStatus: "shipped", previousStatus: "confirmed" }));
     await user.click(screen.getByRole("button", { name: "Volver el pedido #42 a Empaquetando" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Volver a Empaquetando" }));
 
@@ -207,7 +207,7 @@ describe("volver un paso atrás", () => {
   });
 
   it("does not offer going back when there is nowhere to go", async () => {
-    renderDetalle();
+    renderDetail();
     await screen.findByRole("table");
 
     expect(screen.queryByRole("button", { name: /^Volver el pedido/ })).not.toBeInTheDocument();
@@ -218,7 +218,7 @@ describe("editar la dirección de envío", () => {
   it("fixes the address with the same rules as the client's profile", async () => {
     const user = userEvent.setup();
     updateOrder.mockResolvedValue(pedido());
-    renderDetalle();
+    renderDetail();
     await screen.findByRole("table");
 
     await user.click(within(panel("Envío")).getByRole("button", { name: "Editar la dirección de envío" }));
@@ -238,14 +238,14 @@ describe("editar la dirección de envío", () => {
     await user.click(within(dialogo).getByRole("button", { name: "Guardar dirección" }));
 
     expect(updateOrder).toHaveBeenCalledWith(42, {
-      envio: {
-        nombreDireccion: "Casa",
-        calle: "Bv. Artigas",
-        numero: "1234",
+      shipping: {
+        addressName: "Casa",
+        street: "Bv. Artigas",
+        number: "1234",
         apartamento: null,
-        ciudad: "Pando",
+        city: "Pando",
         departamento: "Canelones",
-        codigoPostal: "11300",
+        codePostal: "11300",
       },
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -254,8 +254,8 @@ describe("editar la dirección de envío", () => {
   });
 
   it("does not let the address change once the order was shipped", async () => {
-    getOrder.mockResolvedValue(pedido({ estado: "shipped", sePuedeEditarEnvio: false }));
-    renderDetalle();
+    getOrder.mockResolvedValue(pedido({ estado: "shipped", canEditShipping: false }));
+    renderDetail();
     await screen.findByRole("table");
 
     expect(within(panel("Envío")).queryByRole("button", { name: /Editar/ })).not.toBeInTheDocument();
@@ -265,20 +265,20 @@ describe("editar la dirección de envío", () => {
 describe("nota interna", () => {
   it("saves a note that only the store sees", async () => {
     const user = userEvent.setup();
-    updateOrder.mockResolvedValue(pedido({ notaInterna: "Entregar de tarde." }));
-    renderDetalle();
+    updateOrder.mockResolvedValue(pedido({ internalNote: "Entregar de tarde." }));
+    renderDetail();
     await screen.findByRole("table");
 
-    const nota = within(panel("Nota interna"));
+    const note = within(panel("Nota interna"));
     expect(panel("Nota interna")).toHaveTextContent("Solo la ve la tienda");
-    const guardar = nota.getByRole("button", { name: "Guardar nota" });
-    expect(guardar).toBeDisabled();
+    const save = note.getByRole("button", { name: "Guardar nota" });
+    expect(save).toBeDisabled();
 
-    getOrder.mockResolvedValue(pedido({ notaInterna: "Entregar de tarde." }));
-    await user.type(nota.getByRole("textbox", { name: "Nota interna" }), "Entregar de tarde.");
-    await user.click(guardar);
+    getOrder.mockResolvedValue(pedido({ internalNote: "Entregar de tarde." }));
+    await user.type(note.getByRole("textbox", { name: "Nota interna" }), "Entregar de tarde.");
+    await user.click(save);
 
-    expect(updateOrder).toHaveBeenCalledWith(42, { notaInterna: "Entregar de tarde." });
+    expect(updateOrder).toHaveBeenCalledWith(42, { internalNote: "Entregar de tarde." });
     expect(toast.success).toHaveBeenCalledWith("Nota guardada.");
     await waitFor(() => expect(screen.getByRole("textbox", { name: "Nota interna" })).toHaveValue("Entregar de tarde."));
     expect(within(panel("Nota interna")).getByRole("button", { name: "Guardar nota" })).toBeDisabled();
@@ -286,33 +286,33 @@ describe("nota interna", () => {
 
   it("shows the saved note, clears it, and shows the error if it could not be saved", async () => {
     const user = userEvent.setup();
-    getOrder.mockResolvedValue(pedido({ notaInterna: "Llamar antes." }));
+    getOrder.mockResolvedValue(pedido({ internalNote: "Llamar antes." }));
     updateOrder.mockRejectedValue(new Error("No pudimos guardar los cambios del pedido."));
-    renderDetalle();
+    renderDetail();
 
     expect(await screen.findByRole("textbox", { name: "Nota interna" })).toHaveValue("Llamar antes.");
     await user.clear(screen.getByRole("textbox", { name: "Nota interna" }));
     await user.click(screen.getByRole("button", { name: "Guardar nota" }));
 
-    expect(updateOrder).toHaveBeenCalledWith(42, { notaInterna: "" });
+    expect(updateOrder).toHaveBeenCalledWith(42, { internalNote: "" });
     expect(await screen.findByText("No pudimos guardar los cambios del pedido.")).toBeInTheDocument();
   });
 });
 
 it("says when the payment was refunded, and warns when it is still pending", async () => {
-  getOrder.mockResolvedValue(pedido({ estado: "cancelled", devueltoEl: "2026-11-07T10:00:00Z" }));
-  const { unmount } = renderDetalle();
+  getOrder.mockResolvedValue(pedido({ estado: "cancelled", refunded: "2026-11-07T10:00:00Z" }));
+  const { unmount } = renderDetail();
   expect(await screen.findByText(/^Devuelto el /)).toBeInTheDocument();
   unmount();
 
   getOrder.mockResolvedValue(pedido({ estado: "cancelled", faltaDevolver: true }));
-  renderDetalle();
+  renderDetail();
   expect(await screen.findByText(/Falta devolver el pago/)).toBeInTheDocument();
 });
 
 it("says to refund by hand when the payment did not go through Mercado Pago", async () => {
-  getOrder.mockResolvedValue(pedido({ estado: "cancelled", idPagoMP: null, faltaDevolver: true }));
-  renderDetalle();
+  getOrder.mockResolvedValue(pedido({ estado: "cancelled", idPaymentMP: null, faltaDevolver: true }));
+  renderDetail();
 
   expect(await screen.findByText("Este pago no pasó por Mercado Pago: devolvé el dinero a mano.")).toBeInTheDocument();
 });

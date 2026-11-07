@@ -49,38 +49,38 @@ const COMMON_PASSWORDS = new Set([
 ]);
 
 /** Saca espacios de los extremos y junta los repetidos. */
-export function clean(valor) {
-  return String(valor ?? "").replace(/\s+/g, " ").trim();
+export function clean(rawValue) {
+  return String(rawValue ?? "").replace(/\s+/g, " ").trim();
 }
 
 /** Minúsculas y sin tildes, para comparar textos. */
-export function normalizeText(valor) {
-  return String(valor ?? "")
+export function normalizeText(rawValue) {
+  return String(rawValue ?? "")
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .toLowerCase();
 }
 
-function letterCount(valor) {
-  return (valor.match(/\p{L}/gu) || []).length;
+function letterCount(rawValue) {
+  return (rawValue.match(/\p{L}/gu) || []).length;
 }
 
 /* ----------------------------------------------------------- personas */
 
-export function validatePersonName(valor, campo = "El nombre") {
-  const limpio = clean(valor);
-  if (!limpio) return `${campo} no puede estar vacío.`;
-  if (!PERSON_NAME.test(limpio)) {
-    return `${campo} solo puede tener letras, espacios, apóstrofos y guiones.`;
+export function validatePersonName(rawValue, field = "El nombre") {
+  const cleaned = clean(rawValue);
+  if (!cleaned) return `${field} no puede estar vacío.`;
+  if (!PERSON_NAME.test(cleaned)) {
+    return `${field} solo puede tener letras, espacios, apóstrofos y guiones.`;
   }
-  if (letterCount(limpio) < 2) return `${campo} tiene que tener al menos 2 letras.`;
+  if (letterCount(cleaned) < 2) return `${field} tiene que tener al menos 2 letras.`;
   return null;
 }
 
-export function validateEmail(valor) {
-  const limpio = clean(valor);
-  if (!limpio) return "Ingresá tu correo electrónico.";
-  if (!EMAIL.test(limpio)) return "Ingresá un correo electrónico válido.";
+export function validateEmail(rawValue) {
+  const cleaned = clean(rawValue);
+  if (!cleaned) return "Ingresá tu correo electrónico.";
+  if (!EMAIL.test(cleaned)) return "Ingresá un correo electrónico válido.";
   return null;
 }
 
@@ -97,102 +97,102 @@ export function validatePassword(password, email = "") {
   if (COMMON_PASSWORDS.has(normalizeText(password))) {
     return "Esa contraseña es muy común. Elegí otra.";
   }
-  const usuario = normalizeText(String(email).split("@")[0]);
-  if (usuario.length >= 3 && normalizeText(password).includes(usuario)) {
+  const sessionUser = normalizeText(String(email).split("@")[0]);
+  if (sessionUser.length >= 3 && normalizeText(password).includes(sessionUser)) {
     return "La contraseña no puede contener tu correo.";
   }
   return null;
 }
 
 /** Devuelve un objeto { campo: mensaje } solo con los campos que fallan. */
-function onlyErrors(errores) {
-  return Object.fromEntries(Object.entries(errores).filter(([, msg]) => msg));
+function onlyErrors(errors) {
+  return Object.fromEntries(Object.entries(errors).filter(([, msg]) => msg));
 }
 
 export function validateRegistration(f) {
-  let confirmar = null;
-  if (!f.confirmarPassword) confirmar = "Repetí la contraseña.";
-  else if (f.password !== f.confirmarPassword) confirmar = "Las contraseñas no coinciden.";
+  let confirm = null;
+  if (!f.confirmPassword) confirm = "Repetí la contraseña.";
+  else if (f.password !== f.confirmPassword) confirm = "Las contraseñas no coinciden.";
 
   return onlyErrors({
-    nombre: validatePersonName(f.nombre),
-    apellido: validatePersonName(f.apellido, "El apellido"),
+    displayName: validatePersonName(f.displayName),
+    lastName: validatePersonName(f.lastName, "El apellido"),
     email: validateEmail(f.email),
-    telefono: !clean(f.telefono)
+    phone: !clean(f.phone)
       ? "Ingresá tu teléfono."
-      : normalizeUyPhone(f.telefono) ? null : PHONE_MESSAGE,
+      : normalizeUyPhone(f.phone) ? null : PHONE_MESSAGE,
     password: validatePassword(f.password, f.email),
-    confirmarPassword: confirmar,
-    terminos: f.aceptaTerminos ? null : "Tenés que aceptar los términos y condiciones.",
+    confirmPassword: confirm,
+    terms: f.acceptsTerms ? null : "Tenés que aceptar los términos y condiciones.",
   });
 }
 
-export function validatePasswordChange({ actual, nueva, repetir }, email = "") {
-  let errorNueva = validatePassword(nueva, email);
-  if (!errorNueva && nueva === actual) {
-    errorNueva = "La nueva contraseña tiene que ser distinta de la actual.";
+export function validatePasswordChange({ current, newPassword, repeat }, email = "") {
+  let newError = validatePassword(newPassword, email);
+  if (!newError && newPassword === current) {
+    newError = "La nueva contraseña tiene que ser distinta de la actual.";
   }
   return onlyErrors({
-    actual: actual ? null : "Ingresá tu contraseña actual.",
-    nueva: errorNueva,
-    repetir: nueva === repetir ? null : "Las contraseñas no coinciden.",
+    current: current ? null : "Ingresá tu contraseña actual.",
+    newPassword: newError,
+    repeat: newPassword === repeat ? null : "Las contraseñas no coinciden.",
   });
 }
 
-export function validateNewPassword({ nueva, repetir }) {
+export function validateNewPassword({ newPassword, repeat }) {
   return onlyErrors({
-    nueva: validatePassword(nueva),
-    repetir: nueva === repetir ? null : "Las contraseñas no coinciden.",
+    newPassword: validatePassword(newPassword),
+    repeat: newPassword === repeat ? null : "Las contraseñas no coinciden.",
   });
 }
 
 /* ----------------------------------------------------------- direcciones */
 
 export function validateAddress(f) {
-  const nombre = clean(f.nombre);
-  const calle = clean(f.calle);
-  const numero = clean(f.numero);
+  const displayName = clean(f.displayName);
+  const street = clean(f.street);
+  const number = clean(f.number);
   const apartamento = clean(f.apartamento);
-  const ciudad = clean(f.ciudad);
-  const codigoPostal = clean(f.codigoPostal);
+  const city = clean(f.city);
+  const codePostal = clean(f.codePostal);
 
-  let errorNumero = null;
-  if (!numero) errorNumero = "El número de puerta no puede estar vacío.";
-  else if (!NO_NUMBER.has(normalizeText(numero)) && !DOOR_NUMBER.test(numero)) {
-    errorNumero = "Ingresá un número de puerta válido (ej: 1234, 1234B, 1234 bis o S/N).";
+  let numberError = null;
+  if (!number) numberError = "El número de puerta no puede estar vacío.";
+  else if (!NO_NUMBER.has(normalizeText(number)) && !DOOR_NUMBER.test(number)) {
+    numberError = "Ingresá un número de puerta válido (ej: 1234, 1234B, 1234 bis o S/N).";
   }
 
-  let errorDepartamento = null;
-  if (!f.departamento) errorDepartamento = "Seleccioná un departamento.";
+  let departmentError = null;
+  if (!f.departamento) departmentError = "Seleccioná un departamento.";
   else {
-    const otro = DEPARTMENTS.find(
-      (d) => d !== f.departamento && normalizeText(d) === normalizeText(ciudad)
+    const other = DEPARTMENTS.find(
+      (d) => d !== f.departamento && normalizeText(d) === normalizeText(city)
     );
-    if (otro) errorDepartamento = `${ciudad} no está en el departamento de ${f.departamento}.`;
+    if (other) departmentError = `${city} no está en el departamento de ${f.departamento}.`;
   }
 
   return onlyErrors({
-    nombre: !nombre
+    displayName: !displayName
       ? "Poné un nombre para la dirección (ej: Casa)."
-      : ALIAS.test(nombre) && letterCount(nombre) >= 2
+      : ALIAS.test(displayName) && letterCount(displayName) >= 2
         ? null
         : "El nombre de la dirección tiene que tener letras (ej: Casa, Trabajo).",
-    calle: !calle
+    street: !street
       ? "La calle no puede estar vacía."
-      : STREET.test(calle) && letterCount(calle) >= 2
+      : STREET.test(street) && letterCount(street) >= 2
         ? null
         : "Ingresá un nombre de calle válido (ej: Av. Italia, 18 de Julio).",
-    numero: errorNumero,
+    number: numberError,
     apartamento: !apartamento || APARTMENT.test(apartamento)
       ? null
       : "Ingresá un apartamento válido (ej: 101, 3B, Torre 2 - 504).",
-    ciudad: !ciudad
+    city: !city
       ? "La ciudad no puede estar vacía."
-      : CITY.test(ciudad) && letterCount(ciudad) >= 2
+      : CITY.test(city) && letterCount(city) >= 2
         ? null
         : "Ingresá un nombre de ciudad válido.",
-    departamento: errorDepartamento,
-    codigoPostal: !codigoPostal || POSTAL_CODE.test(codigoPostal)
+    departamento: departmentError,
+    codePostal: !codePostal || POSTAL_CODE.test(codePostal)
       ? null
       : "El código postal tiene que tener 5 dígitos.",
   });

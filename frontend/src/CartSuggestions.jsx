@@ -16,53 +16,53 @@ import { getRecommendations } from "./api";
 
 const MAX_SUGGESTIONS = 3;
 
-const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
+const price = (rawValue) => `$${rawValue.toLocaleString("es-UY")}`;
 
-export default function CartSuggestions({ onDetalle }) {
+export default function CartSuggestions({ onDetail }) {
   const { cart, addToCart } = useCart();
-  const [sugerencias, setSugerencias] = useState([]);
-  const [agregando, setAgregando] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [adding, setAdding] = useState(null);
 
   // Ids de los repuestos del carrito. Se usan como clave: solo se piden
   // sugerencias nuevas cuando cambia QUÉ hay en el carrito, no cuando
   // cambia una cantidad.
-  const idsCarrito = useMemo(
+  const idsCart = useMemo(
     () => cart.map((item) => item.partId).sort((a, b) => a - b),
     [cart]
   );
-  const claveCarrito = idsCarrito.join(",");
+  const cartKey = idsCart.join(",");
 
   useEffect(() => {
-    if (!claveCarrito) return undefined;
+    if (!cartKey) return undefined;
 
-    let activo = true;
+    let active = true;
 
-    getRecommendations(claveCarrito.split(",").map(Number)).then(
-      (lista) => {
-        if (activo) setSugerencias(lista);
+    getRecommendations(cartKey.split(",").map(Number)).then(
+      (list) => {
+        if (active) setSuggestions(list);
       }
     );
 
     return () => {
-      activo = false;
+      active = false;
     };
-  }, [claveCarrito]);
+  }, [cartKey]);
 
   // Una sugerencia que el cliente ya agregó deja de mostrarse.
-  const visibles = sugerencias
-    .filter((sugerencia) => !idsCarrito.includes(sugerencia.partId))
+  const visible = suggestions
+    .filter((suggestionItem) => !idsCart.includes(suggestionItem.partId))
     .slice(0, MAX_SUGGESTIONS);
 
-  if (cart.length === 0 || visibles.length === 0) return null;
+  if (cart.length === 0 || visible.length === 0) return null;
 
-  const agregar = async (producto) => {
-    setAgregando(producto.id);
+  const add = async (product) => {
+    setAdding(product.id);
     try {
       // Ya estamos en el carrito: el ítem aparece en la lista, no hace
       // falta el aviso de "agregado".
-      await addToCart(producto, 1, { aviso: false });
+      await addToCart(product, 1, { aviso: false });
     } finally {
-      setAgregando(null);
+      setAdding(null);
     }
   };
 
@@ -73,36 +73,36 @@ export default function CartSuggestions({ onDetalle }) {
       </h2>
 
       <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-        {visibles.map((producto) => (
+        {visible.map((product) => (
           <li
-            key={producto.id}
+            key={product.id}
             className="bg-white border border-gray-200 rounded-lg p-3 flex gap-3"
           >
             <img onError={useGenericImage}
-              src={producto.imagen}
-              alt={producto.nombre}
+              src={product.image}
+              alt={product.displayName}
               className="w-14 h-14 rounded-md object-contain bg-white border border-gray-100 shrink-0"
             />
 
             <div className="flex flex-col min-w-0 flex-1">
               <p className="text-orange-500 text-xs uppercase tracking-wide font-black truncate">
-                {producto.fabricante}
+                {product.fabricante}
               </p>
-              <button type="button" onClick={() => onDetalle?.(producto)} className="text-left text-xs font-bold leading-snug line-clamp-2 hover:text-orange-500">
-                {producto.nombre}
+              <button type="button" onClick={() => onDetail?.(product)} className="text-left text-xs font-bold leading-snug line-clamp-2 hover:text-orange-500">
+                {product.displayName}
               </button>
               <div className="flex items-center justify-between gap-2 mt-auto pt-1">
                 <p className="text-sm font-black">
-                  {precio(producto.precio)}
+                  {price(product.price)}
                 </p>
                 <button
                   type="button"
-                  onClick={() => agregar(producto)}
-                  disabled={agregando === producto.id}
-                  aria-label={`Agregar ${producto.nombre} al carrito`}
+                  onClick={() => add(product)}
+                  disabled={adding === product.id}
+                  aria-label={`Agregar ${product.displayName} al carrito`}
                   className="text-xs font-black text-orange-500 hover:text-orange-600 disabled:opacity-60"
                 >
-                  {agregando === producto.id ? "Agregando..." : "+ Agregar"}
+                  {adding === product.id ? "Agregando..." : "+ Agregar"}
                 </button>
               </div>
             </div>

@@ -24,16 +24,16 @@ function iconFor(pedido) {
 
 /** Las cuatro etapas en segmentos: las hechas en naranja. */
 function Progress({ pedido }) {
-  const pasos = trackingSteps(pedido);
-  const hechos = pasos.filter((paso) => paso.hecho).length;
+  const steps = trackingSteps(pedido);
+  const hechos = steps.filter((step) => step.hecho).length;
   return (
     <div
       role="img"
-      aria-label={`Progreso del pedido #${pedido.id}: ${hechos} de ${pasos.length} etapas`}
+      aria-label={`Progreso del pedido #${pedido.id}: ${hechos} de ${steps.length} etapas`}
       className="mt-3 grid grid-cols-4 gap-1"
     >
-      {pasos.map((paso) => (
-        <span key={paso.estado} className={`h-1.5 rounded-full ${paso.hecho ? "bg-orange-500" : "bg-white/25"}`} />
+      {steps.map((step) => (
+        <span key={step.estado} className={`h-1.5 rounded-full ${step.hecho ? "bg-orange-500" : "bg-white/25"}`} />
       ))}
     </div>
   );
@@ -46,13 +46,13 @@ function Progress({ pedido }) {
  * curso no se muestra.
  */
 export default function HomeActiveOrders() {
-  const { enCurso } = useOrders();
+  const { inProgress } = useOrders();
   const navigate = useNavigate();
 
-  if (enCurso.length === 0) return null;
+  if (inProgress.length === 0) return null;
 
-  const pedidos = sortByProgress(enCurso).slice(0, MAX_ORDERS);
-  const columnas = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3" }[pedidos.length];
+  const orders = sortByProgress(inProgress).slice(0, MAX_ORDERS);
+  const columnas = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3" }[orders.length];
 
   return (
     // Dentro del banner, debajo del selector: blanco semitransparente
@@ -73,13 +73,13 @@ export default function HomeActiveOrders() {
           onClick={() => navigate("/pedidos")}
           className="text-orange-400 text-sm font-bold hover:text-orange-300 whitespace-nowrap"
         >
-          {enCurso.length > MAX_ORDERS ? `Ver los ${enCurso.length} →` : "Ver todo →"}
+          {inProgress.length > MAX_ORDERS ? `Ver los ${inProgress.length} →` : "Ver todo →"}
         </button>
       </div>
 
       <ul className={`grid grid-cols-1 ${columnas} divide-y md:divide-y-0 md:divide-x divide-white/20 mt-2`}>
-        {pedidos.map((pedido) => {
-          const sinPagar = isUnpaid(pedido);
+        {orders.map((pedido) => {
+          const withoutPay = isUnpaid(pedido);
           const Icon = iconFor(pedido);
           return (
             <li key={pedido.id}>
@@ -92,14 +92,14 @@ export default function HomeActiveOrders() {
                 <div className="flex items-start gap-3">
                   <span
                     className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
-                      sinPagar ? "bg-amber-400/10 text-amber-300" : "bg-orange-500/20 text-orange-300"
+                      withoutPay ? "bg-amber-400/10 text-amber-300" : "bg-orange-500/20 text-orange-300"
                     }`}
                   >
                     <Icon className="w-5 h-5" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className={`font-black ${sinPagar ? "text-amber-300" : "text-white"}`}>
+                      <p className={`font-black ${withoutPay ? "text-amber-300" : "text-white"}`}>
                         {shortPhrase(pedido)}
                       </p>
                       <span aria-hidden="true" className="text-gray-400 group-hover:text-orange-300 transition">
@@ -109,9 +109,9 @@ export default function HomeActiveOrders() {
                     <p className="text-xs text-gray-300 mt-0.5">
                       Pedido #{pedido.id} · {formatPrice(pedido.total)}
                     </p>
-                    {sinPagar ? (
-                      pedido.vencePago && (
-                        <p className="text-xs text-amber-200/90 mt-3">{payBefore(pedido.vencePago)}</p>
+                    {withoutPay ? (
+                      pedido.expiresPayment && (
+                        <p className="text-xs text-amber-200/90 mt-3">{payBefore(pedido.expiresPayment)}</p>
                       )
                     ) : (
                       <Progress pedido={pedido} />

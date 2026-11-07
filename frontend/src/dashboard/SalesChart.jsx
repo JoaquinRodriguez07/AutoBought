@@ -11,12 +11,12 @@ const SERIES_COLOR = "var(--color-serie)";
 const BACKGROUND_COLOR = "var(--background)";
 
 const METRICS = {
-  unidades: { nombre: "Unidades vendidas", formatear: formatNumber },
-  facturacion: { nombre: "Facturación", formatear: formatPesos },
+  units: { displayName: "Unidades vendidas", formatear: formatNumber },
+  revenue: { displayName: "Facturación", formatear: formatPesos },
 };
 
-function ChangeText({ actual, anterior, formatear }) {
-  const cambio = change(actual, anterior);
+function ChangeText({ current, previous, formatear }) {
+  const cambio = change(current, previous);
   if (!cambio) return null;
   const signo = cambio.diferencia > 0 ? "+" : cambio.diferencia < 0 ? "−" : "±";
   const percentage = cambio.percentage === null ? "" : ` (${signo}${Math.abs(cambio.percentage)} %)`;
@@ -32,24 +32,24 @@ function ChangeText({ actual, anterior, formatear }) {
 function Tooltip({ active, payload, metrica }) {
   if (!active || !payload?.length) return null;
   const punto = payload[0].payload;
-  const { formatear, nombre } = METRICS[metrica];
+  const { formatear, displayName } = METRICS[metrica];
 
   return (
     <div className="grid gap-1 rounded-lg border bg-background px-3 py-2 text-xs shadow-xl">
-      <p className="font-semibold first-letter:uppercase">{formatMonth(punto.mes, { largo: true })}</p>
-      {punto.esProyeccion ? (
+      <p className="font-semibold first-letter:uppercase">{formatMonth(punto.month, { long: true })}</p>
+      {punto.isForecast ? (
         <p className="text-muted-foreground">
-          Proyección: <strong className="text-foreground">{formatNumber(punto.proyectada)}</strong> unidades
+          Proyección: <strong className="text-foreground">{formatNumber(punto.projected)}</strong> unidades
         </p>
       ) : (
         <>
           <p className="text-muted-foreground">
-            {nombre}: <strong className="text-foreground">{formatear(punto.real)}</strong>
+            {displayName}: <strong className="text-foreground">{formatear(punto.real)}</strong>
           </p>
           <p className="text-muted-foreground">
-            <ChangeText actual={punto.real} anterior={punto.anterior} formatear={formatear} />
+            <ChangeText current={punto.real} previous={punto.previous} formatear={formatear} />
           </p>
-          {punto.enCurso && <p className="text-muted-foreground">Mes en curso: ventas hasta hoy.</p>}
+          {punto.inProgress && <p className="text-muted-foreground">Mes en curso: ventas hasta hoy.</p>}
         </>
       )}
     </div>
@@ -57,8 +57,8 @@ function Tooltip({ active, payload, metrica }) {
 }
 
 // Etiqueta directa solo en el punto proyectado: el resto lo dice el globo.
-function ForecastLabel({ x, y, value, index, ultimo }) {
-  if (index !== ultimo || value === null || value === undefined) return null;
+function ForecastLabel({ x, y, value, index, last }) {
+  if (index !== last || value === null || value === undefined) return null;
   return (
     <text x={x} y={y - 12} textAnchor="end" fontSize={11} fontWeight={700} className="fill-foreground">
       {formatNumber(value)}
@@ -77,39 +77,39 @@ function Legend({ children, simbolo }) {
   );
 }
 
-export default function SalesChart({ meses, proyeccion, metrica = "unidades", titulo }) {
-  const conProyeccion = Boolean(proyeccion) && metrica === "unidades";
-  const { formatear, nombre } = METRICS[metrica];
+export default function SalesChart({ months, forecast, metrica = "units", title }) {
+  const withForecast = Boolean(forecast) && metrica === "units";
+  const { formatear, displayName } = METRICS[metrica];
 
-  const datos = meses.map((mes, i) => ({
-    ...mes,
-    real: mes[metrica],
-    anterior: i > 0 ? meses[i - 1][metrica] : undefined,
+  const info = months.map((month, i) => ({
+    ...month,
+    real: month[metrica],
+    previous: i > 0 ? months[i - 1][metrica] : undefined,
     // La línea punteada sale del último mes real hacia el proyectado.
-    proyectada: conProyeccion && i === meses.length - 1 ? mes.unidades : null,
+    projected: withForecast && i === months.length - 1 ? month.units : null,
   }));
-  if (conProyeccion) {
-    datos.push({ mes: proyeccion.mes, real: null, proyectada: proyeccion.unidades, esProyeccion: true });
+  if (withForecast) {
+    info.push({ month: forecast.month, real: null, projected: forecast.units, isForecast: true });
   }
 
-  const config = { serie: { label: nombre, color: "var(--chart-1)" } };
+  const config = { serie: { label: displayName, color: "var(--chart-1)" } };
   // Un id por gráfico para el degradado (sin los ":" de useId, que rompen url(#...)).
   const idRelleno = `relleno-${useId().replace(/:/g, "")}`;
 
   return (
-    <figure aria-label={titulo || nombre}>
+    <figure aria-label={title || displayName}>
       <ChartContainer config={config} className="aspect-auto h-[280px] w-full">
-        <ComposedChart data={datos} margin={{ top: 20, right: 24, bottom: 0, left: 4 }}>
+        <ComposedChart data={info} margin={{ top: 20, right: 24, bottom: 0, left: 4 }}>
           <defs>
-            <linearGradient id={idRelleno} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={idRelleno} x1="0" and1="0" x2="0" and2="1">
               <stop offset="0%" stopColor={SERIES_COLOR} stopOpacity={0.18} />
               <stop offset="100%" stopColor={SERIES_COLOR} stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
           <XAxis
-            dataKey="mes"
-            tickFormatter={(mes) => formatMonth(mes)}
+            dataKey="month"
+            tickFormatter={(month) => formatMonth(month)}
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={{ stroke: "var(--border)" }}
@@ -117,11 +117,11 @@ export default function SalesChart({ meses, proyeccion, metrica = "unidades", ti
             minTickGap={16}
           />
           <YAxis
-            tickFormatter={(valor) => (metrica === "facturacion" ? formatPesos(valor) : formatNumber(valor))}
+            tickFormatter={(rawValue) => (metrica === "revenue" ? formatPesos(rawValue) : formatNumber(rawValue))}
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            width={metrica === "facturacion" ? 84 : 44}
+            width={metrica === "revenue" ? 84 : 44}
             allowDecimals={false}
           />
           <ChartTooltip content={<Tooltip metrica={metrica} />} cursor={{ stroke: "var(--muted-foreground)", strokeWidth: 1 }} />
@@ -150,8 +150,8 @@ export default function SalesChart({ meses, proyeccion, metrica = "unidades", ti
                   cx={props.cx}
                   cy={props.cy}
                   r={4}
-                  fill={props.payload.enCurso ? BACKGROUND_COLOR : SERIES_COLOR}
-                  stroke={props.payload.enCurso ? SERIES_COLOR : BACKGROUND_COLOR}
+                  fill={props.payload.inProgress ? BACKGROUND_COLOR : SERIES_COLOR}
+                  stroke={props.payload.inProgress ? SERIES_COLOR : BACKGROUND_COLOR}
                   strokeWidth={2}
                 />
               )
@@ -160,21 +160,21 @@ export default function SalesChart({ meses, proyeccion, metrica = "unidades", ti
             connectNulls={false}
             isAnimationActive={false}
           />
-          {conProyeccion && (
+          {withForecast && (
             <Line
               type="linear"
-              dataKey="proyectada"
+              dataKey="projected"
               stroke={SERIES_COLOR}
               strokeWidth={2}
               strokeDasharray="5 4"
               dot={(props) =>
-                props.index === datos.length - 1 ? (
+                props.index === info.length - 1 ? (
                   <circle key="proyectado" cx={props.cx} cy={props.cy} r={5} fill={BACKGROUND_COLOR} stroke={SERIES_COLOR} strokeWidth={2} />
                 ) : (
                   <g key={props.index} />
                 )
               }
-              label={<ForecastLabel ultimo={datos.length - 1} />}
+              label={<ForecastLabel last={info.length - 1} />}
               connectNulls
               isAnimationActive={false}
             />
@@ -183,15 +183,15 @@ export default function SalesChart({ meses, proyeccion, metrica = "unidades", ti
       </ChartContainer>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground mt-2">
-        <Legend simbolo={<line x1="0" y1="5" x2="20" y2="5" stroke="var(--chart-1)" strokeWidth="2" />}>{nombre}</Legend>
-        {conProyeccion && (
+        <Legend simbolo={<line x1="0" and1="5" x2="20" and2="5" stroke="var(--chart-1)" strokeWidth="2" />}>{displayName}</Legend>
+        {withForecast && (
           <Legend
-            simbolo={<line x1="0" y1="5" x2="20" y2="5" stroke="var(--chart-1)" strokeWidth="2" strokeDasharray="4 3" />}
+            simbolo={<line x1="0" and1="5" x2="20" and2="5" stroke="var(--chart-1)" strokeWidth="2" strokeDasharray="4 3" />}
           >
-            Proyección de {formatMonth(proyeccion.mes, { largo: true })}
+            Proyección de {formatMonth(forecast.month, { long: true })}
           </Legend>
         )}
-        {meses.some((mes) => mes.enCurso) && (
+        {months.some((month) => month.inProgress) && (
           <Legend simbolo={<circle cx="10" cy="5" r="4" fill="var(--background)" stroke="var(--chart-1)" strokeWidth="2" />}>
             Mes en curso (hasta hoy)
           </Legend>
@@ -204,24 +204,24 @@ export default function SalesChart({ meses, proyeccion, metrica = "unidades", ti
           <TableHeader>
             <TableRow>
               <TableHead>Mes</TableHead>
-              <TableHead className="text-right">{nombre}</TableHead>
+              <TableHead className="text-right">{displayName}</TableHead>
               <TableHead>Variación</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {datos.map((punto) => (
-              <TableRow key={punto.mes}>
+            {info.map((punto) => (
+              <TableRow key={punto.month}>
                 <TableCell className="first-letter:uppercase">
-                  {formatMonth(punto.mes, { largo: true })}
-                  {punto.enCurso && " (en curso)"}
-                  {punto.esProyeccion && " (proyección)"}
+                  {formatMonth(punto.month, { long: true })}
+                  {punto.inProgress && " (en curso)"}
+                  {punto.isForecast && " (proyección)"}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {punto.esProyeccion ? formatNumber(punto.proyectada) : formatear(punto.real)}
+                  {punto.isForecast ? formatNumber(punto.projected) : formatear(punto.real)}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {!punto.esProyeccion && (
-                    <ChangeText actual={punto.real} anterior={punto.anterior} formatear={formatear} />
+                  {!punto.isForecast && (
+                    <ChangeText current={punto.real} previous={punto.previous} formatear={formatear} />
                   )}
                 </TableCell>
               </TableRow>

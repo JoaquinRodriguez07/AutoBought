@@ -16,56 +16,56 @@ const INVALID_LINK = "El enlace no es válido o ya venció. Pedí uno nuevo.";
 
 /** Se abre desde el enlace del mail de recuperación (?token=...). */
 export default function ResetPassword({
-  onIniciarSesion,
-  onPedirOtroEnlace,
+  onStartSession,
+  onAskOtherLink,
   ...propsNavbar
 }) {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") || "";
 
-  const [formulario, setFormulario] = useState({ nueva: "", repetir: "" });
-  const [errores, setErrores] = useState({});
+  const [form, setForm] = useState({ newPassword: "", repeat: "" });
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState(token ? "" : INVALID_LINK);
-  const [enlaceInvalido, setEnlaceInvalido] = useState(!token);
-  const [guardando, setGuardando] = useState(false);
-  const [listo, setListo] = useState(false);
+  const [invalidLink, setInvalidLink] = useState(!token);
+  const [saving, setSaving] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  const manejarCambio = (e) => {
+  const handleCambio = (e) => {
     const { name, value } = e.target;
-    setErrores((actuales) => ({ ...actuales, [name]: undefined }));
-    setFormulario((actual) => ({ ...actual, [name]: value }));
+    setErrors((actuales) => ({ ...actuales, [name]: undefined }));
+    setForm((current) => ({ ...current, [name]: value }));
   };
 
-  const guardar = async (e) => {
+  const save = async (e) => {
     e.preventDefault();
 
-    const erroresFormulario = validateNewPassword(formulario);
-    setErrores(erroresFormulario);
-    if (Object.keys(erroresFormulario).length > 0) return;
+    const errorsForm = validateNewPassword(form);
+    setErrors(errorsForm);
+    if (Object.keys(errorsForm).length > 0) return;
 
-    setGuardando(true);
+    setSaving(true);
     setError("");
 
     try {
-      await resetPassword(token, formulario.nueva);
-      setListo(true);
+      await resetPassword(token, form.newPassword);
+      setReady(true);
     } catch (err) {
       // 400 = el enlace ya se usó o venció; 422 = la contraseña no sirve
       // (ej: contiene el correo) y se puede corregir sin pedir otro.
-      if (err.status === 400) setEnlaceInvalido(true);
+      if (err.status === 400) setInvalidLink(true);
       setError(err.message);
     } finally {
-      setGuardando(false);
+      setSaving(false);
     }
   };
 
-  if (listo) {
+  if (ready) {
     return (
-      <AccountCard titulo="Contraseña actualizada" {...propsNavbar}>
+      <AccountCard title="Contraseña actualizada" {...propsNavbar}>
         <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-xs font-semibold">
           Listo, ya podés iniciar sesión con tu contraseña nueva.
         </div>
-        <button type="button" onClick={onIniciarSesion} className={accountButtonClass}>
+        <button type="button" onClick={onStartSession} className={accountButtonClass}>
           Iniciar sesión
         </button>
       </AccountCard>
@@ -74,7 +74,7 @@ export default function ResetPassword({
 
   return (
     <AccountCard
-      titulo="Contraseña nueva"
+      title="Contraseña nueva"
       subtitulo="Mínimo 8 caracteres, con al menos una letra y un número."
       {...propsNavbar}
     >
@@ -84,12 +84,12 @@ export default function ResetPassword({
         </div>
       )}
 
-      {enlaceInvalido ? (
-        <button type="button" onClick={onPedirOtroEnlace} className={accountButtonClass}>
+      {invalidLink ? (
+        <button type="button" onClick={onAskOtherLink} className={accountButtonClass}>
           Pedir otro enlace
         </button>
       ) : (
-        <form onSubmit={guardar} noValidate className="mt-6">
+        <form onSubmit={save} noValidate className="mt-6">
 
           <label htmlFor="restablecer-nueva" className="text-xs font-bold text-gray-700">
             NUEVA CONTRASEÑA
@@ -97,14 +97,14 @@ export default function ResetPassword({
           <input
             id="restablecer-nueva"
             type="password"
-            name="nueva"
+            name="newPassword"
             autoComplete="new-password"
-            value={formulario.nueva}
-            onChange={manejarCambio}
-            className={withError(accountInputClass, errores.nueva)}
-            {...errorProps("nueva", errores.nueva)}
+            value={form.newPassword}
+            onChange={handleCambio}
+            className={withError(accountInputClass, errors.newPassword)}
+            {...errorProps("newPassword", errors.newPassword)}
           />
-          <FieldError campo="nueva" mensaje={errores.nueva} />
+          <FieldError field="newPassword" message={errors.newPassword} />
 
           <label htmlFor="restablecer-repetir" className="block mt-5 text-xs font-bold text-gray-700">
             REPETIR NUEVA CONTRASEÑA
@@ -112,24 +112,24 @@ export default function ResetPassword({
           <input
             id="restablecer-repetir"
             type="password"
-            name="repetir"
+            name="repeat"
             autoComplete="new-password"
-            value={formulario.repetir}
-            onChange={manejarCambio}
-            className={withError(accountInputClass, errores.repetir)}
-            {...errorProps("repetir", errores.repetir)}
+            value={form.repeat}
+            onChange={handleCambio}
+            className={withError(accountInputClass, errors.repeat)}
+            {...errorProps("repeat", errors.repeat)}
           />
-          <FieldError campo="repetir" mensaje={errores.repetir} />
+          <FieldError field="repeat" message={errors.repeat} />
 
-          <button type="submit" disabled={guardando} className={accountButtonClass}>
-            {guardando ? "Guardando..." : "Guardar contraseña"}
+          <button type="submit" disabled={saving} className={accountButtonClass}>
+            {saving ? "Guardando..." : "Guardar contraseña"}
           </button>
 
         </form>
       )}
 
       <p className="text-center text-xs text-gray-500 mt-6">
-        <button type="button" onClick={onIniciarSesion} className={accountLinkClass}>
+        <button type="button" onClick={onStartSession} className={accountLinkClass}>
           Volver a iniciar sesión
         </button>
       </p>

@@ -24,34 +24,34 @@ const VehicleContext = createContext(null);
  * Se exporta para que la pantalla que arma el borrador use la misma
  * regla que el contexto.
  */
-export function isVehicleComplete(vehiculo) {
-  return Boolean(vehiculo?.brand && vehiculo?.model && vehiculo?.year);
+export function isVehicleComplete(vehicle) {
+  return Boolean(vehicle?.brand && vehicle?.model && vehicle?.year);
 }
 
 export function VehicleProvider({ children }) {
-  const [vehiculoActivo, setVehiculoActivo] = useState(null);
+  const [activeVehicle, setActiveVehicle] = useState(null);
 
-    const activarVehiculo = useCallback((vehiculo) => {
+    const activateVehicle = useCallback((vehicle) => {
     // Sin marca no hay vehículo. Con marca sola sí: es el filtro que se
     // aplica al tocar una marca en Home o en /marcas. La cascada
     // completa (Marca > Modelo > Año) solo se exige en el buscador de
     // Home, con `vehiculoCompleto`.
-    if (!vehiculo?.brand) return;
+    if (!vehicle?.brand) return;
 
-    setVehiculoActivo({
-      brand: vehiculo.brand,
-      model: vehiculo.model || "",
-      year: vehiculo.year ? String(vehiculo.year) : "",
+    setActiveVehicle({
+      brand: vehicle.brand,
+      model: vehicle.model || "",
+      year: vehicle.year ? String(vehicle.year) : "",
     });
   }, []);
 
-  const limpiarVehiculo = useCallback(() => {
-    setVehiculoActivo(null);
+  const clearVehicle = useCallback(() => {
+    setActiveVehicle(null);
   }, []);
 
   const value = useMemo(
-    () => ({ vehiculoActivo, activarVehiculo, limpiarVehiculo }),
-    [vehiculoActivo, activarVehiculo, limpiarVehiculo]
+    () => ({ activeVehicle, activateVehicle, clearVehicle }),
+    [activeVehicle, activateVehicle, clearVehicle]
   );
 
   return (

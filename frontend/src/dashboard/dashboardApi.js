@@ -9,20 +9,20 @@ import { getSession } from "../auth";
    traducidos al shape de la UI.
 ====================================================== */
 
-const MENSAJES_POR_STATUS = {
+const MESSAGES_BY_STATUS = {
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "Esta sección es solo para vendedores.",
   404: "No encontramos ese repuesto.",
 };
 
-async function request(ruta, { params, mensajeError, ...opciones } = {}) {
-  const sesion = getSession();
+async function request(route, { params, errorMessage, ...opciones } = {}) {
+  const session = getSession();
   const query = new URLSearchParams();
-  Object.entries(params || {}).forEach(([clave, valor]) => {
-    if (valor !== undefined && valor !== null && valor !== "") query.set(clave, valor);
+  Object.entries(params || {}).forEach(([key, rawValue]) => {
+    if (rawValue !== undefined && rawValue !== null && rawValue !== "") query.set(key, rawValue);
   });
   const texto = query.toString();
-  const url = `${API_BASE_URL}/api/v1${ruta}${texto ? `?${texto}` : ""}`;
+  const url = `${API_BASE_URL}/api/v1${route}${texto ? `?${texto}` : ""}`;
 
   let response;
   try {
@@ -30,11 +30,11 @@ async function request(ruta, { params, mensajeError, ...opciones } = {}) {
       ...opciones,
       headers: {
         "Content-Type": "application/json",
-        ...(sesion?.token ? { Authorization: `Bearer ${sesion.token}` } : {}),
+        ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
       },
     });
   } catch {
-    throw new Error(mensajeError);
+    throw new Error(errorMessage);
   }
 
   // 204 (ej. dar de baja a un vendedor): no hay nada que leer.
@@ -48,110 +48,110 @@ async function request(ruta, { params, mensajeError, ...opciones } = {}) {
   }
 
   if (!response.ok) {
-    if (response.status === 401) notifyInvalidSession(sesion?.token);
+    if (response.status === 401) notifyInvalidSession(session?.token);
     const error = new Error(
       (typeof data?.detail === "string" && data.detail) ||
-        MENSAJES_POR_STATUS[response.status] ||
-        mensajeError
+        MESSAGES_BY_STATUS[response.status] ||
+        errorMessage
     );
     error.status = response.status;
     throw error;
   }
 
-  if (data === null) throw new Error(mensajeError);
+  if (data === null) throw new Error(errorMessage);
   return data;
 }
 
 // Quitar filtros = no mandarlos: `pedir` saltea los vacíos.
-const filtersFrom = ({ categoria, busqueda } = {}) => ({ category: categoria, search: busqueda });
+const filtersFrom = ({ categoria, search } = {}) => ({ category: categoria, search: search });
 
 function mapPart(part) {
   return {
     id: part.id,
-    codigo: part.part_code,
-    nombre: part.name,
+    code: part.part_code,
+    displayName: part.name,
     fabricante: part.manufacturer,
     categoria: part.category,
     stock: part.stock,
   };
 }
 
-function mapMonth(mes) {
+function mapMonth(month) {
   return {
-    mes: mes.month,
-    unidades: mes.units,
-    facturacion: mes.revenue,
-    enCurso: Boolean(mes.in_progress),
+    month: month.month,
+    units: month.units,
+    revenue: month.revenue,
+    inProgress: Boolean(month.in_progress),
   };
 }
 
-const mapForecast = (proyeccion) => ({ mes: proyeccion.month, unidades: proyeccion.units });
+const mapForecast = (forecast) => ({ month: forecast.month, units: forecast.units });
 
 function mapRisk(part) {
   return {
     ...mapPart(part),
-    demandaProyectada: part.projected_units,
-    demandaDiaria: part.daily_demand,
-    diasCobertura: part.coverage_days,
-    riesgo: part.risk,
+    projectedDemand: part.projected_units,
+    dailyDemand: part.daily_demand,
+    coverageDays: part.coverage_days,
+    risk: part.risk,
   };
 }
 
 /** GET /analytics/stock (HU 5.2) */
-export async function getStock(filtros) {
+export async function getStock(filters) {
   const data = await request("/analytics/stock", {
-    params: filtersFrom(filtros),
-    mensajeError: "No pudimos cargar el stock.",
+    params: filtersFrom(filters),
+    errorMessage: "No pudimos cargar el stock.",
   });
   return {
-    umbralStockBajo: data.low_stock_threshold,
-    repuestos: data.parts.map((part) => ({ ...mapPart(part), stockBajo: part.low_stock })),
+    thresholdStockLow: data.low_stock_threshold,
+    repuestos: data.parts.map((part) => ({ ...mapPart(part), stockLow: part.low_stock })),
   };
 }
 
 /** GET /analytics/best-sellers (HU 5.3), por meses calendario. */
-export async function getBestSellers({ meses, limite = 10, ...filtros } = {}) {
+export async function getBestSellers({ months, limit = 10, ...filters } = {}) {
   const data = await request("/analytics/best-sellers", {
-    params: { ...filtersFrom(filtros), months: meses, limit: limite },
-    mensajeError: "No pudimos cargar los más vendidos.",
+    params: { ...filtersFrom(filters), months: months, limit: limit },
+    errorMessage: "No pudimos cargar los más vendidos.",
   });
-  return data.parts.map((part) => ({ ...mapPart(part), unidadesVendidas: part.units_sold }));
+  return data.parts.map((part) => ({ ...mapPart(part), unitsSold: part.units_sold }));
 }
 
 /** GET /analytics/sales-by-month (HU 5.4 y 5.5) */
-export async function getSalesTrend({ meses, repuestoId, ...filtros } = {}) {
+export async function getSalesTrend({ months, idPart, ...filters } = {}) {
   const data = await request("/analytics/sales-by-month", {
-    params: { ...filtersFrom(filtros), months: meses, part_id: repuestoId },
-    mensajeError: "No pudimos cargar la evolución de ventas.",
+    params: { ...filtersFrom(filters), months: months, part_id: idPart },
+    errorMessage: "No pudimos cargar la evolución de ventas.",
   });
-  return { meses: data.months.map(mapMonth), proyeccion: mapForecast(data.projection) };
+  return { months: data.months.map(mapMonth), forecast: mapForecast(data.projection) };
 }
 
 /** GET /analytics/demand-forecast (HU 5.5) */
-export async function getDemandForecast({ limite = 20, ...filtros } = {}) {
+export async function getDemandForecast({ limit = 20, ...filters } = {}) {
   const data = await request("/analytics/demand-forecast", {
-    params: { ...filtersFrom(filtros), limit: limite },
-    mensajeError: "No pudimos cargar la proyección de demanda.",
+    params: { ...filtersFrom(filters), limit: limit },
+    errorMessage: "No pudimos cargar la proyección de demanda.",
   });
   return {
-    mes: data.month,
+    month: data.month,
     repuestos: data.parts.map((part) => ({
       ...mapPart(part),
-      unidadesUltimoAnio: part.units_last_12_months,
-      demandaProyectada: part.projected_units,
+      unitsLastYear: part.units_last_12_months,
+      projectedDemand: part.projected_units,
     })),
   };
 }
 
 /** GET /analytics/stockout-risk (HU 5.6; con soloEnRiesgo, las alertas de la HU 5.7) */
-export async function getStockoutRisk({ soloEnRiesgo = false, ...filtros } = {}) {
+export async function getStockoutRisk({ onlyInRisk = false, ...filters } = {}) {
   const data = await request("/analytics/stockout-risk", {
-    params: { ...filtersFrom(filtros), at_risk_only: soloEnRiesgo ? "true" : undefined },
-    mensajeError: "No pudimos calcular el riesgo de agotamiento.",
+    params: { ...filtersFrom(filters), at_risk_only: onlyInRisk ? "true" : undefined },
+    errorMessage: "No pudimos calcular el riesgo de agotamiento.",
   });
   return {
-    mes: data.month,
-    umbrales: { alto: data.thresholds.high_below, medio: data.thresholds.medium_up_to },
+    month: data.month,
+    umbrales: { high: data.thresholds.high_below, medium: data.thresholds.medium_up_to },
     repuestos: data.parts.map(mapRisk),
   };
 }
@@ -159,15 +159,15 @@ export async function getStockoutRisk({ soloEnRiesgo = false, ...filtros } = {})
 /** GET /analytics/parts/{id} (HU 5.8) */
 export async function getPartDetail(id) {
   const data = await request(`/analytics/parts/${encodeURIComponent(id)}`, {
-    mensajeError: "No pudimos cargar el repuesto.",
+    errorMessage: "No pudimos cargar el repuesto.",
   });
   return {
     ...mapRisk({ ...data, projected_units: data.projection.units }),
-    precio: data.price,
-    stockBajo: data.low_stock,
-    unidadesVendidas: data.units_sold,
-    meses: data.months.map(mapMonth),
-    proyeccion: mapForecast(data.projection),
+    price: data.price,
+    stockLow: data.low_stock,
+    unitsSold: data.units_sold,
+    months: data.months.map(mapMonth),
+    forecast: mapForecast(data.projection),
   };
 }
 
@@ -177,64 +177,64 @@ export async function getPartDetail(id) {
 
 /** GET /analytics/car-models: los vehículos para elegir los compatibles. */
 export async function getVehicles() {
-  const data = await request("/analytics/car-models", { mensajeError: "No pudimos cargar los vehículos." });
-  return data.car_models.map((m) => ({ id: m.id, marca: m.brand, modelo: m.model, motor: m.engine_code }));
+  const data = await request("/analytics/car-models", { errorMessage: "No pudimos cargar los vehículos." });
+  return data.car_models.map((m) => ({ id: m.id, marca: m.brand, modelo: m.model, engine: m.engine_code }));
 }
 
 /** GET /parts/{id}: los datos completos, para precargar el formulario de edición. */
 export async function getPartForEdit(id) {
-  const part = await request(`/parts/${encodeURIComponent(id)}`, { mensajeError: "No pudimos cargar el repuesto." });
+  const part = await request(`/parts/${encodeURIComponent(id)}`, { errorMessage: "No pudimos cargar el repuesto." });
   return {
     ...mapPart(part),
-    precio: part.price,
+    price: part.price,
     color: part.color || "",
-    descripcion: part.description || "",
-    garantiaMeses: part.warranty_months ?? "",
+    description: part.description || "",
+    monthsWarranty: part.warranty_months ?? "",
     compatibilidades: (part.compatibilities || []).map((c) => ({
       marca: c.brand,
       modelo: c.model,
-      motor: c.engine_code,
-      desde: c.year_from,
-      hasta: c.year_to,
+      engine: c.engine_code,
+      from: c.year_from,
+      until: c.year_to,
     })),
   };
 }
 
-function partBody(datos) {
+function partBody(info) {
   return JSON.stringify({
-    part_code: datos.codigo,
-    name: datos.nombre,
-    manufacturer: datos.fabricante,
-    category: datos.categoria,
-    price: Number(datos.precio),
-    ...(datos.stock !== undefined ? { stock: Number(datos.stock) } : {}),
-    color: datos.color || null,
-    description: datos.descripcion || null,
-    warranty_months: datos.garantiaMeses === "" || datos.garantiaMeses == null ? null : Number(datos.garantiaMeses),
-    compatibilities: datos.compatibilidades.map((c) => ({
-      car_model_id: c.vehiculoId,
-      year_from: Number(c.desde),
-      year_to: Number(c.hasta),
+    part_code: info.code,
+    name: info.displayName,
+    manufacturer: info.fabricante,
+    category: info.categoria,
+    price: Number(info.price),
+    ...(info.stock !== undefined ? { stock: Number(info.stock) } : {}),
+    color: info.color || null,
+    description: info.description || null,
+    warranty_months: info.monthsWarranty === "" || info.monthsWarranty == null ? null : Number(info.monthsWarranty),
+    compatibilities: info.compatibilidades.map((c) => ({
+      car_model_id: c.idVehicle,
+      year_from: Number(c.from),
+      year_to: Number(c.until),
     })),
   });
 }
 
 /** POST /parts */
-export async function createPart(datos) {
+export async function createPart(info) {
   const part = await request("/parts", {
     method: "POST",
-    body: partBody(datos),
-    mensajeError: "No pudimos dar de alta el repuesto.",
+    body: partBody(info),
+    errorMessage: "No pudimos dar de alta el repuesto.",
   });
   return mapPart(part);
 }
 
 /** PUT /parts/{id}: no cambia el stock (se ajusta aparte). */
-export async function updatePart(id, datos) {
+export async function updatePart(id, info) {
   const part = await request(`/parts/${encodeURIComponent(id)}`, {
     method: "PUT",
-    body: partBody({ ...datos, stock: undefined }),
-    mensajeError: "No pudimos guardar los cambios.",
+    body: partBody({ ...info, stock: undefined }),
+    errorMessage: "No pudimos guardar los cambios.",
   });
   return mapPart(part);
 }
@@ -244,7 +244,7 @@ export async function adjustStock(id, stock) {
   const part = await request(`/parts/${encodeURIComponent(id)}/stock`, {
     method: "PATCH",
     body: JSON.stringify({ stock: Number(stock) }),
-    mensajeError: "No pudimos ajustar el stock.",
+    errorMessage: "No pudimos ajustar el stock.",
   });
   return mapPart(part);
 }
@@ -256,45 +256,45 @@ export async function adjustStock(id, stock) {
 function mapSellerOrder(p) {
   return {
     id: p.order_id,
-    fecha: p.created_at,
+    date: p.created_at,
     estado: p.status,
     // "pending" | "approved" | "rejected"; null en los de antes de Mercado Pago (ya cobrados).
-    estadoPago: p.payment_status ?? null,
+    paymentStatus: p.payment_status ?? null,
     total: p.total,
-    metodoPago: p.payment_method,
-    idPagoMP: p.mp_payment_id ?? null,
+    paymentMethod: p.payment_method,
+    idPaymentMP: p.mp_payment_id ?? null,
     // Cuándo se devolvió el dinero (null si no se devolvió) y si falta devolverlo.
-    devueltoEl: p.refunded_at ?? null,
+    refunded: p.refunded_at ?? null,
     faltaDevolver: Boolean(p.refund_pending),
-    cliente: { nombre: p.client_name, email: p.client_email, telefono: p.client_phone ?? null },
+    customer: { displayName: p.client_name, email: p.client_email, phone: p.client_phone ?? null },
     // A dónde se envía: la copia guardada al comprar (no cambia si el cliente edita su perfil).
-    envio: {
+    shipping: {
       // El nombre que el cliente le puso a la dirección ("Casa", "Trabajo"), no quién recibe.
-      nombreDireccion: p.shipping_address.personal_name,
-      calle: p.shipping_address.street,
-      numero: p.shipping_address.number,
+      addressName: p.shipping_address.personal_name,
+      street: p.shipping_address.street,
+      number: p.shipping_address.number,
       apartamento: p.shipping_address.apartment ?? null,
-      ciudad: p.shipping_address.city,
+      city: p.shipping_address.city,
       departamento: p.shipping_address.department,
-      codigoPostal: p.shipping_address.postal_code ?? null,
+      codePostal: p.shipping_address.postal_code ?? null,
     },
     items: p.items.map((item) => ({
-      repuestoId: item.part_id,
-      codigo: item.part_code,
-      nombre: item.name,
-      cantidad: item.quantity,
-      precio: item.frozen_price,
+      idPart: item.part_id,
+      code: item.part_code,
+      displayName: item.name,
+      quantity: item.quantity,
+      price: item.frozen_price,
     })),
     // Lo decide el backend: a qué estado se puede pasar (null si no se puede) y si se puede cancelar.
-    siguienteEstado: p.next_status ?? null,
+    nextStatus: p.next_status ?? null,
     // A dónde vuelve si el vendedor se equivocó (null si no se puede volver).
-    anteriorEstado: p.previous_status ?? null,
-    sePuedeCancelar: Boolean(p.can_cancel),
+    previousStatus: p.previous_status ?? null,
+    canCancel: Boolean(p.can_cancel),
     // La dirección se corrige mientras el pedido no salió.
-    sePuedeEditarEnvio: Boolean(p.can_edit_shipping),
-    motivoCancelacion: p.cancellation_reason ?? null,
+    canEditShipping: Boolean(p.can_edit_shipping),
+    reasonCancellation: p.cancellation_reason ?? null,
     // Solo la ve la tienda.
-    notaInterna: p.internal_note ?? null,
+    internalNote: p.internal_note ?? null,
   };
 }
 
@@ -303,23 +303,23 @@ function mapSellerOrder(p) {
  * estado. `orden`: un valor de ORDENES_PEDIDO (pedidos.js); sin él, el
  * backend pone primero los que más esperan.
  */
-export async function getOrders({ estado, limite = 50, desde = 0, soloPagados = false, orden } = {}) {
+export async function getOrders({ estado, limit = 50, from = 0, onlyPaid = false, sort } = {}) {
   const data = await request("/orders/seller", {
-    params: { status: estado, limit: limite, offset: desde, paid_only: soloPagados ? "true" : undefined, sort: orden },
-    mensajeError: "No pudimos cargar los pedidos.",
+    params: { status: estado, limit: limit, offset: from, paid_only: onlyPaid ? "true" : undefined, sort: sort },
+    errorMessage: "No pudimos cargar los pedidos.",
   });
   return {
-    pedidos: data.orders.map(mapSellerOrder),
+    orders: data.orders.map(mapSellerOrder),
     total: data.total,
-    porEstado: data.counts,
-    paraPreparar: data.to_prepare,
+    byStatus: data.counts,
+    forPrepare: data.to_prepare,
   };
 }
 
 /** GET /orders/seller/{id}: el detalle de un pedido. */
 export async function getOrder(id) {
   const data = await request(`/orders/seller/${encodeURIComponent(id)}`, {
-    mensajeError: "No pudimos cargar el pedido.",
+    errorMessage: "No pudimos cargar el pedido.",
   });
   return mapSellerOrder(data);
 }
@@ -329,7 +329,7 @@ export async function changeOrderStatus(id, estado, motivo) {
   const data = await request(`/orders/${encodeURIComponent(id)}/status`, {
     method: "PATCH",
     body: JSON.stringify(estado === "cancelled" ? { status: estado, reason: motivo } : { status: estado }),
-    mensajeError: "No pudimos cambiar el estado del pedido.",
+    errorMessage: "No pudimos cambiar el estado del pedido.",
   });
   return mapSellerOrder(data);
 }
@@ -339,24 +339,24 @@ export async function changeOrderStatus(id, estado, motivo) {
  * cliente. Se manda solo lo que cambia: `envio` (mismo formato que
  * `pedido.envio`) y/o `notaInterna` ("" la borra).
  */
-export async function updateOrder(id, { envio, notaInterna } = {}) {
+export async function updateOrder(id, { shipping, internalNote } = {}) {
   const body = {};
-  if (envio) {
+  if (shipping) {
     body.shipping_address = {
-      personal_name: envio.nombreDireccion,
-      street: envio.calle,
-      number: envio.numero,
-      apartment: envio.apartamento || null,
-      city: envio.ciudad,
-      department: envio.departamento,
-      postal_code: envio.codigoPostal || null,
+      personal_name: shipping.addressName,
+      street: shipping.street,
+      number: shipping.number,
+      apartment: shipping.apartamento || null,
+      city: shipping.city,
+      department: shipping.departamento,
+      postal_code: shipping.codePostal || null,
     };
   }
-  if (notaInterna !== undefined) body.internal_note = notaInterna;
+  if (internalNote !== undefined) body.internal_note = internalNote;
   const data = await request(`/orders/seller/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify(body),
-    mensajeError: "No pudimos guardar los cambios del pedido.",
+    errorMessage: "No pudimos guardar los cambios del pedido.",
   });
   return mapSellerOrder(data);
 }
@@ -371,14 +371,14 @@ export async function updateOrder(id, { envio, notaInterna } = {}) {
 /** true si la ruta todavía no existe en el backend. */
 export const unpublishedFeature = (error) => error?.status === 404 || error?.status === 501;
 
-const mapSummary = (data) => ({ puntos: data.points, generado: data.generated_at });
+const mapSummary = (data) => ({ puntos: data.points, generated: data.generated_at });
 
 /**
  * GET /analytics/summary (HU 6.3): el resumen guardado del día.
  * Respuesta: { points: string[] (3 a 5), generated_at: fecha ISO }
  */
 export async function getAISummary() {
-  const data = await request("/analytics/summary", { mensajeError: "No pudimos cargar el resumen." });
+  const data = await request("/analytics/summary", { errorMessage: "No pudimos cargar el resumen." });
   return mapSummary(data);
 }
 
@@ -386,7 +386,7 @@ export async function getAISummary() {
 export async function refreshAISummary() {
   const data = await request("/analytics/summary", {
     method: "POST",
-    mensajeError: "No pudimos generar el resumen.",
+    errorMessage: "No pudimos generar el resumen.",
   });
   return mapSummary(data);
 }
@@ -401,11 +401,11 @@ export async function askDashboard(pregunta) {
   const data = await request("/analytics/preguntar", {
     method: "POST",
     body: JSON.stringify({ question: pregunta }),
-    mensajeError: "No pudimos responder la pregunta. Probá de nuevo en un rato.",
+    errorMessage: "No pudimos responder la pregunta. Probá de nuevo en un rato.",
   });
   return {
-    respuesta: data.answer,
-    datos: data.data ? { columnas: data.data.columns, filas: data.data.rows } : null,
+    response: data.answer,
+    info: data.data ? { columnas: data.data.columns, rows: data.data.rows } : null,
   };
 }
 
@@ -416,12 +416,12 @@ export async function askDashboard(pregunta) {
 ====================================================== */
 
 function mapSeller(e) {
-  return { id: e.id, nombre: e.name, email: e.email, isAdmin: Boolean(e.is_admin) };
+  return { id: e.id, displayName: e.name, email: e.email, isAdmin: Boolean(e.is_admin) };
 }
 
 /** GET /employees — los vendedores que siguen en el equipo. */
 export async function getSellers() {
-  const data = await request("/employees", { mensajeError: "No pudimos cargar el equipo." });
+  const data = await request("/employees", { errorMessage: "No pudimos cargar el equipo." });
   return (data.employees || []).map(mapSeller);
 }
 
@@ -429,11 +429,11 @@ export async function getSellers() {
  * POST /employees — suma un vendedor. Le llega un mail para elegir su
  * contraseña. 409 si el correo ya tiene cuenta.
  */
-export async function addSeller({ nombre, email }) {
+export async function addSeller({ displayName, email }) {
   const data = await request("/employees", {
     method: "POST",
-    body: JSON.stringify({ name: nombre.trim(), email: email.trim() }),
-    mensajeError: "No pudimos agregar al vendedor.",
+    body: JSON.stringify({ name: displayName.trim(), email: email.trim() }),
+    errorMessage: "No pudimos agregar al vendedor.",
   });
   return mapSeller(data);
 }
@@ -442,6 +442,6 @@ export async function addSeller({ nombre, email }) {
 export async function removeSeller(id) {
   await request(`/employees/${encodeURIComponent(id)}`, {
     method: "DELETE",
-    mensajeError: "No pudimos dar de baja al vendedor.",
+    errorMessage: "No pudimos dar de baja al vendedor.",
   });
 }

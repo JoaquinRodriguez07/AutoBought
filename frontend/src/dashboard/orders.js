@@ -24,7 +24,7 @@ export const ORDER_PAYMENTS = {
 
 // Un pedido cancelado y pagado: si ya se le devolvió el dinero al cliente.
 export const ORDER_REFUNDS = {
-  devuelto: { texto: "Devuelto", tono: TONES.neutro },
+  refunded: { texto: "Devuelto", tono: TONES.neutro },
   falta: { texto: "Falta devolver", tono: TONES.rojo },
 };
 
@@ -49,12 +49,12 @@ export const NOTE_MAX = 500;
 const shortDate = new Intl.DateTimeFormat("es-UY", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const longDate = new Intl.DateTimeFormat("es-UY", { dateStyle: "full", timeStyle: "short" });
 
-export const formatOrderDate = (fecha, { larga = false } = {}) =>
-  (larga ? longDate : shortDate).format(new Date(fecha));
+export const formatOrderDate = (date, { larga = false } = {}) =>
+  (larga ? longDate : shortDate).format(new Date(date));
 
 // "Av. Italia 1234, apto. 301"
-export function streetText(envio) {
-  return `${envio.calle} ${envio.numero}${envio.apartamento ? `, apto. ${envio.apartamento}` : ""}`;
+export function streetText(shipping) {
+  return `${shipping.street} ${shipping.number}${shipping.apartamento ? `, apto. ${shipping.apartamento}` : ""}`;
 }
 
 // Avanzar o cancelar un pedido, igual en el listado y en el detalle (y, solo
@@ -62,28 +62,28 @@ export function streetText(envio) {
 // `onCambiado(pedido)` recibe el pedido como quedó; los errores (un 409
 // porque otro lo cambió, Mercado Pago caído al cancelar) quedan en `error`.
 export function useStatusChange(onCambiado) {
-  const [ocupado, setOcupado] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [aCancelar, setACancelar] = useState(null);
-  const [aVolver, setAVolver] = useState(null);
+  const [toCancel, setToCancel] = useState(null);
+  const [toGoBack, setToGoBack] = useState(null);
 
   // Volver un paso atrás corrige un error de la tienda: se confirma antes y
   // al cliente no le llega mail.
-  const volver = async () => {
-    const pedido = aVolver;
+  const goBack = async () => {
+    const pedido = toGoBack;
     setError("");
-    setOcupado(true);
+    setBusy(true);
     try {
-      const actualizado = await changeOrderStatus(pedido.id, pedido.anteriorEstado);
-      setAVolver(null);
-      toast.success(`Pedido #${actualizado.id}: volvió a ${ORDER_STATUSES[actualizado.estado].texto}. Al cliente no le llega mail.`);
-      onCambiado(actualizado);
-    } catch (falla) {
-      setAVolver(null);
-      setError(falla.message);
+      const updated = await changeOrderStatus(pedido.id, pedido.previousStatus);
+      setToGoBack(null);
+      toast.success(`Pedido #${updated.id}: volvió a ${ORDER_STATUSES[updated.estado].texto}. Al cliente no le llega mail.`);
+      onCambiado(updated);
+    } catch (failure) {
+      setToGoBack(null);
+      setError(failure.message);
       onCambiado(null);
     } finally {
-      setOcupado(false);
+      setBusy(false);
     }
   };
 
@@ -94,37 +94,37 @@ export function useStatusChange(onCambiado) {
 
   const avanzar = async (pedido) => {
     setError("");
-    setOcupado(true);
+    setBusy(true);
     try {
-      avisar(await changeOrderStatus(pedido.id, pedido.siguienteEstado));
-    } catch (falla) {
-      setError(falla.message);
+      avisar(await changeOrderStatus(pedido.id, pedido.nextStatus));
+    } catch (failure) {
+      setError(failure.message);
       onCambiado(null); // se recarga, para ver cómo quedó
     } finally {
-      setOcupado(false);
+      setBusy(false);
     }
   };
 
   return {
-    ocupado,
+    busy,
     error,
-    limpiarError: () => setError(""),
+    clearError: () => setError(""),
     avanzar,
-    aCancelar,
-    pedirCancelar: (pedido) => {
+    toCancel,
+    askCancel: (pedido) => {
       setError("");
-      setACancelar(pedido);
+      setToCancel(pedido);
     },
-    cerrarCancelar: () => setACancelar(null),
-    aVolver,
-    pedirVolver: (pedido) => {
+    closeCancel: () => setToCancel(null),
+    toGoBack,
+    askGoBack: (pedido) => {
       setError("");
-      setAVolver(pedido);
+      setToGoBack(pedido);
     },
-    cerrarVolver: () => setAVolver(null),
-    volver,
-    alCancelar: (pedido) => {
-      setACancelar(null);
+    closeGoBack: () => setToGoBack(null),
+    goBack,
+    onCancel: (pedido) => {
+      setToCancel(null);
       avisar(pedido);
     },
   };

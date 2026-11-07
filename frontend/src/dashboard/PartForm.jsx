@@ -12,68 +12,68 @@ import { createPart, updatePart, getPartForEdit, getVehicles } from "./dashboard
 import { FormField, DashboardDialog } from "./pieces";
 
 const EMPTY = {
-  codigo: "",
-  nombre: "",
+  code: "",
+  displayName: "",
   fabricante: "",
   categoria: "",
-  precio: "",
+  price: "",
   stock: "0",
   color: "",
-  garantiaMeses: "",
-  descripcion: "",
+  monthsWarranty: "",
+  description: "",
   compatibilidades: [],
 };
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-const vehicleName = (v) => [v.marca, v.modelo, v.motor].filter(Boolean).join(" ");
+const vehicleName = (v) => [v.marca, v.modelo, v.engine].filter(Boolean).join(" ");
 
 const isInteger = (texto) => /^\d+$/.test(String(texto).trim());
 
-function validate(datos, esAlta) {
-  const errores = {};
-  if (!datos.codigo.trim()) errores.codigo = "Ingresá el código.";
-  if (!datos.nombre.trim()) errores.nombre = "Ingresá el nombre.";
-  if (!datos.fabricante.trim()) errores.fabricante = "Ingresá el fabricante.";
-  if (!datos.categoria.trim()) errores.categoria = "Ingresá la categoría.";
-  if (!isInteger(datos.precio) || Number(datos.precio) <= 0) errores.precio = "El precio es un número entero mayor que 0.";
-  if (esAlta && !isInteger(datos.stock)) errores.stock = "El stock es un número entero, 0 o más.";
-  if (datos.garantiaMeses !== "" && !isInteger(datos.garantiaMeses)) errores.garantiaMeses = "Meses enteros, o vacío.";
-  if (datos.compatibilidades.length === 0) errores.compatibilidades = "Agregá al menos un vehículo compatible.";
-  return errores;
+function validate(info, isSignup) {
+  const errors = {};
+  if (!info.code.trim()) errors.code = "Ingresá el código.";
+  if (!info.displayName.trim()) errors.displayName = "Ingresá el nombre.";
+  if (!info.fabricante.trim()) errors.fabricante = "Ingresá el fabricante.";
+  if (!info.categoria.trim()) errors.categoria = "Ingresá la categoría.";
+  if (!isInteger(info.price) || Number(info.price) <= 0) errors.price = "El precio es un número entero mayor que 0.";
+  if (isSignup && !isInteger(info.stock)) errors.stock = "El stock es un número entero, 0 o más.";
+  if (info.monthsWarranty !== "" && !isInteger(info.monthsWarranty)) errors.monthsWarranty = "Meses enteros, o vacío.";
+  if (info.compatibilidades.length === 0) errors.compatibilidades = "Agregá al menos un vehículo compatible.";
+  return errors;
 }
 
 // Selector de un vehículo compatible con su rango de años.
-function AddVehicle({ vehiculos, elegidos, onAgregar }) {
-  const [vehiculoId, setVehiculoId] = useState("");
-  const [desde, setDesde] = useState(String(CURRENT_YEAR - 10));
-  const [hasta, setHasta] = useState(String(CURRENT_YEAR));
+function AddVehicle({ vehicles, chosen, onAdd }) {
+  const [idVehicle, setIdVehicle] = useState("");
+  const [from, setFrom] = useState(String(CURRENT_YEAR - 10));
+  const [until, setUntil] = useState(String(CURRENT_YEAR));
   const [error, setError] = useState("");
 
-  const porMarca = {};
-  vehiculos.forEach((v) => {
-    if (!elegidos.includes(v.id)) (porMarca[v.marca] ||= []).push(v);
+  const byBrand = {};
+  vehicles.forEach((v) => {
+    if (!chosen.includes(v.id)) (byBrand[v.marca] ||= []).push(v);
   });
 
-  const agregar = () => {
-    if (!vehiculoId) return setError("Elegí un vehículo.");
-    if (!isInteger(desde) || !isInteger(hasta) || Number(hasta) < Number(desde)) {
+  const add = () => {
+    if (!idVehicle) return setError("Elegí un vehículo.");
+    if (!isInteger(from) || !isInteger(until) || Number(until) < Number(from)) {
       return setError("Revisá los años: el año hasta no puede ser anterior al desde.");
     }
     setError("");
-    onAgregar({ vehiculoId: Number(vehiculoId), desde: Number(desde), hasta: Number(hasta) });
-    setVehiculoId("");
+    onAdd({ idVehicle: Number(idVehicle), from: Number(from), until: Number(until) });
+    setIdVehicle("");
   };
 
   return (
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-[1fr_5rem_5rem_auto] gap-2 items-end">
-        <FormField id="vehiculo" etiqueta="Vehículo">
-          <NativeSelect id="vehiculo" value={vehiculoId} onChange={(e) => setVehiculoId(e.target.value)} className="w-full *:h-10">
+        <FormField id="vehicle" label="Vehículo">
+          <NativeSelect id="vehicle" value={idVehicle} onChange={(e) => setIdVehicle(e.target.value)} className="w-full *:h-10">
             <NativeSelectOption value="">Elegí un vehículo</NativeSelectOption>
-            {Object.entries(porMarca).map(([marca, lista]) => (
+            {Object.entries(byBrand).map(([marca, list]) => (
               <NativeSelectOptGroup key={marca} label={marca}>
-                {lista.map((v) => (
+                {list.map((v) => (
                   <NativeSelectOption key={v.id} value={v.id}>
                     {vehicleName(v)}
                   </NativeSelectOption>
@@ -82,13 +82,13 @@ function AddVehicle({ vehiculos, elegidos, onAgregar }) {
             ))}
           </NativeSelect>
         </FormField>
-        <FormField id="vehiculo-desde" etiqueta="Desde">
-          <Input id="vehiculo-desde" inputMode="numeric" value={desde} onChange={(e) => setDesde(e.target.value)} className="h-10" />
+        <FormField id="vehiculo-desde" label="Desde">
+          <Input id="vehiculo-desde" inputMode="numeric" value={from} onChange={(e) => setFrom(e.target.value)} className="h-10" />
         </FormField>
-        <FormField id="vehiculo-hasta" etiqueta="Hasta">
-          <Input id="vehiculo-hasta" inputMode="numeric" value={hasta} onChange={(e) => setHasta(e.target.value)} className="h-10" />
+        <FormField id="vehiculo-hasta" label="Hasta">
+          <Input id="vehiculo-hasta" inputMode="numeric" value={until} onChange={(e) => setUntil(e.target.value)} className="h-10" />
         </FormField>
-        <Button type="button" onClick={agregar} variant="secondary" className="h-10 px-3 text-xs">
+        <Button type="button" onClick={add} variant="secondary" className="h-10 px-3 text-xs">
           Agregar
         </Button>
       </div>
@@ -97,126 +97,126 @@ function AddVehicle({ vehiculos, elegidos, onAgregar }) {
   );
 }
 
-function FormContent({ repuestoId, categorias, onGuardado }) {
-  const esAlta = repuestoId == null;
-  const [datos, setDatos] = useState(EMPTY);
-  const [vehiculos, setVehiculos] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [errores, setErrores] = useState({});
-  const [errorServidor, setErrorServidor] = useState("");
-  const [guardando, setGuardando] = useState(false);
+function FormContent({ idPart, categories, onSaved }) {
+  const isSignup = idPart == null;
+  const [info, setData] = useState(EMPTY);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errors, setErrors] = useState({});
+  const [errorServer, setErrorServer] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let vigente = true;
-    Promise.all([getVehicles(), esAlta ? null : getPartForEdit(repuestoId)])
-      .then(([lista, repuesto]) => {
+    Promise.all([getVehicles(), isSignup ? null : getPartForEdit(idPart)])
+      .then(([list, part]) => {
         if (!vigente) return;
-        setVehiculos(lista);
-        if (repuesto) {
+        setVehicles(list);
+        if (part) {
           // /parts/{id} trae los vehículos por nombre: se buscan sus ids.
-          const compatibilidades = repuesto.compatibilidades
+          const compatibilidades = part.compatibilidades
             .map((c) => {
-              const vehiculo = lista.find((v) => v.marca === c.marca && v.modelo === c.modelo && v.motor === c.motor);
-              return vehiculo && { vehiculoId: vehiculo.id, desde: c.desde, hasta: c.hasta };
+              const vehicle = list.find((v) => v.marca === c.marca && v.modelo === c.modelo && v.engine === c.engine);
+              return vehicle && { idVehicle: vehicle.id, from: c.from, until: c.until };
             })
             .filter(Boolean);
-          setDatos({
+          setData({
             ...EMPTY,
-            ...repuesto,
-            precio: String(repuesto.precio),
-            garantiaMeses: String(repuesto.garantiaMeses),
+            ...part,
+            price: String(part.price),
+            monthsWarranty: String(part.monthsWarranty),
             compatibilidades,
           });
         }
-        setCargando(false);
+        setLoading(false);
       })
       .catch((error) => {
         if (!vigente) return;
-        setErrorServidor(error.message);
-        setCargando(false);
+        setErrorServer(error.message);
+        setLoading(false);
       });
     return () => {
       vigente = false;
     };
-  }, [esAlta, repuestoId]);
+  }, [isSignup, idPart]);
 
-  const cambiar = (campo) => (event) => setDatos((actual) => ({ ...actual, [campo]: event.target.value }));
+  const change = (field) => (event) => setData((current) => ({ ...current, [field]: event.target.value }));
 
-  const guardar = async (event) => {
+  const save = async (event) => {
     event.preventDefault();
-    const encontrados = validate(datos, esAlta);
-    setErrores(encontrados);
-    setErrorServidor("");
-    if (Object.keys(encontrados).length) return;
+    const found = validate(info, isSignup);
+    setErrors(found);
+    setErrorServer("");
+    if (Object.keys(found).length) return;
 
-    setGuardando(true);
+    setSaving(true);
     try {
-      const guardado = esAlta ? await createPart(datos) : await updatePart(repuestoId, datos);
-      onGuardado(guardado);
+      const saved = isSignup ? await createPart(info) : await updatePart(idPart, info);
+      onSaved(saved);
     } catch (error) {
-      setErrorServidor(error.message);
-      setGuardando(false);
+      setErrorServer(error.message);
+      setSaving(false);
     }
   };
 
-  if (cargando) return <p className="text-sm text-muted-foreground">Cargando…</p>;
+  if (loading) return <p className="text-sm text-muted-foreground">Cargando…</p>;
 
-  const texto = (campo, etiqueta, props = {}) => (
-    <FormField id={`repuesto-${campo}`} etiqueta={etiqueta} error={errores[campo]}>
+  const texto = (field, label, props = {}) => (
+    <FormField id={`repuesto-${field}`} label={label} error={errors[field]}>
       <Input
-        id={`repuesto-${campo}`}
-        value={datos[campo]}
-        onChange={cambiar(campo)}
-        aria-invalid={Boolean(errores[campo])}
-        aria-describedby={errores[campo] ? `repuesto-${campo}-error` : undefined}
+        id={`repuesto-${field}`}
+        value={info[field]}
+        onChange={change(field)}
+        aria-invalid={Boolean(errors[field])}
+        aria-describedby={errors[field] ? `repuesto-${field}-error` : undefined}
         className="h-10"
         {...props}
       />
     </FormField>
   );
 
-  const vehiculoPorId = Object.fromEntries(vehiculos.map((v) => [v.id, v]));
+  const vehicleById = Object.fromEntries(vehicles.map((v) => [v.id, v]));
 
   return (
-    <form onSubmit={guardar} noValidate className="flex flex-col gap-4">
+    <form onSubmit={save} noValidate className="flex flex-col gap-4">
       <div className="grid sm:grid-cols-2 gap-3">
-        {texto("codigo", "Código", { placeholder: "FRE-0101" })}
-        {texto("nombre", "Nombre")}
+        {texto("code", "Código", { placeholder: "FRE-0101" })}
+        {texto("displayName", "Nombre")}
         {texto("fabricante", "Fabricante")}
         {texto("categoria", "Categoría", { list: "categorias-repuesto" })}
-        {texto("precio", "Precio ($)", { inputMode: "numeric" })}
-        {esAlta && texto("stock", "Stock inicial", { inputMode: "numeric" })}
+        {texto("price", "Precio ($)", { inputMode: "numeric" })}
+        {isSignup && texto("stock", "Stock inicial", { inputMode: "numeric" })}
         {texto("color", "Color (opcional)")}
-        {texto("garantiaMeses", "Garantía en meses (opcional)", { inputMode: "numeric" })}
+        {texto("monthsWarranty", "Garantía en meses (opcional)", { inputMode: "numeric" })}
       </div>
       <datalist id="categorias-repuesto">
-        {categorias.map((nombre) => (
-          <option key={nombre} value={nombre} />
+        {categories.map((displayName) => (
+          <option key={displayName} value={displayName} />
         ))}
       </datalist>
 
-      <FormField id="repuesto-descripcion" etiqueta="Descripción (opcional)">
-        <Textarea id="repuesto-descripcion" rows={3} value={datos.descripcion} onChange={cambiar("descripcion")} />
+      <FormField id="repuesto-descripcion" label="Descripción (opcional)">
+        <Textarea id="repuesto-descripcion" rows={3} value={info.description} onChange={change("description")} />
       </FormField>
 
       <FieldSet className="border rounded-lg p-3 gap-3">
         <FieldLegend variant="label" className="px-1 text-xs font-bold">
           Vehículos compatibles
         </FieldLegend>
-        {datos.compatibilidades.length > 0 && (
+        {info.compatibilidades.length > 0 && (
           <ul aria-label="Vehículos elegidos" className="flex flex-col gap-1 mb-3">
-            {datos.compatibilidades.map((c) => (
-              <li key={c.vehiculoId} className="flex items-center justify-between gap-2 text-sm bg-muted rounded-md px-2 py-1">
+            {info.compatibilidades.map((c) => (
+              <li key={c.idVehicle} className="flex items-center justify-between gap-2 text-sm bg-muted rounded-md px-2 py-1">
                 <span>
-                  {vehiculoPorId[c.vehiculoId] ? vehicleName(vehiculoPorId[c.vehiculoId]) : `Vehículo ${c.vehiculoId}`} ({c.desde}–{c.hasta})
+                  {vehicleById[c.idVehicle] ? vehicleName(vehicleById[c.idVehicle]) : `Vehículo ${c.idVehicle}`} ({c.from}–{c.until})
                 </span>
                 <Button
                   variant="ghost"
                   size="xs"
                   onClick={() =>
-                    setDatos((actual) => ({
-                      ...actual,
-                      compatibilidades: actual.compatibilidades.filter((otra) => otra.vehiculoId !== c.vehiculoId),
+                    setData((current) => ({
+                      ...current,
+                      compatibilidades: current.compatibilidades.filter((other) => other.idVehicle !== c.idVehicle),
                     }))
                   }
                   className="text-xs font-bold text-muted-foreground hover:text-destructive"
@@ -228,24 +228,24 @@ function FormContent({ repuestoId, categorias, onGuardado }) {
           </ul>
         )}
         <AddVehicle
-          vehiculos={vehiculos}
-          elegidos={datos.compatibilidades.map((c) => c.vehiculoId)}
-          onAgregar={(compatibilidad) =>
-            setDatos((actual) => ({ ...actual, compatibilidades: [...actual.compatibilidades, compatibilidad] }))
+          vehicles={vehicles}
+          chosen={info.compatibilidades.map((c) => c.idVehicle)}
+          onAdd={(compatibilidad) =>
+            setData((current) => ({ ...current, compatibilidades: [...current.compatibilidades, compatibilidad] }))
           }
         />
-        {errores.compatibilidades && <p className="text-xs text-destructive">{errores.compatibilidades}</p>}
+        {errors.compatibilidades && <p className="text-xs text-destructive">{errors.compatibilidades}</p>}
       </FieldSet>
 
-      {errorServidor && (
+      {errorServer && (
         <Alert variant="destructive">
           <CircleAlertIcon />
-          <AlertDescription>{errorServidor}</AlertDescription>
+          <AlertDescription>{errorServer}</AlertDescription>
         </Alert>
       )}
 
-      <Button type="submit" disabled={guardando} className="h-10 px-6 self-end hover:bg-orange-600">
-        {guardando ? "Guardando…" : esAlta ? "Dar de alta" : "Guardar cambios"}
+      <Button type="submit" disabled={saving} className="h-10 px-6 self-end hover:bg-orange-600">
+        {saving ? "Guardando…" : isSignup ? "Dar de alta" : "Guardar cambios"}
       </Button>
     </form>
   );
@@ -253,15 +253,15 @@ function FormContent({ repuestoId, categorias, onGuardado }) {
 
 // Alta (sin repuestoId) o edición de un repuesto (HU 5.10). El stock de un
 // repuesto existente no se cambia acá: se ajusta con DialogoAjustarStock.
-export default function PartForm({ abierto, onCambiar, repuestoId = null, categorias = [], onGuardado }) {
+export default function PartForm({ isOpen, onChange, idPart = null, categories = [], onSaved }) {
   return (
     <DashboardDialog
-      abierto={abierto}
-      onCambiar={onCambiar}
-      titulo={repuestoId == null ? "Nuevo repuesto" : "Editar repuesto"}
-      descripcion="Aparece en el catálogo y en los filtros por vehículo de los vehículos que elijas."
+      isOpen={isOpen}
+      onChange={onChange}
+      title={idPart == null ? "Nuevo repuesto" : "Editar repuesto"}
+      description="Aparece en el catálogo y en los filtros por vehículo de los vehículos que elijas."
     >
-      <FormContent repuestoId={repuestoId} categorias={categorias} onGuardado={onGuardado} />
+      <FormContent idPart={idPart} categories={categories} onSaved={onSaved} />
     </DashboardDialog>
   );
 }

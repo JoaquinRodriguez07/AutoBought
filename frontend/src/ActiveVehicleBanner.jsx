@@ -7,13 +7,13 @@ import { CarIcon } from "./Icons";
 import VehicleSelector from "./VehicleSelector";
 
 /** Franja del vehículo activo del catálogo con editor local desplegable. */
-export default function ActiveVehicleBanner({ onBorrar }) {
-  const { vehiculoActivo, activarVehiculo } = useVehicle();
-  const [editando, setEditando] = useState(false);
+export default function ActiveVehicleBanner({ onClear }) {
+  const { activeVehicle, activateVehicle } = useVehicle();
+  const [editing, setEditing] = useState(false);
 
-  if (!vehiculoActivo) return null;
+  if (!activeVehicle) return null;
 
-  const { brand, model, year } = vehiculoActivo;
+  const { brand, model, year } = activeVehicle;
 
   return (
     <div
@@ -34,16 +34,16 @@ export default function ActiveVehicleBanner({ onBorrar }) {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pl-12 sm:pl-0">
           <button
             type="button"
-            aria-expanded={editando}
-            onClick={() => setEditando((value) => !value)}
+            aria-expanded={editing}
+            onClick={() => setEditing((value) => !value)}
             className="text-xs font-bold text-orange-400 underline underline-offset-4 hover:text-orange-300"
           >
-            {editando ? "Cerrar selector" : "Cambiar vehículo"}
+            {editing ? "Cerrar selector" : "Cambiar vehículo"}
           </button>
-          {onBorrar && (
+          {onClear && (
             <button
               type="button"
-              onClick={onBorrar}
+              onClick={onClear}
               className="h-8 rounded-md border border-orange-500 px-3 text-xs font-bold text-orange-400 transition hover:bg-orange-500 hover:text-white"
             >
               Borrar filtros
@@ -54,24 +54,24 @@ export default function ActiveVehicleBanner({ onBorrar }) {
 
       <div
         className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
-          editando ? "mt-4 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          editing ? "mt-4 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         }`}
-        aria-hidden={!editando}
-        inert={!editando}
+        aria-hidden={!editing}
+        inert={!editing}
       >
         <div className="min-h-0 overflow-hidden border-t border-white/10">
           <div className="pt-4">
-            {editando && <VehicleSelector
+            {editing && <VehicleSelector
               key={`${brand}|${model}|${year}`}
-              vehicle={vehiculoActivo}
+              vehicle={activeVehicle}
               requireComplete={false}
               variant="compact"
               confirmLabel="Confirmar vehículo"
               onConfirm={(vehicle) => {
-                activarVehiculo(vehicle);
-                setEditando(false);
+                activateVehicle(vehicle);
+                setEditing(false);
               }}
-              onCancel={() => setEditando(false)}
+              onCancel={() => setEditing(false)}
             />}
           </div>
         </div>

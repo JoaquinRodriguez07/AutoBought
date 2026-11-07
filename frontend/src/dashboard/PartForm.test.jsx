@@ -8,41 +8,41 @@ jest.mock("./dashboardApi");
 import PartForm from "./PartForm";
 import { createPart, updatePart, getPartForEdit, getVehicles } from "./dashboardApi";
 
-const VEHICULOS = [
-  { id: 1, marca: "Chevrolet", modelo: "Onix", motor: "1.4 8V" },
-  { id: 2, marca: "Volkswagen", modelo: "Gol", motor: "1.6" },
+const VEHICLES = [
+  { id: 1, marca: "Chevrolet", modelo: "Onix", engine: "1.4 8V" },
+  { id: 2, marca: "Volkswagen", modelo: "Gol", engine: "1.6" },
 ];
 
 beforeEach(() => {
-  getVehicles.mockResolvedValue(VEHICULOS);
+  getVehicles.mockResolvedValue(VEHICLES);
 });
 
 afterEach(() => jest.clearAllMocks());
 
-function renderFormulario(props = {}) {
-  const onGuardado = jest.fn();
-  render(<PartForm abierto onCambiar={jest.fn()} categorias={["Frenos"]} onGuardado={onGuardado} {...props} />);
-  return onGuardado;
+function renderForm(props = {}) {
+  const onSaved = jest.fn();
+  render(<PartForm isOpen onChange={jest.fn()} categories={["Frenos"]} onSaved={onSaved} {...props} />);
+  return onSaved;
 }
 
-async function completar(user, campos) {
-  for (const [etiqueta, valor] of Object.entries(campos)) {
-    const campo = screen.getByLabelText(etiqueta);
+async function complete(user, fields) {
+  for (const [label, rawValue] of Object.entries(fields)) {
+    const field = screen.getByLabelText(label);
     // Pega el valor entero: tipearlo tecla por tecla redibuja el formulario
     // en cada letra y, con la suite en paralelo, el test pasaba los 5 s.
-    await user.clear(campo);
-    await user.paste(valor);
+    await user.clear(field);
+    await user.paste(rawValue);
   }
 }
 
 it("creates a part with its data, stock and compatible vehicles", async () => {
   const user = userEvent.setup();
   createPart.mockResolvedValue({ id: 99 });
-  const onGuardado = renderFormulario();
+  const onSaved = renderForm();
 
   await screen.findByRole("dialog", { name: "Nuevo repuesto" });
   await screen.findByLabelText("Código");
-  await completar(user, {
+  await complete(user, {
     Código: "FRE-100",
     Nombre: "Discos de freno",
     Fabricante: "Fremax",
@@ -52,7 +52,7 @@ it("creates a part with its data, stock and compatible vehicles", async () => {
   });
 
   await user.selectOptions(await screen.findByLabelText("Vehículo"), "Volkswagen Gol 1.6");
-  await completar(user, { Desde: "2015", Hasta: "2022" });
+  await complete(user, { Desde: "2015", Hasta: "2022" });
   await user.click(screen.getByRole("button", { name: "Agregar" }));
   expect(within(screen.getByRole("list", { name: "Vehículos elegidos" })).getByText("Volkswagen Gol 1.6 (2015–2022)")).toBeInTheDocument();
 
@@ -60,21 +60,21 @@ it("creates a part with its data, stock and compatible vehicles", async () => {
 
   expect(createPart).toHaveBeenCalledWith(
     expect.objectContaining({
-      codigo: "FRE-100",
-      nombre: "Discos de freno",
+      code: "FRE-100",
+      displayName: "Discos de freno",
       fabricante: "Fremax",
       categoria: "Frenos",
-      precio: "4200",
+      price: "4200",
       stock: "12",
-      compatibilidades: [{ vehiculoId: 2, desde: 2015, hasta: 2022 }],
+      compatibilidades: [{ idVehicle: 2, from: 2015, until: 2022 }],
     })
   );
-  await waitFor(() => expect(onGuardado).toHaveBeenCalledWith({ id: 99 }));
+  await waitFor(() => expect(onSaved).toHaveBeenCalledWith({ id: 99 }));
 });
 
 it("asks for the required data and at least one vehicle before sending", async () => {
   const user = userEvent.setup();
-  renderFormulario();
+  renderForm();
 
   await user.click(await screen.findByRole("button", { name: "Dar de alta" }));
 
@@ -88,10 +88,10 @@ it("asks for the required data and at least one vehicle before sending", async (
 
 it("does not add a vehicle with the years reversed", async () => {
   const user = userEvent.setup();
-  renderFormulario();
+  renderForm();
 
   await user.selectOptions(await screen.findByLabelText("Vehículo"), "Chevrolet Onix 1.4 8V");
-  await completar(user, { Desde: "2022", Hasta: "2015" });
+  await complete(user, { Desde: "2022", Hasta: "2015" });
   await user.click(screen.getByRole("button", { name: "Agregar" }));
 
   expect(screen.getByText(/el año hasta no puede ser anterior/)).toBeInTheDocument();
@@ -101,47 +101,47 @@ it("does not add a vehicle with the years reversed", async () => {
 it("shows the API error, for example a repeated code", async () => {
   const user = userEvent.setup();
   createPart.mockRejectedValue(new Error("Ya existe un repuesto con ese código."));
-  const onGuardado = renderFormulario();
+  const onSaved = renderForm();
 
   await screen.findByLabelText("Vehículo");
-  await completar(user, { Código: "FRE-001", Nombre: "X", Fabricante: "Y", Categoría: "Frenos", "Precio ($)": "10" });
+  await complete(user, { Código: "FRE-001", Nombre: "X", Fabricante: "Y", Categoría: "Frenos", "Precio ($)": "10" });
   await user.selectOptions(screen.getByLabelText("Vehículo"), "Chevrolet Onix 1.4 8V");
   await user.click(screen.getByRole("button", { name: "Agregar" }));
   await user.click(screen.getByRole("button", { name: "Dar de alta" }));
 
   expect(await screen.findByRole("alert")).toHaveTextContent("Ya existe un repuesto con ese código.");
-  expect(onGuardado).not.toHaveBeenCalled();
+  expect(onSaved).not.toHaveBeenCalled();
 });
 
 it("loads the part to edit it, matching its vehicles, without a stock field", async () => {
   const user = userEvent.setup();
   getPartForEdit.mockResolvedValue({
     id: 7,
-    codigo: "FRE-007",
-    nombre: "Pastillas",
+    code: "FRE-007",
+    displayName: "Pastillas",
     fabricante: "Bosch",
     categoria: "Frenos",
     stock: 38,
-    precio: 2500,
+    price: 2500,
     color: "",
-    descripcion: "",
-    garantiaMeses: "",
-    compatibilidades: [{ marca: "Chevrolet", modelo: "Onix", motor: "1.4 8V", desde: 2013, hasta: 2019 }],
+    description: "",
+    monthsWarranty: "",
+    compatibilidades: [{ marca: "Chevrolet", modelo: "Onix", engine: "1.4 8V", from: 2013, until: 2019 }],
   });
   updatePart.mockResolvedValue({ id: 7 });
-  const onGuardado = renderFormulario({ repuestoId: 7 });
+  const onSaved = renderForm({ idPart: 7 });
 
   await screen.findByRole("dialog", { name: "Editar repuesto" });
   expect(await screen.findByLabelText("Nombre")).toHaveValue("Pastillas");
   expect(screen.queryByLabelText("Stock inicial")).not.toBeInTheDocument();
   expect(screen.getByText("Chevrolet Onix 1.4 8V (2013–2019)")).toBeInTheDocument();
 
-  await completar(user, { "Precio ($)": "2000" });
+  await complete(user, { "Precio ($)": "2000" });
   await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
   expect(updatePart).toHaveBeenCalledWith(
     7,
-    expect.objectContaining({ precio: "2000", compatibilidades: [{ vehiculoId: 1, desde: 2013, hasta: 2019 }] })
+    expect.objectContaining({ price: "2000", compatibilidades: [{ idVehicle: 1, from: 2013, until: 2019 }] })
   );
-  await waitFor(() => expect(onGuardado).toHaveBeenCalled());
+  await waitFor(() => expect(onSaved).toHaveBeenCalled());
 });

@@ -7,31 +7,31 @@ import { CartIcon, HeartIcon } from "./Icons";
 import PageHeader from "./PageHeader";
 
 export default function Favorites({
-  onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
-  cantidadFavoritos, favoritos, onAlternarFavorito,
-  onDetalle,
-  usuario, onPerfil, onDirecciones, onHistorial, onCerrarSesion,
+  onHome, onCatalogo, onLogin, onBrands, onCart, onFavorites,
+  favoritesQuantity, favorites, onToggleFavorite,
+  onDetail,
+  sessionUser, onProfile, onAddresses, onHistory, onCloseSession,
 }) {
-  const precio = (v) => `$${v.toLocaleString("es-UY")}`;
+  const price = (v) => `$${v.toLocaleString("es-UY")}`;
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-gray-900 font-sans">
-      <Navbar paginaActual="favoritos" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
-        onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
-        usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
-        onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
-        cantidadFavoritos={cantidadFavoritos} />
+      <Navbar currentPage="favorites" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
+        onBrands={onBrands} onCart={onCart} onFavorites={onFavorites}
+        sessionUser={sessionUser} onProfile={onProfile} onAddresses={onAddresses}
+        onHistory={onHistory} onCloseSession={onCloseSession}
+        favoritesQuantity={favoritesQuantity} />
 
       <main>
         <PageHeader
-          migas={[{ texto: "Inicio", ir: onHome }, "Favoritos"]}
-          titulo="Mis favoritos"
-          descripcion="Los repuestos que guardaste para tener a mano."
+          migas={[{ texto: "Inicio", goTo: onHome }, "Favoritos"]}
+          title="Mis favoritos"
+          description="Los repuestos que guardaste para tener a mano."
         />
 
         <div className="max-w-[1100px] mx-auto px-5 md:px-10 pb-14 box-content">
 
-          {favoritos.length === 0 ? (
+          {favorites.length === 0 ? (
             <div className="mt-8 bg-white border border-gray-200 rounded-xl px-6 py-16 md:p-16 text-center">
               <span className="mx-auto mb-4 w-16 h-16 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center">
                 <HeartIcon className="w-8 h-8" />
@@ -45,23 +45,23 @@ export default function Favorites({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
-              {favoritos.map((producto) => (
-                <div key={producto.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition">
+              {favorites.map((product) => (
+                <div key={product.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition">
                   <div className="relative h-[190px] bg-white">
-                    <img onError={useGenericImage} src={producto.imagen} alt={producto.nombre} className="w-full h-full object-contain p-3" />
-                    <button onClick={() => onAlternarFavorito(producto)}
+                    <img onError={useGenericImage} src={product.image} alt={product.displayName} className="w-full h-full object-contain p-3" />
+                    <button onClick={() => onToggleFavorite(product)}
                       aria-label="Quitar de favoritos"
                       className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white shadow-md text-orange-500 flex items-center justify-center transition hover:scale-105">
-                      <HeartIcon lleno className="w-5 h-5" />
+                      <HeartIcon full className="w-5 h-5" />
                     </button>
                   </div>
                   <div className="p-4">
-                    <p className="text-xs uppercase tracking-wide text-orange-500 font-black">{producto.fabricante}</p>
-                    <button onClick={() => onDetalle(producto)} className="text-left text-sm font-bold mt-1 hover:text-orange-500">
-                      {producto.nombre}
+                    <p className="text-xs uppercase tracking-wide text-orange-500 font-black">{product.fabricante}</p>
+                    <button onClick={() => onDetail(product)} className="text-left text-sm font-bold mt-1 hover:text-orange-500">
+                      {product.displayName}
                     </button>
-                    <p className="text-lg font-black mt-3">{precio(producto.precio)}</p>
-                    <AddToCartButton producto={producto} textoSinStock="Sin stock"
+                    <p className="text-lg font-black mt-3">{price(product.price)}</p>
+                    <AddToCartButton product={product} textWithoutStock="Sin stock"
                       className="w-full mt-4 flex items-center justify-center gap-2 rounded-md py-2.5 text-sm font-bold">
                       <CartIcon />
                       Agregar al carrito

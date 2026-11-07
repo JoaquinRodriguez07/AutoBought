@@ -4,44 +4,44 @@ export const DEFAULT_PERIOD = 12;
 
 // Números y fechas como se escriben en Uruguay: 1.234 y $ 1.234.
 
-const numero = new Intl.NumberFormat("es-UY", { maximumFractionDigits: 1 });
+const number = new Intl.NumberFormat("es-UY", { maximumFractionDigits: 1 });
 
-export const formatNumber = (valor) => numero.format(valor ?? 0);
+export const formatNumber = (rawValue) => number.format(rawValue ?? 0);
 
-export const formatPesos = (valor) => `$ ${new Intl.NumberFormat("es-UY").format(Math.round(valor ?? 0))}`;
+export const formatPesos = (rawValue) => `$ ${new Intl.NumberFormat("es-UY").format(Math.round(rawValue ?? 0))}`;
 
 // "2026-03" -> "mar. 2026" (corto, para el eje) o "marzo de 2026".
-export function formatMonth(mes, { largo = false } = {}) {
-  const [anio, numeroMes] = mes.split("-").map(Number);
-  const fecha = new Date(Date.UTC(anio, numeroMes - 1, 15));
+export function formatMonth(month, { long = false } = {}) {
+  const [anio, monthNumber] = month.split("-").map(Number);
+  const date = new Date(Date.UTC(anio, monthNumber - 1, 15));
   return new Intl.DateTimeFormat("es-UY", {
-    month: largo ? "long" : "short",
+    month: long ? "long" : "short",
     year: "numeric",
     timeZone: "UTC",
-  }).format(fecha);
+  }).format(date);
 }
 
-export function formatDays(dias) {
-  if (dias === null || dias === undefined) return "Sin demanda proyectada";
-  return dias === 1 ? "1 día" : `${formatNumber(dias)} días`;
+export function formatDays(days) {
+  if (days === null || days === undefined) return "Sin demanda proyectada";
+  return days === 1 ? "1 día" : `${formatNumber(days)} días`;
 }
 
 export const RISKS = {
-  high: { etiqueta: "Riesgo alto", corta: "Alto" },
-  medium: { etiqueta: "Riesgo medio", corta: "Medio" },
-  low: { etiqueta: "Riesgo bajo", corta: "Bajo" },
+  high: { label: "Riesgo alto", corta: "Alto" },
+  medium: { label: "Riesgo medio", corta: "Medio" },
+  low: { label: "Riesgo bajo", corta: "Bajo" },
 };
 
 // Stock con su estado escrito: "Sin stock", "Stock bajo" o "Normal".
-export function stockStatus(stock, stockBajo) {
+export function stockStatus(stock, stockLow) {
   if (stock <= 0) return "Sin stock";
-  return stockBajo ? "Stock bajo" : "Normal";
+  return stockLow ? "Stock bajo" : "Normal";
 }
 
 // Diferencia contra el mes anterior, para ver un aumento o una caída.
-export function change(actual, anterior) {
-  if (anterior === undefined || anterior === null) return null;
-  const diferencia = actual - anterior;
-  const percentage = anterior > 0 ? Math.round((diferencia / anterior) * 100) : null;
+export function change(current, previous) {
+  if (previous === undefined || previous === null) return null;
+  const diferencia = current - previous;
+  const percentage = previous > 0 ? Math.round((diferencia / previous) * 100) : null;
   return { diferencia, percentage };
 }

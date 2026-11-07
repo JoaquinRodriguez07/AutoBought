@@ -7,32 +7,32 @@ import AccountSection from "./AccountSection";
  * abandonado, mantenimiento y baja de precio de favoritos. Los mails de
  * la cuenta y de los pedidos llegan siempre.
  */
-export default function MailPreferences({ usuario, onActualizarUsuario }) {
-  const [guardando, setGuardando] = useState(false);
+export default function MailPreferences({ sessionUser, onUpdateUser }) {
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   // Mientras el perfil no cargó, se muestra el valor por defecto (sí).
-  const recibe = usuario?.recibeOfertas ?? true;
+  const recibe = sessionUser?.recibeOfertas ?? true;
 
-  const cambiar = async () => {
-    setGuardando(true);
+  const change = async () => {
+    setSaving(true);
     setError("");
 
     try {
-      const perfil = await saveMailPreferences(!recibe);
-      onActualizarUsuario?.({ ...usuario, ...perfil });
+      const profile = await saveMailPreferences(!recibe);
+      onUpdateUser?.({ ...sessionUser, ...profile });
     } catch (err) {
       setError(err.message);
     } finally {
-      setGuardando(false);
+      setSaving(false);
     }
   };
 
   return (
     <AccountSection
-      titulo="Mails"
-      descripcion="Elegí qué mails querés recibir de la tienda."
-      idTitulo="titulo-mails"
+      title="Mails"
+      description="Elegí qué mails querés recibir de la tienda."
+      titleId="titulo-mails"
     >
 
       <div className="flex items-center justify-between gap-5">
@@ -52,8 +52,8 @@ export default function MailPreferences({ usuario, onActualizarUsuario }) {
           role="switch"
           aria-checked={recibe}
           aria-labelledby="titulo-preferencias-mails"
-          onClick={cambiar}
-          disabled={guardando}
+          onClick={change}
+          disabled={saving}
           className={`relative shrink-0 w-11 h-6 rounded-full transition disabled:opacity-60 ${
             recibe ? "bg-orange-500" : "bg-gray-300"
           }`}

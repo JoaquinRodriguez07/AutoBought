@@ -22,85 +22,85 @@ import { useVehicle } from "./context/VehicleContext";
  */
 const LABEL_SECONDS = 6;
 
-export default function PitPanel({ onDetalle, onBuscarEnCatalogo }) {
-  const { vehiculo, conversacion, abierto, borrador, abrir, cerrar } = usePit();
-  const { activarVehiculo } = useVehicle();
-  const boton = useRef(null);
-  const estabaAbierto = useRef(abierto);
-  const hayCharla = conversacion.mensajes.length > 0;
+export default function PitPanel({ onDetail, onSearchInCatalogo }) {
+  const { vehicle, conversation, isOpen, borrador, open, close } = usePit();
+  const { activateVehicle } = useVehicle();
+  const button = useRef(null);
+  const wasOpen = useRef(isOpen);
+  const hasChat = conversation.messages.length > 0;
   // Al aparecer, el botón late dos veces para que se note; después queda
   // quieto. Una vez que el cliente lo abrió, ya sabe que está ahí.
   const [saludar, setSaludar] = useState(true);
   // El globito se ve unos segundos al aparecer; después, solo al pasar el
   // mouse o con el foco en el botón, para no tapar lo que hay abajo.
-  const [etiqueta, setEtiqueta] = useState(true);
+  const [label, setLabel] = useState(true);
   useEffect(() => {
-    const timer = setTimeout(() => setEtiqueta(false), LABEL_SECONDS * 1000);
+    const timer = setTimeout(() => setLabel(false), LABEL_SECONDS * 1000);
     return () => clearTimeout(timer);
   }, []);
   // Si se cambia de página con el panel abierto (por ejemplo, "Ver carrito"
   // en el aviso de agregado), se cierra: la charla queda guardada.
   const { pathname } = useLocation();
-  const paginaAnterior = useRef(pathname);
+  const previousPage = useRef(pathname);
   useEffect(() => {
-    if (paginaAnterior.current === pathname) return;
-    paginaAnterior.current = pathname;
-    cerrar();
-  }, [pathname, cerrar]);
+    if (previousPage.current === pathname) return;
+    previousPage.current = pathname;
+    close();
+  }, [pathname, close]);
 
-  const abrirPanel = () => {
+  const openPanel = () => {
     setSaludar(false);
-    abrir();
+    open();
   };
 
   useEffect(() => {
-    if (!abierto) {
+    if (!isOpen) {
       // Al cerrar, el foco vuelve al botón que lo abrió.
-      if (estabaAbierto.current) boton.current?.focus();
-      estabaAbierto.current = false;
+      if (wasOpen.current) button.current?.focus();
+      wasOpen.current = false;
       return undefined;
     }
-    estabaAbierto.current = true;
+    wasOpen.current = true;
 
-    const conEscape = (e) => {
-      if (e.key === "Escape") cerrar();
+    const withEscape = (e) => {
+      if (e.key === "Escape") close();
     };
     // La página de atrás no se mueve mientras el panel está abierto.
-    const overflowAnterior = document.body.style.overflow;
+    const overflowPrevious = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", conEscape);
+    document.addEventListener("keydown", withEscape);
     return () => {
-      document.body.style.overflow = overflowAnterior;
-      document.removeEventListener("keydown", conEscape);
+      document.body.style.overflow = overflowPrevious;
+      document.removeEventListener("keydown", withEscape);
     };
-  }, [abierto, cerrar]);
+  }, [isOpen, close]);
 
   // Cierra el panel y después navega.
-  const yCerrar = (accion) => (...args) => {
-    cerrar();
-    accion?.(...args);
+  const andClose = (action) => (...args) => {
+    close();
+    action?.(...args);
   };
 
-  if (!abierto) {
+  if (!isOpen) {
     return (
       <div className="group fixed right-4 bottom-4 md:right-8 md:bottom-7 z-40 flex items-center gap-3">
         <button
           type="button"
-          onClick={abrirPanel}
+          onClick={openPanel}
           tabIndex={-1}
           aria-hidden="true"
-          className={`hidden ${etiqueta ? "md:block" : "md:group-hover:block md:group-focus-within:block"} bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold shadow-lg hover:border-orange-500 transition motion-safe:animate-aparecer`}
+          className={`hidden ${label ? "md:block" : "md:group-hover:block md:group-focus-within:block"} bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold shadow-lg hover:border-orange-500 transition motion-safe:animate-aparecer`}
         >
-          {hayCharla ? "Seguir con Pit" : "¿Te puedo ayudar en algo?"}
+          {hasChat ? "Seguir con Pit" : "¿Te puedo ayudar en algo?"}
         </button>
         <button
-          ref={boton}
+          ref={button}
           type="button"
-          onClick={abrirPanel}
-          aria-label={hayCharla ? "Seguir la conversación con Pit" : "Abrir Pit, el asistente con IA"}
+          onClick={openPanel}
+          aria-label={hasChat ? "Seguir la conversación con Pit" : "Abrir Pit, el asistente con IA"}
           className="relative w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg flex items-center justify-center transition"
         >
-          {saludar && !hayCharla && (
+          {saludar && !hasChat && (
             <span
               aria-hidden="true"
               data-testid="latido-pit"
@@ -108,7 +108,7 @@ export default function PitPanel({ onDetalle, onBuscarEnCatalogo }) {
             />
           )}
           <PitIcon className="relative w-6 h-6 md:w-8 md:h-8" />
-          {hayCharla && (
+          {hasChat && (
             <span aria-hidden="true" className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-white" />
           )}
         </button>
@@ -118,7 +118,7 @@ export default function PitPanel({ onDetalle, onBuscarEnCatalogo }) {
 
   return (
     <div className="fixed inset-0 z-50">
-      <div aria-hidden="true" data-testid="fondo-pit" onClick={cerrar} className="absolute inset-0 bg-black/45 motion-safe:animate-aparecer" />
+      <div aria-hidden="true" data-testid="fondo-pit" onClick={close} className="absolute inset-0 bg-black/45 motion-safe:animate-aparecer" />
       <div
         role="dialog"
         aria-modal="true"
@@ -126,14 +126,14 @@ export default function PitPanel({ onDetalle, onBuscarEnCatalogo }) {
         className="absolute inset-y-0 right-0 w-full sm:w-[440px] shadow-2xl motion-safe:animate-entrar-derecha"
       >
         <PitChat
-          vehiculo={vehiculo}
-          conversacion={conversacion}
+          vehicle={vehicle}
+          conversation={conversation}
           autoFocus
-          onCerrar={cerrar}
-          onDetalle={yCerrar(onDetalle)}
-          onActivarVehiculo={activarVehiculo}
-          textoInicial={borrador}
-          onBuscarEnCatalogo={yCerrar(onBuscarEnCatalogo)}
+          onClose={close}
+          onDetail={andClose(onDetail)}
+          onActivateVehicle={activateVehicle}
+          initialText={borrador}
+          onSearchInCatalogo={andClose(onSearchInCatalogo)}
         />
       </div>
     </div>

@@ -40,52 +40,52 @@ const VISIBLE_COMPATIBLES = 6;
 export default function ProductDetail({
   onHome,
   onLogin,
-  onMarcas,
+  onBrands,
   onCatalogo,
-  onCarrito,
-  onFavoritos,
-  cantidadFavoritos,
-  producto,
-  onDetalle,
-  onAlternarFavorito,
-  esFavorito,
-  onAlternarAvisoStock,
-  tieneAvisoStock = () => false,
-  usuario,
-  onPerfil,
-  onDirecciones,
-  onHistorial,
-  onCerrarSesion,
+  onCart,
+  onFavorites,
+  favoritesQuantity,
+  product,
+  onDetail,
+  onToggleFavorite,
+  isFavorite,
+  onToggleNoticeStock,
+  hasNoticeStock = () => false,
+  sessionUser,
+  onProfile,
+  onAddresses,
+  onHistory,
+  onCloseSession,
 }) {
-  const { vehiculoActivo: filtrosVehiculo, activarVehiculo } = useVehicle();
+  const { activeVehicle: filtersVehicle, activateVehicle } = useVehicle();
   // El vendedor no compra: no ve carrito, favoritos ni avisos de stock.
-  const vendedor = isSeller(usuario);
-  const { id: slugDesdeUrl } = useParams();
-  const idDesdeUrl = extractProductId(slugDesdeUrl);
-  const [detalleCargado, setDetalleCargado] = useState({ id: null, estado: "cargando", producto: null });
-  const [cantidad, setCantidad] = useState(1);
-  const [imagenActiva, setImagenActiva] = useState(0);
-  const [editandoVehiculo, setEditandoVehiculo] = useState(false);
-  const [selectorVehiculoMontado, setSelectorVehiculoMontado] = useState(false);
-  const [verTodosCompatibles, setVerTodosCompatibles] = useState(false);
+  const seller = isSeller(sessionUser);
+  const { id: slugFromUrl } = useParams();
+  const idFromUrl = extractProductId(slugFromUrl);
+  const [loadedDetail, setLoadedDetail] = useState({ id: null, estado: "loading", product: null });
+  const [quantity, setQuantity] = useState(1);
+  const [activeImage, setActiveImage] = useState(0);
+  const [editingVehicle, setEditingVehicle] = useState(false);
+  const [selectorVehicleMounted, setSelectorVehicleMounted] = useState(false);
+  const [seeAllCompatibles, setSeeAllCompatibles] = useState(false);
 
   useEffect(() => {
-    if (!idDesdeUrl) return;
+    if (!idFromUrl) return;
 
     let vigente = true;
-    setDetalleCargado({ id: idDesdeUrl, estado: "cargando", producto: null });
-    getPart(idDesdeUrl)
-      .then((repuesto) => {
+    setLoadedDetail({ id: idFromUrl, estado: "loading", product: null });
+    getPart(idFromUrl)
+      .then((part) => {
         if (vigente) {
-          setDetalleCargado({ id: idDesdeUrl, estado: "listo", producto: repuesto });
+          setLoadedDetail({ id: idFromUrl, estado: "ready", product: part });
         }
       })
       .catch((error) => {
         if (vigente) {
-          setDetalleCargado({
-            id: idDesdeUrl,
+          setLoadedDetail({
+            id: idFromUrl,
             estado: error.status === 404 ? "no-encontrado" : "error",
-            producto: null,
+            product: null,
           });
         }
       });
@@ -93,70 +93,70 @@ export default function ProductDetail({
     return () => {
       vigente = false;
     };
-  }, [idDesdeUrl]);
+  }, [idFromUrl]);
 
-  const estadoCarga = idDesdeUrl
-    ? detalleCargado.id === idDesdeUrl ? detalleCargado.estado : "cargando"
-    : producto ? "listo" : "no-encontrado";
-  const productoActual = idDesdeUrl
-    ? detalleCargado.id === idDesdeUrl && detalleCargado.estado === "listo"
-      ? detalleCargado.producto
+  const loadStatus = idFromUrl
+    ? loadedDetail.id === idFromUrl ? loadedDetail.estado : "loading"
+    : product ? "ready" : "no-encontrado";
+  const currentProduct = idFromUrl
+    ? loadedDetail.id === idFromUrl && loadedDetail.estado === "ready"
+      ? loadedDetail.product
       : null
-    : producto;
+    : product;
 
   const navbar = (
-    <Navbar paginaActual="detalle" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
-      onMarcas={onMarcas} onCarrito={onCarrito} onFavoritos={onFavoritos}
-      usuario={usuario} onPerfil={onPerfil} onDirecciones={onDirecciones}
-      onHistorial={onHistorial} onCerrarSesion={onCerrarSesion}
-      cantidadFavoritos={cantidadFavoritos} />
+    <Navbar currentPage="detalle" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
+      onBrands={onBrands} onCart={onCart} onFavorites={onFavorites}
+      sessionUser={sessionUser} onProfile={onProfile} onAddresses={onAddresses}
+      onHistory={onHistory} onCloseSession={onCloseSession}
+      favoritesQuantity={favoritesQuantity} />
   );
 
-  if (estadoCarga !== "listo" || !productoActual) {
-    const mensaje = estadoCarga === "cargando"
+  if (loadStatus !== "ready" || !currentProduct) {
+    const message = loadStatus === "loading"
       ? "Cargando"
-      : estadoCarga === "no-encontrado"
+      : loadStatus === "no-encontrado"
         ? "Repuesto no encontrado"
         : "No se pudo cargar el repuesto.";
     return (
       <div className="min-h-screen bg-white text-gray-900 font-sans">
         {navbar}
         <main className="mx-auto max-w-[1200px] px-5 pt-36 md:px-10">
-          <p role={estadoCarga === "cargando" ? "status" : "alert"} className="text-sm text-gray-700">{mensaje}</p>
+          <p role={loadStatus === "loading" ? "status" : "alert"} className="text-sm text-gray-700">{message}</p>
         </main>
       </div>
     );
   }
-  const favorito = esFavorito(productoActual.id);
+  const favorite = isFavorite(currentProduct.id);
   // Cada repuesto tiene una sola imagen (la de su tipo y fabricante). Las
   // miniaturas se muestran solo si hay más de una vista distinta: repetir
   // la misma foto tres veces no aporta nada.
-  const imagenes = [...new Set([productoActual.imagen, ...(productoActual.imagenesExtra ?? [])].filter(Boolean))];
-  const abrirSelectorVehiculo = () => {
-    setSelectorVehiculoMontado(true);
-    setEditandoVehiculo(true);
+  const images = [...new Set([currentProduct.image, ...(currentProduct.imagesExtra ?? [])].filter(Boolean))];
+  const openSelectorVehicle = () => {
+    setSelectorVehicleMounted(true);
+    setEditingVehicle(true);
   };
-  const cerrarSelectorVehiculo = () => {
-    setEditandoVehiculo(false);
+  const closeSelectorVehicle = () => {
+    setEditingVehicle(false);
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      setSelectorVehiculoMontado(false);
+      setSelectorVehicleMounted(false);
     }
   };
-  const finalizarTransicionSelector = (event) => {
-    if (event.target === event.currentTarget && !editandoVehiculo) {
-      setSelectorVehiculoMontado(false);
+  const finishTransitionSelector = (event) => {
+    if (event.target === event.currentTarget && !editingVehicle) {
+      setSelectorVehicleMounted(false);
     }
   };
 
-  const marcaSeleccionada = normalizeText(filtrosVehiculo?.brand);
-  const vehicleName = [filtrosVehiculo?.brand, filtrosVehiculo?.model, filtrosVehiculo?.year].filter(Boolean).join(" ");
+  const selectedBrand = normalizeText(filtersVehicle?.brand);
+  const vehicleName = [filtersVehicle?.brand, filtersVehicle?.model, filtersVehicle?.year].filter(Boolean).join(" ");
   // La regla de compatibilidad vive en compatibilidad.js (la comparte con
   // "Suelen comprarse juntos").
-  const compatibilidades = compatibilitiesOf(productoActual);
-  const compatible = isCompatible(compatibilidades, filtrosVehiculo);
+  const compatibilidades = compatibilitiesOf(currentProduct);
+  const compatible = isCompatible(compatibilidades, filtersVehicle);
 
   // El agregado lo hace BotonAgregarCarrito y el aviso, CartContext.
-  const sinStock = productoActual.stock === 0;
+  const withoutStock = currentProduct.stock === 0;
 
 
   return (
@@ -167,55 +167,55 @@ export default function ProductDetail({
         <PageHeader
           ancho="max-w-[1200px]"
           migas={[
-            { texto: "Inicio", ir: onHome },
-            { texto: "Repuestos", ir: () => onCatalogo(null) },
-            ...(productoActual.categoria
-              ? [{ texto: productoActual.categoria, ir: () => onCatalogo(productoActual.categoria) }]
+            { texto: "Inicio", goTo: onHome },
+            { texto: "Repuestos", goTo: () => onCatalogo(null) },
+            ...(currentProduct.categoria
+              ? [{ texto: currentProduct.categoria, goTo: () => onCatalogo(currentProduct.categoria) }]
               : []),
-            productoActual.nombre,
+            currentProduct.displayName,
           ]}
-          titulo={productoActual.categoria || "Repuestos"}
-          etiquetaTitulo="p"
+          title={currentProduct.categoria || "Repuestos"}
+          titleLabel="p"
           compacto
           fin={
               <div id="vehicle-selection" data-testid="vehicle-selection"
-                data-compatibilidad={compatibilidades.length === 0 ? "no-disponible" : !marcaSeleccionada ? "sin-vehiculo" : compatible === null ? "no-verificable" : compatible ? "compatible" : "incompatible"}
+                data-compatibilidad={compatibilidades.length === 0 ? "no-disponible" : !selectedBrand ? "sin-vehiculo" : compatible === null ? "no-verificable" : compatible ? "compatible" : "incompatible"}
                 className="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5">
                 <div className="flex items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-orange-400"><CarIcon className="h-5 w-5" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Tu vehículo</p>
                     <p className="truncate text-xs font-bold text-white">
-                      {filtrosVehiculo?.brand
-                        ? [filtrosVehiculo.brand, filtrosVehiculo.model, filtrosVehiculo.year].filter(Boolean).join(" ")
+                      {filtersVehicle?.brand
+                        ? [filtersVehicle.brand, filtersVehicle.model, filtersVehicle.year].filter(Boolean).join(" ")
                         : "Seleccioná tu vehículo"}
                     </p>
                   </div>
-                  {!editandoVehiculo && (
-                    <button type="button" onClick={abrirSelectorVehiculo}
+                  {!editingVehicle && (
+                    <button type="button" onClick={openSelectorVehicle}
                       className="shrink-0 text-xs font-bold text-orange-400 underline underline-offset-4 hover:text-orange-300">
-                      {filtrosVehiculo?.brand ? "Cambiar" : "Seleccionar vehículo"}
+                      {filtersVehicle?.brand ? "Cambiar" : "Seleccionar vehículo"}
                     </button>
                   )}
                 </div>
-                <div aria-hidden={!editandoVehiculo}
-                  inert={!editandoVehiculo}
-                  onTransitionEnd={finalizarTransicionSelector}
-                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none motion-reduce:duration-0 ${editandoVehiculo ? "mt-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                <div aria-hidden={!editingVehicle}
+                  inert={!editingVehicle}
+                  onTransitionEnd={finishTransitionSelector}
+                  className={`grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none motion-reduce:duration-0 ${editingVehicle ? "mt-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
                   <div className="min-h-0 overflow-hidden">
-                  {selectorVehiculoMontado && (
+                  {selectorVehicleMounted && (
                     <div id="vehicle-selector-panel" role="group" aria-label="Controles del vehículo" className="border-t border-white/10 pt-3">
                       <VehicleSelector
-                        key={[filtrosVehiculo?.brand || "", filtrosVehiculo?.model || "", filtrosVehiculo?.year || ""].join("|")}
-                        vehicle={filtrosVehiculo}
+                        key={[filtersVehicle?.brand || "", filtersVehicle?.model || "", filtersVehicle?.year || ""].join("|")}
+                        vehicle={filtersVehicle}
                         requireComplete={false}
                         variant="compact"
                         confirmLabel="Confirmar"
-                        onConfirm={(vehiculo) => {
-                          activarVehiculo(vehiculo);
-                          cerrarSelectorVehiculo();
+                        onConfirm={(vehicle) => {
+                          activateVehicle(vehicle);
+                          closeSelectorVehicle();
                         }}
-                        onCancel={cerrarSelectorVehiculo}
+                        onCancel={closeSelectorVehicle}
                       />
                     </div>
                   )}
@@ -235,16 +235,16 @@ export default function ProductDetail({
               {/* El favorito va una sola vez: en el botón debajo de
                   "Agregar al carrito", no también sobre la foto. */}
               <div className="relative h-[360px] bg-white rounded-xl overflow-hidden border border-gray-100">
-                <img onError={useGenericImage} src={imagenes[imagenActiva] ?? imagenes[0]} alt={productoActual.nombre} className="w-full h-full object-contain p-6" />
+                <img onError={useGenericImage} src={images[activeImage] ?? images[0]} alt={currentProduct.displayName} className="w-full h-full object-contain p-6" />
               </div>
               <p className="text-xs text-gray-400 mt-2">Imagen ilustrativa.</p>
-              {imagenes.length > 1 && (
+              {images.length > 1 && (
                 <div className="flex items-center gap-3 mt-3">
-                  {imagenes.map((imagen, index) => (
-                    <button key={imagen} onClick={() => setImagenActiva(index)}
+                  {images.map((image, index) => (
+                    <button key={image} onClick={() => setActiveImage(index)}
                       aria-label={`Ver imagen ${index + 1}`}
-                      className={`w-[70px] h-[58px] rounded-md overflow-hidden border-2 ${imagenActiva === index ? "border-orange-500" : "border-gray-200"}`}>
-                      <img onError={useGenericImage} src={imagen} alt="" className="w-full h-full object-contain bg-white p-1" />
+                      className={`w-[70px] h-[58px] rounded-md overflow-hidden border-2 ${activeImage === index ? "border-orange-500" : "border-gray-200"}`}>
+                      <img onError={useGenericImage} src={image} alt="" className="w-full h-full object-contain bg-white p-1" />
                     </button>
                   ))}
                 </div>
@@ -256,9 +256,9 @@ export default function ProductDetail({
                   normal (como en cualquier tienda): en la franja de arriba
                   los nombres largos se leían mal. */}
               <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-wide text-orange-500">{productoActual.fabricante}</p>
-                <h1 className="mt-1 text-2xl font-black leading-tight text-gray-900">{productoActual.nombre}</h1>
-                <p className="mt-2 text-xs font-bold text-gray-500">Código: <span className="font-black text-gray-800">{productoActual.codigo}</span></p>
+                <p className="text-xs font-black uppercase tracking-wide text-orange-500">{currentProduct.fabricante}</p>
+                <h1 className="mt-1 text-2xl font-black leading-tight text-gray-900">{currentProduct.displayName}</h1>
+                <p className="mt-2 text-xs font-bold text-gray-500">Código: <span className="font-black text-gray-800">{currentProduct.code}</span></p>
               </div>
             </div>
 
@@ -267,19 +267,19 @@ export default function ProductDetail({
                 <div>
                   <h2 className="text-sm font-black text-gray-900">Descripción</h2>
                   <p className="mt-2 text-xs leading-relaxed text-gray-600">
-                    {productoActual.descripcion || "Este repuesto todavía no tiene una descripción cargada."}
+                    {currentProduct.description || "Este repuesto todavía no tiene una descripción cargada."}
                   </p>
                 </div>
                 <div className="mt-5 border-t border-gray-100 pt-5">
                   <h2 className="text-sm font-black text-gray-900">Especificaciones</h2>
-                  {!productoActual.especificaciones?.length && (
+                  {!currentProduct.specifications?.length && (
                     <p className="mt-3 text-xs text-gray-400">Este repuesto no tiene especificaciones cargadas.</p>
                   )}
                   <div className="mt-3 space-y-2">
-                    {(productoActual.especificaciones || []).map(([clave, valor]) => (
-                      <div key={clave} className="flex justify-between gap-4 border-b border-gray-100 pb-2 text-xs">
-                        <span className="text-gray-500">{clave}</span>
-                        <span className="text-right font-bold text-gray-800">{valor}</span>
+                    {(currentProduct.specifications || []).map(([key, rawValue]) => (
+                      <div key={key} className="flex justify-between gap-4 border-b border-gray-100 pb-2 text-xs">
+                        <span className="text-gray-500">{key}</span>
+                        <span className="text-right font-bold text-gray-800">{rawValue}</span>
                       </div>
                     ))}
                   </div>
@@ -290,25 +290,25 @@ export default function ProductDetail({
                     <div className="flex justify-between gap-4">
                       <dt className="text-gray-500">Duración</dt>
                       <dd className="text-right font-bold text-orange-600">
-                        {productoActual.garantiaMeses ? `${productoActual.garantiaMeses} meses` : "No especificado"}
+                        {currentProduct.monthsWarranty ? `${currentProduct.monthsWarranty} meses` : "No especificado"}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
                       <dt className="text-gray-500">Proveedor</dt>
                       <dd className="text-right font-bold text-gray-800">
-                        {productoActual.proveedorGarantia
-                          ? productoActual.proveedorGarantia === "fabricante"
+                        {currentProduct.warrantyProvider
+                          ? currentProduct.warrantyProvider === "fabricante"
                             ? "Fabricante"
-                            : productoActual.proveedorGarantia === "vendedor"
+                            : currentProduct.warrantyProvider === "vendedor"
                               ? "Vendedor (AutoBought)"
-                              : productoActual.proveedorGarantia
+                              : currentProduct.warrantyProvider
                           : "No especificado"}
                       </dd>
                     </div>
-                    {productoActual.condicionesGarantia && (
+                    {currentProduct.condicionesWarranty && (
                       <div className="flex justify-between gap-4">
                         <dt className="text-gray-500">Condiciones</dt>
-                        <dd className="max-w-[70%] text-right font-bold text-gray-800">{productoActual.condicionesGarantia}</dd>
+                        <dd className="max-w-[70%] text-right font-bold text-gray-800">{currentProduct.condicionesWarranty}</dd>
                       </div>
                     )}
                   </dl>
@@ -319,45 +319,45 @@ export default function ProductDetail({
 
             <div className="order-3 lg:col-start-3 lg:row-start-1 lg:row-span-2">
               <div className="h-fit rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-                <p className="text-3xl font-black text-orange-500">${productoActual.precio.toLocaleString("es-UY")}</p>
-                {sinStock ? (
+                <p className="text-3xl font-black text-orange-500">${currentProduct.price.toLocaleString("es-UY")}</p>
+                {withoutStock ? (
                   <p className="mt-2 text-xs">
                     <span className="font-bold text-red-500">Sin stock</span>
-                    {!vendedor && (
-                      <StockAlertButton producto={productoActual} tieneAviso={tieneAvisoStock(productoActual.partId)} onAlternarAviso={onAlternarAvisoStock} className="ml-3 text-xs" />
+                    {!seller && (
+                      <StockAlertButton product={currentProduct} hasNotice={hasNoticeStock(currentProduct.partId)} onToggleNotice={onToggleNoticeStock} className="ml-3 text-xs" />
                     )}
                   </p>
                 ) : (
-                  <p className="mt-2 text-xs"><span className="font-bold text-green-600">En stock</span><span className="ml-2 text-gray-400">({productoActual.stock} unidades)</span></p>
+                  <p className="mt-2 text-xs"><span className="font-bold text-green-600">En stock</span><span className="ml-2 text-gray-400">({currentProduct.stock} unidades)</span></p>
                 )}
-                {!vendedor && (
+                {!seller && (
                 <>
                 <div className="mt-5 flex flex-col gap-2 xl:flex-row">
                   <div className="flex h-10 shrink-0 items-center rounded-md border border-gray-200">
-                    <button aria-label="Disminuir cantidad" onClick={() => setCantidad((v) => Math.max(1, v - 1))} disabled={sinStock} className="w-9 disabled:opacity-40">−</button>
-                    <span className="flex w-8 items-center justify-center text-xs">{sinStock ? 0 : cantidad}</span>
-                    <button aria-label="Aumentar cantidad" onClick={() => setCantidad((v) => Math.min(productoActual.stock, v + 1))} disabled={sinStock || cantidad >= productoActual.stock} className="w-9 disabled:opacity-40">+</button>
+                    <button aria-label="Disminuir cantidad" onClick={() => setQuantity((v) => Math.max(1, v - 1))} disabled={withoutStock} className="w-9 disabled:opacity-40">−</button>
+                    <span className="flex w-8 items-center justify-center text-xs">{withoutStock ? 0 : quantity}</span>
+                    <button aria-label="Aumentar cantidad" onClick={() => setQuantity((v) => Math.min(currentProduct.stock, v + 1))} disabled={withoutStock || quantity >= currentProduct.stock} className="w-9 disabled:opacity-40">+</button>
                   </div>
                   <AddToCartButton
-                    producto={productoActual}
-                    cantidad={cantidad}
-                    textoSinStock="Sin stock"
-                    onTerminar={() => setCantidad(1)}
+                    product={currentProduct}
+                    quantity={quantity}
+                    textWithoutStock="Sin stock"
+                    onTerminar={() => setQuantity(1)}
                     className="h-10 min-w-0 flex-1 inline-flex items-center justify-center gap-1.5 rounded-md px-3 text-sm font-bold whitespace-nowrap"
                   >
                     <CartIcon className="h-4 w-4" />Agregar al carrito
                   </AddToCartButton>
                 </div>
-                <button onClick={() => onAlternarFavorito(productoActual)}
-                  className={`mt-3 h-10 w-full rounded-md border text-sm font-bold transition ${favorito ? "border-orange-500 text-orange-500" : "border-gray-200 text-gray-600 hover:border-orange-500 hover:text-orange-500"}`}>
-                  <span className="inline-flex items-center justify-center gap-1.5"><HeartIcon className="h-4 w-4" relleno={favorito} />{favorito ? "Guardado en favoritos" : "Agregar a favoritos"}</span>
+                <button onClick={() => onToggleFavorite(currentProduct)}
+                  className={`mt-3 h-10 w-full rounded-md border text-sm font-bold transition ${favorite ? "border-orange-500 text-orange-500" : "border-gray-200 text-gray-600 hover:border-orange-500 hover:text-orange-500"}`}>
+                  <span className="inline-flex items-center justify-center gap-1.5"><HeartIcon className="h-4 w-4" relleno={favorite} />{favorite ? "Guardado en favoritos" : "Agregar a favoritos"}</span>
                 </button>
                 </>
                 )}
               </div>
               <div data-testid="compatibility-card" className="mt-3 min-w-0 rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
                 <h2 className="text-sm font-black text-gray-900">Compatibilidad</h2>
-                {!marcaSeleccionada && compatibilidades.length > 0 && (
+                {!selectedBrand && compatibilidades.length > 0 && (
                   <p className="mt-3 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold leading-tight text-gray-700">
                     Elegí tu vehículo para verificar la compatibilidad
                   </p>
@@ -372,23 +372,23 @@ export default function ProductDetail({
                   <div className="mt-3 min-w-0 space-y-2">
                     {/* Un repuesto genérico (un aceite) le sirve a decenas de
                         autos: se ven los primeros y el resto, a pedido. */}
-                    {(verTodosCompatibles ? compatibilidades : compatibilidades.slice(0, VISIBLE_COMPATIBLES)).map((item, index) => {
-                      if (item.formatoTexto) {
+                    {(seeAllCompatibles ? compatibilidades : compatibilidades.slice(0, VISIBLE_COMPATIBLES)).map((item, index) => {
+                      if (item.formatText) {
                         const texto = item.texto;
-                        const aniosEncontrados = texto.match(/\b(?:19|20)\d{2}\b/g) || [];
-                        const anioIndex = texto.search(/\b(?:19|20)\d{2}\b/);
-                        const motorEncontrado = texto.match(/\b\d(?:[.,]\d)?(?:\s?(?:8V|16V|MSI|TSI|TDI|HDI|VTI|MPI))?\b/i);
-                        const cortesNombre = [anioIndex, motorEncontrado?.index].filter((index) => index != null && index >= 0);
-                        const corteNombre = cortesNombre.length ? Math.min(...cortesNombre) : texto.length;
-                        const nombreAuto = texto.slice(0, corteNombre).replace(/\s+/g, " ").trim() || texto.trim();
+                        const foundYears = texto.match(/\b(?:19|20)\d{2}\b/g) || [];
+                        const yearIndex = texto.search(/\b(?:19|20)\d{2}\b/);
+                        const engineFound = texto.match(/\b\d(?:[.,]\d)?(?:\s?(?:8V|16V|MSI|TSI|TDI|HDI|VTI|MPI))?\b/i);
+                        const cutsName = [yearIndex, engineFound?.index].filter((index) => index != null && index >= 0);
+                        const cutName = cutsName.length ? Math.min(...cutsName) : texto.length;
+                        const nameCar = texto.slice(0, cutName).replace(/\s+/g, " ").trim() || texto.trim();
                         return <div key={`${item.texto}-${index}`} className="rounded-lg border border-gray-200 px-3 py-2">
-                          <p className="text-xs font-black text-gray-900">{nombreAuto}</p>
-                          {(motorEncontrado || aniosEncontrados.length > 0) && (
+                          <p className="text-xs font-black text-gray-900">{nameCar}</p>
+                          {(engineFound || foundYears.length > 0) && (
                             <p className="mt-1 text-xs leading-relaxed text-gray-600">
-                              {motorEncontrado && <>Motor: {motorEncontrado[0].trim()}</>}
-                              {motorEncontrado && aniosEncontrados.length > 0 && " · "}
-                              {aniosEncontrados.length === 1 && <>Año: {aniosEncontrados[0]}</>}
-                              {aniosEncontrados.length > 1 && <>Años: {aniosEncontrados[0]}–{aniosEncontrados[aniosEncontrados.length - 1]}</>}
+                              {engineFound && <>Motor: {engineFound[0].trim()}</>}
+                              {engineFound && foundYears.length > 0 && " · "}
+                              {foundYears.length === 1 && <>Año: {foundYears[0]}</>}
+                              {foundYears.length > 1 && <>Años: {foundYears[0]}–{foundYears[foundYears.length - 1]}</>}
                             </p>
                           )}
                         </div>;
@@ -410,11 +410,11 @@ export default function ProductDetail({
                     {compatibilidades.length > VISIBLE_COMPATIBLES && (
                       <button
                         type="button"
-                        onClick={() => setVerTodosCompatibles((ver) => !ver)}
-                        aria-expanded={verTodosCompatibles}
+                        onClick={() => setSeeAllCompatibles((see) => !see)}
+                        aria-expanded={seeAllCompatibles}
                         className="w-full pt-1 text-xs font-bold text-orange-600 hover:underline underline-offset-4"
                       >
-                        {verTodosCompatibles ? "Ver menos" : `Ver los ${compatibilidades.length} autos compatibles`}
+                        {seeAllCompatibles ? "Ver menos" : `Ver los ${compatibilidades.length} autos compatibles`}
                       </button>
                     )}
                   </div>
@@ -425,7 +425,7 @@ export default function ProductDetail({
           </div>
         </section>
 
-        <BoughtTogether producto={productoActual} onDetalle={onDetalle} />
+        <BoughtTogether product={currentProduct} onDetail={onDetail} />
 
       </main>
     </div>

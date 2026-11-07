@@ -6,30 +6,30 @@ import { Input } from "@/components/ui/input";
 import { adjustStock } from "./dashboardApi";
 import { FormField, DashboardDialog } from "./pieces";
 
-function AdjustContent({ repuesto, onGuardado }) {
-  const [stock, setStock] = useState(String(repuesto.stock));
+function AdjustContent({ part, onSaved }) {
+  const [stock, setStock] = useState(String(part.stock));
   const [error, setError] = useState("");
-  const [guardando, setGuardando] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const guardar = async (event) => {
+  const save = async (event) => {
     event.preventDefault();
     if (!/^\d+$/.test(stock.trim())) {
       setError("El stock es un número entero, 0 o más.");
       return;
     }
     setError("");
-    setGuardando(true);
+    setSaving(true);
     try {
-      onGuardado(await adjustStock(repuesto.id, stock.trim()));
-    } catch (falla) {
-      setError(falla.message);
-      setGuardando(false);
+      onSaved(await adjustStock(part.id, stock.trim()));
+    } catch (failure) {
+      setError(failure.message);
+      setSaving(false);
     }
   };
 
   return (
-    <form onSubmit={guardar} noValidate className="flex flex-col gap-4">
-      <FormField id="nuevo-stock" etiqueta="Unidades disponibles" error={error}>
+    <form onSubmit={save} noValidate className="flex flex-col gap-4">
+      <FormField id="nuevo-stock" label="Unidades disponibles" error={error}>
         <Input
           id="nuevo-stock"
           inputMode="numeric"
@@ -40,26 +40,26 @@ function AdjustContent({ repuesto, onGuardado }) {
         />
       </FormField>
       <p className="text-xs text-muted-foreground">
-        Hoy tiene {repuesto.stock}. Si estaba agotado, se avisa por mail a quienes pidieron que les avisemos.
+        Hoy tiene {part.stock}. Si estaba agotado, se avisa por mail a quienes pidieron que les avisemos.
       </p>
-      <Button type="submit" disabled={guardando} className="h-10 px-6 self-end hover:bg-orange-600">
-        {guardando ? "Guardando…" : "Guardar stock"}
+      <Button type="submit" disabled={saving} className="h-10 px-6 self-end hover:bg-orange-600">
+        {saving ? "Guardando…" : "Guardar stock"}
       </Button>
     </form>
   );
 }
 
 // Ajuste de stock de un repuesto (HU 5.10).
-export default function AdjustStockDialog({ abierto, onCambiar, repuesto, onGuardado }) {
+export default function AdjustStockDialog({ isOpen, onChange, part, onSaved }) {
   return (
     <DashboardDialog
-      abierto={abierto}
-      onCambiar={onCambiar}
-      titulo="Ajustar stock"
-      descripcion={repuesto ? `${repuesto.nombre} · ${repuesto.codigo}` : null}
+      isOpen={isOpen}
+      onChange={onChange}
+      title="Ajustar stock"
+      description={part ? `${part.displayName} · ${part.code}` : null}
       ancho="sm:max-w-[420px]"
     >
-      {repuesto && <AdjustContent repuesto={repuesto} onGuardado={onGuardado} />}
+      {part && <AdjustContent part={part} onSaved={onSaved} />}
     </DashboardDialog>
   );
 }

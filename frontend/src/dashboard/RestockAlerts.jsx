@@ -11,10 +11,10 @@ const BAR = {
   medium: "bg-amber-400",
 };
 
-function DataItem({ titulo, children }) {
+function DataItem({ title, children }) {
   return (
     <div className="flex items-baseline gap-1 text-xs">
-      <dt className="text-muted-foreground">{titulo}</dt>
+      <dt className="text-muted-foreground">{title}</dt>
       <dd className="font-medium tabular-nums">{children}</dd>
     </div>
   );
@@ -24,60 +24,60 @@ function DataItem({ titulo, children }) {
 // del más urgente al menos urgente (así los manda el backend). Se muestran
 // los primeros `limite`; el resto está en "Reposición". "Reponer" abre el
 // ajuste de stock ahí mismo. La consulta la hace el Dashboard.
-export default function RestockAlerts({ consulta, onDetalle, onReponer, onVerTodas, limite = 5 }) {
-  const total = consulta.datos?.repuestos.length ?? 0;
+export default function RestockAlerts({ queryState, onDetail, onRestock, onSeeAll, limit = 5 }) {
+  const total = queryState.info?.repuestos.length ?? 0;
 
   return (
     <Panel
-      titulo="Para reponer"
+      title="Para reponer"
       id="titulo-alertas"
-      detalle={total > 0 ? `${formatNumber(total)} repuestos con riesgo alto o medio` : "Lo que se va a quedar sin stock primero"}
-      accion={
-        total > limite && (
-          <Button variant="ghost" size="sm" onClick={onVerTodas} className="text-xs text-orange-600 hover:text-orange-700">
+      details={total > 0 ? `${formatNumber(total)} repuestos con riesgo alto o medio` : "Lo que se va a quedar sin stock primero"}
+      action={
+        total > limit && (
+          <Button variant="ghost" size="sm" onClick={onSeeAll} className="text-xs text-orange-600 hover:text-orange-700">
             Ver todas
             <ChevronRightIcon />
           </Button>
         )
       }
     >
-      <QueryState consulta={consulta}>
+      <QueryState queryState={queryState}>
         {({ repuestos }) =>
           repuestos.length === 0 ? (
             <NoData>No hay repuestos que requieran reposición</NoData>
           ) : (
             <ul aria-label="Repuestos para reponer" className="-mx-1 flex flex-col divide-y">
-              {repuestos.slice(0, limite).map((repuesto) => (
-                <li key={repuesto.id} data-riesgo={repuesto.riesgo} className="flex items-center gap-3 px-1 py-3">
-                  <span className={cn("w-1 self-stretch rounded-full", BAR[repuesto.riesgo])} aria-hidden="true" />
+              {repuestos.slice(0, limit).map((part) => (
+                <li key={part.id} data-risk={part.risk} className="flex items-center gap-3 px-1 py-3">
+                  <span className={cn("w-1 self-stretch rounded-full", BAR[part.risk])} aria-hidden="true" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <button
                           type="button"
-                          onClick={() => onDetalle(repuesto.id)}
+                          onClick={() => onDetail(part.id)}
                           className="block max-w-full truncate text-left text-sm font-medium hover:text-orange-600 hover:underline underline-offset-2"
                         >
-                          {repuesto.nombre}
+                          {part.displayName}
                         </button>
                         <p className="text-xs text-muted-foreground truncate">
-                          {repuesto.codigo} · {repuesto.categoria}
+                          {part.code} · {part.categoria}
                         </p>
                       </div>
-                      <RiskBadge riesgo={repuesto.riesgo} />
+                      <RiskBadge risk={part.risk} />
                     </div>
                     <div className="mt-2 flex items-end justify-between gap-2">
                       <dl className="flex flex-wrap gap-x-3 gap-y-0.5">
-                        <DataItem titulo="Stock">{formatNumber(repuesto.stock)}</DataItem>
-                        <DataItem titulo="Demanda">{formatNumber(repuesto.demandaProyectada)} / mes</DataItem>
-                        <DataItem titulo="Alcanza para">{formatDays(repuesto.diasCobertura)}</DataItem>
+                        <DataItem title="Stock">{formatNumber(part.stock)}</DataItem>
+                        <DataItem title="Demanda">{formatNumber(part.projectedDemand)} / mes</DataItem>
+                        <DataItem title="Alcanza para">{formatDays(part.coverageDays)}</DataItem>
                       </dl>
-                      {onReponer && (
+                      {onRestock && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => onReponer(repuesto)}
-                          aria-label={`Reponer ${repuesto.nombre} (${repuesto.codigo})`}
+                          onClick={() => onRestock(part)}
+                          aria-label={`Reponer ${part.displayName} (${part.code})`}
                           className="h-7 shrink-0 px-2.5 text-xs"
                         >
                           <PackagePlusIcon />

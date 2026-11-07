@@ -21,21 +21,21 @@ import { cn } from "@/lib/utils";
 import { RISKS, stockStatus } from "./format";
 
 // Cargando / error con Reintentar / contenido, igual en todas las secciones.
-export function QueryState({ consulta, children }) {
-  if (consulta.error) {
+export function QueryState({ queryState, children }) {
+  if (queryState.error) {
     return (
       <Alert variant="destructive">
         <CircleAlertIcon />
-        <AlertDescription>{consulta.error}</AlertDescription>
+        <AlertDescription>{queryState.error}</AlertDescription>
         <AlertAction>
-          <Button variant="outline" size="sm" onClick={consulta.recargar}>
+          <Button variant="outline" size="sm" onClick={queryState.reload}>
             Reintentar
           </Button>
         </AlertAction>
       </Alert>
     );
   }
-  if (consulta.cargando && !consulta.datos) {
+  if (queryState.loading && !queryState.info) {
     return (
       <div className="flex flex-col gap-2 py-2" aria-label="Cargando…">
         <Skeleton className="h-6 w-1/3" />
@@ -43,7 +43,7 @@ export function QueryState({ consulta, children }) {
       </div>
     );
   }
-  return children(consulta.datos);
+  return children(queryState.info);
 }
 
 // Estado vacío de una sección ("No hay repuestos que requieran reposición").
@@ -68,19 +68,19 @@ export const TONES = {
 
 const RISK_TONE = { high: TONES.rojo, medium: TONES.ambar, low: TONES.neutro };
 
-export function RiskBadge({ riesgo }) {
+export function RiskBadge({ risk }) {
   return (
-    <Badge variant="outline" className={cn("font-medium", RISK_TONE[riesgo])}>
-      {riesgo === "low" ? <CircleCheckIcon /> : <TriangleAlertIcon />}
-      {RISKS[riesgo].etiqueta}
+    <Badge variant="outline" className={cn("font-medium", RISK_TONE[risk])}>
+      {risk === "low" ? <CircleCheckIcon /> : <TriangleAlertIcon />}
+      {RISKS[risk].label}
     </Badge>
   );
 }
 
 const STOCK_TONE = { "Sin stock": TONES.rojo, "Stock bajo": TONES.ambar, Normal: TONES.neutro };
 
-export function StockBadge({ stock, stockBajo }) {
-  const estado = stockStatus(stock, stockBajo);
+export function StockBadge({ stock, stockLow }) {
+  const estado = stockStatus(stock, stockLow);
   return (
     <Badge variant="outline" className={cn("font-medium", STOCK_TONE[estado])}>
       {estado}
@@ -104,7 +104,7 @@ export function Change({ percentage, texto, mejor = "subir" }) {
   const sube = percentage > 0;
   const igual = percentage === 0;
   const bueno = igual ? null : sube === (mejor === "subir");
-  const Flecha = igual ? MinusIcon : sube ? ArrowUpRightIcon : ArrowDownRightIcon;
+  const Arrow = igual ? MinusIcon : sube ? ArrowUpRightIcon : ArrowDownRightIcon;
   return (
     <span
       className={cn(
@@ -112,7 +112,7 @@ export function Change({ percentage, texto, mejor = "subir" }) {
         bueno === null ? "bg-muted text-muted-foreground" : bueno ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
       )}
     >
-      <Flecha className="size-3.5" aria-hidden="true" />
+      <Arrow className="size-3.5" aria-hidden="true" />
       {sube ? "+" : igual ? "" : "−"}
       {Math.abs(percentage)} %
       {texto && <span className="font-normal text-muted-foreground"> {texto}</span>}
@@ -124,7 +124,7 @@ export function Change({ percentage, texto, mejor = "subir" }) {
 // Un número clave. `cambio` va debajo del número (por ejemplo, <Cambio />).
 // Con `onClick`, toda la tarjeta es un botón (por ejemplo, para ver la
 // lista de lo que cuenta) y lo dice con `accion`.
-export function Metric({ titulo, valor, detalle, cambio, Icon, onClick, accion }) {
+export function Metric({ title, rawValue, details, cambio, Icon, onClick, action }) {
   const contenido = (
     <div
       className={cn(
@@ -133,23 +133,23 @@ export function Metric({ titulo, valor, detalle, cambio, Icon, onClick, accion }
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{titulo}</p>
+        <p className="text-sm text-muted-foreground">{title}</p>
         {Icon && (
           <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-gray-100 text-gray-600">
             <Icon className="size-4" aria-hidden="true" />
           </span>
         )}
       </div>
-      <p className="text-[28px] leading-tight font-semibold tabular-nums tracking-tight mt-1">{valor}</p>
-      {(cambio || detalle) && (
+      <p className="text-[28px] leading-tight font-semibold tabular-nums tracking-tight mt-1">{rawValue}</p>
+      {(cambio || details) && (
         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           {cambio}
-          {detalle && <span>{detalle}</span>}
+          {details && <span>{details}</span>}
         </div>
       )}
-      {onClick && accion && (
+      {onClick && action && (
         <span className="mt-auto pt-3 inline-flex items-center gap-1 text-xs font-medium text-orange-600 group-hover:text-orange-700">
-          {accion}
+          {action}
           <ChevronRightIcon className="size-3.5 transition group-hover:translate-x-0.5" aria-hidden="true" />
         </span>
       )}
@@ -166,7 +166,7 @@ export function Metric({ titulo, valor, detalle, cambio, Icon, onClick, accion }
 
 // Tarjeta con título de cada bloque del dashboard. `accion` va a la
 // derecha del título (por ejemplo, "Ver todas").
-export function Panel({ titulo, id, detalle, accion, Icon, className, children }) {
+export function Panel({ title, id, details, action, Icon, className, children }) {
   return (
     <section aria-labelledby={id} className={cn("rounded-xl border bg-card p-4 sm:p-5 shadow-xs", className)}>
       <div className="flex items-start justify-between gap-3 mb-4">
@@ -174,12 +174,12 @@ export function Panel({ titulo, id, detalle, accion, Icon, className, children }
           {Icon}
           <div className="min-w-0">
             <h2 id={id} className="text-[15px] font-semibold">
-              {titulo}
+              {title}
             </h2>
-            {detalle && <p className="text-xs text-muted-foreground mt-0.5">{detalle}</p>}
+            {details && <p className="text-xs text-muted-foreground mt-0.5">{details}</p>}
           </div>
         </div>
-        {accion && <div className="shrink-0">{accion}</div>}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       {children}
     </section>
@@ -188,19 +188,19 @@ export function Panel({ titulo, id, detalle, accion, Icon, className, children }
 
 // Nombre de un repuesto en una tabla: abre su detalle. Con `conCodigo`, el
 // código y la categoría van debajo.
-export function PartName({ repuesto, onDetalle, conCodigo = false }) {
+export function PartName({ part, onDetail, withCode = false }) {
   return (
     <>
       <button
         type="button"
-        onClick={() => onDetalle(repuesto.id)}
+        onClick={() => onDetail(part.id)}
         className="text-left font-medium whitespace-normal hover:text-orange-600 hover:underline underline-offset-2"
       >
-        {repuesto.nombre}
+        {part.displayName}
       </button>
-      {conCodigo && (
+      {withCode && (
         <span className="block text-xs text-muted-foreground">
-          {repuesto.codigo} · {repuesto.categoria}
+          {part.code} · {part.categoria}
         </span>
       )}
     </>
@@ -209,20 +209,20 @@ export function PartName({ repuesto, onDetalle, conCodigo = false }) {
 
 // Un grupo de botones donde siempre hay uno elegido (qué mostrar, estado
 // del stock). `opciones`: [[valor, texto], ...].
-export function Options({ etiqueta, valor, onCambiar, opciones }) {
+export function Options({ label, rawValue, onChange, opciones }) {
   return (
     <ToggleGroup
-      aria-label={etiqueta}
+      aria-label={label}
       variant="outline"
       spacing={0}
-      value={[valor]}
-      onValueChange={(elegidos) => elegidos.length && onCambiar(elegidos[0])}
+      value={[rawValue]}
+      onValueChange={(chosen) => chosen.length && onChange(chosen[0])}
       className="flex-wrap rounded-lg bg-white"
     >
-      {opciones.map(([opcion, texto]) => (
+      {opciones.map(([option, texto]) => (
         <ToggleGroupItem
-          key={opcion}
-          value={opcion}
+          key={option}
+          value={option}
           className="px-3 text-xs font-medium text-muted-foreground aria-pressed:bg-gray-900 aria-pressed:text-white hover:aria-pressed:bg-gray-900"
         >
           {texto}
@@ -234,13 +234,13 @@ export function Options({ etiqueta, valor, onCambiar, opciones }) {
 
 // Ventana modal del dashboard. El contenido se monta al abrirla, así cada
 // vez arranca con el formulario limpio.
-export function DashboardDialog({ abierto, onCambiar, titulo, descripcion, ancho = "sm:max-w-[640px]", children }) {
+export function DashboardDialog({ isOpen, onChange, title, description, ancho = "sm:max-w-[640px]", children }) {
   return (
-    <Dialog open={abierto} onOpenChange={onCambiar}>
+    <Dialog open={isOpen} onOpenChange={onChange}>
       <DialogContent className={cn("max-h-[90vh] overflow-y-auto p-6", ancho)}>
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold">{titulo}</DialogTitle>
-          {descripcion && <DialogDescription className="text-xs">{descripcion}</DialogDescription>}
+          <DialogTitle className="text-lg font-semibold">{title}</DialogTitle>
+          {description && <DialogDescription className="text-xs">{description}</DialogDescription>}
         </DialogHeader>
         {children}
       </DialogContent>
@@ -248,11 +248,11 @@ export function DashboardDialog({ abierto, onCambiar, titulo, descripcion, ancho
   );
 }
 
-export function FormField({ id, etiqueta, error, children }) {
+export function FormField({ id, label, error, children }) {
   return (
     <Field data-invalid={Boolean(error)} className="gap-1.5">
       <FieldLabel htmlFor={id} className="text-xs font-bold">
-        {etiqueta}
+        {label}
       </FieldLabel>
       {children}
       {error && (

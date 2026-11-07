@@ -28,14 +28,14 @@ it("sends the seller token and skips the empty filters", async () => {
     projection: { month: "2026-11", units: 6.5 },
   });
 
-  const datos = await getSalesTrend({ categoria: "Frenos", busqueda: "", meses: 3 });
+  const info = await getSalesTrend({ categoria: "Frenos", search: "", months: 3 });
 
   const [url, opciones] = global.fetch.mock.calls[0];
   expect(url).toBe("http://api/api/v1/analytics/sales-by-month?category=Frenos&months=3");
   expect(opciones.headers.Authorization).toBe("Bearer token-vendedor");
-  expect(datos).toEqual({
-    meses: [{ mes: "2026-10", unidades: 5, facturacion: 500, enCurso: true }],
-    proyeccion: { mes: "2026-11", unidades: 6.5 },
+  expect(info).toEqual({
+    months: [{ month: "2026-10", units: 5, revenue: 500, inProgress: true }],
+    forecast: { month: "2026-11", units: 6.5 },
   });
 });
 
@@ -46,8 +46,8 @@ it("maps the stock to the UI shape", async () => {
   });
 
   expect(await getStock()).toEqual({
-    umbralStockBajo: 5,
-    repuestos: [{ id: 1, codigo: "FRE-001", nombre: "Pastillas", fabricante: "Bosch", categoria: "Frenos", stock: 2, stockBajo: true }],
+    thresholdStockLow: 5,
+    repuestos: [{ id: 1, code: "FRE-001", displayName: "Pastillas", fabricante: "Bosch", categoria: "Frenos", stock: 2, stockLow: true }],
   });
 });
 
@@ -70,16 +70,16 @@ it("sends a new part with its compatible vehicles", async () => {
   global.fetch = responder(201, { id: 9, part_code: "FRE-100", name: "Discos", manufacturer: "Fremax", category: "Frenos", stock: 12 });
 
   await createPart({
-    codigo: "FRE-100",
-    nombre: "Discos",
+    code: "FRE-100",
+    displayName: "Discos",
     fabricante: "Fremax",
     categoria: "Frenos",
-    precio: "4200",
+    price: "4200",
     stock: "12",
     color: "",
-    descripcion: "",
-    garantiaMeses: "",
-    compatibilidades: [{ vehiculoId: 2, desde: 2015, hasta: 2022 }],
+    description: "",
+    monthsWarranty: "",
+    compatibilidades: [{ idVehicle: 2, from: 2015, until: 2022 }],
   });
 
   const [url, opciones] = global.fetch.mock.calls[0];
@@ -103,16 +103,16 @@ describe("equipo (SCRUM-175)", () => {
   it("lists the sellers in the UI shape", async () => {
     global.fetch = responder(200, { employees: [{ id: 1, name: "Ana", email: "ana@example.com", is_admin: true }] });
 
-    expect(await getSellers()).toEqual([{ id: 1, nombre: "Ana", email: "ana@example.com", isAdmin: true }]);
+    expect(await getSellers()).toEqual([{ id: 1, displayName: "Ana", email: "ana@example.com", isAdmin: true }]);
     expect(global.fetch.mock.calls[0][0]).toBe("http://api/api/v1/employees");
   });
 
   it("adds a seller with the name and mail trimmed", async () => {
     global.fetch = responder(201, { id: 3, name: "Caro", email: "caro@example.com", is_admin: false });
 
-    expect(await addSeller({ nombre: " Caro ", email: " caro@example.com " })).toEqual({
+    expect(await addSeller({ displayName: " Caro ", email: " caro@example.com " })).toEqual({
       id: 3,
-      nombre: "Caro",
+      displayName: "Caro",
       email: "caro@example.com",
       isAdmin: false,
     });
@@ -124,7 +124,7 @@ describe("equipo (SCRUM-175)", () => {
   it("uses the backend message when the mail is taken", async () => {
     global.fetch = responder(409, { detail: "Ya hay una cuenta con ese correo." });
 
-    await expect(addSeller({ nombre: "Beto", email: "beto@example.com" })).rejects.toThrow(
+    await expect(addSeller({ displayName: "Beto", email: "beto@example.com" })).rejects.toThrow(
       "Ya hay una cuenta con ese correo."
     );
   });

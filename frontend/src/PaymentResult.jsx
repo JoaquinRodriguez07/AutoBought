@@ -24,84 +24,84 @@ const UNPAID = ["rejected", "cancelled", "null"];
 export default function PaymentResult(propsNavbar) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { recargar: recargarPedidos } = useOrders();
-  const pedidoId = searchParams.get("pedido") || "";
-  const estadoMP = searchParams.get("collection_status") || searchParams.get("status") || "";
-  const pagoMP = searchParams.get("payment_id") || searchParams.get("collection_id") || "";
+  const { reload: reloadOrders } = useOrders();
+  const idOrder = searchParams.get("pedido") || "";
+  const statusMP = searchParams.get("collection_status") || searchParams.get("status") || "";
+  const paymentMP = searchParams.get("payment_id") || searchParams.get("collection_id") || "";
 
   // "consultando" | "aprobado" | "rechazado" | "en-proceso" | "error"
-  const [estado, setEstado] = useState(pedidoId ? "consultando" : "error");
-  const [error, setError] = useState(pedidoId ? "" : "No encontramos ese pedido.");
-  const [reintentando, setReintentando] = useState(false);
+  const [estado, setStatus] = useState(idOrder ? "consultando" : "error");
+  const [error, setError] = useState(idOrder ? "" : "No encontramos ese pedido.");
+  const [retrying, setRetrying] = useState(false);
 
   // Con el pago resuelto, el número de pedidos en curso de la barra se
   // actualiza (un pedido pagado sigue en curso; uno nuevo se suma).
   useEffect(() => {
-    if (estado !== "consultando") recargarPedidos();
-  }, [estado, recargarPedidos]);
+    if (estado !== "consultando") reloadOrders();
+  }, [estado, reloadOrders]);
 
   useEffect(() => {
-    if (!pedidoId) return;
+    if (!idOrder) return;
 
     // Al salir de la pantalla se corta la consulta: no se vuelve a preguntar
     // ni se cambia el estado. En desarrollo, StrictMode monta dos veces: la
     // primera vuelta se cancela y la segunda verifica de nuevo, sin problema
     // (el backend no aplica dos veces el mismo pago).
-    let cancelado = false;
-    let consultas = 0;
+    let cancelled = false;
+    let queries = 0;
     let temporizador;
     const consultar = async () => {
-      consultas += 1;
+      queries += 1;
       try {
-        const { estadoPago } = await getPurchaseDetail(pedidoId);
-        if (cancelado) return;
-        if (estadoPago === "approved" || estadoPago === null) {
-          setEstado("aprobado");
-        } else if (estadoMP !== "approved" && (estadoPago === "rejected" || UNPAID.includes(estadoMP))) {
-          setEstado("rechazado");
-        } else if (consultas < ATTEMPTS) {
+        const { paymentStatus } = await getPurchaseDetail(idOrder);
+        if (cancelled) return;
+        if (paymentStatus === "approved" || paymentStatus === null) {
+          setStatus("aprobado");
+        } else if (statusMP !== "approved" && (paymentStatus === "rejected" || UNPAID.includes(statusMP))) {
+          setStatus("rechazado");
+        } else if (queries < ATTEMPTS) {
           temporizador = setTimeout(consultar, WAIT_MS);
         } else {
-          setEstado("en-proceso");
+          setStatus("en-proceso");
         }
       } catch (err) {
-        if (cancelado) return;
-        setEstado("error");
+        if (cancelled) return;
+        setStatus("error");
         setError(err.message);
       }
     };
     const empezar = async () => {
       // Primero se confirma el pago con el backend, sin esperar el aviso de
       // Mercado Pago. Si falla, el aviso queda de respaldo y se consulta igual.
-      if (/^\d+$/.test(pagoMP)) {
+      if (/^\d+$/.test(paymentMP)) {
         try {
-          await verifyPayment(pedidoId, pagoMP);
+          await verifyPayment(idOrder, paymentMP);
         } catch {
           // Se sigue con la consulta de siempre.
         }
       }
-      if (!cancelado) consultar();
+      if (!cancelled) consultar();
     };
     empezar();
     return () => {
-      cancelado = true;
+      cancelled = true;
       clearTimeout(temporizador);
     };
-  }, [pedidoId, estadoMP, pagoMP]);
+  }, [idOrder, statusMP, paymentMP]);
 
-  const reintentar = async () => {
-    setReintentando(true);
+  const retry = async () => {
+    setRetrying(true);
     setError("");
     try {
-      goTo(await createPaymentLink(pedidoId));
+      goTo(await createPaymentLink(idOrder));
     } catch (err) {
       setError(err.message);
-      setReintentando(false);
+      setRetrying(false);
     }
   };
 
   return (
-    <AccountCard titulo={pedidoId ? `Pedido #${pedidoId}` : "Pago"} {...propsNavbar}>
+    <AccountCard title={idOrder ? `Pedido #${idOrder}` : "Pago"} {...propsNavbar}>
       {estado === "consultando" && (
         <p role="status" className="mt-6 text-xs text-gray-500">
           Estamos confirmando tu pago...
@@ -125,8 +125,8 @@ export default function PaymentResult(propsNavbar) {
           <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-xs font-semibold">
             El pago no se pudo completar. Tus repuestos siguen reservados: podés intentarlo de nuevo.
           </div>
-          <button type="button" onClick={reintentar} disabled={reintentando} className={accountButtonClass}>
-            {reintentando ? "Abriendo Mercado Pago..." : "Reintentar pago"}
+          <button type="button" onClick={retry} disabled={retrying} className={accountButtonClass}>
+            {retrying ? "Abriendo Mercado Pago..." : "Reintentar pago"}
           </button>
         </>
       )}
@@ -140,7 +140,7 @@ export default function PaymentResult(propsNavbar) {
       {estado !== "consultando" && (
         <button
           type="button"
-          onClick={estado === "error" ? () => propsNavbar.onCatalogo() : () => navigate(`/pedidos/${pedidoId}`)}
+          onClick={estado === "error" ? () => propsNavbar.onCatalogo() : () => navigate(`/pedidos/${idOrder}`)}
           className="w-full mt-3 py-2 text-xs font-bold text-gray-500 hover:text-orange-500"
         >
           {estado === "error" ? "Ir a la tienda" : "Seguir mi pedido"}

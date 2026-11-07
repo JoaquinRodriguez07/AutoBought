@@ -27,22 +27,22 @@ const PARTS_PER_BATCH = 24;
 
 // Cuántos repuestos hay de cada opción ([nombre, cantidad]). `valores`
 // devuelve las opciones de un repuesto (un fabricante, varias marcas).
-function countOptions(productos, valores, seleccionados) {
-  const cantidades = new Map(seleccionados.map((s) => [s, 0]));
-  for (const p of productos) {
-    for (const valor of valores(p)) {
-      cantidades.set(valor, (cantidades.get(valor) ?? 0) + 1);
+function countOptions(products, values, selected) {
+  const quantities = new Map(selected.map((s) => [s, 0]));
+  for (const p of products) {
+    for (const rawValue of values(p)) {
+      quantities.set(rawValue, (quantities.get(rawValue) ?? 0) + 1);
     }
   }
-  return [...cantidades];
+  return [...quantities];
 }
 
 // Para los setState de listas: saca un valor, o lo pone si no está.
-const sin = (valor) => (lista) => lista.filter((v) => v !== valor);
-const toggle = (valor) => (lista) =>
-  lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor];
+const without = (rawValue) => (list) => list.filter((v) => v !== rawValue);
+const toggle = (rawValue) => (list) =>
+  list.includes(rawValue) ? list.filter((v) => v !== rawValue) : [...list, rawValue];
 
-const pesos = (valor) => `$${Number(valor).toLocaleString("es-UY")}`;
+const pesos = (rawValue) => `$${Number(rawValue).toLocaleString("es-UY")}`;
 
 function priceText(min, max) {
   if (min !== "" && max !== "") return `${pesos(min)} – ${pesos(max)}`;
@@ -51,12 +51,12 @@ function priceText(min, max) {
 
 // "Para Chevrolet Onix, Prisma" si es de una sola marca y pocos modelos;
 // si es de muchas, solo las marcas, o "Para varias marcas".
-function compatibilityText({ marcas = [], modelos = [] }) {
-  if (marcas.length === 0) return "";
-  if (marcas.length === 1 && modelos.length > 0 && modelos.length <= 3) {
-    return `Para ${marcas[0]} ${modelos.join(", ")}`;
+function compatibilityText({ brands = [], models = [] }) {
+  if (brands.length === 0) return "";
+  if (brands.length === 1 && models.length > 0 && models.length <= 3) {
+    return `Para ${brands[0]} ${models.join(", ")}`;
   }
-  if (marcas.length <= 3) return `Para ${marcas.join(", ")}`;
+  if (brands.length <= 3) return `Para ${brands.join(", ")}`;
   return "Para varias marcas";
 }
 
@@ -64,37 +64,37 @@ export default function Catalog({
   // ==========================================
   // NAVBAR
   // ==========================================
-  usuario,
+  sessionUser,
   onHome,
   onCatalogo,
   onLogin,
-  onMarcas,
-  onCarrito,
-  onFavoritos,
+  onBrands,
+  onCart,
+  onFavorites,
 
   // MENÚ DE USUARIO
-  onPerfil,
-  onDirecciones,
-  onHistorial,
-  onCerrarSesion,
+  onProfile,
+  onAddresses,
+  onHistory,
+  onCloseSession,
 
   // CONTADORES
-  cantidadFavoritos,
+  favoritesQuantity,
 
   // ==========================================
   // CATÁLOGO
   // ==========================================
-  onDetalle,
-  categoriaInicial,
-  onCategoriaSeleccionada,
-  onAlternarFavorito,
-  esFavorito,
-  onAlternarAvisoStock,
-  tieneAvisoStock = () => false,
+  onDetail,
+  initialCategory,
+  onSelectedCategory,
+  onToggleFavorite,
+  isFavorite,
+  onToggleNoticeStock,
+  hasNoticeStock = () => false,
 }) {
   // Vehículo Activo (el que se confirmó con "Buscar Repuestos"). Vive en
   // VehicleContext, así que sobrevive a ir al carrito y volver.
-  const { vehiculoActivo, limpiarVehiculo, activarVehiculo } = useVehicle();
+  const { activeVehicle, clearVehicle, activateVehicle } = useVehicle();
 
   // `categoria` en null significa "todas las categorías": es lo que
   // deja el botón "Limpiar filtros" y lo que se traduce en un
@@ -104,24 +104,24 @@ export default function Catalog({
   // manda quien navega (App.jsx / Home.jsx) o el que devuelve
   // GET /api/v1/parts/categories. Esta pantalla no tiene literales de
   // categoría ni traducciones propias.
-  const [categoria, setCategoria] = useState(
-    categoriaInicial || null
+  const [categoria, setCategory] = useState(
+    initialCategory || null
   );
 
-  const [orden, setOrden] = useState("Más relevantes");
+  const [sort, setSort] = useState("Más relevantes");
   const [searchParams, setSearchParams] = useSearchParams();
-  const consulta = (searchParams.get("q") || "").trim();
-  const { key: claveNavegacion } = useLocation();
+  const queryState = (searchParams.get("q") || "").trim();
+  const { key: keyNavigation } = useLocation();
   // Si se entra con ?q= (desde la barra del menú), la búsqueda se ve en
   // la barra del catálogo.
-  const [busqueda, setBusqueda] = useState(consulta);
-  const [fabricantes, setFabricantes] = useState(() => {
-    const desdeInicio = searchParams.get("fabricante");
-    return desdeInicio ? [desdeInicio] : [];
+  const [search, setSearch] = useState(queryState);
+  const [manufacturers, setManufacturers] = useState(() => {
+    const fromHome = searchParams.get("fabricante");
+    return fromHome ? [fromHome] : [];
   });
-  const [marcasAuto, setMarcasAuto] = useState(() => {
-    const desdeInicio = searchParams.get("marca");
-    return desdeInicio ? [desdeInicio] : [];
+  const [brandsCar, setBrandsCar] = useState(() => {
+    const fromHome = searchParams.get("marca");
+    return fromHome ? [fromHome] : [];
   });
 
   // Los filtros ?marca= y ?fabricante= (marcas del footer, logos de Home,
@@ -136,24 +136,24 @@ export default function Catalog({
     const fabricante = searchParams.get("fabricante");
     if (!marca && !fabricante) return;
 
-    if (marca) setMarcasAuto([marca]);
-    if (fabricante) setFabricantes([fabricante]);
+    if (marca) setBrandsCar([marca]);
+    if (fabricante) setManufacturers([fabricante]);
     // Un filtro de una sola vez parte de la lista completa: se quita el
     // texto que se había escrito en la barra, que si no seguiría filtrando.
-    setBusqueda(consulta);
+    setSearch(queryState);
     // Solo cuando se navega: los filtros que el cliente cambia después
     // a mano no se pisan.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [claveNavegacion]);
+  }, [keyNavigation]);
 
-  const [precioMin, setPrecioMin] = useState("");
-  const [precioMax, setPrecioMax] = useState("");
-  const [soloConStock, setSoloConStock] = useState(false);
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [onlyWithStock, setOnlyWithStock] = useState(false);
   // En celular los filtros se esconden detrás de un botón.
-  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false);
-  const [cantidades, setCantidades] = useState({});
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [quantities, setQuantities] = useState({});
   // El vendedor no compra: no ve carrito, favoritos ni avisos de stock.
-  const vendedor = isSeller(usuario);
+  const seller = isSeller(sessionUser);
 
 
   // ==========================================
@@ -169,38 +169,38 @@ export default function Catalog({
   // sincrónicamente dentro del efecto, y una respuesta vieja nunca
   // pisa a una nueva.
 
-  const [reintento, setReintento] = useState(0);
-  const claveVehiculo = `${vehiculoActivo?.brand ?? ""}|${
-    vehiculoActivo?.model ?? ""
-  }|${vehiculoActivo?.year ?? ""}`;
-  const clavePedido = `${reintento}|${categoria ?? ""}|${claveVehiculo}`;
+  const [retry, setRetry] = useState(0);
+  const vehicleKey = `${activeVehicle?.brand ?? ""}|${
+    activeVehicle?.model ?? ""
+  }|${activeVehicle?.year ?? ""}`;
+  const orderKey = `${retry}|${categoria ?? ""}|${vehicleKey}`;
 
-  const [respuesta, setRespuesta] = useState({
-    clave: null,
-    productos: [],
+  const [response, setResponse] = useState({
+    key: null,
+    products: [],
     error: "",
   });
 
-  const cargando = consulta
-    ? respuesta.clave !== `libre|${consulta}`
-    : respuesta.clave !== clavePedido;
-  const productos = respuesta.productos;
-  const error = respuesta.error;
+  const loading = queryState
+    ? response.key !== `libre|${queryState}`
+    : response.key !== orderKey;
+  const products = response.products;
+  const error = response.error;
 
-  const [reintentoCategorias, setReintentoCategorias] = useState(0);
+  const [retryCategories, setRetryCategories] = useState(0);
 
-  const claveCategorias = String(reintentoCategorias);
+  const categoriesKey = String(retryCategories);
 
-  const [respuestaCategorias, setRespuestaCategorias] = useState({
-    clave: null,
-    categorias: [],
+  const [categoriesResponse, setCategoriesResponse] = useState({
+    key: null,
+    categories: [],
     error: "",
   });
 
-  const cargandoCategorias =
-    respuestaCategorias.clave !== claveCategorias;
-  const categorias = respuestaCategorias.categorias;
-  const errorCategorias = respuestaCategorias.error;
+  const loadingCategories =
+    categoriesResponse.key !== categoriesKey;
+  const categories = categoriesResponse.categories;
+  const categoriesError = categoriesResponse.error;
 
   // ==========================================
   // ACTUALIZAR CATEGORÍA
@@ -209,22 +209,22 @@ export default function Catalog({
   // (App.jsx pasa `categoriaCatalogo`); ese camino se mantiene.
 
   useEffect(() => {
-    setCategoria(categoriaInicial || null);
-  }, [categoriaInicial]);
+    setCategory(initialCategory || null);
+  }, [initialCategory]);
 
   // ==========================================
   // BÚSQUEDA LIBRE
   // ==========================================
   useEffect(() => {
-  if (!consulta) return;
+  if (!queryState) return;
 
-  let activo = true;
+  let active = true;
 
-  searchText(consulta)
+  searchText(queryState)
     .then(({ parts, entities }) => {
-      if (!activo) return;
+      if (!active) return;
 
-      const tieneEntidades =
+      const hasEntities =
         entities &&
         (entities.part ||
           entities.brand ||
@@ -232,10 +232,10 @@ export default function Catalog({
           entities.year ||
           entities.fuel);
 
-      if (!tieneEntidades) {
-        setRespuesta({
-          clave: `libre|${consulta}`,
-          productos: [],
+      if (!hasEntities) {
+        setResponse({
+          key: `libre|${queryState}`,
+          products: [],
           error:
             "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual",
         });
@@ -243,33 +243,33 @@ export default function Catalog({
       }
 
       if (entities.brand) {
-        activarVehiculo({
+        activateVehicle({
           brand: entities.brand,
           model: entities.model || "",
           year: entities.year || "",
         });
       }
 
-      setRespuesta({
-        clave: `libre|${consulta}`,
-        productos: parts,
+      setResponse({
+        key: `libre|${queryState}`,
+        products: parts,
         error: "",
       });
     })
     .catch((e) => {
-      if (!activo) return;
+      if (!active) return;
 
-      setRespuesta({
-        clave: `libre|${consulta}`,
-        productos: [],
+      setResponse({
+        key: `libre|${queryState}`,
+        products: [],
         error: e.message || "No pudimos realizar la búsqueda.",
       });
     });
 
   return () => {
-    activo = false;
+    active = false;
   };
-}, [consulta, activarVehiculo]);
+}, [queryState, activateVehicle]);
 
   // ==========================================
   // CARGAR REPUESTOS
@@ -282,36 +282,36 @@ export default function Catalog({
   // usuario cambia de filtro antes de que llegue la anterior.
 
   useEffect(() => {
-    let activo = true;
-    if (consulta) return;
+    let active = true;
+    if (queryState) return;
 
     getParts({
       categoria: categoria || undefined,
-      brand: vehiculoActivo?.brand || undefined,
-      model: vehiculoActivo?.model || undefined,
-      year: vehiculoActivo?.year || undefined,
+      brand: activeVehicle?.brand || undefined,
+      model: activeVehicle?.model || undefined,
+      year: activeVehicle?.year || undefined,
     })
-      .then((lista) => {
-        if (!activo) return;
-        setRespuesta({
-          clave: clavePedido,
-          productos: lista,
+      .then((list) => {
+        if (!active) return;
+        setResponse({
+          key: orderKey,
+          products: list,
           error: "",
         });
       })
       .catch((e) => {
-        if (!activo) return;
-        setRespuesta({
-          clave: clavePedido,
-          productos: [],
+        if (!active) return;
+        setResponse({
+          key: orderKey,
+          products: [],
           error: e.message || "No pudimos cargar los repuestos.",
         });
       });
 
     return () => {
-      activo = false;
+      active = false;
     };
-  }, [categoria, vehiculoActivo, clavePedido, consulta]);
+  }, [categoria, activeVehicle, orderKey, queryState]);
 
   // ==========================================
   // CARGAR CATEGORÍAS
@@ -321,31 +321,31 @@ export default function Catalog({
   // traducciones en el frontend.
 
   useEffect(() => {
-    let activo = true;
+    let active = true;
 
     getCategories()
-      .then((lista) => {
-        if (!activo) return;
-        setRespuestaCategorias({
-          clave: claveCategorias,
-          categorias: lista,
+      .then((list) => {
+        if (!active) return;
+        setCategoriesResponse({
+          key: categoriesKey,
+          categories: list,
           error: "",
         });
       })
       .catch((e) => {
-        if (!activo) return;
-        setRespuestaCategorias({
-          clave: claveCategorias,
-          categorias: [],
+        if (!active) return;
+        setCategoriesResponse({
+          key: categoriesKey,
+          categories: [],
           error:
             e.message || "No pudimos cargar las categorías.",
         });
       });
 
     return () => {
-      activo = false;
+      active = false;
     };
-  }, [claveCategorias]);
+  }, [categoriesKey]);
 
   // ==========================================
   // PRODUCTOS MOSTRADOS
@@ -356,43 +356,43 @@ export default function Catalog({
   // marca del auto) y el orden se resuelven en el navegador con
   // filtrarRepuestos, en vivo.
 
-  const productosMostrados = useMemo(
+  const shownProducts = useMemo(
     () =>
-      filterParts(productos, {
+      filterParts(products, {
         // Lo que se buscó con Enter ya lo resolvió el servidor: no se
         // vuelve a filtrar por ese mismo texto.
-        busqueda: busqueda.trim() === consulta ? "" : busqueda,
-        fabricantes,
-        marcasAuto,
-        precioMin,
-        precioMax,
-        soloConStock,
-        orden,
+        search: search.trim() === queryState ? "" : search,
+        manufacturers,
+        brandsCar,
+        priceMin,
+        priceMax,
+        onlyWithStock,
+        sort,
       }),
-    [productos, busqueda, consulta, fabricantes, marcasAuto, precioMin, precioMax, soloConStock, orden]
+    [products, search, queryState, manufacturers, brandsCar, priceMin, priceMax, onlyWithStock, sort]
   );
 
   // Se muestran de a REPUESTOS_POR_TANDA: con el catálogo completo son
   // miles de tarjetas y la página se pone lenta. "Ver más" suma otra
   // tanda. La cantidad se guarda junto con la lista a la que corresponde:
   // si cambian los filtros (otra lista), vuelve a la primera tanda.
-  const [tanda, setTanda] = useState({ lista: null, cantidad: PARTS_PER_BATCH });
-  const cantidadVisible = tanda.lista === productosMostrados ? tanda.cantidad : PARTS_PER_BATCH;
-  const productosVisibles = productosMostrados.slice(0, cantidadVisible);
-  const verMas = () =>
-    setTanda({ lista: productosMostrados, cantidad: cantidadVisible + PARTS_PER_BATCH });
+  const [batch, setBatch] = useState({ list: null, quantity: PARTS_PER_BATCH });
+  const visibleQuantity = batch.list === shownProducts ? batch.quantity : PARTS_PER_BATCH;
+  const visibleProducts = shownProducts.slice(0, visibleQuantity);
+  const seeMore = () =>
+    setBatch({ list: shownProducts, quantity: visibleQuantity + PARTS_PER_BATCH });
 
   // Las opciones de fabricante y marca del auto salen de los repuestos
   // cargados (con la categoría y el vehículo ya aplicados), con cuántos
   // hay de cada una. Las tildadas se muestran aunque ya no tengan
   // repuestos, para poder destildarlas.
-  const opcionesFabricante = useMemo(
-    () => countOptions(productos, (p) => (p.fabricante ? [p.fabricante] : []), fabricantes),
-    [productos, fabricantes]
+  const manufacturerOptions = useMemo(
+    () => countOptions(products, (p) => (p.fabricante ? [p.fabricante] : []), manufacturers),
+    [products, manufacturers]
   );
-  const opcionesMarca = useMemo(
-    () => countOptions(productos, (p) => p.marcas ?? [], marcasAuto),
-    [productos, marcasAuto]
+  const brandOptions = useMemo(
+    () => countOptions(products, (p) => p.brands ?? [], brandsCar),
+    [products, brandsCar]
   );
 
   // ==========================================
@@ -407,49 +407,49 @@ export default function Catalog({
   // que es lo que vuelve como `categoriaInicial` al entrar de nuevo al
   // catálogo). Se cambian siempre juntas: si solo se limpiara la de
   // acá, volver con el botón Atrás reaplicaría el filtro viejo.
-  const cambiarCategoria = (nueva) => {
-    if (consulta) {
+  const changeCategory = (newPassword) => {
+    if (queryState) {
       setSearchParams({});
-      setBusqueda("");
+      setSearch("");
     }
 
-    setCategoria(nueva);
-    onCategoriaSeleccionada?.(nueva);
+    setCategory(newPassword);
+    onSelectedCategory?.(newPassword);
   };
 
-  const limpiarFiltros = () => {
-    if (consulta) {
+  const clearFilters = () => {
+    if (queryState) {
       setSearchParams({});
     }
 
-    cambiarCategoria(null);
-    setBusqueda("");
-    setFabricantes([]);
-    setMarcasAuto([]);
-    setPrecioMin("");
-    setPrecioMax("");
-    setSoloConStock(false);
+    changeCategory(null);
+    setSearch("");
+    setManufacturers([]);
+    setBrandsCar([]);
+    setPriceMin("");
+    setPriceMax("");
+    setOnlyWithStock(false);
   };
 
   // Los filtros activos, como chips arriba de los resultados: cada uno
   // con lo que hay que hacer para quitarlo.
-  const filtrosActivos = [
-    categoria && { clave: "categoria", texto: categoria, quitar: () => cambiarCategoria(null) },
-    busqueda.trim() && { clave: "busqueda", texto: `"${busqueda.trim()}"`, quitar: () => buscar("") },
-    ...fabricantes.map((f) => ({ clave: `fabricante-${f}`, texto: f, quitar: () => setFabricantes(sin(f)) })),
-    ...marcasAuto.map((m) => ({ clave: `marca-${m}`, texto: `Para ${m}`, quitar: () => setMarcasAuto(sin(m)) })),
-    (precioMin !== "" || precioMax !== "") && {
-      clave: "precio",
-      texto: priceText(precioMin, precioMax),
-      quitar: () => {
-        setPrecioMin("");
-        setPrecioMax("");
+  const filtersActivos = [
+    categoria && { key: "categoria", texto: categoria, remove: () => changeCategory(null) },
+    search.trim() && { key: "search", texto: `"${search.trim()}"`, remove: () => runSearch("") },
+    ...manufacturers.map((f) => ({ key: `fabricante-${f}`, texto: f, remove: () => setManufacturers(without(f)) })),
+    ...brandsCar.map((m) => ({ key: `marca-${m}`, texto: `Para ${m}`, remove: () => setBrandsCar(without(m)) })),
+    (priceMin !== "" || priceMax !== "") && {
+      key: "price",
+      texto: priceText(priceMin, priceMax),
+      remove: () => {
+        setPriceMin("");
+        setPriceMax("");
       },
     },
-    soloConStock && { clave: "stock", texto: "Con stock", quitar: () => setSoloConStock(false) },
+    onlyWithStock && { key: "stock", texto: "Con stock", remove: () => setOnlyWithStock(false) },
   ].filter(Boolean);
 
-  const hayFiltros = filtrosActivos.length > 0;
+  const hasFilters = filtersActivos.length > 0;
 
   // ==========================================
   // BUSCAR
@@ -457,22 +457,22 @@ export default function Catalog({
   // Una sola barra: mientras se escribe filtra en vivo lo cargado
   // (filtrarRepuestos); con Enter o la lupa hace la búsqueda del servidor
   // (?q=), que entiende "pastillas onix 2020", errores y sinónimos.
-  const buscar = (texto) => {
-    const limpio = texto.trim();
-    setBusqueda(limpio);
-    setSearchParams(limpio ? { q: limpio } : {});
+  const runSearch = (texto) => {
+    const cleaned = texto.trim();
+    setSearch(cleaned);
+    setSearchParams(cleaned ? { q: cleaned } : {});
   };
 
   // Lo escrito que todavía no se buscó en el servidor: para eso se ofrece
   // el botón "Buscar ... en todo el catálogo" (así no hace falta saber
   // que existe el Enter).
-  const textoSinBuscar = busqueda.trim() !== consulta ? busqueda.trim() : "";
+  const textWithoutSearch = search.trim() !== queryState ? search.trim() : "";
 
   // "Borrar filtros" del banner: quita el vehículo activo Y el resto de
   // los filtros, para que el catálogo vuelva a la lista completa.
-  const borrarVehiculoYFiltros = () => {
-    limpiarVehiculo();
-    limpiarFiltros();
+  const clearVehicleAndFilters = () => {
+    clearVehicle();
+    clearFilters();
   };
 
   // ==========================================
@@ -480,14 +480,14 @@ export default function Catalog({
   // ==========================================
   // No deja pedir más de lo que hay en stock.
 
-  const cambiarCantidad = (producto, cambio) => {
-    setCantidades((actual) => {
-      const actualCant = actual[producto.id] || 1;
-      const nueva = Math.min(
-        producto.stock,
-        Math.max(1, actualCant + cambio)
+  const changeQuantity = (product, cambio) => {
+    setQuantities((current) => {
+      const currentQty = current[product.id] || 1;
+      const newPassword = Math.min(
+        product.stock,
+        Math.max(1, currentQty + cambio)
       );
-      return { ...actual, [producto.id]: nueva };
+      return { ...current, [product.id]: newPassword };
     });
   };
 
@@ -497,10 +497,10 @@ export default function Catalog({
 
   // El botón (BotonAgregarCarrito) llama a addToCart y CartContext
   // muestra el aviso; acá solo se vuelve el selector de cantidad a 1.
-  const reiniciarCantidad = (producto) => {
-    setCantidades((actual) => ({
-      ...actual,
-      [producto.id]: 1,
+  const resetQuantity = (product) => {
+    setQuantities((current) => ({
+      ...current,
+      [product.id]: 1,
     }));
   };
 
@@ -515,24 +515,24 @@ export default function Catalog({
       ================================================== */}
 
       <Navbar
-        paginaActual="catalogo"
+        currentPage="catalogo"
 
-        usuario={usuario}
+        sessionUser={sessionUser}
 
         onHome={onHome}
         onCatalogo={onCatalogo}
         onLogin={onLogin}
-        onMarcas={onMarcas}
-        onCarrito={onCarrito}
-        onFavoritos={onFavoritos}
+        onBrands={onBrands}
+        onCart={onCart}
+        onFavorites={onFavorites}
 
         // MENÚ DE USUARIO
-        onPerfil={onPerfil}
-        onDirecciones={onDirecciones}
-        onHistorial={onHistorial}
-        onCerrarSesion={onCerrarSesion}
+        onProfile={onProfile}
+        onAddresses={onAddresses}
+        onHistory={onHistory}
+        onCloseSession={onCloseSession}
 
-        cantidadFavoritos={cantidadFavoritos}
+        favoritesQuantity={favoritesQuantity}
       />
 
       {/* =================================================
@@ -548,12 +548,12 @@ export default function Catalog({
         <PageHeader
           ancho="max-w-[1200px]"
           migas={[
-            { texto: "Inicio", ir: onHome },
-            { texto: "Repuestos", ir: () => cambiarCategoria(null) },
+            { texto: "Inicio", goTo: onHome },
+            { texto: "Repuestos", goTo: () => changeCategory(null) },
             categoria || "Todos",
           ]}
-          titulo={categoria || "Todos los repuestos"}
-          descripcion="Encontrá el repuesto justo para tu auto."
+          title={categoria || "Todos los repuestos"}
+          description="Encontrá el repuesto justo para tu auto."
         >
 
           {/* BUSCADOR, a lo ancho. Pit ya está en la barra y en su botón
@@ -566,20 +566,20 @@ export default function Catalog({
                   (ver Navbar). */}
               <SearchBar
                 inputId={CATALOG_SEARCH_ID}
-                value={busqueda}
-                onChange={setBusqueda}
-                onSubmit={buscar}
+                value={search}
+                onChange={setSearch}
+                onSubmit={runSearch}
                 placeholder="Buscar repuesto por nombre, código o fabricante..."
                 className="h-14"
               />
 
-              {textoSinBuscar && (
+              {textWithoutSearch && (
                 <button
                   type="button"
-                  onClick={() => buscar(textoSinBuscar)}
+                  onClick={() => runSearch(textWithoutSearch)}
                   className="mt-2 text-sm text-gray-300 hover:text-orange-400 transition"
                 >
-                  Buscar <span className="font-bold text-white">"{textoSinBuscar}"</span> en todo el catálogo →
+                  Buscar <span className="font-bold text-white">"{textWithoutSearch}"</span> en todo el catálogo →
                 </button>
               )}
             </div>
@@ -588,10 +588,10 @@ export default function Catalog({
           {/* VEHÍCULO ACTIVO */}
           {/* Oculto si no hay vehículo activo en VehicleContext. */}
 
-          {vehiculoActivo && (
+          {activeVehicle && (
             <div className="mt-4">
               <ActiveVehicleBanner
-                onBorrar={borrarVehiculoYFiltros}
+                onClear={clearVehicleAndFilters}
               />
             </div>
           )}
@@ -615,28 +615,28 @@ export default function Catalog({
               // -mx-3 px-3: los botones de categoría se estiran 12 px a cada
               // lado para el resaltado; así entran en la columna con scroll y
               // no queda nada para arrastrar hacia los costados.
-              className={`${filtrosAbiertos ? "block" : "hidden"} self-start lg:sticky lg:top-24 lg:block lg:-mx-3 lg:px-3 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:overscroll-contain`}
+              className={`${filtersOpen ? "block" : "hidden"} self-start lg:sticky lg:top-24 lg:block lg:-mx-3 lg:px-3 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:overscroll-contain`}
             >
 
               <CatalogFilters
-                categorias={categorias}
-                cargandoCategorias={cargandoCategorias}
-                errorCategorias={errorCategorias}
-                onReintentarCategorias={() => setReintentoCategorias((v) => v + 1)}
+                categories={categories}
+                loadingCategories={loadingCategories}
+                categoriesError={categoriesError}
+                onRetryCategories={() => setRetryCategories((v) => v + 1)}
                 categoria={categoria}
-                onCategoria={cambiarCategoria}
-                opcionesFabricante={opcionesFabricante}
-                fabricantes={fabricantes}
-                onAlternarFabricante={(f) => setFabricantes(toggle(f))}
-                opcionesMarca={opcionesMarca}
-                marcasAuto={marcasAuto}
-                onAlternarMarca={(m) => setMarcasAuto(toggle(m))}
-                precioMin={precioMin}
-                precioMax={precioMax}
-                onPrecioMin={setPrecioMin}
-                onPrecioMax={setPrecioMax}
-                soloConStock={soloConStock}
-                onSoloConStock={setSoloConStock}
+                onCategory={changeCategory}
+                manufacturerOptions={manufacturerOptions}
+                manufacturers={manufacturers}
+                onToggleManufacturer={(f) => setManufacturers(toggle(f))}
+                brandOptions={brandOptions}
+                brandsCar={brandsCar}
+                onToggleBrand={(m) => setBrandsCar(toggle(m))}
+                priceMin={priceMin}
+                priceMax={priceMax}
+                onPriceMin={setPriceMin}
+                onPriceMax={setPriceMax}
+                onlyWithStock={onlyWithStock}
+                onOnlyWithStock={setOnlyWithStock}
               />
 
             </aside>
@@ -653,7 +653,7 @@ export default function Catalog({
 
                 <p className="text-sm font-bold mr-auto">
 
-                  {cargando ? (
+                  {loading ? (
 
                     "Cargando repuestos…"
 
@@ -661,10 +661,10 @@ export default function Catalog({
                     <>
 
                       <span className="text-orange-500">
-                        {productosMostrados.length}
+                        {shownProducts.length}
                       </span>{" "}
 
-                      {productosMostrados.length === 1 ? "resultado" : "resultados"}
+                      {shownProducts.length === 1 ? "resultado" : "resultados"}
 
                     </>
                   )}
@@ -673,15 +673,15 @@ export default function Catalog({
 
                 <button
                   type="button"
-                  onClick={() => setFiltrosAbiertos((v) => !v)}
-                  aria-expanded={filtrosAbiertos}
+                  onClick={() => setFiltersOpen((v) => !v)}
+                  aria-expanded={filtersOpen}
                   className="lg:hidden flex items-center gap-2 border border-gray-200 rounded-md px-3 h-9 text-sm font-bold"
                 >
                   <FiltersIcon />
-                  {filtrosAbiertos ? "Ocultar filtros" : "Filtros"}
-                  {filtrosActivos.length > 0 && (
+                  {filtersOpen ? "Ocultar filtros" : "Filtros"}
+                  {filtersActivos.length > 0 && (
                     <span className="bg-orange-500 text-white rounded-full px-1.5 text-xs">
-                      {filtrosActivos.length}
+                      {filtersActivos.length}
                     </span>
                   )}
                 </button>
@@ -689,9 +689,9 @@ export default function Catalog({
                 <label className="flex items-center gap-2 text-sm text-gray-500">
                   Ordenar por
                   <select
-                    value={orden}
+                    value={sort}
                     onChange={(e) =>
-                      setOrden(e.target.value)
+                      setSort(e.target.value)
                     }
                     className="border border-gray-200 rounded-md px-3 h-9 text-sm text-gray-900 outline-hidden focus:border-orange-500"
                   >
@@ -706,26 +706,26 @@ export default function Catalog({
 
               {/* FILTROS ACTIVOS */}
 
-              {hayFiltros && (
+              {hasFilters && (
 
                 <div className="flex flex-wrap items-center gap-2 mb-5">
 
-                  {filtrosActivos.map((filtro) => (
+                  {filtersActivos.map((filter) => (
                     <button
-                      key={filtro.clave}
+                      key={filter.key}
                       type="button"
-                      onClick={filtro.quitar}
-                      aria-label={`Quitar filtro ${filtro.texto}`}
+                      onClick={filter.remove}
+                      aria-label={`Quitar filtro ${filter.texto}`}
                       className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 rounded-full pl-3 pr-2 h-8 text-xs font-semibold transition"
                     >
-                      {filtro.texto}
+                      {filter.texto}
                       <CloseIcon className="w-3.5 h-3.5 text-gray-500" />
                     </button>
                   ))}
 
                   <button
                     type="button"
-                    onClick={limpiarFiltros}
+                    onClick={clearFilters}
                     className="text-xs font-bold text-orange-500 hover:underline ml-1"
                   >
                     Limpiar filtros
@@ -737,7 +737,7 @@ export default function Catalog({
 
               {/* CARGANDO */}
 
-              {cargando && (
+              {loading && (
                 <div className="py-20 text-center text-gray-400 text-sm">
                   Cargando repuestos…
                 </div>
@@ -747,7 +747,7 @@ export default function Catalog({
               {/* Si la API falla no se muestran datos de mentira: se
                   avisa del error y se ofrece reintentar. */}
 
-              {!cargando && error && (
+              {!loading && error && (
 
                 <div className="py-20 text-center">
 
@@ -757,7 +757,7 @@ export default function Catalog({
 
                   <button
                     type="button"
-                    onClick={() => setReintento((v) => v + 1)}
+                    onClick={() => setRetry((v) => v + 1)}
                     className="mt-4 px-4 h-9 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-md text-sm font-bold transition"
                   >
                     Reintentar
@@ -772,21 +772,21 @@ export default function Catalog({
                   retroalimentación la muestra SinResultadosBusqueda
                   (o el mensaje genérico) más abajo. */}
 
-              {!cargando && !error && productosMostrados.length > 0 && (
+              {!loading && !error && shownProducts.length > 0 && (
 
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
 
-                {productosVisibles.map((producto) => {
+                {visibleProducts.map((product) => {
 
-                  const cantidad =
-                    cantidades[producto.id] || 1;
+                  const quantity =
+                    quantities[product.id] || 1;
 
-                  const favorito =
-                    esFavorito(producto.id);
+                  const favorite =
+                    isFavorite(product.id);
 
-                  const sinStock = producto.stock === 0;
+                  const withoutStock = product.stock === 0;
 
-                  const compatibilidad = compatibilityText(producto);
+                  const compatibilidad = compatibilityText(product);
 
                   return (
 
@@ -794,7 +794,7 @@ export default function Catalog({
                     // y su ::after la cubre entera. Favorito, cantidad y
                     // "Agregar" quedan por encima (relative z-10).
                     <article
-                      key={producto.id}
+                      key={product.id}
                       className="group relative flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg hover:border-gray-200 transition"
                     >
 
@@ -807,27 +807,27 @@ export default function Catalog({
                             las imágenes que están fuera de pantalla. */}
 
                         <img onError={useGenericImage}
-                          src={producto.imagen}
-                          alt={producto.nombre}
+                          src={product.image}
+                          alt={product.displayName}
                           loading="lazy"
                           className="w-full h-full object-contain p-3 group-hover:scale-105 transition duration-300"
                         />
 
-                        {!vendedor && (
+                        {!seller && (
                         <button
                           type="button"
                           onClick={() =>
-                            onAlternarFavorito(producto)
+                            onToggleFavorite(product)
                           }
-                          aria-label={favorito ? "Quitar de favoritos" : "Marcar como favorito"}
-                          aria-pressed={favorito}
+                          aria-label={favorite ? "Quitar de favoritos" : "Marcar como favorito"}
+                          aria-pressed={favorite}
                           className={`absolute z-10 top-3 right-3 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center transition hover:scale-105 ${
-                            favorito
+                            favorite
                               ? "text-orange-500"
                               : "text-gray-500"
                           }`}
                         >
-                          <HeartIcon lleno={favorito} className="w-5 h-5" />
+                          <HeartIcon full={favorite} className="w-5 h-5" />
                         </button>
                         )}
 
@@ -838,17 +838,17 @@ export default function Catalog({
                       <div className="flex flex-col flex-1 p-4">
 
                         <p className="text-xs font-black uppercase tracking-wide text-orange-500">
-                          {producto.fabricante}
+                          {product.fabricante}
                         </p>
 
                         <h3 className="text-sm font-bold mt-1 leading-snug">
                           <button
                             type="button"
-                            onClick={() => onDetalle(producto)}
-                            aria-label={`Ver detalle de ${producto.nombre}`}
+                            onClick={() => onDetail(product)}
+                            aria-label={`Ver detalle de ${product.displayName}`}
                             className="text-left group-hover:text-orange-500 transition after:absolute after:inset-0 after:content-['']"
                           >
-                            {producto.nombre}
+                            {product.displayName}
                           </button>
                         </h3>
 
@@ -859,39 +859,39 @@ export default function Catalog({
                         )}
 
                         <p className="text-xs text-gray-400 mt-1">
-                          Código: {producto.codigo}
+                          Código: {product.code}
                         </p>
 
                         <div className="mt-auto pt-4 flex items-end justify-between gap-2">
 
                           <p className="text-xl font-black">
-                            {pesos(producto.precio)}
+                            {pesos(product.price)}
                           </p>
 
-                          {sinStock ? (
+                          {withoutStock ? (
                             <p className="text-xs text-red-500 font-bold">
                               Sin stock
                             </p>
                           ) : (
                             <p className="text-xs text-green-600 font-bold">
-                              {producto.stock} en stock
+                              {product.stock} en stock
                             </p>
                           )}
 
                         </div>
 
-                        {sinStock && !vendedor && (
+                        {withoutStock && !seller && (
                           <StockAlertButton
-                            producto={producto}
-                            tieneAviso={tieneAvisoStock(producto.partId)}
-                            onAlternarAviso={onAlternarAvisoStock}
+                            product={product}
+                            hasNotice={hasNoticeStock(product.partId)}
+                            onToggleNotice={onToggleNoticeStock}
                             className="relative z-10 mt-2 self-start"
                           />
                         )}
 
                         {/* CANTIDAD + AGREGAR */}
 
-                        {!vendedor && (
+                        {!seller && (
                         <div className="relative z-10 flex items-center gap-2 mt-4">
 
                           <div className="flex border border-gray-200 rounded-md">
@@ -899,32 +899,32 @@ export default function Catalog({
                             <button
                               type="button"
                               onClick={() =>
-                                cambiarCantidad(
-                                  producto,
+                                changeQuantity(
+                                  product,
                                   -1
                                 )
                               }
-                              disabled={sinStock}
+                              disabled={withoutStock}
                               className="w-8 h-9 disabled:opacity-40"
                             >
                               −
                             </button>
 
                             <span className="w-8 flex items-center justify-center text-sm">
-                              {sinStock ? 0 : cantidad}
+                              {withoutStock ? 0 : quantity}
                             </span>
 
                             <button
                               type="button"
                               onClick={() =>
-                                cambiarCantidad(
-                                  producto,
+                                changeQuantity(
+                                  product,
                                   1
                                 )
                               }
                               disabled={
-                                sinStock ||
-                                cantidad >= producto.stock
+                                withoutStock ||
+                                quantity >= product.stock
                               }
                               className="w-8 h-9 disabled:opacity-40"
                             >
@@ -934,10 +934,10 @@ export default function Catalog({
                           </div>
 
                           <AddToCartButton
-                            producto={producto}
-                            cantidad={cantidad}
+                            product={product}
+                            quantity={quantity}
                             onTerminar={() =>
-                              reiniciarCantidad(producto)
+                              resetQuantity(product)
                             }
                             className="flex-1 flex items-center justify-center gap-2 h-9 rounded-md text-xs font-bold"
                           >
@@ -961,14 +961,14 @@ export default function Catalog({
 
               {/* VER MÁS */}
 
-              {!cargando && !error && productosVisibles.length < productosMostrados.length && (
+              {!loading && !error && visibleProducts.length < shownProducts.length && (
                 <div className="mt-8 flex flex-col items-center gap-3">
                   <p className="text-xs text-gray-400">
-                    Mostrando {productosVisibles.length} de {productosMostrados.length.toLocaleString("es-UY")} repuestos
+                    Mostrando {visibleProducts.length} de {shownProducts.length.toLocaleString("es-UY")} repuestos
                   </p>
                   <button
                     type="button"
-                    onClick={verMas}
+                    onClick={seeMore}
                     className="h-11 px-8 rounded-md border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white text-sm font-black transition"
                   >
                     Ver más repuestos
@@ -982,22 +982,22 @@ export default function Catalog({
                   en su lugar. Si no hay búsqueda activa, se muestra un
                   mensaje genérico. */}
 
-              {!cargando && !error && productosMostrados.length === 0 && (
-                busqueda.trim() ? (
+              {!loading && !error && shownProducts.length === 0 && (
+                search.trim() ? (
                   <>
                     <NoSearchResults
-                      termino={busqueda.trim()}
-                      onBuscarEnTodo={textoSinBuscar ? () => buscar(textoSinBuscar) : undefined}
+                      termino={search.trim()}
+                      onSearchInEverything={textWithoutSearch ? () => runSearch(textWithoutSearch) : undefined}
                     />
-                    <AssistantInvite variante="sinResultados" termino={busqueda.trim()} />
+                    <AssistantInvite variante="sinResultados" termino={search.trim()} />
                   </>
                 ) : (
                   <div className="py-20 text-center text-gray-400 text-sm">
-                    {productos.length > 0
+                    {products.length > 0
                       ? "Ningún repuesto coincide con los filtros elegidos."
                       : categoria
                       ? `No hay productos en la categoría "${categoria}".`
-                      : vehiculoActivo
+                      : activeVehicle
                       ? "No encontramos repuestos para este vehículo."
                       : "No encontramos productos."}
                   </div>

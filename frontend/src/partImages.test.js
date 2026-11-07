@@ -73,16 +73,16 @@ describe("TIPOS_REPUESTO", () => {
 
   it("covers every part of the catalog, and every manufacturer has its image", () => {
     const { parts } = JSON.parse(readFileSync(CATALOGO, "utf-8"));
-    const sinTipo = parts.filter((part) => !partTypeOf(part.name)).map((part) => part.name);
-    expect(sinTipo).toEqual([]);
+    const withoutType = parts.filter((part) => !partTypeOf(part.name)).map((part) => part.name);
+    expect(withoutType).toEqual([]);
 
     // Cada fabricante del catálogo es el principal (imagen base) o tiene su versión.
-    const esperadas = new Set(expectedImages().map((imagen) => `/repuestos/${imagen.archivo}.webp`));
-    const sinImagenPropia = parts.filter((part) => !esperadas.has(imageForType(part.name)));
-    expect(sinImagenPropia).toEqual([]);
+    const expected = new Set(expectedImages().map((image) => `/repuestos/${image.archivo}.webp`));
+    const withoutOwnImage = parts.filter((part) => !expected.has(imageForType(part.name)));
+    expect(withoutOwnImage).toEqual([]);
 
-    const combinaciones = new Set(parts.map((part) => imageForType(part.name)));
-    expect(combinaciones.size).toBe(expectedImages().length);
+    const combinations = new Set(parts.map((part) => imageForType(part.name)));
+    expect(combinations.size).toBe(expectedImages().length);
   });
 
   it("has a second view description for every type", () => {
@@ -100,8 +100,8 @@ describe("TIPOS_REPUESTO", () => {
 
   it("has a generated image for every type and manufacturer", () => {
     const faltan = expectedImages()
-      .filter((imagen) => !existsSync(join(RAIZ_FRONTEND, "public", "repuestos", `${imagen.archivo}.webp`)))
-      .map((imagen) => imagen.archivo);
+      .filter((image) => !existsSync(join(RAIZ_FRONTEND, "public", "repuestos", `${image.archivo}.webp`)))
+      .map((image) => image.archivo);
 
     expect(faltan).toEqual([]);
   });

@@ -7,12 +7,12 @@ import {
 } from "./validations";
 
 describe("validatePersonName", () => {
-  it.each(["Lucía Gómez", "O'Neill", "María-José", "D’Agostino", "  Ana   Paz "])("accepts %s", (nombre) => {
-    expect(validatePersonName(nombre)).toBeNull();
+  it.each(["Lucía Gómez", "O'Neill", "María-José", "D’Agostino", "  Ana   Paz "])("accepts %s", (displayName) => {
+    expect(validatePersonName(displayName)).toBeNull();
   });
 
-  it.each(["123", "Ana 2", "@@@", "A", "   "])("rejects %s", (nombre) => {
-    expect(validatePersonName(nombre)).not.toBeNull();
+  it.each(["123", "Ana 2", "@@@", "A", "   "])("rejects %s", (displayName) => {
+    expect(validatePersonName(displayName)).not.toBeNull();
   });
 });
 
@@ -24,8 +24,8 @@ describe("validatePassword", () => {
     ["Password1", "Esa contraseña es muy común. Elegí otra."],
     ["Lucia2026", "La contraseña no puede contener tu correo."],
     ["ñ".repeat(37) + "1", "La contraseña es demasiado larga."],
-  ])("rejects %s", (password, mensaje) => {
-    expect(validatePassword(password, "lucia@example.com")).toBe(mensaje);
+  ])("rejects %s", (password, message) => {
+    expect(validatePassword(password, "lucia@example.com")).toBe(message);
   });
 
   it("accepts a password with letters and numbers", () => {
@@ -34,18 +34,18 @@ describe("validatePassword", () => {
 });
 
 describe("validateAddress", () => {
-  const direccion = {
-    nombre: "Casa", calle: "18 de Julio", numero: "1234 bis", apartamento: "3B",
-    ciudad: "Montevideo", departamento: "Montevideo", codigoPostal: "11200",
+  const shippingAddress = {
+    displayName: "Casa", street: "18 de Julio", number: "1234 bis", apartamento: "3B",
+    city: "Montevideo", departamento: "Montevideo", codePostal: "11200",
   };
 
   it("accepts a valid address, and S/N as door number", () => {
-    expect(validateAddress(direccion)).toEqual({});
-    expect(validateAddress({ ...direccion, numero: "s/n" })).toEqual({});
+    expect(validateAddress(shippingAddress)).toEqual({});
+    expect(validateAddress({ ...shippingAddress, number: "s/n" })).toEqual({});
   });
 
   it("rejects a city named as another department, ignoring accents and case", () => {
-    expect(validateAddress({ ...direccion, ciudad: "PAYSANDU", departamento: "Artigas" }).departamento).toBe(
+    expect(validateAddress({ ...shippingAddress, city: "PAYSANDU", departamento: "Artigas" }).departamento).toBe(
       "PAYSANDU no está en el departamento de Artigas."
     );
   });

@@ -14,8 +14,8 @@ describe("normalizeUyPhone", () => {
     ["2900 1234", "+59829001234"],
     ["4332 1234", "+59843321234"],
     ["(02) 900 1234", "+59829001234"],
-  ])("accepts %s", (raw, esperado) => {
-    expect(normalizeUyPhone(raw)).toBe(esperado);
+  ])("accepts %s", (raw, expected) => {
+    expect(normalizeUyPhone(raw)).toBe(expected);
   });
 
   it.each([

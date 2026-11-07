@@ -37,11 +37,11 @@ export function normalizeUyPhone(raw) {
  * @param {string|null|undefined} valor - ej: "+59899123456".
  * @returns {string}
  */
-export function formatUyPhone(valor) {
-  if (!valor) return "";
+export function formatUyPhone(rawValue) {
+  if (!rawValue) return "";
 
-  const normalizado = normalizeUyPhone(valor);
-  if (!normalizado) return valor;
+  const normalizado = normalizeUyPhone(rawValue);
+  if (!normalizado) return rawValue;
 
   const n = normalizado.slice(4);
   return n.startsWith("9")

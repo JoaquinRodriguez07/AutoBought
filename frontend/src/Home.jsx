@@ -82,22 +82,22 @@ const PURCHASE_STEPS = [
 ];
 
 export default function Home({
-  usuario,
+  sessionUser,
   onHome,
   onLogin,
   onCatalogo,
-  onDetalle,
-  onMarcas,
-  onCarrito,
-  onFavoritos,
+  onDetail,
+  onBrands,
+  onCart,
+  onFavorites,
 
-  onPerfil,
-  onDirecciones,
-  onHistorial,
-  onCerrarSesion,
+  onProfile,
+  onAddresses,
+  onHistory,
+  onCloseSession,
 
-  cantidadCarrito,
-  cantidadFavoritos,
+  cartQuantity,
+  favoritesQuantity,
 }) {
   // ==========================================
   // VEHICLE SELECTION
@@ -106,17 +106,17 @@ export default function Home({
   // hacer clic en "Buscar Repuestos" pasa a ser el Vehículo Activo
   // (VehicleContext) y el catálogo consulta la API.
 
-  const { vehiculoActivo, activarVehiculo, limpiarVehiculo } =
+  const { activeVehicle, activateVehicle, clearVehicle } =
     useVehicle();
 
 
-  const buscarRepuestos = (vehiculo) => {
-    activarVehiculo(vehiculo);
-    onCatalogo(null, vehiculo);
+  const searchParts = (vehicle) => {
+    activateVehicle(vehicle);
+    onCatalogo(null, vehicle);
   };
 
-  const borrarFiltros = () => {
-    limpiarVehiculo();
+  const clearFilters = () => {
+    clearVehicle();
   };
 
   // ==========================================
@@ -132,31 +132,31 @@ export default function Home({
   // el resto de la página sigue funcionando; no se muestra un cartel
   // de error.
 
-  const [categorias, setCategorias] = useState(null);
-  const [fabricantes, setFabricantes] = useState([]);
+  const [categories, setCategories] = useState(null);
+  const [manufacturers, setManufacturers] = useState([]);
 
   useEffect(() => {
-    let activo = true;
+    let active = true;
 
     getCategories()
-      .then((lista) => {
-        if (!activo) return;
-        setCategorias(lista);
+      .then((list) => {
+        if (!active) return;
+        setCategories(list);
       })
       .catch(() => {
-        if (!activo) return;
-        setCategorias([]);
+        if (!active) return;
+        setCategories([]);
       });
 
     // Si falla, la cinta de fabricantes queda vacía.
     getManufacturers()
-      .then((lista) => {
-        if (activo) setFabricantes(lista.slice(0, MANUFACTURER_COUNT).map((f) => f.nombre));
+      .then((list) => {
+        if (active) setManufacturers(list.slice(0, MANUFACTURER_COUNT).map((f) => f.displayName));
       })
       .catch(() => {});
 
     return () => {
-      activo = false;
+      active = false;
     };
   }, []);
 
@@ -167,33 +167,33 @@ export default function Home({
   // Las marcas del catálogo (los nombres, iguales que en el backend,
   // filtran el catálogo). Geely y JAC todavía no tienen logo.
   const simpleIcon = (slug) => `https://cdn.simpleicons.org/${slug}/000000`;
-  const destacadas = [...(categorias || [])]
-    .sort((a, b) => b.cantidad - a.cantidad)
+  const featured = [...(categories || [])]
+    .sort((a, b) => b.quantity - a.quantity)
     .slice(0, FEATURED_COUNT);
 
-  const marcas = [
-    { nombre: "Volkswagen", logo: VolkswagenLogo },
-    { nombre: "Chevrolet", logo: ChevroletLogo },
-    { nombre: "Fiat", logo: FiatLogo },
-    { nombre: "Renault", logo: RenaultLogo },
-    { nombre: "Ford", logo: simpleIcon("ford") },
-    { nombre: "Toyota", logo: simpleIcon("toyota") },
-    { nombre: "Peugeot", logo: PeugeotLogo },
-    { nombre: "Nissan", logo: simpleIcon("nissan") },
-    { nombre: "Suzuki", logo: SuzukiLogo },
-    { nombre: "Hyundai", logo: HyundaiLogo },
-    { nombre: "Kia", logo: simpleIcon("kia") },
-    { nombre: "Citroen", logo: CitroenLogo },
-    { nombre: "Chery", logo: CheryLogo },
-    { nombre: "BYD", logo: BydLogo },
-    { nombre: "Honda", logo: simpleIcon("honda") },
-    { nombre: "Mitsubishi", logo: simpleIcon("mitsubishi") },
-    { nombre: "Jeep", logo: simpleIcon("jeep") },
-    { nombre: "Mazda", logo: simpleIcon("mazda") },
-    { nombre: "GAC", logo: GacLogo },
-    { nombre: "Mercedes-Benz", logo: MercedesLogo },
-    { nombre: "BMW", logo: BMWLogo },
-    { nombre: "Audi", logo: AudiLogo },
+  const brands = [
+    { displayName: "Volkswagen", logo: VolkswagenLogo },
+    { displayName: "Chevrolet", logo: ChevroletLogo },
+    { displayName: "Fiat", logo: FiatLogo },
+    { displayName: "Renault", logo: RenaultLogo },
+    { displayName: "Ford", logo: simpleIcon("ford") },
+    { displayName: "Toyota", logo: simpleIcon("toyota") },
+    { displayName: "Peugeot", logo: PeugeotLogo },
+    { displayName: "Nissan", logo: simpleIcon("nissan") },
+    { displayName: "Suzuki", logo: SuzukiLogo },
+    { displayName: "Hyundai", logo: HyundaiLogo },
+    { displayName: "Kia", logo: simpleIcon("kia") },
+    { displayName: "Citroen", logo: CitroenLogo },
+    { displayName: "Chery", logo: CheryLogo },
+    { displayName: "BYD", logo: BydLogo },
+    { displayName: "Honda", logo: simpleIcon("honda") },
+    { displayName: "Mitsubishi", logo: simpleIcon("mitsubishi") },
+    { displayName: "Jeep", logo: simpleIcon("jeep") },
+    { displayName: "Mazda", logo: simpleIcon("mazda") },
+    { displayName: "GAC", logo: GacLogo },
+    { displayName: "Mercedes-Benz", logo: MercedesLogo },
+    { displayName: "BMW", logo: BMWLogo },
+    { displayName: "Audi", logo: AudiLogo },
   ];
 
   // ==========================================
@@ -204,27 +204,27 @@ export default function Home({
   // Igual que las categorías: si no hay ventas o el pedido falla, la
   // sección se oculta y el resto de la página sigue funcionando.
 
-  const [masVendidos, setMasVendidos] = useState(null);
+  const [moreVendidos, setMoreVendidos] = useState(null);
 
   useEffect(() => {
-    let activo = true;
+    let active = true;
 
-    getBestSellers({ limite: 8 })
-      .then((lista) => {
-        if (!activo) return;
-        setMasVendidos(lista);
+    getBestSellers({ limit: 8 })
+      .then((list) => {
+        if (!active) return;
+        setMoreVendidos(list);
       })
       .catch(() => {
-        if (!activo) return;
-        setMasVendidos([]);
+        if (!active) return;
+        setMoreVendidos([]);
       });
 
     return () => {
-      activo = false;
+      active = false;
     };
   }, []);
 
-  const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
+  const price = (rawValue) => `$${rawValue.toLocaleString("es-UY")}`;
 
   const hero = useRef(null);
 
@@ -236,20 +236,20 @@ export default function Home({
       ====================================================== */}
 
       <Navbar
-        paginaActual="home"
-        usuario={usuario}
+        currentPage="home"
+        sessionUser={sessionUser}
         onHome={onHome}
         onCatalogo={onCatalogo}
         onLogin={onLogin}
-        onMarcas={onMarcas}
-        onCarrito={onCarrito}
-        onFavoritos={onFavoritos}
-        onPerfil={onPerfil}
-        onDirecciones={onDirecciones}
-        onHistorial={onHistorial}
-        onCerrarSesion={onCerrarSesion}
-        cantidadCarrito={cantidadCarrito}
-        cantidadFavoritos={cantidadFavoritos}
+        onBrands={onBrands}
+        onCart={onCart}
+        onFavorites={onFavorites}
+        onProfile={onProfile}
+        onAddresses={onAddresses}
+        onHistory={onHistory}
+        onCloseSession={onCloseSession}
+        cartQuantity={cartQuantity}
+        favoritesQuantity={favoritesQuantity}
       />
 
       {/* =====================================================
@@ -286,9 +286,9 @@ export default function Home({
             {/* En celular las líneas se acomodan solas (parejas, sin
                 palabras sueltas); desde tablet, una por renglón. */}
             <h1 className="text-white text-[2.5rem] sm:text-5xl md:text-6xl font-black italic uppercase leading-[0.95] mt-4 max-w-[640px] text-balance">
-              {["Repuestos que te", "mantienen en", "movimiento"].map((linea, indice) => (
-                <span key={linea} className={`sm:block ${indice === 2 ? "text-orange-500" : ""}`}>
-                  {linea}{" "}
+              {["Repuestos que te", "mantienen en", "movimiento"].map((line, indice) => (
+                <span key={line} className={`sm:block ${indice === 2 ? "text-orange-500" : ""}`}>
+                  {line}{" "}
                 </span>
               ))}
             </h1>
@@ -305,9 +305,9 @@ export default function Home({
 
             <p className="text-white text-sm font-black">¿Qué auto tenés?</p>
             <VehicleSelector
-              vehicle={vehiculoActivo}
-              onConfirm={buscarRepuestos}
-              onClear={borrarFiltros}
+              vehicle={activeVehicle}
+              onConfirm={searchParts}
+              onClear={clearFilters}
               showClear
               variant="home"
             />
@@ -351,7 +351,7 @@ export default function Home({
             </div>
             <button
               type="button"
-              onClick={onMarcas}
+              onClick={onBrands}
               className="text-orange-500 text-sm font-bold hover:underline whitespace-nowrap"
             >
               Ver todas →
@@ -364,25 +364,25 @@ export default function Home({
 
           <Ribbon>
             {(copia) =>
-              marcas.map((marca) => (
+              brands.map((marca) => (
                 <button
-                  key={marca.nombre}
+                  key={marca.displayName}
                   type="button"
                   tabIndex={copia ? -1 : undefined}
-                  onClick={() => onCatalogo(null, null, { marca: marca.nombre })}
-                  title={marca.nombre}
-                  aria-label={`Ver repuestos de ${marca.nombre}`}
+                  onClick={() => onCatalogo(null, null, { marca: marca.displayName })}
+                  title={marca.displayName}
+                  aria-label={`Ver repuestos de ${marca.displayName}`}
                   className="group shrink-0 w-36 h-14 flex items-center justify-center"
                 >
                   {marca.logo ? (
                     <img
                       src={marca.logo}
-                      alt={`Logo ${marca.nombre}`}
+                      alt={`Logo ${marca.displayName}`}
                       className="max-h-10 max-w-[72px] object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition duration-300"
                     />
                   ) : (
                     <span className="text-sm font-black text-gray-400 group-hover:text-gray-900">
-                      {marca.nombre}
+                      {marca.displayName}
                     </span>
                   )}
                 </button>
@@ -396,7 +396,7 @@ export default function Home({
 
           <Ribbon reversa>
             {(copia) =>
-              fabricantes.map((fabricante) => (
+              manufacturers.map((fabricante) => (
                 <button
                   key={fabricante}
                   type="button"
@@ -418,13 +418,13 @@ export default function Home({
       ====================================================== */}
 
       <Section
-        etiqueta="TODO PARA TU AUTO"
-        titulo="Categorías"
-        accion="Ver todas"
-        onAccion={() => onCatalogo()}
+        label="TODO PARA TU AUTO"
+        title="Categorías"
+        action="Ver todas"
+        onAction={() => onCatalogo()}
       >
 
-        {categorias === null && (
+        {categories === null && (
           <p className="text-sm text-gray-400">
             Cargando categorías…
           </p>
@@ -433,27 +433,27 @@ export default function Home({
         {/* Mosaico: las destacadas grandes arriba y el resto debajo. */}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {destacadas
+          {featured
             .map((categoria) => (
               <CategoryCard
-                key={categoria.nombre}
-                nombre={categoria.nombre}
-                cantidad={categoria.cantidad}
-                grande
-                onClick={() => onCatalogo(categoria.nombre)}
+                key={categoria.displayName}
+                displayName={categoria.displayName}
+                quantity={categoria.quantity}
+                large
+                onClick={() => onCatalogo(categoria.displayName)}
               />
             ))}
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3">
-          {(categorias || [])
-            .filter((c) => !destacadas.includes(c))
+          {(categories || [])
+            .filter((c) => !featured.includes(c))
             .map((categoria) => (
               <CategoryCard
-                key={categoria.nombre}
-                nombre={categoria.nombre}
-                cantidad={categoria.cantidad}
-                onClick={() => onCatalogo(categoria.nombre)}
+                key={categoria.displayName}
+                displayName={categoria.displayName}
+                quantity={categoria.quantity}
+                onClick={() => onCatalogo(categoria.displayName)}
               />
             ))}
         </div>
@@ -466,15 +466,15 @@ export default function Home({
 
       <Section
         gris
-        etiqueta="ASÍ DE FÁCIL"
-        titulo="Cómo comprar"
-        accion="Empezar"
-        onAccion={() => onCatalogo()}
+        label="ASÍ DE FÁCIL"
+        title="Cómo comprar"
+        action="Empezar"
+        onAction={() => onCatalogo()}
       >
         <ol className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {PURCHASE_STEPS.map(([Icon, titulo, texto], i) => (
+          {PURCHASE_STEPS.map(([Icon, title, texto], i) => (
             <li
-              key={titulo}
+              key={title}
               className="relative flex items-start gap-4 bg-white border border-gray-100 rounded-xl p-6 shadow-xs"
             >
               <span className="shrink-0 w-12 h-12 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
@@ -482,7 +482,7 @@ export default function Home({
               </span>
               <div>
                 <p className="text-xs font-black text-orange-500 tracking-[3px]">PASO {i + 1}</p>
-                <h3 className="text-base font-black mt-1">{titulo}</h3>
+                <h3 className="text-base font-black mt-1">{title}</h3>
                 <p className="text-sm text-gray-500 mt-1">{texto}</p>
               </div>
             </li>
@@ -495,16 +495,16 @@ export default function Home({
       ====================================================== */}
       {/* Si no hay ventas o el pedido falla, la sección no se muestra. */}
 
-      {masVendidos?.length !== 0 && (
+      {moreVendidos?.length !== 0 && (
 
         <Section
-          etiqueta="LO MÁS ELEGIDO"
-          titulo="Más vendidos"
-          accion="Ver más"
-          onAccion={() => onCatalogo()}
+          label="LO MÁS ELEGIDO"
+          title="Más vendidos"
+          action="Ver más"
+          onAction={() => onCatalogo()}
         >
 
-          {masVendidos === null && (
+          {moreVendidos === null && (
             <p className="text-sm text-gray-400">
               Cargando más vendidos…
             </p>
@@ -514,18 +514,18 @@ export default function Home({
               tablet, una grilla (dos filas de 4 en pantallas grandes). */}
           <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-5">
 
-            {(masVendidos ?? []).map((producto) => (
+            {(moreVendidos ?? []).map((product) => (
 
               /* Toda la tarjeta lleva al repuesto: el nombre es el botón y
                  su ::after la cubre entera. "Agregar" queda por encima. */
               <article
-                key={producto.id}
+                key={product.id}
                 className="group relative shrink-0 w-[75%] snap-start sm:w-auto flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg hover:border-gray-200 transition"
               >
 
                 <div className="h-44 bg-white">
                   <img onError={useGenericImage}
-                    src={producto.imagen}
+                    src={product.image}
                     alt=""
                     className="w-full h-full object-contain p-3 group-hover:scale-105 transition duration-300"
                   />
@@ -536,25 +536,25 @@ export default function Home({
                 <div className="flex flex-col flex-1 p-4">
 
                   <p className="text-xs uppercase tracking-wide text-orange-500 font-black">
-                    {producto.fabricante}
+                    {product.fabricante}
                   </p>
 
                   <h3 className="text-sm font-bold mt-1 leading-snug">
                     <button
                       type="button"
-                      onClick={() => onDetalle(producto)}
+                      onClick={() => onDetail(product)}
                       className="text-left group-hover:text-orange-500 transition after:absolute after:inset-0 after:content-['']"
                     >
-                      {producto.nombre}
+                      {product.displayName}
                     </button>
                   </h3>
 
                   <p className="text-xl font-black mt-auto pt-4">
-                    {precio(producto.precio)}
+                    {price(product.price)}
                   </p>
 
                   <AddToCartButton
-                    producto={producto}
+                    product={product}
                     className="relative z-10 w-full mt-3 flex items-center justify-center gap-2 h-10 rounded-md text-xs font-bold"
                   >
                     <CartIcon />
@@ -582,8 +582,8 @@ export default function Home({
 // banner, así no tapa nada. Sin animaciones.
 function ScrollHint({ hero }) {
   const bajar = () => {
-    const alto = hero.current?.offsetHeight ?? window.innerHeight;
-    window.scrollTo({ top: alto - 88, behavior: "smooth" });
+    const high = hero.current?.offsetHeight ?? window.innerHeight;
+    window.scrollTo({ top: high - 88, behavior: "smooth" });
   };
 
   return (
@@ -600,40 +600,40 @@ function ScrollHint({ hero }) {
 
 // Tarjeta oscura de una categoría, con el ícono grande y transparente
 // de fondo. `grande` para las destacadas.
-function CategoryCard({ nombre, cantidad, grande = false, onClick }) {
-  const Icon = CATEGORY_ICONS[nombre] || BoxIcon;
+function CategoryCard({ displayName, quantity, large = false, onClick }) {
+  const Icon = CATEGORY_ICONS[displayName] || BoxIcon;
 
   return (
     <button
       type="button"
       onClick={onClick}
       className={`group relative overflow-hidden rounded-xl bg-linear-to-br from-[#23272e] to-[#121417] border border-white/5 hover:border-orange-500/60 hover:-translate-y-0.5 hover:shadow-xl text-left flex flex-col justify-between transition duration-300 ${
-        grande ? "h-44 p-6" : "h-32 p-4"
+        large ? "h-44 p-6" : "h-32 p-4"
       }`}
     >
       <Icon
         className={`absolute text-white/5 group-hover:text-orange-500/15 transition duration-300 ${
-          grande ? "-right-6 -bottom-6 w-40 h-40" : "-right-4 -bottom-4 w-24 h-24"
+          large ? "-right-6 -bottom-6 w-40 h-40" : "-right-4 -bottom-4 w-24 h-24"
         }`}
       />
 
       <span
         className={`relative rounded-full bg-orange-500/15 text-orange-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition duration-300 ${
-          grande ? "w-12 h-12" : "w-10 h-10"
+          large ? "w-12 h-12" : "w-10 h-10"
         }`}
       >
-        <Icon className={grande ? "w-6 h-6" : "w-5 h-5"} />
+        <Icon className={large ? "w-6 h-6" : "w-5 h-5"} />
       </span>
 
       <span className="relative">
-        <span className={`block text-white font-black ${grande ? "text-xl" : "text-sm"}`}>
-          {nombre}
+        <span className={`block text-white font-black ${large ? "text-xl" : "text-sm"}`}>
+          {displayName}
         </span>
         {/* La cantidad y, al pasar el mouse, "Ver repuestos" en su lugar. */}
         <span className="relative block h-4 mt-1 text-xs font-bold">
-          {cantidad > 0 && (
+          {quantity > 0 && (
             <span className="absolute inset-0 text-gray-400 group-hover:opacity-0 transition duration-300">
-              {cantidad.toLocaleString("es-UY")} repuestos
+              {quantity.toLocaleString("es-UY")} repuestos
             </span>
           )}
           <span className="absolute inset-0 text-orange-400 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition duration-300">
@@ -662,7 +662,7 @@ function Ribbon({ reversa = false, children }) {
 // Todas las secciones del inicio tienen el mismo armado: mismo ancho y
 // separación, etiqueta naranja, título y un enlace a la derecha. `gris`
 // alterna el fondo para que se note dónde termina cada una.
-function Section({ etiqueta, titulo, accion, onAccion, gris = false, children }) {
+function Section({ label, title, action, onAction, gris = false, children }) {
   return (
     <section className={gris ? "bg-[#f5f5f5]" : "bg-white"}>
       <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-14">
@@ -670,20 +670,20 @@ function Section({ etiqueta, titulo, accion, onAccion, gris = false, children })
         <div className="flex items-end justify-between gap-4 mb-7">
           <div>
             <p className="text-orange-500 text-xs font-black tracking-[4px]">
-              {etiqueta}
+              {label}
             </p>
             <h2 className="text-2xl md:text-3xl font-black italic uppercase mt-1">
-              {titulo}
+              {title}
             </h2>
           </div>
 
-          {accion && (
+          {action && (
             <button
               type="button"
-              onClick={onAccion}
+              onClick={onAction}
               className="text-orange-500 text-sm font-bold hover:underline whitespace-nowrap"
             >
-              {accion} →
+              {action} →
             </button>
           )}
         </div>

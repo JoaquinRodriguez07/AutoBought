@@ -29,14 +29,14 @@ export function getSession() {
   }
 }
 
-export function isSessionValid(sesion) {
-  if (!sesion) return false;
+export function isSessionValid(session) {
+  if (!session) return false;
 
   // Sesiones sin JWT (ej. flujo de registro local, todavía no
   // conectado al backend) se consideran válidas mientras existan.
-  if (!sesion.token) return true;
+  if (!session.token) return true;
 
-  const payload = decodeToken(sesion.token);
+  const payload = decodeToken(session.token);
   if (!payload?.exp) return false;
 
   return payload.exp * 1000 > Date.now();
@@ -51,17 +51,17 @@ export const SELLER_TYPE = "employee";
  * cliente, carrito ni favoritos: esos endpoints les responden 403, así que
  * la UI no tiene que pedirlos.
  */
-export function isSeller(sesion) {
-  return sesion?.userType === SELLER_TYPE;
+export function isSeller(session) {
+  return session?.userType === SELLER_TYPE;
 }
 
 /**
  * true si el vendedor es administrador (el token trae `admin`): ve la
  * sección "Equipo". La API lo vuelve a verificar en cada pedido.
  */
-export function isAdmin(sesion) {
-  if (!isSeller(sesion) || !sesion?.token) return false;
-  return decodeToken(sesion.token)?.admin === true;
+export function isAdmin(session) {
+  if (!isSeller(session) || !session?.token) return false;
+  return decodeToken(session.token)?.admin === true;
 }
 
 export function hasActiveSession() {
@@ -73,12 +73,12 @@ export function hasActiveSession() {
  * "Recordarme", sessionStorage si no. Así renovar el token no cambia la
  * persistencia que el cliente eligió al iniciar sesión.
  */
-export function saveSession(sesion) {
+export function saveSession(session) {
   const storage = localStorage.getItem(SESSION_KEY)
     ? localStorage
     : sessionStorage;
 
-  storage.setItem(SESSION_KEY, JSON.stringify(sesion));
+  storage.setItem(SESSION_KEY, JSON.stringify(session));
   window.dispatchEvent(new Event(SESSION_SAVED_EVENT));
 }
 
@@ -99,9 +99,9 @@ export function onSessionSaved(fn) {
  * ese momento ya pasó (hay que renovar ya) y null si el token no tiene
  * `exp` legible (no hay nada que programar).
  */
-export function msUntilRenewal(token, ahora = Date.now()) {
+export function msUntilRenewal(token, now = Date.now()) {
   const payload = token ? decodeToken(token) : null;
   if (!payload?.exp) return null;
 
-  return Math.max(0, payload.exp * 1000 - RENEWAL_MARGIN_MS - ahora);
+  return Math.max(0, payload.exp * 1000 - RENEWAL_MARGIN_MS - now);
 }

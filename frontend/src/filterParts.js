@@ -40,16 +40,16 @@
  * `marcaPrincipal`.
  */
 
-const getName = (p) => p.nombre ?? p.name ?? "";
-const getCode = (p) => p.codigo ?? p.part_code ?? "";
+const getName = (p) => p.displayName ?? p.name ?? "";
+const getCode = (p) => p.code ?? p.part_code ?? "";
 const getManufacturer = (p) => p.fabricante ?? p.manufacturer ?? "";
 const getCategory = (p) => p.categoria ?? p.category ?? "";
-const getPrice = (p) => p.precio ?? p.price ?? 0;
+const getPrice = (p) => p.price ?? p.price ?? 0;
 const getBrand = (p) =>
   p.marca ??
   (Array.isArray(p.compatible_brands) ? p.compatible_brands.join(" ") : "");
-const getBrandList = (p) => p.marcas ?? p.compatible_brands ?? [];
-const getModelList = (p) => (p.modelos ?? p.compatible_models ?? []).join(" ");
+const getBrandList = (p) => p.brands ?? p.compatible_brands ?? [];
+const getModelList = (p) => (p.models ?? p.compatible_models ?? []).join(" ");
 const getStock = (p) => p.stock ?? 0;
 
 // Minúsculas y sin tildes: "bujia" encuentra "Bujía".
@@ -57,8 +57,8 @@ const normalizeText = (texto) =>
   texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 // Un precio vacío ("" o null) es "sin límite".
-const limite = (valor) =>
-  valor === "" || valor === null || valor === undefined ? null : Number(valor);
+const limit = (rawValue) =>
+  rawValue === "" || rawValue === null || rawValue === undefined ? null : Number(rawValue);
 
 /**
  * @param {Array<object>} productos - array de repuestos (mock o API).
@@ -74,21 +74,21 @@ const limite = (valor) =>
  * @returns {Array<object>} nuevo array filtrado y ordenado (no muta el original).
  */
 export function filterParts(
-  productos,
+  products,
   {
     categoria,
-    busqueda = "",
-    fabricantes = [],
-    marcasAuto = [],
-    precioMin,
-    precioMax,
-    soloConStock = false,
-    orden,
+    search = "",
+    manufacturers = [],
+    brandsCar = [],
+    priceMin,
+    priceMax,
+    onlyWithStock = false,
+    sort,
   } = {}
 ) {
-  let lista = Array.isArray(productos) ? productos : [];
+  let list = Array.isArray(products) ? products : [];
 
-  const palabras = normalizeText(busqueda).split(/\s+/).filter(Boolean);
+  const palabras = normalizeText(search).split(/\s+/).filter(Boolean);
 
   if (palabras.length > 0) {
     // Búsqueda por texto: cada palabra tiene que aparecer en el nombre,
@@ -96,50 +96,50 @@ export function filterParts(
     // cualquier orden ("pastillas onix" encuentra las pastillas que son
     // para el Onix: el auto no está en el nombre, está en los modelos).
     // Coincidencia parcial: no hace falta el código completo.
-    lista = lista.filter((p) => {
+    list = list.filter((p) => {
       const texto = normalizeText(
         `${getName(p)} ${getCode(p)} ${getManufacturer(p)} ${getBrand(p)} ${getModelList(p)} ${getCategory(p)}`
       );
       return palabras.every((palabra) => texto.includes(palabra));
     });
   } else if (categoria) {
-    lista = lista.filter((p) => getCategory(p) === categoria);
+    list = list.filter((p) => getCategory(p) === categoria);
   }
 
-  if (fabricantes.length > 0) {
-    lista = lista.filter((p) => fabricantes.includes(getManufacturer(p)));
+  if (manufacturers.length > 0) {
+    list = list.filter((p) => manufacturers.includes(getManufacturer(p)));
   }
 
-  if (marcasAuto.length > 0) {
-    lista = lista.filter((p) => getBrandList(p).some((m) => marcasAuto.includes(m)));
+  if (brandsCar.length > 0) {
+    list = list.filter((p) => getBrandList(p).some((m) => brandsCar.includes(m)));
   }
 
-  const minimo = limite(precioMin);
-  const maximo = limite(precioMax);
+  const minimo = limit(priceMin);
+  const maximo = limit(priceMax);
   if (minimo !== null) {
-    lista = lista.filter((p) => getPrice(p) >= minimo);
+    list = list.filter((p) => getPrice(p) >= minimo);
   }
   if (maximo !== null) {
-    lista = lista.filter((p) => getPrice(p) <= maximo);
+    list = list.filter((p) => getPrice(p) <= maximo);
   }
 
-  if (soloConStock) {
-    lista = lista.filter((p) => getStock(p) > 0);
+  if (onlyWithStock) {
+    list = list.filter((p) => getStock(p) > 0);
   }
 
-  const listaOrdenada = [...lista];
+  const sortedList = [...list];
 
-  if (orden === "Menor precio") {
-    listaOrdenada.sort((a, b) => getPrice(a) - getPrice(b));
+  if (sort === "Menor precio") {
+    sortedList.sort((a, b) => getPrice(a) - getPrice(b));
   }
 
-  if (orden === "Mayor precio") {
-    listaOrdenada.sort((a, b) => getPrice(b) - getPrice(a));
+  if (sort === "Mayor precio") {
+    sortedList.sort((a, b) => getPrice(b) - getPrice(a));
   }
 
-  if (orden === "Nombre A-Z") {
-    listaOrdenada.sort((a, b) => getName(a).localeCompare(getName(b), "es"));
+  if (sort === "Nombre A-Z") {
+    sortedList.sort((a, b) => getName(a).localeCompare(getName(b), "es"));
   }
 
-  return listaOrdenada;
+  return sortedList;
 }

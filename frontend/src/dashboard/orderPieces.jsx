@@ -31,65 +31,65 @@ export function OrderStatusBadgeSeller({ estado }) {
 
 // El estado del pago; en un cancelado ya pagado, si se devolvió o falta devolverlo.
 export function PaymentBadge({ pedido }) {
-  const { texto, tono } = pedido.devueltoEl
-    ? ORDER_REFUNDS.devuelto
+  const { texto, tono } = pedido.refunded
+    ? ORDER_REFUNDS.refunded
     : pedido.faltaDevolver
       ? ORDER_REFUNDS.falta
-      : ORDER_PAYMENTS[pedido.estadoPago];
+      : ORDER_PAYMENTS[pedido.paymentStatus];
   return <Pill tono={tono}>{texto}</Pill>;
 }
 
 // Qué se puede hacer con el pedido. La regla la decide el backend
 // (siguienteEstado, anteriorEstado, sePuedeCancelar); acá solo se muestra.
 // `onVolver`: solo en el detalle, para corregir un error.
-export function OrderActions({ pedido, ocupado, onAvanzar, onCancelar, onVolver, grande = false }) {
-  if (pedido.estado === "confirmed" && !pedido.siguienteEstado) {
+export function OrderActions({ pedido, busy, onAvanzar, onCancel, onGoBack, large = false }) {
+  if (pedido.estado === "confirmed" && !pedido.nextStatus) {
     return <span className="text-xs text-muted-foreground">Se prepara cuando se pague</span>;
   }
   return (
     // En el detalle (tres botones) pueden pasar a otra línea; en la tabla, no.
-    <div className={cn("flex items-center justify-end gap-1", grande && "flex-wrap")}>
-      {onVolver && pedido.anteriorEstado && (
+    <div className={cn("flex items-center justify-end gap-1", large && "flex-wrap")}>
+      {onGoBack && pedido.previousStatus && (
         <Button
           variant="outline"
-          onClick={() => onVolver(pedido)}
-          disabled={ocupado}
-          aria-label={`Volver el pedido #${pedido.id} a ${ORDER_STATUSES[pedido.anteriorEstado].texto}`}
+          onClick={() => onGoBack(pedido)}
+          disabled={busy}
+          aria-label={`Volver el pedido #${pedido.id} a ${ORDER_STATUSES[pedido.previousStatus].texto}`}
           className="h-9 px-4"
         >
           <Undo2Icon />
-          Volver a {ORDER_STATUSES[pedido.anteriorEstado].texto}
+          Volver a {ORDER_STATUSES[pedido.previousStatus].texto}
         </Button>
       )}
-      {pedido.sePuedeCancelar && (
+      {pedido.canCancel && (
         <Button
-          variant={grande ? "outline" : "ghost"}
-          size={grande ? "default" : "sm"}
-          onClick={() => onCancelar(pedido)}
-          disabled={ocupado}
+          variant={large ? "outline" : "ghost"}
+          size={large ? "default" : "sm"}
+          onClick={() => onCancel(pedido)}
+          disabled={busy}
           aria-label={`Cancelar el pedido #${pedido.id}`}
-          className={grande ? "h-9 px-4 hover:text-red-700" : "h-7 px-2 text-xs text-muted-foreground hover:text-red-700"}
+          className={large ? "h-9 px-4 hover:text-red-700" : "h-7 px-2 text-xs text-muted-foreground hover:text-red-700"}
         >
           <XCircleIcon />
           Cancelar
         </Button>
       )}
-      {pedido.siguienteEstado && (
+      {pedido.nextStatus && (
         // En la tabla, borde y letras naranjas: se ve que es la acción de la
         // fila sin llenar la lista de botones naranjas. En el detalle, lleno.
         <Button
-          variant={grande ? "default" : "outline"}
-          size={grande ? "default" : "sm"}
+          variant={large ? "default" : "outline"}
+          size={large ? "default" : "sm"}
           onClick={() => onAvanzar(pedido)}
-          disabled={ocupado}
-          aria-label={`Pasar el pedido #${pedido.id} a ${ORDER_STATUSES[pedido.siguienteEstado].texto}`}
+          disabled={busy}
+          aria-label={`Pasar el pedido #${pedido.id} a ${ORDER_STATUSES[pedido.nextStatus].texto}`}
           className={
-            grande
+            large
               ? "h-9 px-4 hover:bg-orange-600"
               : "h-7 shrink-0 px-2.5 text-xs border-orange-300 text-orange-600 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-700"
           }
         >
-          {grande ? `Pasar a ${ORDER_STATUSES[pedido.siguienteEstado].texto}` : ORDER_STATUSES[pedido.siguienteEstado].texto}
+          {large ? `Pasar a ${ORDER_STATUSES[pedido.nextStatus].texto}` : ORDER_STATUSES[pedido.nextStatus].texto}
           <ArrowRightIcon />
         </Button>
       )}
@@ -100,93 +100,93 @@ export function OrderActions({ pedido, ocupado, onAvanzar, onCancelar, onVolver,
 // Pide el motivo (le llega al cliente) y avisa todo lo que pasa, porque no
 // se puede deshacer. Sin número de pago de Mercado Pago (pedidos viejos) la
 // plata no se devuelve sola: se avisa que va a mano.
-function CancelContent({ pedido, onCancelado }) {
-  const [motivo, setMotivo] = useState("");
+function CancelContent({ pedido, onCancelled }) {
+  const [motivo, setReason] = useState("");
   const [error, setError] = useState("");
-  const [guardando, setGuardando] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const cancelar = async (event) => {
+  const cancel = async (event) => {
     event.preventDefault();
     if (motivo.trim().length < REASON_MIN) {
       setError("Contá por qué se cancela: el cliente lo lee en el mail.");
       return;
     }
     setError("");
-    setGuardando(true);
+    setSaving(true);
     try {
-      onCancelado(await changeOrderStatus(pedido.id, "cancelled", motivo.trim()));
-    } catch (falla) {
-      setError(falla.message);
-      setGuardando(false);
+      onCancelled(await changeOrderStatus(pedido.id, "cancelled", motivo.trim()));
+    } catch (failure) {
+      setError(failure.message);
+      setSaving(false);
     }
   };
 
   return (
-    <form onSubmit={cancelar} noValidate className="flex flex-col gap-4">
+    <form onSubmit={cancel} noValidate className="flex flex-col gap-4">
       <Alert>
         <CircleAlertIcon />
         <AlertDescription className="text-xs leading-relaxed">
-          {pedido.idPagoMP
+          {pedido.idPaymentMP
             ? `Se le devuelve el pago completo (${formatPesos(pedido.total)}) en Mercado Pago. `
             : `Este pago no pasó por Mercado Pago: los ${formatPesos(pedido.total)} los tenés que devolver a mano. `}
           El stock vuelve al catálogo y el cliente recibe un mail con el motivo que escribas. No se puede deshacer.
         </AlertDescription>
       </Alert>
-      <FormField id="motivo-cancelacion" etiqueta="Motivo" error={error}>
+      <FormField id="motivo-cancelacion" label="Motivo" error={error}>
         <Textarea
           id="motivo-cancelacion"
           value={motivo}
           maxLength={REASON_MAX}
-          onChange={(event) => setMotivo(event.target.value)}
+          onChange={(event) => setReason(event.target.value)}
           aria-invalid={Boolean(error)}
           placeholder="Ej.: el repuesto llegó dañado del proveedor y no tenemos otro."
         />
       </FormField>
-      <Button type="submit" variant="destructive" disabled={guardando} className="h-10 px-6 self-end">
-        {guardando ? "Cancelando…" : pedido.idPagoMP ? "Cancelar pedido y devolver el pago" : "Cancelar pedido"}
+      <Button type="submit" variant="destructive" disabled={saving} className="h-10 px-6 self-end">
+        {saving ? "Cancelando…" : pedido.idPaymentMP ? "Cancelar pedido y devolver el pago" : "Cancelar pedido"}
       </Button>
     </form>
   );
 }
 
-export function CancelOrderDialog({ pedido, onCerrar, onCancelado }) {
+export function CancelOrderDialog({ pedido, onClose, onCancelled }) {
   return (
     <DashboardDialog
-      abierto={pedido !== null}
-      onCambiar={(abierto) => !abierto && onCerrar()}
-      titulo={pedido ? `Cancelar el pedido #${pedido.id}` : ""}
-      descripcion={pedido ? `${pedido.cliente.nombre} · ${pedido.cliente.email}` : null}
+      isOpen={pedido !== null}
+      onChange={(isOpen) => !isOpen && onClose()}
+      title={pedido ? `Cancelar el pedido #${pedido.id}` : ""}
+      description={pedido ? `${pedido.customer.displayName} · ${pedido.customer.email}` : null}
       ancho="sm:max-w-[480px]"
     >
-      {pedido && <CancelContent pedido={pedido} onCancelado={onCancelado} />}
+      {pedido && <CancelContent pedido={pedido} onCancelled={onCancelled} />}
     </DashboardDialog>
   );
 }
 
 // Volver un paso atrás es corregir un error: se confirma, y se aclara que
 // el cliente no recibe mail.
-export function StepBackOrderDialog({ pedido, ocupado, onCerrar, onConfirmar }) {
-  const destino = pedido?.anteriorEstado ? ORDER_STATUSES[pedido.anteriorEstado].texto : "";
+export function StepBackOrderDialog({ pedido, busy, onClose, onConfirm }) {
+  const destination = pedido?.previousStatus ? ORDER_STATUSES[pedido.previousStatus].texto : "";
   return (
     <DashboardDialog
-      abierto={pedido !== null}
-      onCambiar={(abierto) => !abierto && onCerrar()}
-      titulo={pedido ? `¿Volver el pedido #${pedido.id} a ${destino}?` : ""}
-      descripcion="Para corregir un estado que se marcó por error."
+      isOpen={pedido !== null}
+      onChange={(isOpen) => !isOpen && onClose()}
+      title={pedido ? `¿Volver el pedido #${pedido.id} a ${destination}?` : ""}
+      description="Para corregir un estado que se marcó por error."
       ancho="sm:max-w-[440px]"
     >
       {pedido && (
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed">
-            El pedido pasa de <strong>{ORDER_STATUSES[pedido.estado].texto}</strong> a <strong>{destino}</strong>. Al
+            El pedido pasa de <strong>{ORDER_STATUSES[pedido.estado].texto}</strong> a <strong>{destination}</strong>. Al
             cliente no le llega mail por este cambio; sí le llega cuando lo vuelvas a avanzar.
           </p>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onCerrar} disabled={ocupado} className="h-9 px-4">
+            <Button variant="outline" onClick={onClose} disabled={busy} className="h-9 px-4">
               No, dejarlo así
             </Button>
-            <Button onClick={onConfirmar} disabled={ocupado} className="h-9 px-4 hover:bg-orange-600">
-              {ocupado ? "Volviendo…" : `Volver a ${destino}`}
+            <Button onClick={onConfirm} disabled={busy} className="h-9 px-4 hover:bg-orange-600">
+              {busy ? "Volviendo…" : `Volver a ${destination}`}
             </Button>
           </div>
         </div>
@@ -196,60 +196,60 @@ export function StepBackOrderDialog({ pedido, ocupado, onCerrar, onConfirmar }) 
 }
 
 const SHIPPING_FIELDS = [
-  ["nombre", "Nombre de la dirección", "nombreDireccion", "Ej.: Casa, Trabajo"],
-  ["calle", "Calle", "calle", ""],
-  ["numero", "Número", "numero", ""],
+  ["displayName", "Nombre de la dirección", "addressName", "Ej.: Casa, Trabajo"],
+  ["street", "Calle", "street", ""],
+  ["number", "Número", "number", ""],
   ["apartamento", "Apto. (opcional)", "apartamento", ""],
-  ["ciudad", "Ciudad", "ciudad", ""],
-  ["codigoPostal", "Código postal (opcional)", "codigoPostal", ""],
+  ["city", "Ciudad", "city", ""],
+  ["codePostal", "Código postal (opcional)", "codePostal", ""],
 ];
 
 // La dirección corregida a pedido del cliente. Las mismas reglas que cuando
 // el cliente la carga en su perfil (validarDireccion); el backend vuelve a
 // validar. No cambia la dirección guardada en el perfil del cliente.
-function EditShippingContent({ pedido, onGuardado }) {
-  const [datos, setDatos] = useState(() =>
+function EditShippingContent({ pedido, onSaved }) {
+  const [info, setData] = useState(() =>
     Object.fromEntries([
-      ...SHIPPING_FIELDS.map(([clave, , campoEnvio]) => [clave, pedido.envio[campoEnvio] ?? ""]),
-      ["departamento", pedido.envio.departamento],
+      ...SHIPPING_FIELDS.map(([key, , shippingField]) => [key, pedido.shipping[shippingField] ?? ""]),
+      ["departamento", pedido.shipping.departamento],
     ])
   );
-  const [errores, setErrores] = useState({});
-  const [errorServidor, setErrorServidor] = useState("");
-  const [guardando, setGuardando] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [errorServer, setErrorServer] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const guardar = async (event) => {
+  const save = async (event) => {
     event.preventDefault();
-    const encontrados = validateAddress(datos);
-    setErrores(encontrados);
-    if (Object.keys(encontrados).length) return;
-    setErrorServidor("");
-    setGuardando(true);
+    const found = validateAddress(info);
+    setErrors(found);
+    if (Object.keys(found).length) return;
+    setErrorServer("");
+    setSaving(true);
     try {
-      const envio = {
-        nombreDireccion: clean(datos.nombre),
-        calle: clean(datos.calle),
-        numero: clean(datos.numero),
-        apartamento: clean(datos.apartamento) || null,
-        ciudad: clean(datos.ciudad),
-        departamento: datos.departamento,
-        codigoPostal: clean(datos.codigoPostal) || null,
+      const shipping = {
+        addressName: clean(info.displayName),
+        street: clean(info.street),
+        number: clean(info.number),
+        apartamento: clean(info.apartamento) || null,
+        city: clean(info.city),
+        departamento: info.departamento,
+        codePostal: clean(info.codePostal) || null,
       };
-      onGuardado(await updateOrder(pedido.id, { envio }));
-    } catch (falla) {
-      setErrorServidor(falla.message);
-      setGuardando(false);
+      onSaved(await updateOrder(pedido.id, { shipping }));
+    } catch (failure) {
+      setErrorServer(failure.message);
+      setSaving(false);
     }
   };
 
-  const campo = ([clave, etiqueta, , placeholder]) => (
-    <FormField key={clave} id={`envio-${clave}`} etiqueta={etiqueta} error={errores[clave]}>
+  const field = ([key, label, , placeholder]) => (
+    <FormField key={key} id={`envio-${key}`} label={label} error={errors[key]}>
       <Input
-        id={`envio-${clave}`}
-        value={datos[clave]}
-        onChange={(event) => setDatos((actual) => ({ ...actual, [clave]: event.target.value }))}
-        aria-invalid={Boolean(errores[clave])}
-        aria-describedby={errores[clave] ? `envio-${clave}-error` : undefined}
+        id={`envio-${key}`}
+        value={info[key]}
+        onChange={(event) => setData((current) => ({ ...current, [key]: event.target.value }))}
+        aria-invalid={Boolean(errors[key])}
+        aria-describedby={errors[key] ? `envio-${key}-error` : undefined}
         placeholder={placeholder}
         className="h-10"
       />
@@ -257,23 +257,23 @@ function EditShippingContent({ pedido, onGuardado }) {
   );
 
   return (
-    <form onSubmit={guardar} noValidate className="flex flex-col gap-4">
-      {errorServidor && (
+    <form onSubmit={save} noValidate className="flex flex-col gap-4">
+      {errorServer && (
         <Alert variant="destructive">
           <CircleAlertIcon />
-          <AlertDescription>{errorServidor}</AlertDescription>
+          <AlertDescription>{errorServer}</AlertDescription>
         </Alert>
       )}
-      {campo(SHIPPING_FIELDS[0])}
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_7rem_7rem] gap-3">{SHIPPING_FIELDS.slice(1, 4).map(campo)}</div>
+      {field(SHIPPING_FIELDS[0])}
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_7rem_7rem] gap-3">{SHIPPING_FIELDS.slice(1, 4).map(field)}</div>
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_9rem] gap-3">
-        {campo(SHIPPING_FIELDS[4])}
-        <FormField id="envio-departamento" etiqueta="Departamento" error={errores.departamento}>
+        {field(SHIPPING_FIELDS[4])}
+        <FormField id="envio-departamento" label="Departamento" error={errors.departamento}>
           <NativeSelect
             id="envio-departamento"
-            value={datos.departamento}
-            onChange={(event) => setDatos((actual) => ({ ...actual, departamento: event.target.value }))}
-            aria-invalid={Boolean(errores.departamento)}
+            value={info.departamento}
+            onChange={(event) => setData((current) => ({ ...current, departamento: event.target.value }))}
+            aria-invalid={Boolean(errors.departamento)}
             className="w-full *:h-10"
           >
             {DEPARTMENTS.map((departamento) => (
@@ -283,28 +283,28 @@ function EditShippingContent({ pedido, onGuardado }) {
             ))}
           </NativeSelect>
         </FormField>
-        {campo(SHIPPING_FIELDS[5])}
+        {field(SHIPPING_FIELDS[5])}
       </div>
       <p className="text-xs text-muted-foreground">
         Cambia solo la dirección de este pedido, no la que el cliente tiene guardada en su perfil.
       </p>
-      <Button type="submit" disabled={guardando} className="h-10 px-6 self-end hover:bg-orange-600">
-        {guardando ? "Guardando…" : "Guardar dirección"}
+      <Button type="submit" disabled={saving} className="h-10 px-6 self-end hover:bg-orange-600">
+        {saving ? "Guardando…" : "Guardar dirección"}
       </Button>
     </form>
   );
 }
 
-export function EditShippingDialog({ pedido, abierto, onCambiar, onGuardado }) {
+export function EditShippingDialog({ pedido, isOpen, onChange, onSaved }) {
   return (
     <DashboardDialog
-      abierto={abierto}
-      onCambiar={onCambiar}
-      titulo={`Dirección de envío del pedido #${pedido.id}`}
-      descripcion="Corregila si el cliente lo pidió. Se puede mientras el pedido no se envió."
+      isOpen={isOpen}
+      onChange={onChange}
+      title={`Dirección de envío del pedido #${pedido.id}`}
+      description="Corregila si el cliente lo pidió. Se puede mientras el pedido no se envió."
       ancho="sm:max-w-[600px]"
     >
-      <EditShippingContent pedido={pedido} onGuardado={onGuardado} />
+      <EditShippingContent pedido={pedido} onSaved={onSaved} />
     </DashboardDialog>
   );
 }

@@ -59,9 +59,9 @@ export function CartIcon(props) {
   );
 }
 
-export function HeartIcon({ lleno = false, ...props }) {
+export function HeartIcon({ full = false, ...props }) {
   return (
-    <Icon {...props} relleno={lleno ? "currentColor" : "none"}>
+    <Icon {...props} relleno={full ? "currentColor" : "none"}>
       <path d="M12 20s-7-4.4-9.2-8.6C1.2 8.3 3 4.5 6.6 4.5c2 0 3.4 1.1 4.4 2.6 1-1.5 2.4-2.6 4.4-2.6 3.6 0 5.4 3.8 3.8 6.9C19 15.6 12 20 12 20Z" />
     </Icon>
   );

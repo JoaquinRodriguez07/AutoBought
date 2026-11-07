@@ -21,10 +21,10 @@ const CONTACT_EMAIL =
 
 const POPULAR_BRANDS = ["Volkswagen", "Chevrolet", "Fiat", "Renault"];
 
-function Column({ titulo, children }) {
+function Column({ title, children }) {
   return (
     <div>
-      <p className="text-white text-sm font-black">{titulo}</p>
+      <p className="text-white text-sm font-black">{title}</p>
       <ul className="mt-3 space-y-1.5 text-sm text-gray-400">{children}</ul>
     </div>
   );
@@ -45,14 +45,14 @@ function FooterLink({ children, onClick }) {
 }
 
 export default function Footer({
-  usuario,
+  sessionUser,
   onCatalogo,
-  onMarcas,
+  onBrands,
   onLogin,
-  onCuenta,
-  onPedidos,
-  onFavoritos,
-  onCarrito,
+  onAccount,
+  onOrders,
+  onFavorites,
+  onCart,
 }) {
   return (
     <footer className="bg-[#151719] text-white">
@@ -70,12 +70,12 @@ export default function Footer({
           </p>
         </div>
 
-        <Column titulo="Comprar">
+        <Column title="Comprar">
           <FooterLink onClick={() => onCatalogo?.()}>Catálogo de repuestos</FooterLink>
-          <FooterLink onClick={onMarcas}>Todas las marcas</FooterLink>
+          <FooterLink onClick={onBrands}>Todas las marcas</FooterLink>
         </Column>
 
-        <Column titulo="Marcas populares">
+        <Column title="Marcas populares">
           {POPULAR_BRANDS.map((marca) => (
             <FooterLink key={marca} onClick={() => onCatalogo?.(null, null, { marca })}>
               {marca}
@@ -83,17 +83,17 @@ export default function Footer({
           ))}
         </Column>
 
-        <Column titulo="Mi cuenta">
+        <Column title="Mi cuenta">
           {/* Sin sesión, la cuenta y las compras llevan a iniciar sesión. */}
-          <FooterLink onClick={usuario ? onCuenta : onLogin}>Mi cuenta</FooterLink>
-          <FooterLink onClick={usuario ? onPedidos : onLogin}>Mis compras</FooterLink>
-          <FooterLink onClick={onFavoritos}>Mis favoritos</FooterLink>
-          <FooterLink onClick={onCarrito}>Mi carrito</FooterLink>
+          <FooterLink onClick={sessionUser ? onAccount : onLogin}>Mi cuenta</FooterLink>
+          <FooterLink onClick={sessionUser ? onOrders : onLogin}>Mis compras</FooterLink>
+          <FooterLink onClick={onFavorites}>Mis favoritos</FooterLink>
+          <FooterLink onClick={onCart}>Mi carrito</FooterLink>
         </Column>
 
         {/* El mail es un link; lo demás son datos (con ícono, para que
             no parezcan links). */}
-        <Column titulo="Ayuda">
+        <Column title="Ayuda">
           <li>
             <a
               href={`mailto:${CONTACT_EMAIL}`}

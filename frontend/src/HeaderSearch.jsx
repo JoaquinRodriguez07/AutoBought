@@ -5,21 +5,21 @@ import { useNavigate } from "react-router-dom";
 import { SearchIcon } from "./Icons";
 
 export default function HeaderSearch({ inputRef, onSearch, onEscape }) {
-  const [texto, setTexto] = useState("");
+  const [texto, setText] = useState("");
   const navigate = useNavigate();
 
-  const realizarBusqueda = () => {
-    const textoLimpio = texto.trim();
+  const performSearch = () => {
+    const cleanText = texto.trim();
 
-    if (!textoLimpio) return;
+    if (!cleanText) return;
 
-    navigate(`/catalogo?q=${encodeURIComponent(textoLimpio)}`);
+    navigate(`/catalogo?q=${encodeURIComponent(cleanText)}`);
     onSearch?.();
   };
 
-  const manejarKeyDown = (event) => {
+  const handleKeyDown = (event) => {
     if (event.key === "Enter") {
-      realizarBusqueda();
+      performSearch();
     } else if (event.key === "Escape") {
       onEscape?.();
     }
@@ -33,15 +33,15 @@ export default function HeaderSearch({ inputRef, onSearch, onEscape }) {
         type="text"
         aria-label="Buscar repuestos"
         value={texto}
-        onChange={(event) => setTexto(event.target.value)}
-        onKeyDown={manejarKeyDown}
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder="Buscar repuesto por nombre, código o fabricante..."
         className="flex-1 min-w-0 px-4 py-3 text-sm text-gray-800 outline-hidden placeholder:text-gray-400"
       />
 
       <button
         type="button"
-        onClick={realizarBusqueda}
+        onClick={performSearch}
         aria-label="Buscar"
         className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
       >

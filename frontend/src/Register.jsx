@@ -1,7 +1,7 @@
 // Pantalla de registro de un cliente.
 
 import { useState } from "react";
-import { register as registrarEnApi } from "./api";
+import { register as registerInApi } from "./api";
 import { decodeToken } from "./auth";
 import FieldError from "./FieldError";
 import { withError, errorProps } from "./fieldErrors";
@@ -12,7 +12,7 @@ import { formatUyPhone, normalizeUyPhone } from "./phone";
 import { NAME_MAX, clean, validateRegistration } from "./validations";
 
 // Campos del backend → campos del formulario, para mostrar sus errores 422.
-const API_FIELDS = { name: "nombre", email: "email", phone: "telefono", password: "password" };
+const API_FIELDS = { name: "displayName", email: "email", phone: "phone", password: "password" };
 
 // Los errores de las pantallas de acceso, con letra legible.
 const errorClass = "text-xs mt-1.5";
@@ -42,66 +42,66 @@ export default function Register({
   onHome,
   onCatalogo,
   onLogin,
-  onMarcas,
-  onCarrito,
-  onFavoritos,
-  cantidadCarrito,
-  cantidadFavoritos,
+  onBrands,
+  onCart,
+  onFavorites,
+  cartQuantity,
+  favoritesQuantity,
   onRegistroExitoso,
 }) {
-  const [nombre, setNombre] = useState("");
-  const [apellido, setApellido] = useState("");
+  const [displayName, setName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [telefono, setTelefono] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmarPassword, setConfirmarPassword] = useState("");
-  const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptsTerms, setAcceptsTerms] = useState(false);
 
   const [error, setError] = useState("");
-  const [errores, setErrores] = useState({});
-  const [cargando, setCargando] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  const valores = { nombre, apellido, email, telefono, password, confirmarPassword, aceptaTerminos };
+  const values = { displayName, lastName, email, phone, password, confirmPassword, acceptsTerms };
 
   // Al salir de un campo con algo escrito se muestra su error, sin esperar
   // a "Crear cuenta".
-  const revisar = (campo) => () => {
-    const valor = valores[campo];
-    if (typeof valor === "string" && !valor.trim()) return;
-    const encontrado = validateRegistration(valores)[campo];
-    setErrores((actuales) => ({ ...actuales, [campo]: encontrado }));
+  const revisar = (field) => () => {
+    const rawValue = values[field];
+    if (typeof rawValue === "string" && !rawValue.trim()) return;
+    const found = validateRegistration(values)[field];
+    setErrors((actuales) => ({ ...actuales, [field]: found }));
   };
 
   // Al editar un campo se borra su error.
-  const cambiar = (campo, setter) => (e) => {
-    setter(campo === "terminos" ? e.target.checked : e.target.value);
-    setErrores((actuales) => ({ ...actuales, [campo]: undefined }));
+  const change = (field, setter) => (e) => {
+    setter(field === "terms" ? e.target.checked : e.target.value);
+    setErrors((actuales) => ({ ...actuales, [field]: undefined }));
   };
 
   const register = async (e) => {
     e.preventDefault();
     setError("");
 
-    const erroresFormulario = validateRegistration({
-      nombre,
-      apellido,
+    const errorsForm = validateRegistration({
+      displayName,
+      lastName,
       email,
-      telefono,
+      phone,
       password,
-      confirmarPassword,
-      aceptaTerminos,
+      confirmPassword,
+      acceptsTerms,
     });
-    setErrores(erroresFormulario);
-    if (Object.keys(erroresFormulario).length > 0) return;
+    setErrors(errorsForm);
+    if (Object.keys(errorsForm).length > 0) return;
 
-    setCargando(true);
+    setLoading(true);
 
     try {
-      const data = await registrarEnApi({
-        nombre: clean(nombre),
-        apellido: clean(apellido),
+      const data = await registerInApi({
+        displayName: clean(displayName),
+        lastName: clean(lastName),
         email: email.trim(),
-        telefono: telefono.trim(),
+        phone: phone.trim(),
         password,
       });
       const payload = decodeToken(data.access_token);
@@ -113,23 +113,23 @@ export default function Register({
         userType: payload?.user_type ?? null,
         // Misma forma que devuelve obtenerPerfil() al iniciar sesión:
         // el backend guarda nombre + apellido en un solo campo.
-        nombre: `${clean(nombre)} ${clean(apellido)}`,
-        apellido: "",
+        displayName: `${clean(displayName)} ${clean(lastName)}`,
+        lastName: "",
         email: email.trim().toLowerCase(),
-        telefono: formatUyPhone(normalizeUyPhone(telefono)),
+        phone: formatUyPhone(normalizeUyPhone(phone)),
         // Recién registrado: el mail de verificación acaba de salir.
-        emailVerificado: false,
+        verifiedEmail: false,
       });
     } catch (err) {
-      const campos = Object.fromEntries(
-        Object.entries(err.campos || {})
-          .filter(([campo]) => API_FIELDS[campo])
-          .map(([campo, mensaje]) => [API_FIELDS[campo], mensaje])
+      const fields = Object.fromEntries(
+        Object.entries(err.fields || {})
+          .filter(([field]) => API_FIELDS[field])
+          .map(([field, message]) => [API_FIELDS[field], message])
       );
-      if (Object.keys(campos).length > 0) setErrores(campos);
+      if (Object.keys(fields).length > 0) setErrors(fields);
       else setError(err.message || "No pudimos crear tu cuenta.");
     } finally {
-      setCargando(false);
+      setLoading(false);
     }
   };
 
@@ -137,30 +137,30 @@ export default function Register({
     onHome,
     onCatalogo,
     onLogin,
-    onMarcas,
-    onCarrito,
-    onFavoritos,
-    cantidadCarrito,
-    cantidadFavoritos,
+    onBrands,
+    onCart,
+    onFavorites,
+    cartQuantity,
+    favoritesQuantity,
   };
 
   // Lo común a cada campo: valor, cambio, salida, borde y accesibilidad.
-  const propsCampo = (campo, valor, setter) => ({
-    id: `registro-${campo}`,
-    value: valor,
-    onChange: cambiar(campo, setter),
-    onBlur: revisar(campo),
-    className: withError(fieldClass, errores[campo]),
-    ...errorProps(campo, errores[campo]),
+  const propsField = (field, rawValue, setter) => ({
+    id: `registro-${field}`,
+    value: rawValue,
+    onChange: change(field, setter),
+    onBlur: revisar(field),
+    className: withError(fieldClass, errors[field]),
+    ...errorProps(field, errors[field]),
   });
 
-  const errorDe = (campo) => <FieldError campo={campo} mensaje={errores[campo]} className={errorClass} />;
+  const errorOf = (field) => <FieldError field={field} message={errors[field]} className={errorClass} />;
 
   return (
     <AccessScreen
       propsNavbar={propsNavbar}
-      etiqueta="CREÁ TU CUENTA GRATIS"
-      titulo={["Tu auto,", "siempre en", "movimiento."]}
+      label="CREÁ TU CUENTA GRATIS"
+      title={["Tu auto,", "siempre en", "movimiento."]}
       beneficios={[
         "Repuestos que le sirven a tu auto",
         "Seguimiento de cada pedido",
@@ -170,41 +170,41 @@ export default function Register({
       ancho="max-w-[960px]"
     >
       <form onSubmit={register} noValidate>
-        <AccessHeader titulo="CREAR CUENTA" bajada="Registrate para comprar, seguir tus pedidos y guardar tus repuestos." />
+        <AccessHeader title="CREAR CUENTA" drop="Registrate para comprar, seguir tus pedidos y guardar tus repuestos." />
 
         <ErrorNotice>{error}</ErrorNotice>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 mt-6">
-          <FormField id="registro-nombre" etiqueta="Nombre" error={errorDe("nombre")}>
-            <input type="text" placeholder="Tu nombre" maxLength={NAME_MAX} autoComplete="given-name" {...propsCampo("nombre", nombre, setNombre)} />
+          <FormField id="registro-displayName" label="Nombre" error={errorOf("displayName")}>
+            <input type="text" placeholder="Tu nombre" maxLength={NAME_MAX} autoComplete="given-name" {...propsField("displayName", displayName, setName)} />
           </FormField>
 
-          <FormField id="registro-apellido" etiqueta="Apellido" error={errorDe("apellido")}>
-            <input type="text" placeholder="Tu apellido" maxLength={NAME_MAX} autoComplete="family-name" {...propsCampo("apellido", apellido, setApellido)} />
+          <FormField id="registro-lastName" label="Apellido" error={errorOf("lastName")}>
+            <input type="text" placeholder="Tu apellido" maxLength={NAME_MAX} autoComplete="family-name" {...propsField("lastName", lastName, setLastName)} />
           </FormField>
 
-          <FormField id="registro-email" etiqueta="Correo electrónico" error={errorDe("email")}>
-            <input type="email" placeholder="tu@email.com" maxLength={254} autoComplete="email" {...propsCampo("email", email, setEmail)} />
+          <FormField id="registro-email" label="Correo electrónico" error={errorOf("email")}>
+            <input type="email" placeholder="tu@email.com" maxLength={254} autoComplete="email" {...propsField("email", email, setEmail)} />
           </FormField>
 
-          <FormField id="registro-telefono" etiqueta="Teléfono" error={errorDe("telefono")}>
-            <input type="tel" placeholder="099 123 456" maxLength={30} autoComplete="tel" {...propsCampo("telefono", telefono, setTelefono)} />
+          <FormField id="registro-phone" label="Teléfono" error={errorOf("phone")}>
+            <input type="tel" placeholder="099 123 456" maxLength={30} autoComplete="tel" {...propsField("phone", phone, setPhone)} />
           </FormField>
 
           <FormField
             id="registro-password"
-            etiqueta="Contraseña"
-            error={errores.password ? errorDe("password") : null}
+            label="Contraseña"
+            error={errors.password ? errorOf("password") : null}
             ayuda={<StrengthMeter password={password} />}
           >
-            <PasswordField placeholder="Mínimo 8 caracteres" autoComplete="new-password" {...propsCampo("password", password, setPassword)} />
+            <PasswordField placeholder="Mínimo 8 caracteres" autoComplete="new-password" {...propsField("password", password, setPassword)} />
           </FormField>
 
-          <FormField id="registro-confirmarPassword" etiqueta="Confirmar contraseña" error={errorDe("confirmarPassword")}>
+          <FormField id="registro-confirmPassword" label="Confirmar contraseña" error={errorOf("confirmPassword")}>
             <PasswordField
               placeholder="Repetí tu contraseña"
               autoComplete="new-password"
-              {...propsCampo("confirmarPassword", confirmarPassword, setConfirmarPassword)}
+              {...propsField("confirmPassword", confirmPassword, setConfirmPassword)}
             />
           </FormField>
         </div>
@@ -212,17 +212,17 @@ export default function Register({
         <label className="flex items-start gap-2.5 mt-5 cursor-pointer select-none w-fit">
           <input
             type="checkbox"
-            checked={aceptaTerminos}
-            onChange={cambiar("terminos", setAceptaTerminos)}
+            checked={acceptsTerms}
+            onChange={change("terms", setAcceptsTerms)}
             className="w-4 h-4 mt-0.5 accent-orange-500"
-            {...errorProps("terminos", errores.terminos)}
+            {...errorProps("terms", errors.terms)}
           />
           <span className="text-sm text-gray-600">Acepto los términos y condiciones.</span>
         </label>
-        {errorDe("terminos")}
+        {errorOf("terms")}
 
-        <button type="submit" disabled={cargando} className={`${primaryButtonClass} mt-6`}>
-          {cargando ? "Creando cuenta..." : "Crear cuenta"}
+        <button type="submit" disabled={loading} className={`${primaryButtonClass} mt-6`}>
+          {loading ? "Creando cuenta..." : "Crear cuenta"}
         </button>
 
         <p className="text-center text-sm text-gray-500 mt-5">

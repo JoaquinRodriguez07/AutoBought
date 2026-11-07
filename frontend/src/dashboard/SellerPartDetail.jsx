@@ -18,35 +18,35 @@ import { partImage, useGenericImage } from "../mapPart";
 
 // La foto del repuesto, la misma que ve el cliente en la tienda (la de su
 // tipo de pieza y fabricante), con la segunda vista si la hay.
-function PartPhoto({ nombre }) {
-  const fotos = [partImage(nombre), ...extraImagesForType(nombre)];
-  const [activa, setActiva] = useState(0);
+function PartPhoto({ displayName }) {
+  const photos = [partImage(displayName), ...extraImagesForType(displayName)];
+  const [active, setActive] = useState(0);
   return (
     <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-xs">
       <div className="grid aspect-square place-items-center rounded-lg bg-white">
         <img
-          key={fotos[activa]}
-          src={fotos[activa]}
+          key={photos[active]}
+          src={photos[active]}
           onError={useGenericImage}
-          alt={`Foto de ${nombre}`}
+          alt={`Foto de ${displayName}`}
           className="max-h-full w-full object-contain p-2"
         />
       </div>
-      {fotos.length > 1 && (
+      {photos.length > 1 && (
         <div className="flex gap-2">
-          {fotos.map((foto, indice) => (
+          {photos.map((photo, indice) => (
             <button
-              key={foto}
+              key={photo}
               type="button"
-              onClick={() => setActiva(indice)}
+              onClick={() => setActive(indice)}
               aria-label={`Ver foto ${indice + 1}`}
-              aria-pressed={activa === indice}
+              aria-pressed={active === indice}
               className={cn(
                 "size-14 overflow-hidden rounded-md border-2 bg-white p-1",
-                activa === indice ? "border-orange-500" : "border-gray-200 hover:border-gray-300"
+                active === indice ? "border-orange-500" : "border-gray-200 hover:border-gray-300"
               )}
             >
-              <img src={foto} onError={useGenericImage} alt="" className="size-full object-contain" />
+              <img src={photo} onError={useGenericImage} alt="" className="size-full object-contain" />
             </button>
           ))}
         </div>
@@ -58,46 +58,46 @@ function PartPhoto({ nombre }) {
 
 // Detalle de un repuesto para el vendedor (HU 5.8): stock, ventas,
 // evolución, proyección y riesgo. Desde acá se edita y se repone (HU 5.10).
-export default function SellerPartDetail({ usuario, onHome, onCerrarSesion }) {
+export default function SellerPartDetail({ sessionUser, onHome, onCloseSession }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [dialogo, setDialogo] = useState(null); // "editar" | "stock" | null
-  const consulta = useQuery(() => getPartDetail(id), id);
+  const queryState = useQuery(() => getPartDetail(id), id);
 
-  const volver = () => navigate(`/dashboard${location.state?.desde || ""}`);
+  const goBack = () => navigate(`/dashboard${location.state?.from || ""}`);
 
-  const alGuardar = () => {
+  const onSave = () => {
     setDialogo(null);
-    consulta.recargar();
+    queryState.reload();
   };
 
-  const repuesto = consulta.datos;
+  const part = queryState.info;
 
   return (
     <SellerLayout
-      usuario={usuario}
+      sessionUser={sessionUser}
       vista={null}
-      onVista={(valor) => navigate(valor === "resumen" ? "/dashboard" : `/dashboard?vista=${valor}`)}
-      onTienda={onHome}
-      onCerrarSesion={onCerrarSesion}
-      antesDelTitulo={
+      onView={(rawValue) => navigate(rawValue === "summary" ? "/dashboard" : `/dashboard?vista=${rawValue}`)}
+      onStore={onHome}
+      onCloseSession={onCloseSession}
+      titleBefore={
         <Button
           variant="ghost"
           size="sm"
-          onClick={volver}
+          onClick={goBack}
           className="-ml-2 mb-3 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeftIcon />
           Volver al dashboard
         </Button>
       }
-      titulo={repuesto?.nombre ?? "Repuesto"}
-      descripcion={
-        repuesto && `${repuesto.codigo} · ${repuesto.categoria} · ${repuesto.fabricante} · ${formatPesos(repuesto.precio)}`
+      title={part?.displayName ?? "Repuesto"}
+      description={
+        part && `${part.code} · ${part.categoria} · ${part.fabricante} · ${formatPesos(part.price)}`
       }
-      acciones={
-        repuesto && (
+      actions={
+        part && (
           <>
             <Button
               variant="outline"
@@ -116,55 +116,55 @@ export default function SellerPartDetail({ usuario, onHome, onCerrarSesion }) {
       }
     >
       <div>
-        <QueryState consulta={consulta}>
-          {(repuesto) => (
+        <QueryState queryState={queryState}>
+          {(part) => (
             <>
               {/* La foto al lado de los números: el vendedor ve qué pieza es. */}
               <div className="grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] gap-6 items-start">
-                <PartPhoto key={repuesto.id} nombre={repuesto.nombre} />
+                <PartPhoto key={part.id} displayName={part.displayName} />
                 <div className="grid grid-cols-2 gap-4">
                   <Metric
-                    titulo="Stock actual"
-                    valor={formatNumber(repuesto.stock)}
-                    detalle={<StockBadge stock={repuesto.stock} stockBajo={repuesto.stockBajo} />}
+                    title="Stock actual"
+                    rawValue={formatNumber(part.stock)}
+                    details={<StockBadge stock={part.stock} stockLow={part.stockLow} />}
                   />
-                  <Metric titulo="Unidades vendidas" valor={formatNumber(repuesto.unidadesVendidas)} detalle="Todas las ventas registradas" />
+                  <Metric title="Unidades vendidas" rawValue={formatNumber(part.unitsSold)} details="Todas las ventas registradas" />
                   <Metric
-                    titulo="Demanda proyectada"
-                    valor={formatNumber(repuesto.demandaProyectada)}
-                    detalle={`Unidades en ${formatMonth(repuesto.proyeccion.mes, { largo: true })}`}
+                    title="Demanda proyectada"
+                    rawValue={formatNumber(part.projectedDemand)}
+                    details={`Unidades en ${formatMonth(part.forecast.month, { long: true })}`}
                   />
                   <Metric
-                    titulo="Cobertura"
-                    valor={formatDays(repuesto.diasCobertura)}
-                    detalle={<RiskBadge riesgo={repuesto.riesgo} />}
+                    title="Cobertura"
+                    rawValue={formatDays(part.coverageDays)}
+                    details={<RiskBadge risk={part.risk} />}
                   />
                 </div>
               </div>
 
-              <Panel titulo="Ventas de los últimos 12 meses y proyección" id="titulo-ventas-repuesto" className="mt-6">
-                {repuesto.unidadesVendidas === 0 ? (
+              <Panel title="Ventas de los últimos 12 meses y proyección" id="titulo-ventas-repuesto" className="mt-6">
+                {part.unitsSold === 0 ? (
                   <NoData>Este repuesto todavía no registra ventas</NoData>
                 ) : (
                   <SalesChart
-                    meses={repuesto.meses}
-                    proyeccion={repuesto.proyeccion}
-                    titulo={`Ventas reales y demanda proyectada de ${repuesto.nombre}`}
+                    months={part.months}
+                    forecast={part.forecast}
+                    title={`Ventas reales y demanda proyectada de ${part.displayName}`}
                   />
                 )}
               </Panel>
 
               <AdjustStockDialog
-                abierto={dialogo === "stock"}
-                onCambiar={(abierto) => setDialogo(abierto ? "stock" : null)}
-                repuesto={repuesto}
-                onGuardado={alGuardar}
+                isOpen={dialogo === "stock"}
+                onChange={(isOpen) => setDialogo(isOpen ? "stock" : null)}
+                part={part}
+                onSaved={onSave}
               />
               <PartForm
-                abierto={dialogo === "editar"}
-                onCambiar={(abierto) => setDialogo(abierto ? "editar" : null)}
-                repuestoId={repuesto.id}
-                onGuardado={alGuardar}
+                isOpen={dialogo === "editar"}
+                onChange={(isOpen) => setDialogo(isOpen ? "editar" : null)}
+                idPart={part.id}
+                onSaved={onSave}
               />
             </>
           )}

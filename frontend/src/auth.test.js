@@ -11,19 +11,19 @@ import {
 import { createToken } from "./testTokens";
 
 const MIN = 60 * 1000;
-const AHORA = 1_800_000_000_000;
+const NOW = 1_800_000_000_000;
 
 describe("msUntilRenewal", () => {
   it("falls MARGEN_RENOVACION_MS before the token expires", () => {
     expect(RENEWAL_MARGIN_MS).toBe(5 * MIN);
 
     // Token recién emitido (60 min de vida): se renueva al minuto 55.
-    expect(msUntilRenewal(createToken(AHORA + 60 * MIN), AHORA)).toBe(55 * MIN);
+    expect(msUntilRenewal(createToken(NOW + 60 * MIN), NOW)).toBe(55 * MIN);
   });
 
   it("returns 0 once the renewal moment has passed, even if the token is still valid", () => {
-    expect(msUntilRenewal(createToken(AHORA + 3 * MIN), AHORA)).toBe(0);
-    expect(msUntilRenewal(createToken(AHORA - MIN), AHORA)).toBe(0);
+    expect(msUntilRenewal(createToken(NOW + 3 * MIN), NOW)).toBe(0);
+    expect(msUntilRenewal(createToken(NOW - MIN), NOW)).toBe(0);
   });
 
   it("returns null when there is nothing to schedule", () => {
@@ -40,21 +40,21 @@ describe("saveSession", () => {
   });
 
   it("keeps a remembered session in localStorage", () => {
-    localStorage.setItem("autobought-sesion", JSON.stringify({ token: "viejo" }));
+    localStorage.setItem("autobought-sesion", JSON.stringify({ token: "old" }));
 
-    saveSession({ token: "nuevo" });
+    saveSession({ token: "newItem" });
 
-    expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({ token: "nuevo" });
+    expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({ token: "newItem" });
     expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
-    expect(getSession()).toEqual({ token: "nuevo" });
+    expect(getSession()).toEqual({ token: "newItem" });
   });
 
   it("keeps a non-remembered session in sessionStorage", () => {
-    sessionStorage.setItem("autobought-sesion", JSON.stringify({ token: "viejo" }));
+    sessionStorage.setItem("autobought-sesion", JSON.stringify({ token: "old" }));
 
-    saveSession({ token: "nuevo" });
+    saveSession({ token: "newItem" });
 
-    expect(JSON.parse(sessionStorage.getItem("autobought-sesion"))).toEqual({ token: "nuevo" });
+    expect(JSON.parse(sessionStorage.getItem("autobought-sesion"))).toEqual({ token: "newItem" });
     expect(localStorage.getItem("autobought-sesion")).toBeNull();
   });
 });
@@ -68,7 +68,7 @@ describe("isSeller", () => {
   it("is false without a session or without a user type", () => {
     expect(isSeller(null)).toBe(false);
     expect(isSeller(undefined)).toBe(false);
-    expect(isSeller({ nombre: "Ana" })).toBe(false);
+    expect(isSeller({ displayName: "Ana" })).toBe(false);
   });
 });
 

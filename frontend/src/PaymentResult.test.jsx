@@ -19,18 +19,18 @@ jest.mock("./redirect", () => ({ goTo: jest.fn() }));
 
 jest.mock("./Navbar", () => () => <nav aria-label="Navegación" />);
 
-const pedido = (estadoPago) => ({ id: 42, estado: "confirmed", estadoPago, total: 3000, items: [] });
+const pedido = (paymentStatus) => ({ id: 42, estado: "confirmed", paymentStatus, total: 3000, items: [] });
 
-function Ruta() {
-  return <p data-testid="ruta">{useLocation().pathname}</p>;
+function RouteEntry() {
+  return <p data-testid="route">{useLocation().pathname}</p>;
 }
 
-function renderResultado(direccion, props = {}) {
+function renderResult(shippingAddress, props = {}) {
   return render(
-    <MemoryRouter initialEntries={[direccion]}>
+    <MemoryRouter initialEntries={[shippingAddress]}>
       <Routes>
-        <Route path="/pago" element={<PaymentResult onHistorial={jest.fn()} onCatalogo={jest.fn()} {...props} />} />
-        <Route path="*" element={<Ruta />} />
+        <Route path="/pago" element={<PaymentResult onHistory={jest.fn()} onCatalogo={jest.fn()} {...props} />} />
+        <Route path="*" element={<RouteEntry />} />
       </Routes>
     </MemoryRouter>
   );
@@ -45,19 +45,19 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     const user = userEvent.setup();
     getPurchaseDetail.mockResolvedValue(pedido("approved"));
 
-    renderResultado("/pago?pedido=42&collection_status=approved");
+    renderResult("/pago?pedido=42&collection_status=approved");
 
     expect(await screen.findByText(/¡Pago aprobado!/)).toBeInTheDocument();
     expect(getPurchaseDetail).toHaveBeenCalledWith("42");
     await user.click(screen.getByRole("button", { name: "Seguir mi pedido" }));
-    expect(screen.getByTestId("ruta")).toHaveTextContent("/pedidos/42");
+    expect(screen.getByTestId("route")).toHaveTextContent("/pedidos/42");
   });
 
   test("con payment_id, primero le pide al backend que confirme el pago", async () => {
     verifyPayment.mockResolvedValue("approved");
     getPurchaseDetail.mockResolvedValue(pedido("approved"));
 
-    renderResultado("/pago?pedido=42&collection_status=approved&payment_id=999");
+    renderResult("/pago?pedido=42&collection_status=approved&payment_id=999");
 
     expect(await screen.findByText(/¡Pago aprobado!/)).toBeInTheDocument();
     expect(verifyPayment).toHaveBeenCalledWith("42", "999");
@@ -68,7 +68,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     verifyPayment.mockRejectedValue(new Error("No pudimos conectar con Mercado Pago."));
     getPurchaseDetail.mockResolvedValue(pedido("approved"));
 
-    renderResultado("/pago?pedido=42&collection_status=approved&payment_id=999");
+    renderResult("/pago?pedido=42&collection_status=approved&payment_id=999");
 
     expect(await screen.findByText(/¡Pago aprobado!/)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -77,7 +77,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
   test("si volvió sin pagar (payment_id=null), no verifica nada", async () => {
     getPurchaseDetail.mockResolvedValue(pedido("pending"));
 
-    renderResultado("/pago?pedido=42&collection_status=null&payment_id=null");
+    renderResult("/pago?pedido=42&collection_status=null&payment_id=null");
 
     expect(await screen.findByRole("button", { name: "Reintentar pago" })).toBeInTheDocument();
     expect(verifyPayment).not.toHaveBeenCalled();
@@ -91,7 +91,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
         .mockResolvedValueOnce(pedido("rejected"))
         .mockResolvedValueOnce(pedido("approved"));
 
-      renderResultado("/pago?pedido=42&collection_status=approved");
+      renderResult("/pago?pedido=42&collection_status=approved");
 
       expect(await screen.findByText("Estamos confirmando tu pago...")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Reintentar pago" })).not.toBeInTheDocument();
@@ -111,7 +111,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     getPurchaseDetail.mockResolvedValue(pedido("rejected"));
     createPaymentLink.mockResolvedValue("https://mercadopago.test/pagar");
 
-    renderResultado("/pago?pedido=42&collection_status=rejected");
+    renderResult("/pago?pedido=42&collection_status=rejected");
 
     expect(await screen.findByRole("alert")).toHaveTextContent("El pago no se pudo completar");
     await user.click(screen.getByRole("button", { name: "Reintentar pago" }));
@@ -123,7 +123,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
   test("si volvió sin pagar, no lo hace esperar al aviso de Mercado Pago", async () => {
     getPurchaseDetail.mockResolvedValue(pedido("pending"));
 
-    renderResultado("/pago?pedido=42&collection_status=null");
+    renderResult("/pago?pedido=42&collection_status=null");
 
     expect(await screen.findByRole("button", { name: "Reintentar pago" })).toBeInTheDocument();
     expect(getPurchaseDetail).toHaveBeenCalledTimes(1);
@@ -136,7 +136,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
         .mockResolvedValueOnce(pedido("pending"))
         .mockResolvedValueOnce(pedido("approved"));
 
-      renderResultado("/pago?pedido=42&collection_status=approved");
+      renderResult("/pago?pedido=42&collection_status=approved");
 
       expect(await screen.findByText("Estamos confirmando tu pago...")).toBeInTheDocument();
       await act(async () => {
@@ -155,7 +155,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     try {
       getPurchaseDetail.mockResolvedValue(pedido("pending"));
 
-      renderResultado("/pago?pedido=42");
+      renderResult("/pago?pedido=42");
 
       for (let i = 0; i < 10; i++) {
         await act(async () => {
@@ -175,7 +175,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     try {
       getPurchaseDetail.mockResolvedValue(pedido("pending"));
 
-      const { unmount } = renderResultado("/pago?pedido=42");
+      const { unmount } = renderResult("/pago?pedido=42");
       expect(await screen.findByText("Estamos confirmando tu pago...")).toBeInTheDocument();
       expect(getPurchaseDetail).toHaveBeenCalledTimes(1);
 
@@ -196,7 +196,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
       let responder;
       getPurchaseDetail.mockReturnValueOnce(new Promise((resolve) => { responder = resolve; }));
 
-      const { unmount } = renderResultado("/pago?pedido=42");
+      const { unmount } = renderResult("/pago?pedido=42");
       await act(async () => {});
       expect(getPurchaseDetail).toHaveBeenCalledTimes(1);
 
@@ -219,12 +219,12 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     const error = Object.assign(new Error("Pedido no encontrado."), { status: 404 });
     getPurchaseDetail.mockRejectedValue(error);
 
-    renderResultado("/pago?pedido=99");
+    renderResult("/pago?pedido=99");
     expect(await screen.findByRole("alert")).toHaveTextContent("Pedido no encontrado.");
   });
 
   test("sin número de pedido no consulta nada", () => {
-    renderResultado("/pago");
+    renderResult("/pago");
 
     expect(screen.getByRole("alert")).toHaveTextContent("No encontramos ese pedido.");
     expect(getPurchaseDetail).not.toHaveBeenCalled();
