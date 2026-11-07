@@ -263,6 +263,9 @@ function mapearPedidoVendedor(p) {
     total: p.total,
     metodoPago: p.payment_method,
     idPagoMP: p.mp_payment_id ?? null,
+    // Cuándo se devolvió el dinero (null si no se devolvió) y si falta devolverlo.
+    devueltoEl: p.refunded_at ?? null,
+    faltaDevolver: Boolean(p.refund_pending),
     cliente: { nombre: p.client_name, email: p.client_email, telefono: p.client_phone ?? null },
     // A dónde se envía: la copia guardada al comprar (no cambia si el cliente edita su perfil).
     envio: {

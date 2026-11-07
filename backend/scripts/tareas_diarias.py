@@ -1,4 +1,5 @@
-"""Manda los recordatorios diarios: carritos abandonados y mantenimiento.
+"""Manda los recordatorios diarios (carritos abandonados y mantenimiento) y
+reintenta las devoluciones de pagos que Mercado Pago no hizo en el momento.
 
 Usage: python -m scripts.tareas_diarias
        (en Docker: docker exec backend uv run python -m scripts.tareas_diarias)
@@ -11,7 +12,9 @@ Se puede correr más de una vez: cada recordatorio se manda una sola vez
 se dieron de baja de los mails comerciales.
 """
 
+from app.core.mercadopago import get_cliente_mp
 from app.core.notificaciones import TAREAS_DIARIAS
+from app.crud import payment as crud_payment
 from app.db.session import SessionLocal
 
 
@@ -24,6 +27,7 @@ def main():
     try:
         for nombre, enviados in correr(db).items():
             print(f"{nombre}: {enviados} mail(s) enviado(s).")
+        print(f"Devoluciones hechas: {crud_payment.devolver_pendientes(db, get_cliente_mp())}.")
     finally:
         db.close()
 

@@ -17,6 +17,7 @@ from app.core.mercadopago import (
     get_cliente_mp,
 )
 from app.core.security import hash_password
+from app.crud import payment as crud_payment
 from app.crud import user as crud_user
 from app.crud.order import cancel_expired_orders
 from app.models.cart_item import CartItem
@@ -734,3 +735,96 @@ def test_un_aviso_repetido_de_un_pedido_vencido_sin_stock_no_manda_otro_mail(cli
     avisar(client)
 
     assert len(mails) == 1
+
+
+
+# =====================================================
+# Devolución del pago tardío sin stock
+# =====================================================
+
+
+def pago_del_pedido(db_session, order_id):
+    db_session.expire_all()
+    return db_session.query(Payment).filter_by(order_id=order_id).one()
+
+
+def test_un_pago_tardio_sin_stock_se_devuelve_solo(client, db_session, mp, pedido, mails):
+    order_id, _ = pedido
+    pagar_vencido_sin_stock(db_session, mp, order_id)
+
+    avisar(client)
+
+    assert mp.devoluciones == [("999", f"autobought-devolucion-pedido-{order_id}")]
+    assert pago_del_pedido(db_session, order_id).refunded_at is not None
+    assert [mail["Subject"] for mail in mails] == [f"No pudimos completar tu pedido #{order_id}"]
+
+
+def test_verificar_un_pago_tardio_sin_stock_tambien_lo_devuelve(client, db_session, mp, pedido):
+    order_id, headers = pedido
+    pagar_vencido_sin_stock(db_session, mp, order_id)
+
+    verificar(client, order_id, headers)
+
+    assert len(mp.devoluciones) == 1
+    assert pago_del_pedido(db_session, order_id).refunded_at is not None
+
+
+def test_un_aviso_repetido_no_devuelve_dos_veces(client, db_session, mp, pedido):
+    order_id, headers = pedido
+    pagar_vencido_sin_stock(db_session, mp, order_id)
+
+    avisar(client)
+    avisar(client)
+    verificar(client, order_id, headers)
+
+    assert len(mp.devoluciones) == 1
+
+
+def test_un_pago_tardio_con_stock_reactiva_el_pedido_y_no_devuelve_nada(client, db_session, mp, pedido):
+    order_id, _ = pedido
+    vencer(db_session, order_id)
+    cancel_expired_orders(db_session)
+    mp.pagos["999"] = PagoMP(id="999", estado="approved", referencia=str(order_id), monto=3000)
+
+    avisar(client)
+
+    assert mp.devoluciones == []
+    assert pago_del_pedido(db_session, order_id).refunded_at is None
+
+
+def test_si_mercado_pago_no_devuelve_avisa_igual_y_el_cron_lo_reintenta(client, db_session, mp, pedido, mails, caplog):
+    order_id, _ = pedido
+    pagar_vencido_sin_stock(db_session, mp, order_id)
+
+    # Mercado Pago responde la consulta del pago, pero falla al devolver.
+    def devolver_caido(pago_id, clave):
+        raise MercadoPagoNoDisponible("timeout")
+
+    mp.devolver_pago = devolver_caido
+    avisar(client)
+
+    assert pago_del_pedido(db_session, order_id).refunded_at is None
+    assert f"No se pudo devolver el pago del pedido {order_id}" in caplog.text
+    assert len(mails) == 1  # el cliente igual se entera
+
+    # Al otro día Mercado Pago responde y el cron hace la devolución.
+    del mp.devolver_pago
+    assert crud_payment.devolver_pendientes(db_session, mp) == 1
+    assert pago_del_pedido(db_session, order_id).refunded_at is not None
+    assert mp.devoluciones == [("999", f"autobought-devolucion-pedido-{order_id}")]
+    # Y no la vuelve a hacer.
+    assert crud_payment.devolver_pendientes(db_session, mp) == 0
+
+
+def test_el_cron_no_devuelve_los_cancelados_por_el_vendedor(client, db_session, mp, pedido):
+    order_id, _ = pedido
+    pagar_vencido_sin_stock(db_session, mp, order_id)
+    pago = pago_del_pedido(db_session, order_id)
+    pago.status = PaymentStatus.APPROVED
+    pago.mp_payment_id = "999"
+    # Lo canceló el vendedor (ya devolvió él al cancelar): tiene motivo escrito.
+    pago.order.cancellation_reason = "Sin stock en el depósito"
+    db_session.commit()
+
+    assert crud_payment.devolver_pendientes(db_session, mp) == 0
+    assert mp.devoluciones == []

@@ -177,6 +177,11 @@ class SellerOrderOut(OrderDetailOut):
     # El pago en Mercado Pago, para buscarlo en su panel; None si no se pagó
     # o es de antes de Mercado Pago.
     mp_payment_id: str | None
+    # Cuándo se le devolvió el dinero; None si no se devolvió.
+    refunded_at: datetime | None
+    # Pagado y cancelado, pero el dinero todavía no se devolvió (Mercado Pago
+    # falló; el cron lo reintenta cada día).
+    refund_pending: bool
     # El estado del botón "Pasar a ..."; None si no se puede avanzar.
     next_status: OrderStatus | None
     # A dónde vuelve si el vendedor se equivocó; None si no se puede volver.
@@ -205,6 +210,13 @@ def build_seller_order_out(order: Order) -> SellerOrderOut:
         client_email=order.client.email,
         client_phone=order.client.phone,
         mp_payment_id=order.payment.mp_payment_id if order.payment else None,
+        refunded_at=order.payment.refunded_at if order.payment else None,
+        refund_pending=(
+            order.payment is not None
+            and order.status == OrderStatus.CANCELLED
+            and order.payment.status == PaymentStatus.APPROVED
+            and order.payment.refunded_at is None
+        ),
         next_status=next_status(order),
         previous_status=previous_status(order),
         can_cancel=can_cancel(order),

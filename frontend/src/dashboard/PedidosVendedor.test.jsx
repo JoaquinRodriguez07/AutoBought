@@ -13,6 +13,7 @@ const pedido = (id, extra = {}) => ({
   fecha: "2026-11-05T14:30:00Z",
   estado: "confirmed",
   estadoPago: "approved",
+  idPagoMP: `55${id}`,
   total: 3000,
   cliente: { nombre: `Cliente ${id}`, email: `cliente${id}@example.com` },
   items: [{ codigo: "FRE-001", nombre: "Pastillas Bosch", cantidad: 2 }],
@@ -49,6 +50,36 @@ beforeEach(() => {
 afterEach(() => jest.clearAllMocks());
 
 describe("listado de pedidos", () => {
+  it("loads more pages of 50 without asking for everything at once", async () => {
+    const user = userEvent.setup();
+    obtenerPedidos.mockImplementation(async ({ desde = 0 }) =>
+      respuesta([pedido(desde + 1), pedido(desde + 2)], { total: 300 })
+    );
+    render(<PedidosVendedor />);
+    await screen.findByText("Cliente 1");
+
+    for (let vez = 0; vez < 5; vez++) {
+      await user.click(screen.getByRole("button", { name: /^Mostrar .* más$/ }));
+    }
+
+    // Antes la quinta vez pedía 300 juntos y el backend respondía 422.
+    expect(await screen.findByText("Cliente 251")).toBeInTheDocument();
+    expect(obtenerPedidos.mock.calls.every(([filtros]) => filtros.limite === 50)).toBe(true);
+  });
+
+  it("shows when a cancelled order was refunded or is still waiting for it", async () => {
+    obtenerPedidos.mockResolvedValue(
+      respuesta([
+        pedido(1, { estado: "cancelled", devueltoEl: "2026-11-07T10:00:00Z" }),
+        pedido(2, { estado: "cancelled", faltaDevolver: true }),
+      ])
+    );
+    render(<PedidosVendedor />);
+
+    expect((await screen.findByText("Cliente 1")).closest("tr")).toHaveTextContent("Devuelto");
+    expect(screen.getByText("Cliente 2").closest("tr")).toHaveTextContent("Falta devolver");
+  });
+
   it("shows each order with its client, payment and status", async () => {
     render(<PedidosVendedor />);
 
@@ -81,7 +112,10 @@ describe("listado de pedidos", () => {
     render(<PedidosVendedor estadoInicial="confirmed" />);
     await screen.findByText("Cliente 1");
     await user.click(screen.getByRole("button", { name: "Mostrar 50 más" }));
-    await waitFor(() => expect(obtenerPedidos).toHaveBeenLastCalledWith({ estado: "confirmed", limite: 100 }));
+    // La segunda página va de a 50 (desde el 50), no todo junto.
+    await waitFor(() =>
+      expect(obtenerPedidos).toHaveBeenLastCalledWith({ estado: "confirmed", limite: 50, desde: 50 })
+    );
 
     const orden = screen.getByRole("combobox", { name: "Ordenar por" });
     expect(orden).toHaveTextContent("Recomendado");

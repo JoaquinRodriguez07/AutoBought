@@ -87,6 +87,7 @@ COLUMNAS_POSTERIORES = {
     ("employee", "active"),
     ("order", "cancellation_reason"),
     ("order", "internal_note"),
+    ("payment", "refunded_at"),
 }
 
 
@@ -233,7 +234,7 @@ def sqlite_engine():
 def test_base_vacia_queda_con_todas_las_tablas(sqlite_engine):
     migrate(sqlite_engine)
 
-    assert revision_of(sqlite_engine) == head_revision() == "0006"
+    assert revision_of(sqlite_engine) == head_revision() == "0007"
     tables = set(inspect(sqlite_engine).get_table_names())
     assert tables == set(Base.metadata.tables) | {"alembic_version"}
     assert part_unique_constraints(sqlite_engine) == {"uq_part_part_code": ["part_code"]}
@@ -248,6 +249,8 @@ def test_las_migraciones_coinciden_con_los_modelos_en_sqlite(sqlite_engine):
 def test_downgrade_deshace_cada_migracion(sqlite_engine):
     migrate(sqlite_engine)
 
+    downgrade(sqlite_engine, "0006")
+    assert "refunded_at" not in {c["name"] for c in inspect(sqlite_engine).get_columns("payment")}
     downgrade(sqlite_engine, "0005")
     assert "internal_note" not in order_columns(sqlite_engine)
     downgrade(sqlite_engine, "0004")

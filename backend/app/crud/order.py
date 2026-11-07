@@ -223,7 +223,7 @@ def reactivate_paid_order(db: Session, order: Order) -> bool:
     }
     if any(partes[item.part_id].stock < item.quantity for item in order.items):
         logger.warning(
-            "Pedido %s pagado después de vencer y sin stock: devolver el pago.", order.order_id
+            "Pedido %s pagado después de vencer y sin stock: se devuelve el pago.", order.order_id
         )
         return False
 

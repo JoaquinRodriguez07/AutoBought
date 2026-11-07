@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.config import CRON_SECRET
+from app.core.mercadopago import ClienteMercadoPago, get_cliente_mp
 from app.core.notificaciones import TAREAS_DIARIAS
+from app.crud import payment as crud_payment
 from app.crud.order import cancel_expired_orders
 
 router = APIRouter(prefix="/tareas", tags=["tareas"])
@@ -26,11 +28,16 @@ def _verificar_cron(credentials: HTTPAuthorizationCredentials | None = Depends(_
 
 
 @router.get("/diarias", dependencies=[Depends(_verificar_cron)])
-def correr_tareas_diarias(db: Session = Depends(get_db)) -> dict[str, int]:
+def correr_tareas_diarias(
+    db: Session = Depends(get_db),
+    cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
+) -> dict[str, int]:
     """Lo llama Vercel Cron una vez por día (ver el vercel.json de la raíz).
-    Devuelve cuántos mails mandó cada tarea y cuántos pedidos sin pagar
+    Devuelve cuántos mails mandó cada tarea, cuántos pedidos sin pagar
     canceló la limpieza (de respaldo: también se cancelan al comprar y al
-    ver el historial)."""
+    ver el historial) y cuántas devoluciones pendientes salieron (las de
+    pagos tardíos sin stock que Mercado Pago no devolvió en el momento)."""
     resultado = {nombre: tarea(db, None) for nombre, tarea in TAREAS_DIARIAS.items()}
     resultado["Pedidos vencidos cancelados"] = cancel_expired_orders(db)
+    resultado["Devoluciones hechas"] = crud_payment.devolver_pendientes(db, cliente_mp)
     return resultado

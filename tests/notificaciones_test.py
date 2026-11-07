@@ -415,6 +415,7 @@ def test_vercel_cron_corre_las_tareas_con_el_secreto(client, db_session, mails, 
         "Carritos abandonados": 1,
         "Recordatorios de mantenimiento": 0,
         "Pedidos vencidos cancelados": 0,
+        "Devoluciones hechas": 0,
     }
     assert len(mails) == 1
 
