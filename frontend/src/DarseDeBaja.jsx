@@ -34,27 +34,27 @@ export default function DarseDeBaja({ onIrALaTienda, ...propsNavbar }) {
   return (
     <TarjetaCuenta titulo="Mails de ofertas" {...propsNavbar}>
       {estado === "procesando" && (
-        <p role="status" className="mt-6 text-[10px] text-gray-500">
+        <p role="status" className="mt-6 text-xs text-gray-500">
           Procesando tu baja...
         </p>
       )}
 
       {estado === "listo" && (
-        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-[10px] font-semibold">
+        <div role="status" className="mt-6 bg-green-50 border border-green-200 text-green-700 rounded-md px-4 py-3 text-xs font-semibold">
           Listo, no te vamos a mandar más ofertas ni recordatorios. Los mails de tus pedidos y de tu cuenta te siguen llegando.
           Si cambiás de idea, lo podés volver a activar desde tu perfil.
         </div>
       )}
 
       {estado === "error" && (
-        <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-[9px] font-semibold">
+        <div role="alert" className="mt-6 bg-red-50 border border-red-200 text-red-500 rounded-md px-4 py-3 text-xs font-semibold">
           {error} También podés dejar de recibirlos desde tu perfil.
         </div>
       )}
 
       {estado !== "procesando" && (
         <button type="button" onClick={onIrALaTienda} className={claseBotonCuenta}>
-          IR A LA TIENDA
+          Ir a la tienda
         </button>
       )}
     </TarjetaCuenta>

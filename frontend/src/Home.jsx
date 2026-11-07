@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usarImagenGenerica } from "./mapearRepuesto";
 
 import Navbar from "./Navbar";
@@ -21,6 +21,7 @@ import {
   IconoEscape,
   IconoEscobilla,
   IconoFiltro,
+  IconoFlecha,
   IconoGota,
   IconoRayo,
   IconoResorte,
@@ -42,6 +43,7 @@ import PeugeotLogo from "./assets/Logos Vehiculos/Peugeot.webp";
 import RenaultLogo from "./assets/Logos Vehiculos/Renault.png";
 import SuzukiLogo from "./assets/Logos Vehiculos/Suzuki.png";
 import VolkswagenLogo from "./assets/Logos Vehiculos/Volkswagen.webp";
+import PedidosEnCursoInicio from "./PedidosEnCursoInicio";
 
 // Los fabricantes principales del catálogo (ver MANUFACTURERS en
 // backend/scripts/generate_dataset.py).
@@ -104,6 +106,7 @@ export default function Home({
 
   const { vehiculoActivo, activarVehiculo, limpiarVehiculo } =
     useVehicle();
+
 
   const buscarRepuestos = (vehiculo) => {
     activarVehiculo(vehiculo);
@@ -209,6 +212,8 @@ export default function Home({
 
   const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
 
+  const hero = useRef(null);
+
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
 
@@ -240,37 +245,49 @@ export default function Home({
           va adentro del hero. Lo elegido es un borrador hasta tocar
           "Buscar repuestos" (ver arriba). */}
 
-      <section className="relative overflow-hidden bg-black">
+      <section ref={hero} className="relative overflow-hidden bg-black">
 
         {/* Oscurecida y corrida hacia abajo para que no se vean las
-            partes blancas de la foto. */}
+            partes blancas de la foto. Se acerca muy despacio al entrar. */}
         <img
           src={repuestos}
           alt="Repuestos para vehículos"
           className="absolute inset-0 w-full h-full object-cover object-bottom"
         />
 
-        <div className="absolute inset-0 bg-black/60" />
-        <div className="absolute inset-0 bg-linear-to-r from-black/85 via-black/60 to-black/50" />
+        <div className="absolute inset-0 bg-black/55" />
+        <div className="absolute inset-0 bg-linear-to-r from-black/90 via-black/65 to-black/35" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black/70 to-transparent" />
 
-        <div className="relative z-10 max-w-[1100px] mx-auto px-6 md:px-10 pt-36 pb-12">
+        <div className="relative z-10 max-w-[1100px] mx-auto px-6 md:px-10 pt-28 md:pt-32 pb-16">
 
-          <p className="text-orange-500 text-xs font-black tracking-[4px]">
-            REPUESTOS PARA TU AUTO
-          </p>
+          {/* TÍTULO. Envíos, pago seguro y marcas ya los cuenta "Cómo
+              comprar": acá no se repiten, así el banner entra en la
+              pantalla también con los pedidos en curso. */}
+          <div>
+            <p className="text-orange-500 text-xs font-black tracking-[4px]">
+              REPUESTOS PARA TU AUTO
+            </p>
 
-          <h1 className="text-white text-4xl md:text-6xl font-black italic uppercase leading-none mt-4 max-w-[680px]">
-            REPUESTOS QUE TE MANTIENEN EN MOVIMIENTO
-          </h1>
+            {/* En celular las líneas se acomodan solas (parejas, sin
+                palabras sueltas); desde tablet, una por renglón. */}
+            <h1 className="text-white text-[2.5rem] sm:text-5xl md:text-6xl font-black italic uppercase leading-[0.95] mt-4 max-w-[640px] text-balance">
+              {["Repuestos que te", "mantienen en", "movimiento"].map((linea, indice) => (
+                <span key={linea} className={`sm:block ${indice === 2 ? "text-orange-500" : ""}`}>
+                  {linea}{" "}
+                </span>
+              ))}
+            </h1>
 
-          <p className="text-gray-300 text-base mt-5 max-w-[520px] leading-relaxed">
-            Elegí tu auto y te mostramos los repuestos que le sirven,
-            de las mejores marcas.
-          </p>
+            <p className="text-gray-300 text-base md:text-lg mt-5 max-w-[520px] leading-relaxed">
+              Elegí tu auto y te mostramos los repuestos que le sirven,
+              de las mejores marcas.
+            </p>
+          </div>
 
           {/* SELECTOR DE VEHÍCULO */}
 
-          <div className="mt-10 bg-[#151719]/95 border border-white/10 rounded-xl shadow-2xl p-5 md:p-6">
+          <div className="mt-8 bg-[#151719]/95 border border-white/10 rounded-xl shadow-2xl p-5 md:p-6">
 
             <p className="text-white text-sm font-black">¿Qué auto tenés?</p>
             <VehicleSelector
@@ -283,7 +300,12 @@ export default function Home({
 
           </div>
 
+          {/* PEDIDOS EN CURSO: solo con sesión y pedidos en curso */}
+          <PedidosEnCursoInicio />
+
         </div>
+
+        <AvisoBajar hero={hero} />
 
       </section>
 
@@ -482,34 +504,37 @@ export default function Home({
 
             {(masVendidos ?? []).map((producto) => (
 
+              /* Toda la tarjeta lleva al repuesto: el nombre es el botón y
+                 su ::after la cubre entera. "Agregar" queda por encima. */
               <article
                 key={producto.id}
-                className="shrink-0 w-[75%] snap-start sm:w-auto flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition"
+                className="group relative shrink-0 w-[75%] snap-start sm:w-auto flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg hover:border-gray-200 transition"
               >
 
-                <button
-                  type="button"
-                  onClick={() => onDetalle(producto)}
-                  aria-label={`Ver ${producto.nombre}`}
-                  className="relative h-44 bg-white"
-                >
+                <div className="h-44 bg-white">
                   <img onError={usarImagenGenerica}
                     src={producto.imagen}
-                    alt={producto.nombre}
-                    className="w-full h-full object-contain p-3"
+                    alt=""
+                    className="w-full h-full object-contain p-3 group-hover:scale-105 transition duration-300"
                   />
-                </button>
+                </div>
 
                 {/* flex + mt-auto: el botón queda abajo aunque el
                     nombre ocupe una o dos líneas. */}
                 <div className="flex flex-col flex-1 p-4">
 
-                  <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">
+                  <p className="text-xs uppercase tracking-wide text-orange-500 font-black">
                     {producto.fabricante}
                   </p>
 
                   <h3 className="text-sm font-bold mt-1 leading-snug">
-                    {producto.nombre}
+                    <button
+                      type="button"
+                      onClick={() => onDetalle(producto)}
+                      className="text-left group-hover:text-orange-500 transition after:absolute after:inset-0 after:content-['']"
+                    >
+                      {producto.nombre}
+                    </button>
                   </h3>
 
                   <p className="text-xl font-black mt-auto pt-4">
@@ -518,19 +543,11 @@ export default function Home({
 
                   <BotonAgregarCarrito
                     producto={producto}
-                    className="w-full mt-3 flex items-center justify-center gap-2 h-9 rounded-md text-xs font-bold"
+                    className="relative z-10 w-full mt-3 flex items-center justify-center gap-2 h-10 rounded-md text-xs font-bold"
                   >
                     <IconoCarrito />
                     Agregar
                   </BotonAgregarCarrito>
-
-                  <button
-                    type="button"
-                    onClick={() => onDetalle(producto)}
-                    className="w-full h-9 mt-2 border border-gray-200 hover:border-orange-500 hover:text-orange-500 rounded-md text-xs font-bold transition"
-                  >
-                    VER REPUESTO
-                  </button>
 
                 </div>
 
@@ -544,8 +561,28 @@ export default function Home({
 
       )}
 
-
     </div>
+  );
+}
+
+// Flechita al pie del banner, centrada, que avisa que la página sigue; al
+// tocarla baja hasta lo que viene después. Va en el margen de abajo del
+// banner, así no tapa nada. Sin animaciones.
+function AvisoBajar({ hero }) {
+  const bajar = () => {
+    const alto = hero.current?.offsetHeight ?? window.innerHeight;
+    window.scrollTo({ top: alto - 88, behavior: "smooth" });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={bajar}
+      aria-label="Ver más del inicio"
+      className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 w-9 h-9 rounded-full bg-white/10 border border-white/25 text-white flex items-center justify-center hover:bg-orange-500 hover:border-orange-500 transition"
+    >
+      <IconoFlecha className="w-5 h-5" />
+    </button>
   );
 }
 

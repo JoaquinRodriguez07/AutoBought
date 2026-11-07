@@ -13,7 +13,7 @@ import { irA } from "./redirigir";
 export default function Carrito({
   onHome, onCatalogo, onLogin, onMarcas, onCarrito, onFavoritos,
   cantidadFavoritos, onDetalle, onDirecciones,
-  usuario, onPerfil, onHistorial, onCerrarSesion,
+  usuario, onPerfil, onHistorial, onPedidos, onCerrarSesion,
 }) {
   const { cart: productos, updateQuantity, removeFromCart, clearCart, total, cargarCarrito } = useCart();
 
@@ -117,7 +117,7 @@ export default function Carrito({
       </div>
       <button onClick={abrirConfirmacion} disabled={productos.length === 0}
         className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md h-12 mt-5 text-sm font-black disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-orange-500">
-        FINALIZAR COMPRA
+        Finalizar compra
       </button>
       <button type="button" onClick={() => onCatalogo()}
         className="w-full mt-2 h-10 text-sm font-bold text-gray-600 hover:text-orange-500 transition">
@@ -145,9 +145,9 @@ export default function Carrito({
                     </p>
                     <button onClick={() => irAPagar(pedido)} disabled={enviando}
                       className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 mt-6 text-sm font-black disabled:opacity-40">
-                      REINTENTAR PAGO
+                      Reintentar pago
                     </button>
-                    <button onClick={onHistorial} disabled={enviando}
+                    <button onClick={onPedidos} disabled={enviando}
                       className="w-full mt-2 py-2 text-sm font-bold text-gray-500 hover:text-orange-500 disabled:opacity-40">
                       Pagar más tarde desde mis compras
                     </button>
@@ -204,11 +204,11 @@ export default function Carrito({
                 <div className="mt-6 flex gap-3">
                   <button onClick={cerrarConfirmacion} disabled={enviando}
                     className="flex-1 border border-gray-200 rounded-md py-3 text-sm font-black text-gray-500 hover:border-orange-500 hover:text-orange-500 disabled:opacity-40">
-                    CANCELAR
+                    Cancelar
                   </button>
                   <button onClick={confirmar} disabled={!puedeConfirmar}
                     className="flex-1 bg-orange-500 hover:bg-orange-600 text-white rounded-md py-3 text-sm font-black disabled:opacity-40">
-                    {enviando ? "CONFIRMANDO..." : "IR A PAGAR"}
+                    {enviando ? "Confirmando..." : "Ir a pagar"}
                   </button>
                 </div>
               </>
@@ -247,7 +247,7 @@ export default function Carrito({
                   <p className="text-sm text-gray-400 mt-2">Agregá repuestos desde el catálogo para verlos acá.</p>
                   <button onClick={() => onCatalogo()}
                     className="mt-6 bg-orange-500 hover:bg-orange-600 text-white px-7 py-3 rounded-md text-sm font-black">
-                    VER REPUESTOS
+                    Ver repuestos
                   </button>
                 </div>
                 {resumen}
@@ -284,7 +284,7 @@ export default function Carrito({
                             </button>
 
                             <div className="flex-1 min-w-0">
-                              <p className="text-orange-500 text-[11px] uppercase tracking-wide font-black">{producto.categoria}</p>
+                              <p className="text-orange-500 text-xs uppercase tracking-wide font-black">{producto.categoria}</p>
                               <button onClick={() => onDetalle(producto)}
                                 className="text-left text-sm font-bold leading-snug mt-0.5 hover:text-orange-500">
                                 {producto.nombre}
@@ -292,7 +292,7 @@ export default function Carrito({
                               {/* Hay repuestos con el mismo nombre para autos distintos
                                   (el auto no va en el nombre): el código los distingue. */}
                               {producto.codigo && (
-                                <p className="text-[11px] text-gray-400">Código: {producto.codigo}</p>
+                                <p className="text-xs text-gray-400">Código: {producto.codigo}</p>
                               )}
                               <div className="flex items-center gap-3 mt-1.5 text-xs">
                                 <span className="text-green-600 font-bold">En stock</span>
@@ -317,7 +317,7 @@ export default function Carrito({
                                 </button>
                               </div>
                               {alcanzoMaximo && (
-                                <span className="text-[11px] text-orange-500 font-bold">Stock máximo</span>
+                                <span className="text-xs text-orange-500 font-bold">Stock máximo</span>
                               )}
                             </div>
 

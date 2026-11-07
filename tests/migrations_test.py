@@ -78,15 +78,30 @@ def model_diff(engine):
         return compare_metadata(context, Base.metadata)
 
 
+# Tablas que llegaron con migraciones posteriores a la baseline: las bases
+# de antes de Alembic no las tienen.
+TABLAS_POSTERIORES = {"order_status_history"}
+# Y columnas que llegaron después (tabla, columna).
+COLUMNAS_POSTERIORES = {
+    ("employee", "is_admin"),
+    ("employee", "active"),
+    ("order", "cancellation_reason"),
+    ("order", "internal_note"),
+}
+
+
 def legacy_schema(engine):
     """Una base como las de antes de Alembic: create_all con los modelos, sin
-    lo que llegó después con las migraciones: la restricción de part_code
-    (0002), el estado 'packing' y order.cancellation_reason (0003) y
-    order.internal_note (0004)."""
-    Base.metadata.create_all(bind=engine)
+    la restricción de part_code (que llega con la migración 0002) ni las
+    tablas de las migraciones siguientes."""
+    Base.metadata.create_all(
+        bind=engine,
+        tables=[tabla for nombre, tabla in Base.metadata.tables.items() if nombre not in TABLAS_POSTERIORES],
+    )
     with engine.begin() as connection:
-        connection.execute(text('ALTER TABLE "order" DROP COLUMN cancellation_reason'))
-        connection.execute(text('ALTER TABLE "order" DROP COLUMN internal_note'))
+        for tabla, columna in sorted(COLUMNAS_POSTERIORES):
+            connection.execute(text(f'ALTER TABLE "{tabla}" DROP COLUMN {columna}'))
+    with engine.begin() as connection:
         if engine.dialect.name == "postgresql":
             connection.execute(text("ALTER TABLE part DROP CONSTRAINT uq_part_part_code"))
             connection.execute(text('ALTER TABLE "order" ALTER COLUMN status DROP DEFAULT'))
@@ -123,7 +138,7 @@ def add_data(engine, part_code="FIL-0001"):
     db.flush()
     # El pedido va con SQL y solo con columnas de la baseline: con el modelo
     # se insertarían también las que llegaron después (cancellation_reason,
-    # 0003; internal_note, 0004), que una base de antes de Alembic todavía no tiene.
+    # 0005; internal_note, 0006), que una base de antes de Alembic todavía no tiene.
     order_id = db.execute(text(
         'INSERT INTO "order" (client_id, ship_personal_name, ship_street, ship_number, '
         "ship_city, ship_department, payment_method_label) "
@@ -153,10 +168,13 @@ def add_data_part(engine, part_code):
 
 
 def counts(engine):
+    """Filas por tabla, sin las de migraciones posteriores (en una base vieja
+    todavía no existen)."""
     with engine.connect() as connection:
         return {
             table: connection.execute(select(func.count()).select_from(Base.metadata.tables[table])).scalar_one()
             for table in Base.metadata.tables
+            if table not in TABLAS_POSTERIORES
         }
 
 
@@ -215,7 +233,7 @@ def sqlite_engine():
 def test_base_vacia_queda_con_todas_las_tablas(sqlite_engine):
     migrate(sqlite_engine)
 
-    assert revision_of(sqlite_engine) == head_revision() == "0004"
+    assert revision_of(sqlite_engine) == head_revision() == "0006"
     tables = set(inspect(sqlite_engine).get_table_names())
     assert tables == set(Base.metadata.tables) | {"alembic_version"}
     assert part_unique_constraints(sqlite_engine) == {"uq_part_part_code": ["part_code"]}
@@ -230,17 +248,60 @@ def test_las_migraciones_coinciden_con_los_modelos_en_sqlite(sqlite_engine):
 def test_downgrade_deshace_cada_migracion(sqlite_engine):
     migrate(sqlite_engine)
 
-    downgrade(sqlite_engine, "0003")
+    downgrade(sqlite_engine, "0005")
     assert "internal_note" not in order_columns(sqlite_engine)
-    downgrade(sqlite_engine, "0002")
+    downgrade(sqlite_engine, "0004")
     assert "cancellation_reason" not in order_columns(sqlite_engine)
+    downgrade(sqlite_engine, "0002")
+    assert "order_status_history" not in inspect(sqlite_engine).get_table_names()
     downgrade(sqlite_engine, "0001")
     assert part_unique_constraints(sqlite_engine) == {}
     downgrade(sqlite_engine, "base")
     assert set(inspect(sqlite_engine).get_table_names()) == {"alembic_version"}
 
     migrate(sqlite_engine)
-    assert revision_of(sqlite_engine) == "0004"
+    assert revision_of(sqlite_engine) == head_revision()
+
+
+def downgrade_0003_con_un_pedido_empaquetando(engine):
+    """Con la 0003 aplicada, un pedido en «Empaquetando» con su historial;
+    después se deshace la 0003. Devuelve el estado con que queda el pedido."""
+    migrate(engine)
+    add_data(engine)
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE \"order\" SET status = 'packing'"))
+        connection.execute(text(
+            "INSERT INTO order_status_history (order_id, status) "
+            "SELECT order_id, 'packing' FROM \"order\""
+        ))
+
+    downgrade(engine, "0002")
+
+    assert "order_status_history" not in inspect(engine).get_table_names()
+    with engine.connect() as connection:
+        return connection.execute(text("SELECT status FROM \"order\"")).scalar_one()
+
+
+def test_deshacer_la_0003_pasa_los_empaquetando_a_confirmado(sqlite_engine):
+    assert downgrade_0003_con_un_pedido_empaquetando(sqlite_engine) == "confirmed"
+    assert revision_of(sqlite_engine) == "0002"
+
+
+def test_la_0004_hace_administrador_al_vendedor_mas_antiguo(sqlite_engine):
+    migrate(sqlite_engine, "0003")
+    with sqlite_engine.begin() as connection:
+        for user_id, email in [(7, "primero@mail.com"), (9, "segundo@mail.com")]:
+            connection.execute(text(
+                'INSERT INTO "user" (user_id, user_type, username, password, name, email) '
+                "VALUES (:id, 'employee', :email, 'x', 'Vendedor', :email)"
+            ), {"id": user_id, "email": email})
+            connection.execute(text("INSERT INTO employee (user_id) VALUES (:id)"), {"id": user_id})
+
+    migrate(sqlite_engine)
+
+    with sqlite_engine.connect() as connection:
+        filas = connection.execute(text("SELECT user_id, is_admin, active FROM employee ORDER BY user_id")).all()
+    assert [tuple(fila) for fila in filas] == [(7, 1, 1), (9, 0, 1)]
 
 
 def test_insertar_un_codigo_nuevo_funciona(sqlite_engine):
@@ -270,7 +331,7 @@ def test_base_existente_se_incorpora_sin_perder_datos(sqlite_engine):
     stamp(sqlite_engine, "0001")
     migrate(sqlite_engine)
 
-    assert revision_of(sqlite_engine) == "0004"
+    assert revision_of(sqlite_engine) == head_revision()
     assert counts(sqlite_engine) == antes
     assert part_unique_constraints(sqlite_engine) == {"uq_part_part_code": ["part_code"]}
     assert_relations_intact(sqlite_engine)
@@ -288,16 +349,15 @@ def test_0002_no_se_aplica_si_hay_codigos_repetidos(sqlite_engine):
     assert counts(sqlite_engine)["part"] == 2  # no borró nada
 
 
-def test_0003_empaquetando_y_motivo_y_el_downgrade_los_saca(sqlite_engine):
+def test_0005_motivo_de_cancelacion_y_el_downgrade_lo_saca(sqlite_engine):
     migrate(sqlite_engine)
     add_data(sqlite_engine)
-    set_order_status(sqlite_engine, "packing")
-    assert order_statuses(sqlite_engine) == ["packing"]
+    set_order_status(sqlite_engine, "cancelled", "Nos quedamos sin stock del proveedor")
 
-    downgrade(sqlite_engine, "0002")
+    downgrade(sqlite_engine, "0004")
 
-    # El pedido no se pierde: vuelve al paso anterior.
-    assert order_statuses(sqlite_engine) == ["confirmed"]
+    # El pedido no se pierde: solo el texto del motivo.
+    assert order_statuses(sqlite_engine) == ["cancelled"]
     assert "cancellation_reason" not in order_columns(sqlite_engine)
     assert_relations_intact(sqlite_engine)
 
@@ -446,8 +506,12 @@ def test_pg_base_existente_se_incorpora_sin_recrear_tablas(pg_engine):
     assert revision_of(pg_engine) == "0001"
     migrate(pg_engine)
 
-    assert revision_of(pg_engine) == "0004"
-    assert table_oids(pg_engine) == {**oids, "alembic_version": table_oids(pg_engine)["alembic_version"]}
+    assert revision_of(pg_engine) == head_revision()
+    # Las tablas que ya estaban son las mismas (no se recrearon); solo se
+    # suman alembic_version y las de las migraciones siguientes.
+    despues = table_oids(pg_engine)
+    assert {tabla: despues[tabla] for tabla in oids} == oids
+    assert set(despues) - set(oids) == {"alembic_version"} | TABLAS_POSTERIORES
     assert counts(pg_engine) == antes
     assert part_unique_constraints(pg_engine) == {"uq_part_part_code": ["part_code"]}
     assert_relations_intact(pg_engine)
@@ -488,7 +552,7 @@ def test_pg_stamp_se_niega_si_el_esquema_no_coincide(pg_engine):
     assert db_baseline.main(["stamp", "--permitir-sobrantes"]) == 0
     migrate(pg_engine)
 
-    assert revision_of(pg_engine) == "0004"
+    assert revision_of(pg_engine) == head_revision()
     # Autogenerate no propone borrar lo heredado (ni nada más).
     assert model_diff(pg_engine) == []
     with pg_engine.connect() as connection:
@@ -535,7 +599,7 @@ def test_pg_base_vacia_o_ya_migrada_no_necesita_stamp(pg_engine):
 
     migrate(pg_engine)
     assert db_baseline.main(["stamp"]) == 0
-    assert revision_of(pg_engine) == "0004"
+    assert revision_of(pg_engine) == head_revision()
 
 
 @postgres
@@ -652,3 +716,16 @@ def test_pg_dos_seeds_a_la_vez_no_duplican(pg_engine, catalogo):
     assert tablas["car_model"] == len(car_models)
     assert tablas["compatibility"] == sum(len(p["compatibilities"]) for p in parts)
     assert_relations_intact(pg_engine)
+
+
+@postgres
+def test_pg_deshacer_la_0003_saca_empaquetando_del_enum(pg_engine):
+    assert downgrade_0003_con_un_pedido_empaquetando(pg_engine) == "confirmed"
+    with pg_engine.connect() as connection:
+        valores = connection.execute(text("SELECT unnest(enum_range(NULL::order_status))::text")).scalars().all()
+    assert valores == ["confirmed", "shipped", "delivered", "cancelled"]
+
+    # Y se puede volver a aplicar.
+    migrate(pg_engine)
+    assert revision_of(pg_engine) == head_revision()
+    assert model_diff(pg_engine) == []

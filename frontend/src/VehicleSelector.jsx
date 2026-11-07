@@ -61,8 +61,8 @@ export default function VehicleSelector({
     : Boolean(selectedBrand);
   const hasSelection = Boolean(selectedBrand || selectedModel || selectedYear || vehicle);
   const labelClass = dark
-    ? "block text-[10px] text-gray-400 font-bold mb-1.5"
-    : "block text-[11px] text-gray-400 font-bold tracking-wide mb-2";
+    ? "block text-xs text-gray-400 font-bold mb-1.5"
+    : "block text-xs text-gray-400 font-bold tracking-wide mb-2";
   // En el inicio, los tres campos con el mismo estilo (también
   // deshabilitados) y una flecha propia en vez de la del navegador.
   const selectClass = dark
@@ -140,10 +140,10 @@ export default function VehicleSelector({
         })}
         disabled={!canConfirm}
         className={dark
-          ? "h-9 rounded-md bg-orange-500 hover:bg-orange-600 text-white px-3 text-[11px] font-black transition disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed"
-          : "h-12 shrink-0 bg-orange-500 hover:bg-orange-600 text-white rounded-lg px-7 text-xs font-black transition disabled:bg-white/10 disabled:text-gray-500 disabled:cursor-not-allowed"}
+          ? "h-9 rounded-md bg-orange-500 hover:bg-orange-600 text-white px-3 text-sm font-bold transition disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+          : "h-12 shrink-0 bg-orange-500 hover:bg-orange-600 text-white rounded-lg px-7 text-sm font-bold transition disabled:bg-white/10 disabled:text-gray-500 disabled:cursor-not-allowed"}
       >
-        {confirmLabel || (dark ? "Confirmar vehículo" : "BUSCAR REPUESTOS")}
+        {confirmLabel || (dark ? "Confirmar vehículo" : "Buscar repuestos")}
       </button>
 
       {showClear && hasSelection && (
@@ -156,9 +156,9 @@ export default function VehicleSelector({
             setYears([]);
             onClear?.();
           }}
-          className="h-12 shrink-0 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg px-5 text-xs font-black transition"
+          className="h-12 shrink-0 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg px-5 text-sm font-bold transition"
         >
-          BORRAR FILTROS
+          Borrar filtros
         </button>
       )}
 
@@ -166,7 +166,7 @@ export default function VehicleSelector({
         <button
           type="button"
           onClick={onCancel}
-          className="h-9 rounded-md border border-white/20 text-gray-300 hover:border-white/40 px-3 text-[11px] font-bold transition"
+          className="h-9 rounded-md border border-white/20 text-gray-300 hover:border-white/40 px-3 text-xs font-bold transition"
         >
           Cancelar
         </button>

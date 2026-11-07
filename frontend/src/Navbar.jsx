@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "./context/CartContext";
+import { usePedidos } from "./context/PedidosContext";
 import { usePitOpcional } from "./context/PitContext";
 import { esVendedor } from "./auth";
 import BusquedaCabecera from "./BusquedaCabecera";
 import { ID_BUSCADOR_CATALOGO } from "./SearchBar";
-import { IconoCerrar, IconoCorazon, IconoLupa, IconoMenu } from "./Iconos";
+import { IconoCamion, IconoCerrar, IconoCorazon, IconoLupa, IconoMenu } from "./Iconos";
 import logo from "./assets/logo.png";
 
 // Los contadores (carrito y favoritos) rebotan cuando SUBEN (se agregó
@@ -32,14 +33,13 @@ export default function Navbar({
   onMarcas,
   onCarrito,
   onFavoritos,
-  onPerfil,
-  onDirecciones,
-  onHistorial,
   onCerrarSesion,
   cantidadFavoritos = 0,
   usuario,
 }) {
   const { cantidadCarrito } = useCart();
+  const { enCurso } = usePedidos();
+  const cantidadPedidosEnCurso = enCurso.length;
   const navigate = useNavigate();
   const vendedor = esVendedor(usuario);
   const pit = usePitOpcional();
@@ -232,7 +232,7 @@ export default function Navbar({
               : "text-gray-800 hover:text-orange-500"
           }`}
         >
-          Home
+          Inicio
         </button>
 
         <button
@@ -317,19 +317,90 @@ export default function Navbar({
           )}
         </div>
 
+        {/* Orden: buscar, favoritos, pedidos, cuenta y carrito. En
+            celular solo quedan buscar, carrito y el menú: favoritos,
+            pedidos y la cuenta van adentro del menú (ver abajo). */}
+
+        {/* =================================================
+            FAVORITOS
+        ================================================== */}
+
+        {!vendedor && (
+        <button
+          type="button"
+          onClick={onFavoritos}
+          className={`relative hidden md:block transition ${
+            paginaActual === "favoritos"
+              ? "text-orange-500"
+              : "hover:text-orange-500"
+          }`}
+          title="Favoritos"
+        >
+          <IconoCorazon
+            lleno={paginaActual === "favoritos"}
+            className="w-5 h-5"
+          />
+
+          {cantidadFavoritos > 0 && (
+            <span
+              key={pulsoFavoritos}
+              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${claseRebote(pulsoFavoritos)}`}
+            >
+              {cantidadFavoritos}
+            </span>
+          )}
+        </button>
+        )}
+
+        {/* =================================================
+            MIS PEDIDOS
+            A la vista (no solo en el menú de la cuenta): un clic
+            para ver cómo viene lo que compraste. Como favoritos y el
+            carrito, se ve también sin sesión (lleva al login).
+        ================================================== */}
+
+        {!vendedor && (
+        <button
+          type="button"
+          onClick={usuario ? () => navigate("/pedidos") : onLogin}
+          className={`relative hidden md:block transition ${
+            paginaActual === "pedidos"
+              ? "text-orange-500"
+              : "hover:text-orange-500"
+          }`}
+          title="Mis compras"
+          aria-label={
+            cantidadPedidosEnCurso > 0
+              ? `Mis compras (${cantidadPedidosEnCurso} en curso)`
+              : "Mis compras"
+          }
+        >
+          <IconoCamion className="w-5 h-5" />
+
+          {cantidadPedidosEnCurso > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold"
+            >
+              {cantidadPedidosEnCurso}
+            </span>
+          )}
+        </button>
+        )}
+
         {/* =================================================
             USUARIO
         ================================================== */}
 
         <div
           ref={menuRef}
-          className="relative"
+          className="relative hidden md:flex"
         >
 
           <button
             type="button"
             onClick={manejarUsuario}
-            className={`transition ${
+            className={`flex items-center transition ${
               paginaActual === "login" ||
               paginaActual === "perfil" ||
               paginaActual === "direcciones" ||
@@ -430,20 +501,37 @@ export default function Navbar({
 
                 <div className="py-1">
 
+                  {/* Una sola entrada para las compras (en curso y
+                      anteriores van en pestañas, dentro). */}
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(onPerfil)
+                      ejecutarAccion(() => navigate("/pedidos"))
                     }
-                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                    className="w-full flex items-center justify-between text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
-                    Mi perfil
+                    Mis compras
+                    {cantidadPedidosEnCurso > 0 && (
+                      <span className="text-xs font-black bg-orange-500 text-white rounded-full px-2 py-0.5">
+                        {cantidadPedidosEnCurso} en curso
+                      </span>
+                    )}
                   </button>
 
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(onDirecciones)
+                      ejecutarAccion(() => navigate("/perfil"))
+                    }
+                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                  >
+                    Mis datos
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      ejecutarAccion(() => navigate("/direcciones"))
                     }
                     className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
@@ -453,12 +541,13 @@ export default function Navbar({
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(onHistorial)
+                      ejecutarAccion(() => navigate("/cuenta"))
                     }
                     className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
-                    Historial de compras
+                    Ver toda mi cuenta
                   </button>
+
 
                 </div>
 
@@ -484,38 +573,8 @@ export default function Navbar({
         </div>
 
         {/* =================================================
-            FAVORITOS
-        ================================================== */}
-
-        {!vendedor && (
-        <button
-          type="button"
-          onClick={onFavoritos}
-          className={`relative transition ${
-            paginaActual === "favoritos"
-              ? "text-orange-500"
-              : "hover:text-orange-500"
-          }`}
-          title="Favoritos"
-        >
-          <IconoCorazon
-            lleno={paginaActual === "favoritos"}
-            className="w-5 h-5"
-          />
-
-          {cantidadFavoritos > 0 && (
-            <span
-              key={pulsoFavoritos}
-              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${claseRebote(pulsoFavoritos)}`}
-            >
-              {cantidadFavoritos}
-            </span>
-          )}
-        </button>
-        )}
-
-        {/* =================================================
             CARRITO
+            Último a la derecha, como en casi todas las tiendas.
         ================================================== */}
 
         {!vendedor && (
@@ -576,9 +635,13 @@ export default function Navbar({
           aria-expanded={menuAbierto}
           aria-controls="navbar-menu-celular"
           onClick={alternarMenu}
-          className={`md:hidden transition ${menuAbierto ? "text-orange-500" : "hover:text-orange-500"}`}
+          className={`relative md:hidden transition ${menuAbierto ? "text-orange-500" : "hover:text-orange-500"}`}
         >
           {menuAbierto ? <IconoCerrar className="h-5 w-5" /> : <IconoMenu className="h-5 w-5" />}
+          {/* Hay pedidos en curso (están adentro del menú). */}
+          {!menuAbierto && cantidadPedidosEnCurso > 0 && (
+            <span aria-hidden="true" className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-500 ring-2 ring-white" />
+          )}
         </button>
 
       </div>
@@ -589,7 +652,7 @@ export default function Navbar({
           className="md:hidden absolute left-0 right-0 top-[calc(100%+8px)] bg-white rounded-xl shadow-2xl border border-gray-100 p-2"
         >
           {[
-            { texto: "Home", activo: paginaActual === "home", ir: onHome },
+            { texto: "Inicio", activo: paginaActual === "home", ir: onHome },
             { texto: "Marcas", activo: paginaActual === "marcas", ir: onMarcas },
             {
               texto: "Repuestos",
@@ -618,6 +681,56 @@ export default function Navbar({
               <span className="text-[10px] font-black bg-orange-500 text-white rounded-full px-1.5 py-0.5">NUEVO</span>
             </button>
           )}
+
+          {/* En celular, lo de la cuenta va acá (en la barra no entra). */}
+          <div className="border-t border-gray-100 mt-2 pt-2">
+            {(vendedor
+              ? [
+                  { texto: "Dashboard", activo: paginaActual === "dashboard", ir: () => navigate("/dashboard") },
+                ]
+              : [
+                  {
+                    texto: "Mis compras",
+                    activo: paginaActual === "pedidos",
+                    ir: usuario ? () => navigate("/pedidos") : onLogin,
+                    numero: cantidadPedidosEnCurso,
+                    detalle: "en curso",
+                  },
+                  { texto: "Favoritos", activo: paginaActual === "favoritos", ir: onFavoritos, numero: cantidadFavoritos },
+                  {
+                    texto: usuario ? "Mi cuenta" : "Iniciar sesión",
+                    activo: paginaActual === "perfil" || paginaActual === "login",
+                    ir: usuario ? () => navigate("/cuenta") : onLogin,
+                  },
+                ]
+            ).map((opcion) => (
+              <button
+                key={opcion.texto}
+                type="button"
+                onClick={() => irDesdeMenu(opcion.ir)}
+                className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-lg text-sm font-semibold transition ${
+                  opcion.activo ? "text-orange-500 bg-orange-50" : "text-gray-800 hover:bg-gray-50"
+                }`}
+              >
+                {opcion.texto}
+                {opcion.numero > 0 && (
+                  <span className="text-[10px] font-black bg-orange-500 text-white rounded-full px-1.5 py-0.5">
+                    {opcion.numero}
+                    {opcion.detalle ? ` ${opcion.detalle}` : ""}
+                  </span>
+                )}
+              </button>
+            ))}
+            {usuario && (
+              <button
+                type="button"
+                onClick={() => irDesdeMenu(onCerrarSesion)}
+                className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold text-red-500 hover:bg-red-50 transition"
+              >
+                Cerrar sesión
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -19,10 +19,17 @@ jest.mock("./Navbar", () => () => <nav aria-label="Navegación" />);
 
 const pedido = (estadoPago) => ({ id: 42, estado: "confirmed", estadoPago, total: 3000, items: [] });
 
+function Ruta() {
+  return <p data-testid="ruta">{useLocation().pathname}</p>;
+}
+
 function renderResultado(direccion, props = {}) {
   return render(
     <MemoryRouter initialEntries={[direccion]}>
-      <ResultadoPago onHistorial={jest.fn()} onCatalogo={jest.fn()} {...props} />
+      <Routes>
+        <Route path="/pago" element={<ResultadoPago onHistorial={jest.fn()} onCatalogo={jest.fn()} {...props} />} />
+        <Route path="*" element={<Ruta />} />
+      </Routes>
     </MemoryRouter>
   );
 }
@@ -32,17 +39,16 @@ beforeEach(() => {
 });
 
 describe("ResultadoPago (vuelta de Mercado Pago)", () => {
-  test("pago aprobado: lo confirma con el backend y lleva a las compras", async () => {
+  test("pago aprobado: lo confirma con el backend y lleva al seguimiento del pedido", async () => {
     const user = userEvent.setup();
-    const onHistorial = jest.fn();
     obtenerDetalleCompra.mockResolvedValue(pedido("approved"));
 
-    renderResultado("/pago?pedido=42&collection_status=approved", { onHistorial });
+    renderResultado("/pago?pedido=42&collection_status=approved");
 
     expect(await screen.findByText(/¡Pago aprobado!/)).toBeInTheDocument();
     expect(obtenerDetalleCompra).toHaveBeenCalledWith("42");
-    await user.click(screen.getByRole("button", { name: "Ver mis compras" }));
-    expect(onHistorial).toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Seguir mi pedido" }));
+    expect(screen.getByTestId("ruta")).toHaveTextContent("/pedidos/42");
   });
 
   test("con payment_id, primero le pide al backend que confirme el pago", async () => {
@@ -71,7 +77,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
 
     renderResultado("/pago?pedido=42&collection_status=null&payment_id=null");
 
-    expect(await screen.findByRole("button", { name: "REINTENTAR PAGO" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Reintentar pago" })).toBeInTheDocument();
     expect(verificarPago).not.toHaveBeenCalled();
   });
 
@@ -86,13 +92,13 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
       renderResultado("/pago?pedido=42&collection_status=approved");
 
       expect(await screen.findByText("Estamos confirmando tu pago...")).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "REINTENTAR PAGO" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Reintentar pago" })).not.toBeInTheDocument();
       await act(async () => {
         jest.advanceTimersByTime(3000);
       });
 
       expect(await screen.findByText(/¡Pago aprobado!/)).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "REINTENTAR PAGO" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Reintentar pago" })).not.toBeInTheDocument();
     } finally {
       jest.useRealTimers();
     }
@@ -106,7 +112,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
     renderResultado("/pago?pedido=42&collection_status=rejected");
 
     expect(await screen.findByRole("alert")).toHaveTextContent("El pago no se pudo completar");
-    await user.click(screen.getByRole("button", { name: "REINTENTAR PAGO" }));
+    await user.click(screen.getByRole("button", { name: "Reintentar pago" }));
 
     expect(crearLinkPago).toHaveBeenCalledWith("42");
     expect(irA).toHaveBeenCalledWith("https://mercadopago.test/pagar");
@@ -117,7 +123,7 @@ describe("ResultadoPago (vuelta de Mercado Pago)", () => {
 
     renderResultado("/pago?pedido=42&collection_status=null");
 
-    expect(await screen.findByRole("button", { name: "REINTENTAR PAGO" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Reintentar pago" })).toBeInTheDocument();
     expect(obtenerDetalleCompra).toHaveBeenCalledTimes(1);
   });
 

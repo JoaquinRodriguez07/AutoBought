@@ -1045,9 +1045,18 @@ function mapearPedido(p) {
     estadoPago: p.payment_status ?? null,
     // Hasta cuándo se puede pagar; pasado el plazo el pedido se cancela solo.
     vencePago: p.payment_due_at ?? null,
-    // Por qué lo canceló la tienda; null si no lo canceló el vendedor.
-    motivoCancelacion: p.cancellation_reason ?? null,
+    // El texto que escribió la tienda al cancelar (el tipo va en motivoCancelacion).
+    detalleCancelacion: p.cancellation_reason ?? null,
     total: p.total ?? 0,
+    // Los estados por los que pasó, del primero al actual. `fecha` es null
+    // si no se sabe (pedidos de antes del seguimiento).
+    seguimiento: (p.status_history || []).map((paso) => ({
+      estado: paso.status,
+      fecha: paso.changed_at ?? null,
+    })),
+    // Solo en los cancelados: "expired" (venció sin pagarse) o "store"
+    // (lo canceló la tienda); null si no se sabe.
+    motivoCancelacion: p.cancel_reason ?? null,
     items: (p.items || []).map((item) => ({
       partId: item.part_id,
       codigo: item.part_code ?? "",
@@ -1100,6 +1109,24 @@ export async function obtenerDetalleCompra(orderId) {
     {},
     MENSAJES_POR_STATUS_ORDENES,
     "No pudimos cargar el detalle de la compra."
+  );
+  return mapearPedido(data);
+}
+
+/**
+ * POST /api/v1/orders/{orderId}/recibido — «Ya lo recibí»: el cliente
+ * confirma que le llegó un pedido enviado. Devuelve el pedido entregado.
+ */
+export async function confirmarRecepcion(orderId) {
+  const data = await pedirCuentaCliente(
+    `${API_BASE_URL}/api/v1/orders/${orderId}/recibido`,
+    { method: "POST" },
+    {
+      ...MENSAJES_POR_STATUS_ORDENES,
+      404: "No encontramos ese pedido.",
+      409: "Solo se puede confirmar la llegada de un pedido enviado.",
+    },
+    "No pudimos confirmar la llegada del pedido."
   );
   return mapearPedido(data);
 }

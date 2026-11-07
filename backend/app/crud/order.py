@@ -14,6 +14,7 @@ from app.models.compatibility import Compatibility
 from app.models.employee import Employee
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
+from app.models.order_status_history import CancelReason, OrderStatusHistory
 from app.models.part import Part
 from app.models.payment import Payment, PaymentStatus
 from app.models.shipping_address import ShippingAddress
@@ -29,6 +30,16 @@ def _get_owned_or_primary(db: Session, model, pk_column, client_id: int, chosen_
     else:
         query = query.where(pk_column == chosen_id)
     return db.scalar(query)
+
+
+def cambiar_estado(order: Order, estado: OrderStatus, motivo: CancelReason | None = None) -> None:
+    """Cambia el estado del pedido y lo deja en su historial, con la fecha:
+    de ahí sale la línea de tiempo del cliente. Todo cambio de estado pasa
+    por acá (también los del vendedor). No hace commit: lo hace quien llama."""
+    order.status = estado
+    order.status_history.append(
+        OrderStatusHistory(status=estado, reason=motivo.value if motivo else None)
+    )
 
 
 # Lo que muestra el historial como medio de pago de los pedidos nuevos.
@@ -102,6 +113,7 @@ def place_order(
             payment_method_label=PAYMENT_LABEL,
             payment=Payment(status=PaymentStatus.PENDING),
         )
+        cambiar_estado(order, OrderStatus.CONFIRMED)
         db.add(order)
         db.flush()
 
@@ -159,7 +171,7 @@ def cancel_expired_orders(db: Session, ahora: datetime | None = None) -> int:
     ).all()
 
     for payment in pagos:
-        payment.order.status = OrderStatus.CANCELLED
+        cambiar_estado(payment.order, OrderStatus.CANCELLED, CancelReason.EXPIRED)
         _cambiar_stock(db, payment.order, +1)
 
     db.commit()
@@ -185,7 +197,17 @@ def reactivate_paid_order(db: Session, order: Order) -> bool:
         return False
 
     _cambiar_stock(db, order, -1)
-    order.status = OrderStatus.CONFIRMED
+    cambiar_estado(order, OrderStatus.CONFIRMED)
+    return True
+
+
+def confirm_received(db: Session, order: Order) -> bool:
+    """El cliente avisa que le llegó el pedido: de «Enviado» pasa a
+    «Entregado». Devuelve False (y no cambia nada) si no estaba enviado."""
+    if order.status != OrderStatus.SHIPPED:
+        return False
+    cambiar_estado(order, OrderStatus.DELIVERED)
+    db.commit()
     return True
 
 
@@ -309,11 +331,14 @@ def apply_status_change(
 ) -> None:
     """Cambia el estado (ya validado con check_status_change). Al cancelar,
     guarda el motivo y devuelve el stock. No hace commit: lo hace quien llama,
-    después de devolver el pago."""
-    order.status = new_status
+    después de devolver el pago. Pasa por `cambiar_estado`, así el cambio
+    queda en el historial y el cliente lo ve en su línea de tiempo."""
     if new_status == OrderStatus.CANCELLED:
+        cambiar_estado(order, new_status, CancelReason.STORE)
         order.cancellation_reason = reason
         _cambiar_stock(db, order, +1)
+    else:
+        cambiar_estado(order, new_status)
 
 
 def _pagado():
@@ -412,7 +437,11 @@ def list_order_by_client(db: Session, client_id: int) -> list[Order]:
     query = (
         select(Order)
         .where(Order.client_id == client_id)
-        .options(selectinload(Order.items).selectinload(OrderItem.part), selectinload(Order.payment))
+        .options(
+            selectinload(Order.items).selectinload(OrderItem.part),
+            selectinload(Order.payment),
+            selectinload(Order.status_history),
+        )
         .order_by(Order.created_at.desc())
     )
     return list(db.scalars(query).all())
@@ -424,6 +453,10 @@ def get_order_for_client(
     query = (
         select(Order)
         .where(Order.order_id == order_id, Order.client_id == client_id)
-        .options(selectinload(Order.items).selectinload(OrderItem.part), selectinload(Order.payment))
+        .options(
+            selectinload(Order.items).selectinload(OrderItem.part),
+            selectinload(Order.payment),
+            selectinload(Order.status_history),
+        )
     )
     return db.scalar(query)

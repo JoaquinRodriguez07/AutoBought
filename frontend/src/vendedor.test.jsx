@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
@@ -194,7 +194,7 @@ describe("login según el tipo de usuario", () => {
     renderApp("/login");
     await user.type(screen.getByPlaceholderText("tu@email.com"), "alguien@example.com");
     await user.type(screen.getByPlaceholderText("••••••••"), "secreto123");
-    await user.click(screen.getByRole("button", { name: "INICIAR SESIÓN" }));
+    await user.click(within(document.querySelector("form")).getByRole("button", { name: "Iniciar sesión" }));
   };
 
   it("sends a seller to the dashboard without asking for the client profile, cart or favorites", async () => {
@@ -294,8 +294,9 @@ describe("Navbar según el perfil", () => {
 
     await user.click(screen.getByTitle("Mi cuenta"));
 
-    ["Mi perfil", "Direcciones", "Historial de compras", "Cerrar sesión"].forEach(
-      (nombre) => expect(screen.getByRole("button", { name: nombre })).toBeInTheDocument()
+    const desplegable = screen.getByRole("button", { name: "Ver toda mi cuenta" }).closest("div.absolute");
+    ["Mis compras", "Mis datos", "Direcciones", "Cerrar sesión"].forEach(
+      (nombre) => expect(within(desplegable).getByRole("button", { name: nombre })).toBeInTheDocument()
     );
     expect(screen.queryByRole("button", { name: "Dashboard" })).not.toBeInTheDocument();
   });
@@ -512,7 +513,7 @@ describe("acciones de comprador según el rol", () => {
     guardar(sesionDe("employee"));
     renderApp("/catalogo");
 
-    expect(await screen.findAllByRole("button", { name: "Ver detalle" })).toHaveLength(2);
+    expect(await screen.findAllByRole("button", { name: /^Ver detalle de / })).toHaveLength(2);
     expect(accionesDeComprador()).toEqual([]);
   });
 
@@ -533,7 +534,7 @@ describe("acciones de comprador según el rol", () => {
     guardar(sesionDe("client", { nombre: "Ana" }));
     renderApp("/catalogo");
 
-    await screen.findAllByRole("button", { name: "Ver detalle" });
+    await screen.findAllByRole("button", { name: /^Ver detalle de / });
     expect(screen.getByRole("button", { name: "Agregar" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Marcar como favorito" })).toHaveLength(2);
     expect(screen.getByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();

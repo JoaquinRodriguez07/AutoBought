@@ -120,10 +120,22 @@ def get_current_employee(
         )
 
     employee = db.get(Employee, employee_id)
-    if employee is None:
+    # Un vendedor dado de baja no puede seguir usando una sesión abierta.
+    if employee is None or not employee.active:
         raise _credenciales_invalidas()
     _verificar_version_de_sesion(employee, session_version)
 
+    return employee
+
+
+def get_current_admin(employee: Employee = Depends(get_current_employee)) -> Employee:
+    """Como get_current_employee, pero además tiene que ser administrador
+    (sección "Equipo"). 403 si es un vendedor común."""
+    if not employee.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta acción requiere ser administrador.",
+        )
     return employee
 
 
@@ -141,8 +153,13 @@ def get_current_user(
     user_id, _, session_version = _decodificar_token(credentials)
 
     user = db.get(User, user_id)
-    if user is None:
+    if user is None or not esta_activo(user):
         raise _credenciales_invalidas()
     _verificar_version_de_sesion(user, session_version)
 
     return user
+
+
+def esta_activo(user: User) -> bool:
+    """Los clientes siempre; los vendedores, mientras no se los dé de baja."""
+    return not isinstance(user, Employee) or user.active

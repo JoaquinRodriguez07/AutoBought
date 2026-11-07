@@ -15,7 +15,7 @@ jest.mock("./context/CartContext", () => ({
   useCart: jest.fn(),
 }));
 
-const TITULO = "También podrías necesitar esto...";
+const TITULO = "Te puede servir también";
 
 const itemCarrito = (partId, nombre) => ({
   id: String(partId),

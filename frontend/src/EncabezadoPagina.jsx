@@ -18,6 +18,9 @@ import repuestos from "./assets/repuestos.jpg";
  *                           en celular va debajo
  *  - children    (node)     opcional, debajo (ej. el aviso del vehículo)
  *  - ancho       (string)   ancho máximo, para alinear con el contenido
+ *  - compacto    (bool)     franja más baja (las páginas de la cuenta)
+ *  - etiquetaTitulo  "h1" por defecto; "p" si la página tiene su propio h1
+ *                    más abajo (el detalle de un producto)
  */
 export default function EncabezadoPagina({
   migas = [],
@@ -27,6 +30,8 @@ export default function EncabezadoPagina({
   fin,
   children,
   ancho = "max-w-[1100px]",
+  compacto = false,
+  etiquetaTitulo: Titulo = "h1",
 }) {
   return (
     <section className="relative overflow-hidden bg-[#151719]">
@@ -39,10 +44,10 @@ export default function EncabezadoPagina({
       />
       <div className="absolute inset-0 bg-linear-to-r from-[#151719] via-[#151719]/85 to-[#151719]/40" />
 
-      <div className="relative px-5 md:px-10 pt-[112px] pb-10">
+      <div className={`relative px-5 md:px-10 pt-[104px] ${compacto ? "pb-6" : "pb-10"}`}>
       <div className={`${ancho} mx-auto`}>
 
-        <p className="text-xs text-gray-400">
+        <nav aria-label="Estás en" className="text-xs text-gray-400">
           {migas.map((miga, i) => {
             const { texto, ir } = typeof miga === "string" ? { texto: miga } : miga;
             const actual = i === migas.length - 1;
@@ -63,15 +68,15 @@ export default function EncabezadoPagina({
               </span>
             );
           })}
-        </p>
+        </nav>
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mt-3">
           <div className="flex items-center gap-4 min-w-0">
             {inicio}
             <div className="min-w-0">
-              <h1 className="text-white text-3xl md:text-4xl font-black italic uppercase leading-none">
+              <Titulo className={`text-white font-black italic uppercase leading-none ${compacto ? "text-2xl md:text-3xl" : "text-3xl md:text-4xl"}`}>
                 {titulo}
-              </h1>
+              </Titulo>
               {descripcion && (
                 <p className="text-gray-300 text-sm mt-2 truncate">{descripcion}</p>
               )}

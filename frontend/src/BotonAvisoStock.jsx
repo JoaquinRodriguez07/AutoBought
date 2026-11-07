@@ -12,7 +12,7 @@ export default function BotonAvisoStock({ producto, tieneAviso, onAlternarAviso,
       onClick={() => onAlternarAviso(producto)}
       aria-pressed={tieneAviso}
       title={tieneAviso ? "Tocá para cancelar el aviso" : "Te mandamos un mail cuando vuelva a haber stock"}
-      className={`text-[9px] font-bold underline hover:no-underline ${
+      className={`text-xs font-bold underline hover:no-underline ${
         tieneAviso ? "text-green-600" : "text-orange-500"
       } ${className}`}
     >

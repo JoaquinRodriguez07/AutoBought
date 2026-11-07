@@ -37,7 +37,7 @@ function Seccion({ titulo, abiertaAlInicio = true, children }) {
 
 function Contador({ cantidad }) {
   return (
-    <span className="ml-auto text-[11px] text-gray-400 tabular-nums">
+    <span className="ml-auto text-xs text-gray-400 tabular-nums">
       {cantidad}
     </span>
   );
