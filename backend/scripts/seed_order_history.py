@@ -326,12 +326,13 @@ def generate_history(db: Session, semilla: int = SEMILLA, until: date | None = N
         for _ in range(qty):
             day_number = start_at + timedelta(days=rng.randrange((end - start_at).days + 1))
             hora = time(rng.randrange(8, 23), rng.randrange(60), rng.randrange(60))
-            customer = rng.choice(customers)
+            # NOSONAR en estas líneas: son datos de prueba y el azar con semilla es a propósito.
+            customer = rng.choice(customers)  # NOSONAR
             address = customer["direccion"]
 
             chosen_parts: list[Part] = []
-            for _ in range(rng.choices(*ITEMS_PER_ORDER)[0]):
-                part = rng.choices(parts, cum_weights=cumulative_weights)[0]
+            for _ in range(rng.choices(*ITEMS_PER_ORDER)[0]):  # NOSONAR
+                part = rng.choices(parts, cum_weights=cumulative_weights)[0]  # NOSONAR
                 if part not in chosen_parts:
                     chosen_parts.append(part)
 

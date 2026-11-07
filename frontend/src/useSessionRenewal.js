@@ -67,7 +67,7 @@ export function useSessionRenewal(token, { onRenewed, onExpired }) {
       if (falta > 0) {
         programar(falta);
       } else {
-        renovar();
+        void renovar();
       }
     }
 
@@ -110,7 +110,7 @@ export function useSessionRenewal(token, { onRenewed, onExpired }) {
       // Si ya llegó la hora de renovar (el temporizador se frenó), se hace
       // ahora mismo; si no, se reajusta el temporizador al reloj real.
       if (msUntilRenewal(token) === 0) {
-        renovar();
+        void renovar();
       } else {
         reprogramar();
       }

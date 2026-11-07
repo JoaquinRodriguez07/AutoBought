@@ -31,7 +31,7 @@ export default function BoughtTogether({ product, onDetail }) {
     if (!partId) return undefined;
 
     let active = true;
-    getRecommendations([partId]).then((list) => {
+    void getRecommendations([partId]).then((list) => {
       if (active) setSuggestions({ partId, list });
     });
 

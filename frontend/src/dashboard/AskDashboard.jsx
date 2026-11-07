@@ -39,7 +39,7 @@ export default function AskDashboard({ disponible = false }) {
 
   const send = (event) => {
     event.preventDefault();
-    ask(texto);
+    void ask(texto);
   };
 
   return (

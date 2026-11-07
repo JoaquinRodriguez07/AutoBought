@@ -75,7 +75,7 @@ export default function MyOrders(propsNavbar) {
       }
     };
 
-    load();
+    void load();
     return () => {
       cancelled = true;
     };
@@ -95,7 +95,7 @@ export default function MyOrders(propsNavbar) {
       }
     };
 
-    load();
+    void load();
     return () => {
       cancelled = true;
     };

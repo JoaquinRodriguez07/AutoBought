@@ -20,7 +20,7 @@ export default function CartPage({
   const { cart: products, updateQuantity, removeFromCart, clearCart, total, loadCart } = useCart();
 
   const subtotal = total;
-  const shipping = products.length ? 0 : 0;
+  const shipping = 0;
   const totalFinal = subtotal + shipping;
 
   const price = (rawValue) => `$${rawValue.toLocaleString("es-UY")}`;

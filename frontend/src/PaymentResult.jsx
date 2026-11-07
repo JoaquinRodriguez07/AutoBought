@@ -80,9 +80,9 @@ export default function PaymentResult(propsNavbar) {
           // Se sigue con la consulta de siempre.
         }
       }
-      if (!cancelled) consultar();
+      if (!cancelled) void consultar();
     };
-    empezar();
+    void empezar();
     return () => {
       cancelled = true;
       clearTimeout(temporizador);

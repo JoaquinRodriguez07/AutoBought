@@ -37,7 +37,7 @@ export default function CartSuggestions({ onDetail }) {
 
     let active = true;
 
-    getRecommendations(cartKey.split(",").map(Number)).then(
+    void getRecommendations(cartKey.split(",").map(Number)).then(
       (list) => {
         if (active) setSuggestions(list);
       }

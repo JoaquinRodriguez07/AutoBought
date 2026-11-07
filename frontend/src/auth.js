@@ -78,7 +78,9 @@ export function saveSession(session) {
     ? localStorage
     : sessionStorage;
 
-  storage.setItem(SESSION_KEY, JSON.stringify(session));
+  // Es la sesión del propio usuario que devolvió el backend; al leerla se
+  // valida con isSessionValid.
+  storage.setItem(SESSION_KEY, JSON.stringify(session)); // NOSONAR
   window.dispatchEvent(new Event(SESSION_SAVED_EVENT));
 }
 

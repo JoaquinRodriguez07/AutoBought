@@ -85,7 +85,7 @@ export default function PurchaseHistory(navigation) {
       }
     };
 
-    loadPurchases();
+    void loadPurchases();
     return () => {
       cancelled = true;
     };
