@@ -3,11 +3,11 @@ import { expect } from "@playwright/test";
 // Usuarios de backend/scripts/seed_demo_users.py (solo existen en la base
 // de prueba; no son cuentas reales).
 export const ANA = { email: "ana.perez@autobought.com", password: "Repuestos2026" };
-export const VENDEDOR = { email: "vendedor@autobought.com", password: "Ventas2026x" };
+export const SELLER = { email: "vendedor@autobought.com", password: "Ventas2026x" };
 
 const MAILPIT_URL = process.env.E2E_MAILPIT_URL || "http://localhost:8025";
 
-export async function iniciarSesion(page, { email, password }) {
+export async function logIn(page, { email, password }) {
   await page.goto("/login");
   await page.getByPlaceholder("tu@email.com").fill(email);
   await page.getByPlaceholder("••••••••").fill(password);
@@ -18,39 +18,39 @@ export async function iniciarSesion(page, { email, password }) {
 
 // Vacía el carrito desde la pantalla del carrito, para que la compra
 // arranque igual sin importar lo que dejó un recorrido anterior.
-export async function vaciarCarrito(page) {
+export async function emptyCart(page) {
   await page.goto("/carrito");
-  const vaciar = page.getByRole("button", { name: "Vaciar carrito" });
-  if (await vaciar.isVisible().catch(() => false)) await vaciar.click();
+  const clearButton = page.getByRole("button", { name: "Vaciar carrito" });
+  if (await clearButton.isVisible().catch(() => false)) await clearButton.click();
   await expect(page.getByRole("button", { name: /^Quitar .* del carrito$/ })).toHaveCount(0);
 }
 
 // Espera el mail que el backend le mandó a `email` (Mailpit lo atrapa) y
 // devuelve el enlace a `ruta` que trae adentro.
-export async function enlaceDelMail(request, email, ruta) {
-  let enlace;
+export async function linkFromMail(request, email, path) {
+  let link;
   await expect
     .poll(async () => {
-      const busqueda = await request.get(`${MAILPIT_URL}/api/v1/search`, {
+      const search = await request.get(`${MAILPIT_URL}/api/v1/search`, {
         params: { query: `to:"${email}"` },
       });
-      const { messages = [] } = await busqueda.json();
+      const { messages = [] } = await search.json();
       if (!messages.length) return null;
       const mail = await (await request.get(`${MAILPIT_URL}/api/v1/message/${messages[0].ID}`)).json();
-      enlace = `${mail.HTML || ""} ${mail.Text || ""}`.match(
-        new RegExp(`https?://[^"'\\s<>]*${ruta}[^"'\\s<>]*`)
+      link = `${mail.HTML || ""} ${mail.Text || ""}`.match(
+        new RegExp(`https?://[^"'\\s<>]*${path}[^"'\\s<>]*`)
       )?.[0];
-      return enlace ?? null;
+      return link ?? null;
     }, { message: `no llegó el mail a ${email}`, timeout: 20_000 })
     .not.toBeNull();
-  return enlace.replaceAll("&amp;", "&");
+  return link.replaceAll("&amp;", "&");
 }
 
 // El aviso "Agregado al carrito" (ConfirmacionAgregarCarrito).
-export const avisoAgregado = (page) =>
+export const addedNotice = (page) =>
   page.getByRole("status").filter({ hasText: "Agregado al carrito" });
 
 // Las cintas de marcas y fabricantes del inicio se mueven sin parar, así
 // que Playwright nunca las ve "quietas" para hacer clic: se dispara el
 // clic directo sobre el botón.
-export const clicEnCinta = (boton) => boton.first().dispatchEvent("click");
+export const clickInRibbon = (button) => button.first().dispatchEvent("click");

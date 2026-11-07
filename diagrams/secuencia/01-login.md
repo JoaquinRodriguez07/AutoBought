@@ -70,8 +70,8 @@ sequenceDiagram
                     Note over P: El login sigue igual,<br/>con la sesión sin nombre ni teléfono
                 end
 
-                P->>S: iniciarSesion(sesión, recordarme)
-                Note over P,S: App.jsx · iniciarSesion()
+                P->>S: logIn(sesión, recordarme)
+                Note over P,S: App.jsx · logIn()
                 alt recordarme = sí
                     S->>S: Guardar sesión en localStorage
                 else recordarme = no
