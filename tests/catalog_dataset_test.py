@@ -31,17 +31,17 @@ PARTS_JSON = Path(__file__).resolve().parents[1] / "backend" / "data" / "parts.j
 
 
 @pytest.fixture(scope="module")
-def catalogo():
+def catalog():
     car_models = build_car_models()
     return car_models, build_parts(car_models)
 
 
 # ---------------------------------------------------------------- datos del script
 
-def test_parts_json_esta_al_dia_con_el_script(catalogo):
+def test_parts_json_is_to_the_day_with_the_script(catalog):
     # Si falla: se cambió generate_dataset.py y falta correrlo
     # (uv run python -m scripts.generate_dataset).
-    _, parts = catalogo
+    _, parts = catalog
     assert json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"] == parts
 
 
@@ -61,18 +61,18 @@ def _catalogo_original(car_models):
     return [p for p in build_parts(_originales(car_models)) if not p["name"].startswith(TIPOS_NUEVOS)]
 
 
-def test_sumar_marcas_y_tipos_no_cambia_los_repuestos_que_ya_existian(catalogo):
+def test_adding_brands_and_types_no_changes_the_parts_that_already_existed(catalog):
     # Las bases cargadas buscan los repuestos por código: los de antes tienen
     # que quedar iguales (solo suman compatibilidades).
-    car_models, parts = catalogo
+    car_models, parts = catalog
     antes = _catalogo_original(car_models)
     without_compat = lambda part: {k: v for k, v in part.items() if k != "compatibilities"}
 
     assert [without_compat(p) for p in parts[:len(antes)]] == [without_compat(p) for p in antes]
 
 
-def test_cada_modelo_tiene_una_sola_plataforma_y_sus_frenos_traseros(catalogo):
-    car_models, parts = catalogo
+def test_each_modelo_has_a_single_platform_and_its_brakes_rear(catalog):
+    car_models, parts = catalog
     car_models_list = [model for _, models in PLATFORMS.values() for model in models]
     assert len(car_models_list) == len(set(car_models_list))
     assert set(car_models_list) == {(m["brand"], m["model"]) for m in car_models}
@@ -88,8 +88,8 @@ def test_cada_modelo_tiene_una_sola_plataforma_y_sus_frenos_traseros(catalogo):
         assert traseros in ({"Pastillas", "Discos"}, {"Campanas"}), (brand, model, traseros)
 
 
-def test_cada_marca_nueva_tiene_sus_repuestos(catalogo):
-    _, parts = catalogo
+def test_each_brand_new_has_its_parts(catalog):
+    _, parts = catalog
     by_brand = {}
     for part in parts:
         for compat in part["compatibilities"]:
@@ -99,8 +99,8 @@ def test_cada_marca_nueva_tiene_sus_repuestos(catalogo):
         assert {"Filtro", "Bujía", "Pastillas", "Aceite", "Batería"} <= by_brand[brand], brand
 
 
-def test_cada_repuesto_tiene_descripcion_especificaciones_y_garantia(catalogo):
-    _, parts = catalogo
+def test_each_part_has_description_specifications_and_warranty(catalog):
+    _, parts = catalog
     for part in parts:
         assert part["manufacturer"] in part["description"], part["part_code"]
         assert part["specifications"], part["part_code"]
@@ -110,22 +110,22 @@ def test_cada_repuesto_tiene_descripcion_especificaciones_y_garantia(catalogo):
         assert part["warranty_provider"] in ("fabricante", "vendedor")
 
 
-def test_las_marcas_economicas_tienen_garantia_del_vendedor(catalogo):
-    _, parts = catalogo
+def test_the_brands_budget_have_warranty_of_the_seller(catalog):
+    _, parts = catalog
     provider = {p["manufacturer"]: p["warranty_provider"] for p in parts}
     assert provider["Fram"] == "vendedor"
     assert provider["Bosch"] == "fabricante"
 
 
-def test_ningun_fabricante_es_una_marca_de_auto(catalogo):
-    car_models, parts = catalogo
+def test_no_manufacturer_is_a_brand_of_car(catalog):
+    car_models, parts = catalog
     car_brands = {m["brand"] for m in car_models}
     assert not {p["manufacturer"] for p in parts} & car_brands
 
 
-def test_ni_el_nombre_ni_la_descripcion_nombran_autos(catalogo):
+def test_nor_the_name_nor_the_description_name_cars(catalog):
     # Para qué autos es un repuesto lo dicen sus compatibilidades.
-    car_models, parts = catalogo
+    car_models, parts = catalog
     cars = {m["brand"] for m in car_models} | {m["model"] for m in car_models}
     for part in parts:
         for field in ("name", "description"):
@@ -133,8 +133,8 @@ def test_ni_el_nombre_ni_la_descripcion_nombran_autos(catalogo):
             assert not palabras & cars, (part["part_code"], field)
 
 
-def test_check_parts_rechaza_un_fabricante_que_es_marca_de_auto(catalogo):
-    car_models, parts = catalogo
+def test_check_parts_rejects_a_manufacturer_that_is_brand_of_car(catalog):
+    car_models, parts = catalog
     mal = copy.deepcopy(parts[0])
     mal["manufacturer"] = "Chevrolet"
     mal["name"] = "Filtro de aceite Chevrolet 1.4 8V"
@@ -144,8 +144,8 @@ def test_check_parts_rechaza_un_fabricante_que_es_marca_de_auto(catalogo):
 
 
 @pytest.mark.parametrize("field", ["name", "description"])
-def test_check_parts_rechaza_un_auto_en_el_nombre_o_la_descripcion(catalogo, field):
-    car_models, parts = catalogo
+def test_check_parts_rejects_a_car_in_the_name_or_the_description(catalog, field):
+    car_models, parts = catalog
     mal = copy.deepcopy(parts[0])
     mal[field] = f"{mal[field]} Chevrolet Onix"
 
@@ -171,8 +171,8 @@ def loaded_db():
     return engine
 
 
-def test_seed_actualiza_los_detalles_sin_tocar_precio_ni_stock(loaded_db, catalogo):
-    _, parts = catalogo
+def test_seed_updates_the_details_without_touching_price_nor_stock(loaded_db, catalog):
+    _, parts = catalog
     db = sessionmaker(bind=loaded_db)()
 
     assert seed.update_details(db, parts) == 1
@@ -188,8 +188,8 @@ def test_seed_actualiza_los_detalles_sin_tocar_precio_ni_stock(loaded_db, catalo
     assert seed.update_details(db, parts) == 0
 
 
-def test_seed_agrega_las_marcas_nuevas_a_una_base_cargada_sin_tocar_lo_que_estaba(catalogo):
-    car_models, parts = catalogo
+def test_seed_adds_the_brands_new_a_db_loaded_without_touching_it_that_was(catalog):
+    car_models, parts = catalog
     engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )

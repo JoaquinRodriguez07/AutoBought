@@ -73,7 +73,7 @@ def _units_by_month(db, categoria, name_value=""):
 
 # ---------------------------------------------------------------- criterios
 
-def test_la_misma_semilla_genera_los_mismos_pedidos():
+def test_the_same_seed_generates_the_same_orders():
     primera, segunda = _db_with_catalog(), _db_with_catalog()
 
     generate_history(primera, semilla=7, until=HASTA)
@@ -83,7 +83,7 @@ def test_la_misma_semilla_genera_los_mismos_pedidos():
     assert len(_orders(primera)) > 0
 
 
-def test_otra_semilla_genera_otros_pedidos():
+def test_another_seed_generates_others_orders():
     primera, segunda = _db_with_catalog(), _db_with_catalog()
 
     generate_history(primera, semilla=1, until=HASTA)
@@ -92,13 +92,13 @@ def test_otra_semilla_genera_otros_pedidos():
     assert _orders(primera) != _orders(segunda)
 
 
-def test_el_stock_no_cambia(generated):
+def test_the_stock_no_changes(generated):
     db, _, stock_before = generated
 
     assert _stock_of(db) == stock_before
 
 
-def test_hay_pedidos_en_cada_uno_de_los_ultimos_12_meses(generated):
+def test_there_is_orders_in_each_one_of_the_last_12_months(generated):
     db, resumen, _ = generated
     dates = [o.created_at.date() for o in db.scalars(select(Order))]
 
@@ -108,7 +108,7 @@ def test_hay_pedidos_en_cada_uno_de_los_ultimos_12_meses(generated):
     assert len({(f.year, f.month) for f in dates}) == MONTHS
 
 
-def test_correrlo_dos_veces_no_duplica(generated):
+def test_running_it_two_times_no_duplicates(generated):
     db, resumen, _ = generated
 
     segunda = generate_history(db, semilla=2026, until=HASTA)
@@ -117,7 +117,7 @@ def test_correrlo_dos_veces_no_duplica(generated):
     assert db.query(Order).count() == resumen.orders_list
 
 
-def test_sin_catalogo_avisa_que_hay_que_cargarlo():
+def test_without_catalog_notifies_that_there_is_that_loading_it():
     engine = create_engine("sqlite:///:memory:", poolclass=StaticPool)
     Base.metadata.create_all(bind=engine)
 
@@ -127,7 +127,7 @@ def test_sin_catalogo_avisa_que_hay_que_cargarlo():
 
 # ---------------------------------------------------------------- forma de los datos
 
-def test_las_ventas_crecen_a_lo_largo_del_anio(generated):
+def test_the_sales_grow_a_it_long_of_the_year(generated):
     db, _, _ = generated
     by_month = Counter((o.created_at.year, o.created_at.month) for o in db.scalars(select(Order)))
     periods = sorted(by_month)
@@ -136,7 +136,7 @@ def test_las_ventas_crecen_a_lo_largo_del_anio(generated):
     assert by_month[periods[-2]] > 1.4 * by_month[periods[0]]
 
 
-def test_estacionalidad_por_epoca_del_anio(generated):
+def test_seasonality_by_season_of_the_year(generated):
     db, _, _ = generated
     invierno, verano, primavera = (6, 7, 8), (12, 1, 2), (9, 10, 11)
 
@@ -156,7 +156,7 @@ def test_estacionalidad_por_epoca_del_anio(generated):
     assert total(habitaculo, primavera) > 1.5 * total(habitaculo, invierno)
 
 
-def test_pocos_repuestos_estrella_y_muchos_lentos(generated):
+def test_few_parts_star_and_many_slow(generated):
     db, _, _ = generated
     units = Counter()
     for o in db.scalars(select(Order)):
@@ -170,7 +170,7 @@ def test_pocos_repuestos_estrella_y_muchos_lentos(generated):
     assert sorted(sales)[len(sales) // 2] < sales[0] / 20
 
 
-def test_hay_repuestos_en_riesgo_con_stock_bajo_y_ventas_altas(generated):
+def test_there_is_parts_in_risk_with_stock_low_and_sales_high(generated):
     db, resumen, _ = generated
     since = HASTA - timedelta(days=30)
     last_30_days = Counter()
@@ -185,7 +185,7 @@ def test_hay_repuestos_en_riesgo_con_stock_bajo_y_ventas_altas(generated):
     assert all(last_30_days[code] > stock[code] for code in resumen.at_risk)
 
 
-def test_cada_auto_del_catalogo_tiene_una_bateria_de_cada_fabricante():
+def test_each_car_of_the_catalog_has_a_battery_of_each_manufacturer():
     parts = json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"]
     car_models_list = json.loads((PARTS_JSON.parent / "car_models.json").read_text(encoding="utf-8"))["car_models"]
     baterias = [p for p in parts if p["name"].startswith("Batería")]
@@ -202,14 +202,14 @@ def test_cada_auto_del_catalogo_tiene_una_bateria_de_cada_fabricante():
     )
 
 
-def test_el_fabricante_principal_cubre_todos_los_autos_y_los_demas_algunos():
+def test_the_manufacturer_primary_covers_all_the_cars_and_the_rest_some():
     parts = json.loads(PARTS_JSON.read_text(encoding="utf-8"))["parts"]
     car_models_list = json.loads((PARTS_JSON.parent / "car_models.json").read_text(encoding="utf-8"))["car_models"]
-    pastillas = [p for p in parts if p["name"].startswith("Pastillas de freno")]
+    brake_pads = [p for p in parts if p["name"].startswith("Pastillas de freno")]
     cars_of = {
         manufacturer_name: {
             (c["brand"], c["model"], c["engine_code"])
-            for p in pastillas if p["manufacturer"] == manufacturer_name
+            for p in brake_pads if p["manufacturer"] == manufacturer_name
             for c in p["compatibilities"]
         }
         for manufacturer_name in ("Bosch", "Brembo", "TRW", "Ferodo")

@@ -15,7 +15,7 @@ from app.models.employee import Employee
 from app.models.part import Part
 from app.models.ai_usage import AIUsage
 from backend.main import app
-from ia_fake import FakeAIClient, ai_down
+from ai_fake import FakeAIClient, ai_down
 
 ASISTENTE = "/api/v1/asistente"
 CATALOGO = Path(__file__).resolve().parents[1] / "backend" / "data" / "parts.json"
@@ -38,7 +38,7 @@ def ai_response(**cambios) -> str:
 
 
 @pytest.fixture
-def ia(client):
+def ai(client):
     """Reemplaza la IA real por una falsa; cada test le pone su respuesta."""
     falsa = FakeAIClient(ai_response(), tokens=250)
     app.dependency_overrides[get_ai_client] = lambda: falsa
@@ -54,7 +54,7 @@ def make_client(db):
     return customer
 
 
-def headers_de(user, user_type="client"):
+def headers_for(user, user_type="client"):
     token = create_access_token(subject=str(user.user_id), extra_claims={"user_type": user_type})
     return {"Authorization": f"Bearer {token}"}
 
@@ -69,7 +69,7 @@ def make_part(db, code, name, manufacturer, price, stock, car, year_from=2013, y
 
 
 @pytest.fixture
-def catalogo(db_session):
+def catalog(db_session):
     onix = CarModel(brand="Chevrolet", model="Onix", engine_code="1.4 8V")
     gol = CarModel(brand="Volkswagen", model="Gol", engine_code="1.6 MSI")
     return {
@@ -82,7 +82,7 @@ def catalogo(db_session):
     }
 
 
-def consultar(client, headers, texto="chilla al frenar", marca="Chevrolet", modelo="Onix", anio=2016):
+def ask(client, headers, texto="chilla al frenar", marca="Chevrolet", modelo="Onix", anio=2016):
     return client.post(ASISTENTE, headers=headers, json={"texto": texto, "marca": marca, "modelo": modelo, "anio": anio})
 
 
@@ -91,8 +91,8 @@ def consultar(client, headers, texto="chilla al frenar", marca="Chevrolet", mode
 # =====================================================
 
 
-def test_recomienda_repuestos_compatibles_con_su_motivo(client, db_session, ia, catalogo):
-    reply = consultar(client, headers_de(make_client(db_session)))
+def test_recommends_parts_compatible_with_its_reason(client, db_session, ai, catalog):
+    reply = ask(client, headers_for(make_client(db_session)))
 
     assert reply.status_code == 200
     data = reply.json()
@@ -103,28 +103,28 @@ def test_recomienda_repuestos_compatibles_con_su_motivo(client, db_session, ia, 
     assert data["recomendaciones"][0]["motivo"].startswith("El chillido")
 
     # Con stock primero y más baratos; uno por fabricante; nada de otros autos o años.
-    pastillas = [p["id"] for p in data["recomendaciones"][0]["repuestos"]]
-    assert pastillas == [catalogo["bosch"].id, catalogo["brembo"].id]
+    brake_pads = [p["id"] for p in data["recomendaciones"][0]["repuestos"]]
+    assert brake_pads == [catalog["bosch"].id, catalog["brembo"].id]
     assert data["recomendaciones"][0]["repuestos"][0]["manufacturer"] == "Bosch"
 
 
-def test_le_pasa_a_la_ia_el_vehiculo_y_el_texto(client, db_session, ia, catalogo):
-    consultar(client, headers_de(make_client(db_session)), texto="hace ruido atrás")
+def test_goes_a_the_ai_the_vehicle_and_the_text(client, db_session, ai, catalog):
+    ask(client, headers_for(make_client(db_session)), texto="hace ruido atrás")
 
-    instructions, input_text = ia.orders_list[0]
+    instructions, input_text = ai.orders_list[0]
     assert instructions == INSTRUCCIONES
     assert "Chevrolet Onix 2016" in input_text
     assert "hace ruido atrás" in input_text
 
 
-def test_le_pasa_a_la_ia_la_conversacion(client, db_session, ia, catalogo):
-    headers = headers_de(make_client(db_session))
-    ia.texto = ai_response(pregunta="¿Suena siempre o solo al frenar fuerte?")
-    primera = consultar(client, headers, texto="chilla al frenar").json()
+def test_goes_a_the_ai_the_conversation(client, db_session, ai, catalog):
+    headers = headers_for(make_client(db_session))
+    ai.texto = ai_response(pregunta="¿Suena siempre o solo al frenar fuerte?")
+    primera = ask(client, headers, texto="chilla al frenar").json()
 
-    seguir(client, headers, primera, texto="solo cuando freno fuerte")
+    continue_chat(client, headers, primera, texto="solo cuando freno fuerte")
 
-    _, input_text = ia.orders_list[-1]
+    _, input_text = ai.orders_list[-1]
     assert "Cliente: chilla al frenar" in input_text
     assert "Pit: Parece que las pastillas de freno están gastadas." in input_text
     assert "¿Suena siempre o solo al frenar fuerte?" in input_text
@@ -132,58 +132,58 @@ def test_le_pasa_a_la_ia_la_conversacion(client, db_session, ia, catalogo):
     assert input_text.endswith('Último mensaje del cliente:\n"""\nsolo cuando freno fuerte\n"""')
 
 
-def test_descarta_tipos_inventados_repetidos_o_sin_repuestos_para_el_auto(client, db_session, ia, catalogo):
-    ia.texto = ai_response(tipos=[
+def test_discards_types_made_up_repeated_or_without_parts_for_the_car(client, db_session, ai, catalog):
+    ai.texto = ai_response(tipos=[
         {"tipo": "Turbo compresor", "motivo": "inventado"},
         {"tipo": "pastillas de freno", "motivo": "en minúsculas igual vale"},
         {"tipo": "Pastillas de freno", "motivo": "repetido"},
         {"tipo": "Radiador", "motivo": "no hay radiadores para el Onix"},
     ])
 
-    data = consultar(client, headers_de(make_client(db_session))).json()
+    data = ask(client, headers_for(make_client(db_session))).json()
 
     assert [(r["tipo"], r["motivo"]) for r in data["recomendaciones"]] == [("Pastillas de freno", "en minúsculas igual vale")]
 
 
-def test_si_no_hay_repuestos_para_ese_auto_igual_da_el_diagnostico(client, db_session, ia, catalogo):
-    data = consultar(client, headers_de(make_client(db_session)), marca="Fiat", modelo="Uno", anio=2015).json()
+def test_if_no_there_is_parts_for_that_car_same_gives_the_diagnosis(client, db_session, ai, catalog):
+    data = ask(client, headers_for(make_client(db_session)), marca="Fiat", modelo="Uno", anio=2015).json()
 
     assert data["diagnostico"]
     assert data["recomendaciones"] == []
 
 
-def test_fuera_de_tema_no_recomienda_repuestos(client, db_session, ia, catalogo):
-    ia.texto = ai_response(
+def test_out_of_topic_no_recommends_parts(client, db_session, ai, catalog):
+    ai.texto = ai_response(
         diagnostico="Solo puedo ayudarte con problemas del auto.", urgencia="baja", aviso=None,
         types=[{"tipo": "Batería", "motivo": "x"}], fuera_de_tema=True,
     )
 
-    data = consultar(client, headers_de(make_client(db_session)), texto="¿quién ganó el partido?").json()
+    data = ask(client, headers_for(make_client(db_session)), texto="¿quién ganó el partido?").json()
 
     assert data["fuera_de_tema"] is True
     assert data["recomendaciones"] == []
 
 
-def test_el_aviso_es_solo_para_urgencia_alta(client, db_session, ia, catalogo):
-    ia.texto = ai_response(urgencia="baja", aviso="no debería aparecer")
+def test_the_notice_is_only_for_urgency_signup(client, db_session, ai, catalog):
+    ai.texto = ai_response(urgencia="baja", aviso="no debería aparecer")
 
-    assert consultar(client, headers_de(make_client(db_session))).json()["aviso"] is None
+    assert ask(client, headers_for(make_client(db_session))).json()["aviso"] is None
 
 
-def test_devuelve_hasta_3_respuestas_rapidas_cortas_para_la_pregunta(client, db_session, ia, catalogo):
-    headers = headers_de(make_client(db_session))
-    ia.texto = ai_response(
+def test_returns_until_3_answers_quick_short_for_the_question(client, db_session, ai, catalog):
+    headers = headers_for(make_client(db_session))
+    ai.texto = ai_response(
         pregunta="¿Cuándo suena?",
         opciones=["Siempre", "  Solo al frenar fuerte ", "", "x" * 41, "En frío", "De noche"],
     )
 
-    assert consultar(client, headers).json()["opciones"] == ["Siempre", "Solo al frenar fuerte", "En frío"]
+    assert ask(client, headers).json()["opciones"] == ["Siempre", "Solo al frenar fuerte", "En frío"]
 
     # Sin pregunta no hay nada que contestar; y si vienen mal, no se rechaza la respuesta.
-    ia.texto = ai_response(pregunta=None, opciones=["Siempre"])
-    assert consultar(client, headers).json()["opciones"] == []
-    ia.texto = ai_response(pregunta="¿Cuándo suena?", opciones="Siempre")
-    assert consultar(client, headers).json()["opciones"] == []
+    ai.texto = ai_response(pregunta=None, opciones=["Siempre"])
+    assert ask(client, headers).json()["opciones"] == []
+    ai.texto = ai_response(pregunta="¿Cuándo suena?", opciones="Siempre")
+    assert ask(client, headers).json()["opciones"] == []
 
 
 # =====================================================
@@ -191,11 +191,11 @@ def test_devuelve_hasta_3_respuestas_rapidas_cortas_para_la_pregunta(client, db_
 # =====================================================
 
 
-def test_si_la_ia_no_responde_devuelve_503_y_lo_registra(client, db_session, catalogo, caplog):
+def test_if_the_ai_no_answers_returns_503_and_it_records(client, db_session, catalog, caplog):
     app.dependency_overrides[get_ai_client] = ai_down
     customer = make_client(db_session)
     try:
-        reply = consultar(client, headers_de(customer))
+        reply = ask(client, headers_for(customer))
     finally:
         app.dependency_overrides.pop(get_ai_client, None)
 
@@ -207,41 +207,41 @@ def test_si_la_ia_no_responde_devuelve_503_y_lo_registra(client, db_session, cat
     assert "Pit no disponible: La IA no respondió." in caplog.text
 
 
-def test_si_la_ia_responde_cualquier_cosa_devuelve_503(client, db_session, ia, catalogo):
-    ia.texto = "Perdón, no entendí."
+def test_if_the_ai_answers_any_thing_returns_503(client, db_session, ai, catalog):
+    ai.texto = "Perdón, no entendí."
 
-    assert consultar(client, headers_de(make_client(db_session))).status_code == 503
+    assert ask(client, headers_for(make_client(db_session))).status_code == 503
 
 
-def test_registra_el_uso_con_los_tokens(client, db_session, ia, catalogo):
+def test_records_the_usage_with_the_tokens(client, db_session, ai, catalog):
     customer = make_client(db_session)
-    consultar(client, headers_de(customer))
+    ask(client, headers_for(customer))
 
     usage = db_session.query(AIUsage).one()
     assert (usage.funcionalidad, usage.tokens, usage.ok) == ("asistente", 250, True)
 
 
-def test_limite_de_consultas_responde_429_sin_llamar_a_la_ia(client, db_session, ia, catalogo, monkeypatch):
+def test_limit_of_queries_answers_429_without_calling_a_the_ai(client, db_session, ai, catalog, monkeypatch):
     monkeypatch.setattr("app.ia.service.AI_DAILY_LIMIT", 2)
-    headers = headers_de(make_client(db_session))
+    headers = headers_for(make_client(db_session))
 
-    assert consultar(client, headers).status_code == 200
-    assert consultar(client, headers).status_code == 200
-    reply = consultar(client, headers)
+    assert ask(client, headers).status_code == 200
+    assert ask(client, headers).status_code == 200
+    reply = ask(client, headers)
 
     assert reply.status_code == 429
     assert "límite" in reply.json()["detail"]
-    assert len(ia.orders_list) == 2
+    assert len(ai.orders_list) == 2
 
 
-def test_pide_sesion_de_cliente(client, db_session, ia, catalogo):
-    assert consultar(client, {}).status_code == 401
+def test_asks_session_of_customer(client, db_session, ai, catalog):
+    assert ask(client, {}).status_code == 401
 
     seller = Employee(username="vendedor", password="x", name="Vendedor", email="vendedor@example.com")
     db_session.add(seller)
     db_session.commit()
-    assert consultar(client, headers_de(seller, "employee")).status_code == 403
-    assert ia.orders_list == []
+    assert ask(client, headers_for(seller, "employee")).status_code == 403
+    assert ai.orders_list == []
 
 
 @pytest.mark.parametrize(
@@ -256,13 +256,13 @@ def test_pide_sesion_de_cliente(client, db_session, ia, catalogo):
         {"historial": [{"rol": "cliente", "texto": "hola"}] * 9, "firma": "x"},
     ],
 )
-def test_valida_el_pedido(client, db_session, ia, cambio):
+def test_validates_the_order(client, db_session, ai, cambio):
     body_data = {"texto": "chilla al frenar", "marca": "Chevrolet", "modelo": "Onix", "anio": 2016, **cambio}
 
-    reply = client.post(ASISTENTE, headers=headers_de(make_client(db_session)), json=body_data)
+    reply = client.post(ASISTENTE, headers=headers_for(make_client(db_session)), json=body_data)
 
     assert reply.status_code == 422
-    assert ia.orders_list == []
+    assert ai.orders_list == []
 
 
 # =====================================================
@@ -270,7 +270,7 @@ def test_valida_el_pedido(client, db_session, ia, cambio):
 # =====================================================
 
 
-def seguir(client, headers, previous, texto="solo cuando freno fuerte", modelo="Onix"):
+def continue_chat(client, headers, previous, texto="solo cuando freno fuerte", modelo="Onix"):
     """Manda un mensaje más, con el historial y la firma de la respuesta anterior."""
     body_data = {
         "texto": texto,
@@ -283,10 +283,10 @@ def seguir(client, headers, previous, texto="solo cuando freno fuerte", modelo="
     return client.post(ASISTENTE, headers=headers, json=body_data)
 
 
-def test_devuelve_el_historial_con_lo_que_respondio_y_su_firma(client, db_session, ia, catalogo):
-    ia.texto = ai_response(pregunta="¿Suena siempre o solo al frenar fuerte?")
+def test_returns_the_history_with_it_that_answered_and_its_signature(client, db_session, ai, catalog):
+    ai.texto = ai_response(pregunta="¿Suena siempre o solo al frenar fuerte?")
 
-    data = consultar(client, headers_de(make_client(db_session)), texto="chilla al frenar").json()
+    data = ask(client, headers_for(make_client(db_session)), texto="chilla al frenar").json()
 
     assert data["historial"] == [
         {"rol": "cliente", "texto": "chilla al frenar"},
@@ -299,11 +299,11 @@ def test_devuelve_el_historial_con_lo_que_respondio_y_su_firma(client, db_sessio
     assert len(data["firma"]) == 64
 
 
-def test_sigue_la_conversacion_con_el_historial_firmado(client, db_session, ia, catalogo):
-    headers = headers_de(make_client(db_session))
-    primera = consultar(client, headers).json()
+def test_keeps_the_conversation_with_the_history_signed(client, db_session, ai, catalog):
+    headers = headers_for(make_client(db_session))
+    primera = ask(client, headers).json()
 
-    reply = seguir(client, headers, primera)
+    reply = continue_chat(client, headers, primera)
 
     assert reply.status_code == 200
     historial = reply.json()["historial"]
@@ -311,10 +311,10 @@ def test_sigue_la_conversacion_con_el_historial_firmado(client, db_session, ia, 
     assert historial[2]["texto"] == "solo cuando freno fuerte"
 
 
-def test_rechaza_un_historial_modificado_o_sin_firma(client, db_session, ia, catalogo):
-    headers = headers_de(make_client(db_session))
-    primera = consultar(client, headers).json()
-    ia.orders_list.clear()
+def test_rejects_a_history_modified_or_without_signature(client, db_session, ai, catalog):
+    headers = headers_for(make_client(db_session))
+    primera = ask(client, headers).json()
+    ai.orders_list.clear()
 
     # Un mensaje "de Pit" que Pit nunca dijo.
     trucho = {**primera, "historial": [*primera["historial"]]}
@@ -322,33 +322,33 @@ def test_rechaza_un_historial_modificado_o_sin_firma(client, db_session, ia, cat
     without_signature = {**primera, "firma": None}
 
     for previous in (trucho, without_signature):
-        reply = seguir(client, headers, previous)
+        reply = continue_chat(client, headers, previous)
         assert reply.status_code == 400
         assert reply.json()["detail"] == "No pudimos seguir esta conversación. Empezá una nueva."
 
-    assert ia.orders_list == []
+    assert ai.orders_list == []
     # Lo rechazado no cuenta para el límite diario.
     assert db_session.query(AIUsage).count() == 1
 
 
-def test_la_firma_es_de_ese_cliente_y_ese_auto(client, db_session, ia, catalogo):
-    headers = headers_de(make_client(db_session))
-    primera = consultar(client, headers).json()
+def test_the_signature_is_of_that_customer_and_that_car(client, db_session, ai, catalog):
+    headers = headers_for(make_client(db_session))
+    primera = ask(client, headers).json()
 
     other = Client(username="beto", password="x", name="Beto", email="beto@example.com")
     db_session.add(other)
     db_session.commit()
 
-    assert seguir(client, headers_de(other), primera).status_code == 400
-    assert seguir(client, headers, primera, modelo="Prisma").status_code == 400
+    assert continue_chat(client, headers_for(other), primera).status_code == 400
+    assert continue_chat(client, headers, primera, modelo="Prisma").status_code == 400
 
 
-def test_el_historial_guarda_solo_los_ultimos_mensajes(client, db_session, ia, catalogo):
-    headers = headers_de(make_client(db_session))
-    previous = consultar(client, headers, texto="mensaje 1").json()
+def test_the_history_saves_only_the_last_messages(client, db_session, ai, catalog):
+    headers = headers_for(make_client(db_session))
+    previous = ask(client, headers, texto="mensaje 1").json()
 
     for number_value in range(2, 6):
-        previous = seguir(client, headers, previous, texto=f"mensaje {number_value}").json()
+        previous = continue_chat(client, headers, previous, texto=f"mensaje {number_value}").json()
 
     # 5 mensajes con sus 5 respuestas son 10; quedan los últimos 8.
     historial = previous["historial"]
@@ -362,7 +362,7 @@ def test_el_historial_guarda_solo_los_ultimos_mensajes(client, db_session, ia, c
 # =====================================================
 
 
-def test_los_tipos_cubren_todo_el_catalogo_y_estan_en_las_instrucciones():
+def test_the_types_cover_everything_the_catalog_and_are_in_the_instructions():
     parts_list = json.loads(CATALOGO.read_text(encoding="utf-8"))["parts"]
     without_type = [p["name"] for p in parts_list if not any(p["name"].startswith(t) for t in PART_TYPES)]
 

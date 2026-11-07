@@ -59,7 +59,7 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 @pytest.fixture(autouse=True)
-def mercadopago_configurado(monkeypatch):
+def mercadopago_configured(monkeypatch):
     """Los tests compran con un token falso: sin token, POST /orders da 503.
     Igual nadie llama a Mercado Pago (ver el cliente falso de pago_test.py)."""
     monkeypatch.setattr("app.core.config.MERCADOPAGO_ACCESS_TOKEN", "TEST-token-de-los-tests")

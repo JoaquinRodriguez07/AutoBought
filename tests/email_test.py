@@ -32,7 +32,7 @@ PASSWORD_ACTUAL = "secreto123"
 PASSWORD_NUEVA = "Nueva2026x"
 
 
-def registrar(client):
+def register_user(client):
     response = client.post(REGISTER, json={
         "name": "Lucía Gómez",
         "email": CORREO,
@@ -65,7 +65,7 @@ def can_enter(client, password):
 # =====================================================
 
 
-def test_el_mail_tiene_version_html_y_texto_con_el_enlace():
+def test_the_mail_has_version_html_and_text_with_the_link():
     msg = email_module.build_message(
         "ana@example.com",
         "Asunto",
@@ -81,7 +81,7 @@ def test_el_mail_tiene_version_html_y_texto_con_el_enlace():
     assert 'href="http://front/verificar-correo?token=abc"' in html(msg)
 
 
-def test_el_html_escapa_los_datos_del_usuario():
+def test_the_html_escapes_the_data_of_the_user():
     msg = email_module.build_message(
         "ana@example.com", "Asunto", "verificar_correo", {"nombre": "<b>Ana</b>", "enlace": "x"}
     )
@@ -90,11 +90,11 @@ def test_el_html_escapa_los_datos_del_usuario():
     assert "&lt;b&gt;Ana&lt;/b&gt;" in html(msg)
 
 
-def test_si_el_envio_falla_no_corta_la_accion(monkeypatch):
-    def falla(_message):
+def test_if_the_shipping_fails_no_stops_the_action(monkeypatch):
+    def failing(_message):
         raise smtplib.SMTPException("sin conexión")
 
-    monkeypatch.setattr("app.core.email._send_smtp", falla)
+    monkeypatch.setattr("app.core.email._send_smtp", failing)
 
     email_module.send_mail("ana@example.com", "Asunto", "verificar_correo", {"nombre": "Ana", "enlace": "x"})
 
@@ -120,7 +120,7 @@ class SMTPFalso:
         self.calls.append(("enviar", msg["To"]))
 
 
-def test_con_usuario_smtp_cifra_e_inicia_sesion_como_pide_gmail(monkeypatch):
+def test_with_user_smtp_encrypts_and_starts_session_as_asks_gmail(monkeypatch):
     monkeypatch.setattr("app.core.email.smtplib.SMTP", SMTPFalso)
     monkeypatch.setattr("app.core.email.SMTP_HOST", "smtp.gmail.com")
     monkeypatch.setattr("app.core.email.SMTP_PORT", 587)
@@ -138,7 +138,7 @@ def test_con_usuario_smtp_cifra_e_inicia_sesion_como_pide_gmail(monkeypatch):
     ]
 
 
-def test_sin_usuario_smtp_manda_directo_como_mailpit(monkeypatch):
+def test_without_user_smtp_sends_direct_as_mailpit(monkeypatch):
     monkeypatch.setattr("app.core.email.smtplib.SMTP", SMTPFalso)
     monkeypatch.setattr("app.core.email.SMTP_HOST", "mailpit")
     monkeypatch.setattr("app.core.email.SMTP_PORT", 1025)
@@ -150,7 +150,7 @@ def test_sin_usuario_smtp_manda_directo_como_mailpit(monkeypatch):
     assert SMTPFalso.last.calls == [("conectar", "mailpit", 1025), ("enviar", "ana@example.com")]
 
 
-def test_en_vercel_el_mail_sale_antes_de_responder(monkeypatch, sent_mails):
+def test_in_vercel_the_mail_goes_out_before_of_answer(monkeypatch, sent_mails):
     # En Vercel la función se congela al responder: una tarea en segundo
     # plano puede no correr nunca, así que el mail sale en el momento.
     monkeypatch.setattr("app.core.email.SEND_MAILS_IN_BACKGROUND", False)
@@ -162,7 +162,7 @@ def test_en_vercel_el_mail_sale_antes_de_responder(monkeypatch, sent_mails):
     assert tasks.tasks == []
 
 
-def test_fuera_de_vercel_el_mail_sale_en_segundo_plano(monkeypatch, sent_mails):
+def test_out_of_vercel_the_mail_goes_out_in_background_task(monkeypatch, sent_mails):
     monkeypatch.setattr("app.core.email.SEND_MAILS_IN_BACKGROUND", True)
     tasks = BackgroundTasks()
 
@@ -172,7 +172,7 @@ def test_fuera_de_vercel_el_mail_sale_en_segundo_plano(monkeypatch, sent_mails):
     assert len(tasks.tasks) == 1
 
 
-def test_el_log_no_guarda_el_correo_entero():
+def test_the_log_no_saves_the_email_integer():
     assert email_module._mask("ana.perez@gmail.com") == "a***@gmail.com"
 
 
@@ -181,8 +181,8 @@ def test_el_log_no_guarda_el_correo_entero():
 # =====================================================
 
 
-def test_registrarse_manda_el_mail_de_verificacion(client, sent_mails):
-    headers = registrar(client)
+def test_signing_up_sends_the_mail_of_verification(client, sent_mails):
+    headers = register_user(client)
 
     assert len(sent_mails) == 1
     assert sent_mails[0]["To"] == CORREO
@@ -190,8 +190,8 @@ def test_registrarse_manda_el_mail_de_verificacion(client, sent_mails):
     assert client.get(ME, headers=headers).json()["email_verified"] is False
 
 
-def test_el_enlace_del_mail_verifica_el_correo(client, sent_mails):
-    headers = registrar(client)
+def test_the_link_of_the_mail_verifies_the_email(client, sent_mails):
+    headers = register_user(client)
 
     response = client.post(VERIFY, json={"token": mail_token(sent_mails[0])})
 
@@ -199,8 +199,8 @@ def test_el_enlace_del_mail_verifica_el_correo(client, sent_mails):
     assert client.get(ME, headers=headers).json()["email_verified"] is True
 
 
-def test_usar_el_enlace_de_verificacion_de_nuevo_no_es_un_error(client, sent_mails):
-    registrar(client)
+def test_use_the_link_of_verification_of_new_no_is_a_error(client, sent_mails):
+    register_user(client)
     token = mail_token(sent_mails[0])
     client.post(VERIFY, json={"token": token})
 
@@ -209,8 +209,8 @@ def test_usar_el_enlace_de_verificacion_de_nuevo_no_es_un_error(client, sent_mai
     assert response.status_code == 204
 
 
-def test_enlace_de_verificacion_invalido_o_vencido(client, db_session):
-    registrar(client)
+def test_link_of_verification_invalid_or_expired(client, db_session):
+    register_user(client)
     customer = db_session.scalars(select(Client)).one()
     expired = create_purpose_token(str(customer.user_id), VERIFY_EMAIL, minutes_count=-1)
 
@@ -223,8 +223,8 @@ def test_enlace_de_verificacion_invalido_o_vencido(client, db_session):
     assert customer.email_verified is False
 
 
-def test_un_enlace_de_recuperacion_no_sirve_para_verificar(client, db_session):
-    registrar(client)
+def test_a_link_of_recovery_no_works_for_verify(client, db_session):
+    register_user(client)
     customer = db_session.scalars(select(Client)).one()
     token = create_purpose_token(str(customer.user_id), RESET_PASSWORD, minutes_count=30)
 
@@ -233,16 +233,16 @@ def test_un_enlace_de_recuperacion_no_sirve_para_verificar(client, db_session):
     assert response.status_code == 400
 
 
-def test_el_enlace_del_mail_no_sirve_como_sesion(client, sent_mails):
-    registrar(client)
+def test_the_link_of_the_mail_no_works_as_session(client, sent_mails):
+    register_user(client)
 
     response = client.get(ME, headers={"Authorization": f"Bearer {mail_token(sent_mails[0])}"})
 
     assert response.status_code == 401
 
 
-def test_reenviar_el_mail_de_verificacion(client, sent_mails):
-    headers = registrar(client)
+def test_resend_the_mail_of_verification(client, sent_mails):
+    headers = register_user(client)
 
     response = client.post(RESEND, headers=headers)
 
@@ -251,8 +251,8 @@ def test_reenviar_el_mail_de_verificacion(client, sent_mails):
     assert "/verificar-correo?token=" in texto(sent_mails[1])
 
 
-def test_con_el_correo_verificado_no_se_reenvia(client, sent_mails):
-    headers = registrar(client)
+def test_with_the_email_verified_no_resends(client, sent_mails):
+    headers = register_user(client)
     client.post(VERIFY, json={"token": mail_token(sent_mails[0])})
 
     response = client.post(RESEND, headers=headers)
@@ -261,7 +261,7 @@ def test_con_el_correo_verificado_no_se_reenvia(client, sent_mails):
     assert len(sent_mails) == 1
 
 
-def test_reenviar_requiere_sesion(client):
+def test_resend_requires_session(client):
     assert client.post(RESEND).status_code == 401
 
 
@@ -270,8 +270,8 @@ def test_reenviar_requiere_sesion(client):
 # =====================================================
 
 
-def test_pedir_recuperacion_manda_el_enlace(client, sent_mails):
-    registrar(client)
+def test_ask_recovery_sends_the_link(client, sent_mails):
+    register_user(client)
     sent_mails.clear()
 
     response = client.post(FORGOT, json={"email": "Lucia@Example.com"})
@@ -282,8 +282,8 @@ def test_pedir_recuperacion_manda_el_enlace(client, sent_mails):
     assert "/restablecer-password?token=" in texto(sent_mails[0])
 
 
-def test_con_un_correo_inexistente_la_respuesta_es_la_misma(client, sent_mails):
-    registrar(client)
+def test_with_a_email_nonexistent_the_answer_is_the_same(client, sent_mails):
+    register_user(client)
     sent_mails.clear()
 
     registered = client.post(FORGOT, json={"email": CORREO})
@@ -294,8 +294,8 @@ def test_con_un_correo_inexistente_la_respuesta_es_la_misma(client, sent_mails):
     assert len(sent_mails) == 1  # solo el del correo registrado
 
 
-def test_recuperar_la_contrasena_con_el_enlace(client, sent_mails):
-    registrar(client)
+def test_recover_the_password_with_the_link(client, sent_mails):
+    register_user(client)
     client.post(FORGOT, json={"email": CORREO})
     token = mail_token(sent_mails[-1])
     sent_mails.clear()
@@ -309,8 +309,8 @@ def test_recuperar_la_contrasena_con_el_enlace(client, sent_mails):
     assert sent_mails[0]["Subject"] == "Tu contraseña de AutoBought se cambió"
 
 
-def test_recuperar_la_contrasena_tambien_verifica_el_correo(client, db_session, sent_mails):
-    registrar(client)
+def test_recover_the_password_also_verifies_the_email(client, db_session, sent_mails):
+    register_user(client)
     client.post(FORGOT, json={"email": CORREO})
 
     client.post(RESET, json={"token": mail_token(sent_mails[-1]), "new_password": PASSWORD_NUEVA})
@@ -318,8 +318,8 @@ def test_recuperar_la_contrasena_tambien_verifica_el_correo(client, db_session, 
     assert db_session.scalars(select(Client)).one().email_verified is True
 
 
-def test_el_enlace_de_recuperacion_sirve_una_sola_vez(client, sent_mails):
-    registrar(client)
+def test_the_link_of_recovery_works_a_single_time(client, sent_mails):
+    register_user(client)
     client.post(FORGOT, json={"email": CORREO})
     token = mail_token(sent_mails[-1])
     client.post(RESET, json={"token": token, "new_password": PASSWORD_NUEVA})
@@ -331,8 +331,8 @@ def test_el_enlace_de_recuperacion_sirve_una_sola_vez(client, sent_mails):
     assert can_enter(client, PASSWORD_NUEVA)
 
 
-def test_el_enlace_de_recuperacion_vence(client, db_session):
-    registrar(client)
+def test_the_link_of_recovery_expires(client, db_session):
+    register_user(client)
     customer = db_session.scalars(select(Client)).one()
     expired = create_purpose_token(
         str(customer.user_id),
@@ -347,8 +347,8 @@ def test_el_enlace_de_recuperacion_vence(client, db_session):
     assert can_enter(client, PASSWORD_ACTUAL)
 
 
-def test_un_enlace_de_verificacion_no_sirve_para_recuperar(client, sent_mails):
-    registrar(client)
+def test_a_link_of_verification_no_works_for_recover(client, sent_mails):
+    register_user(client)
 
     response = client.post(RESET, json={"token": mail_token(sent_mails[0]), "new_password": PASSWORD_NUEVA})
 
@@ -356,8 +356,8 @@ def test_un_enlace_de_verificacion_no_sirve_para_recuperar(client, sent_mails):
     assert can_enter(client, PASSWORD_ACTUAL)
 
 
-def test_la_contrasena_nueva_tiene_que_ser_segura(client, sent_mails):
-    registrar(client)
+def test_the_password_new_has_that_be_safe(client, sent_mails):
+    register_user(client)
     client.post(FORGOT, json={"email": CORREO})
     token = mail_token(sent_mails[-1])
 
@@ -375,8 +375,8 @@ def test_la_contrasena_nueva_tiene_que_ser_segura(client, sent_mails):
 # =====================================================
 
 
-def test_cambiar_la_contrasena_desde_el_perfil_manda_el_aviso(client, sent_mails):
-    headers = registrar(client)
+def test_change_the_password_from_the_profile_sends_the_notice(client, sent_mails):
+    headers = register_user(client)
     sent_mails.clear()
 
     response = client.patch(PASSWORD, headers=headers, json={
@@ -391,8 +391,8 @@ def test_cambiar_la_contrasena_desde_el_perfil_manda_el_aviso(client, sent_mails
     assert "/recuperar-password" in texto(sent_mails[0])
 
 
-def test_si_el_cambio_falla_no_hay_aviso(client, sent_mails):
-    headers = registrar(client)
+def test_if_the_change_fails_no_there_is_notice(client, sent_mails):
+    headers = register_user(client)
     sent_mails.clear()
 
     client.patch(PASSWORD, headers=headers, json={
@@ -408,8 +408,8 @@ def test_si_el_cambio_falla_no_hay_aviso(client, sent_mails):
 # =====================================================
 
 
-def test_la_recuperacion_deja_de_mandar_mails_al_llegar_al_limite(client, sent_mails):
-    registrar(client)
+def test_the_recovery_leaves_of_send_mails_to_the_arrive_to_the_limit(client, sent_mails):
+    register_user(client)
     sent_mails.clear()
 
     responses = [client.post(FORGOT, json={"email": CORREO}) for _ in range(7)]
@@ -419,8 +419,8 @@ def test_la_recuperacion_deja_de_mandar_mails_al_llegar_al_limite(client, sent_m
     assert len(sent_mails) == 5
 
 
-def test_reenviar_la_verificacion_tiene_limite(client, sent_mails):
-    headers = registrar(client)
+def test_resend_the_verification_has_limit(client, sent_mails):
+    headers = register_user(client)
 
     code_list = [client.post(RESEND, headers=headers).status_code for _ in range(6)]
 

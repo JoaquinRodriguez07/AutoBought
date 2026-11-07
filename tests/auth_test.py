@@ -38,7 +38,7 @@ def payload(**overrides):
     return data
 
 
-def test_registro_exitoso_crea_cliente_con_password_cifrada(client, db_session):
+def test_signup_successful_creates_customer_with_password_hashed(client, db_session):
     response = client.post(REGISTER, json=payload())
 
     assert response.status_code == 201
@@ -56,7 +56,7 @@ def test_registro_exitoso_crea_cliente_con_password_cifrada(client, db_session):
     assert verify_password("secreto123", customer.password)
 
 
-def test_se_puede_iniciar_sesion_despues_de_registrarse(client):
+def test_can_start_session_after_of_signing_up(client):
     client.post(REGISTER, json=payload())
 
     response = client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"})
@@ -65,7 +65,7 @@ def test_se_puede_iniciar_sesion_despues_de_registrarse(client):
     assert response.json()["access_token"]
 
 
-def test_el_token_de_sesion_trae_el_nombre_del_usuario(client):
+def test_the_token_of_session_brings_the_name_of_the_user(client):
     client.post(REGISTER, json=payload())
     response = client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"})
 
@@ -73,7 +73,7 @@ def test_el_token_de_sesion_trae_el_nombre_del_usuario(client):
     assert claims["name"] == "Lucía Gómez"
 
 
-def test_login_no_distingue_mayusculas_en_el_correo(client):
+def test_login_no_distinguishes_uppercase_in_the_email(client):
     client.post(REGISTER, json=payload(email="Lucia@Example.com"))
 
     response = client.post(LOGIN, json={"email": "LUCIA@example.com", "password": "secreto123"})
@@ -81,7 +81,7 @@ def test_login_no_distingue_mayusculas_en_el_correo(client):
     assert response.status_code == 200
 
 
-def test_el_token_del_registro_sirve_para_endpoints_de_cliente(client):
+def test_the_token_of_the_signup_works_for_endpoints_of_customer(client):
     token = client.post(REGISTER, json=payload()).json()["access_token"]
 
     response = client.get("/api/v1/cart", headers={"Authorization": f"Bearer {token}"})
@@ -89,7 +89,7 @@ def test_el_token_del_registro_sirve_para_endpoints_de_cliente(client):
     assert response.status_code == 200
 
 
-def test_correo_ya_registrado_devuelve_409_y_no_crea_usuario(client, db_session):
+def test_email_already_registered_returns_409_and_no_creates_user(client, db_session):
     client.post(REGISTER, json=payload(email="test@autobought.com"))
 
     response = client.post(REGISTER, json=payload(name="Otro", email="test@autobought.com"))
@@ -99,7 +99,7 @@ def test_correo_ya_registrado_devuelve_409_y_no_crea_usuario(client, db_session)
     assert len(db_session.scalars(select(User)).all()) == 1
 
 
-def test_correo_duplicado_con_distinta_capitalizacion_tambien_es_409(client, db_session):
+def test_email_duplicate_with_different_capitalization_also_is_409(client, db_session):
     client.post(REGISTER, json=payload(email="test@autobought.com"))
 
     response = client.post(REGISTER, json=payload(email="TEST@autobought.com"))
@@ -108,35 +108,35 @@ def test_correo_duplicado_con_distinta_capitalizacion_tambien_es_409(client, db_
     assert len(db_session.scalars(select(User)).all()) == 1
 
 
-def test_correo_mal_formado_devuelve_422(client, db_session):
+def test_email_badly_formed_returns_422(client, db_session):
     response = client.post(REGISTER, json=payload(email="no-es-un-correo"))
 
     assert response.status_code == 422
     assert db_session.scalars(select(User)).all() == []
 
 
-def test_password_corta_devuelve_422(client, db_session):
+def test_password_stops_returns_422(client, db_session):
     response = client.post(REGISTER, json=payload(password="1234567"))
 
     assert response.status_code == 422
     assert db_session.scalars(select(User)).all() == []
 
 
-def test_password_de_exactamente_8_caracteres_es_valida(client):
+def test_password_of_exactly_8_characters_is_validates(client):
     assert client.post(REGISTER, json=payload(password="clave123")).status_code == 201
 
 
-def test_password_de_mas_de_72_bytes_devuelve_422_y_no_500(client):
+def test_password_of_more_of_72_bytes_returns_422_and_no_500(client):
     response = client.post(REGISTER, json=payload(password="a" * 73))
 
     assert response.status_code == 422
 
 
-def test_nombre_vacio_devuelve_422(client):
+def test_name_empty_returns_422(client):
     assert client.post(REGISTER, json=payload(name="   ")).status_code == 422
 
 
-def test_usernames_no_colisionan_con_correos_de_igual_parte_local(client, db_session):
+def test_usernames_no_collide_with_emails_of_same_part_local(client, db_session):
     client.post(REGISTER, json=payload(email="ana@uno.com"))
     response = client.post(REGISTER, json=payload(email="ana@dos.com"))
 
@@ -146,12 +146,12 @@ def test_usernames_no_colisionan_con_correos_de_igual_parte_local(client, db_ses
 
 
 @pytest.mark.parametrize("phone", ["   ", None])
-def test_telefono_es_obligatorio_en_el_registro(client, db_session, phone):
+def test_phone_is_required_in_the_signup(client, db_session, phone):
     assert client.post(REGISTER, json=payload(phone=phone)).status_code == 422
     assert db_session.scalars(select(Client)).all() == []
 
 
-def test_telefono_demasiado_largo_devuelve_422(client):
+def test_phone_too_long_returns_422(client):
     assert client.post(REGISTER, json=payload(phone="1" * 31)).status_code == 422
 
 
@@ -170,7 +170,7 @@ def test_telefono_demasiado_largo_devuelve_422(client):
         ("(02) 900 1234", "+59829001234"),
     ],
 )
-def test_telefonos_uruguayos_validos_se_normalizan(raw, expected_value):
+def test_phones_uruguayan_valid_are_normalized(raw, expected_value):
     assert normalize_uy_phone(raw) == expected_value
 
 
@@ -188,19 +188,19 @@ def test_telefonos_uruguayos_validos_se_normalizan(raw, expected_value):
         "099-123-45a",
     ],
 )
-def test_telefonos_no_uruguayos_se_rechazan(raw):
+def test_phones_no_uruguayan_reject(raw):
     with pytest.raises(ValueError):
         normalize_uy_phone(raw)
 
 
-def test_registro_con_telefono_invalido_devuelve_422_y_no_crea_usuario(client, db_session):
+def test_signup_with_phone_invalid_returns_422_and_no_creates_user(client, db_session):
     response = client.post(REGISTER, json=payload(phone="+54 9 11 1234 5678"))
 
     assert response.status_code == 422
     assert db_session.scalars(select(User)).all() == []
 
 
-def test_me_devuelve_el_perfil_con_el_telefono_guardado(client):
+def test_me_returns_the_profile_with_the_phone_saved(client):
     token = client.post(REGISTER, json=payload()).json()["access_token"]
 
     response = client.get(ME, headers={"Authorization": f"Bearer {token}"})
@@ -217,7 +217,7 @@ def test_me_devuelve_el_perfil_con_el_telefono_guardado(client):
     assert "password" not in response.json()
 
 
-def test_me_devuelve_phone_null_si_el_cliente_no_tiene_telefono(client, db_session):
+def test_me_returns_phone_null_if_the_customer_no_has_phone(client, db_session):
     # Clientes registrados antes de que el teléfono fuera obligatorio.
     token = client.post(REGISTER, json=payload()).json()["access_token"]
     db_session.scalars(select(Client)).one().phone = None
@@ -229,11 +229,11 @@ def test_me_devuelve_phone_null_si_el_cliente_no_tiene_telefono(client, db_sessi
     assert response.json()["phone"] is None
 
 
-def test_me_sin_token_devuelve_401(client):
+def test_me_without_token_returns_401(client):
     assert client.get(ME).status_code == 401
 
 
-def test_me_con_token_de_empleado_devuelve_403(client):
+def test_me_with_token_of_employee_returns_403(client):
     token = create_access_token(subject="1", extra_claims={"user_type": "employee"})
 
     response = client.get(ME, headers={"Authorization": f"Bearer {token}"})
@@ -246,7 +246,7 @@ def _headers(client):
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_patch_me_actualiza_nombre_y_telefono(client):
+def test_patch_me_updates_name_and_phone(client):
     headers = _headers(client)
 
     response = client.patch(ME, json={"name": "Lucía Pérez", "phone": "098 765 432"}, headers=headers)
@@ -259,7 +259,7 @@ def test_patch_me_actualiza_nombre_y_telefono(client):
 
 
 @pytest.mark.parametrize("phone", ["", "   ", None])
-def test_patch_me_no_permite_borrar_el_telefono(client, phone):
+def test_patch_me_no_allows_clear_the_phone(client, phone):
     headers = _headers(client)
 
     response = client.patch(ME, json={"name": "Lucía Gómez", "phone": phone}, headers=headers)
@@ -268,7 +268,7 @@ def test_patch_me_no_permite_borrar_el_telefono(client, phone):
     assert client.get(ME, headers=headers).json()["phone"] == "+59899123456"
 
 
-def test_patch_me_sin_telefono_mantiene_el_que_estaba(client):
+def test_patch_me_without_phone_keeps_the_that_was(client):
     headers = _headers(client)
 
     response = client.patch(ME, json={"name": "Lucía Pérez"}, headers=headers)
@@ -277,17 +277,17 @@ def test_patch_me_sin_telefono_mantiene_el_que_estaba(client):
     assert response.json()["phone"] == "+59899123456"
 
 
-def test_patch_me_telefono_invalido_devuelve_422(client):
+def test_patch_me_phone_invalid_returns_422(client):
     response = client.patch(ME, json={"name": "Lucía", "phone": "123"}, headers=_headers(client))
 
     assert response.status_code == 422
 
 
-def test_patch_me_nombre_vacio_devuelve_422(client):
+def test_patch_me_name_empty_returns_422(client):
     assert client.patch(ME, json={"name": "   "}, headers=_headers(client)).status_code == 422
 
 
-def test_patch_me_no_permite_cambiar_el_correo(client):
+def test_patch_me_no_allows_change_the_email(client):
     headers = _headers(client)
 
     response = client.patch(ME, json={"name": "Lucía", "email": "otro@example.com"}, headers=headers)
@@ -296,11 +296,11 @@ def test_patch_me_no_permite_cambiar_el_correo(client):
     assert client.get(ME, headers=headers).json()["email"] == "lucia@example.com"
 
 
-def test_patch_me_sin_token_devuelve_401(client):
+def test_patch_me_without_token_returns_401(client):
     assert client.patch(ME, json={"name": "Lucía"}).status_code == 401
 
 
-def test_patch_me_con_token_de_empleado_devuelve_403(client):
+def test_patch_me_with_token_of_employee_returns_403(client):
     token = create_access_token(subject="1", extra_claims={"user_type": "employee"})
 
     response = client.patch(ME, json={"name": "Lucía"}, headers={"Authorization": f"Bearer {token}"})
@@ -311,7 +311,7 @@ def test_patch_me_con_token_de_empleado_devuelve_403(client):
 PASSWORD = "/api/v1/auth/me/password"
 
 
-def test_cambiar_password_permite_login_con_la_nueva_y_no_con_la_vieja(client):
+def test_change_password_allows_login_with_the_new_and_no_with_the_old(client):
     response = client.patch(
         PASSWORD,
         json={"current_password": "secreto123", "new_password": "nueva-clave-1"},
@@ -323,7 +323,7 @@ def test_cambiar_password_permite_login_con_la_nueva_y_no_con_la_vieja(client):
     assert client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}).status_code == 401
 
 
-def test_cambiar_password_guarda_la_nueva_cifrada(client, db_session):
+def test_change_password_saves_the_new_hashed(client, db_session):
     client.patch(
         PASSWORD,
         json={"current_password": "secreto123", "new_password": "nueva-clave-1"},
@@ -335,7 +335,7 @@ def test_cambiar_password_guarda_la_nueva_cifrada(client, db_session):
     assert verify_password("nueva-clave-1", user.password)
 
 
-def test_cambiar_password_con_la_actual_incorrecta_devuelve_400(client):
+def test_change_password_with_the_current_wrong_returns_400(client):
     headers = _headers(client)
 
     response = client.patch(
@@ -349,7 +349,7 @@ def test_cambiar_password_con_la_actual_incorrecta_devuelve_400(client):
     assert client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}).status_code == 200
 
 
-def test_cambiar_password_por_la_misma_devuelve_400(client):
+def test_change_password_by_the_same_returns_400(client):
     response = client.patch(
         PASSWORD,
         json={"current_password": "secreto123", "new_password": "secreto123"},
@@ -359,7 +359,7 @@ def test_cambiar_password_por_la_misma_devuelve_400(client):
     assert response.status_code == 400
 
 
-def test_cambiar_password_nueva_corta_devuelve_422(client):
+def test_change_password_new_stops_returns_422(client):
     response = client.patch(
         PASSWORD,
         json={"current_password": "secreto123", "new_password": "corta"},
@@ -369,7 +369,7 @@ def test_cambiar_password_nueva_corta_devuelve_422(client):
     assert response.status_code == 422
 
 
-def test_cambiar_password_de_mas_de_72_bytes_devuelve_422_y_no_500(client):
+def test_change_password_of_more_of_72_bytes_returns_422_and_no_500(client):
     headers = _headers(client)
 
     new_long = client.patch(
@@ -383,13 +383,13 @@ def test_cambiar_password_de_mas_de_72_bytes_devuelve_422_y_no_500(client):
     assert current_long.status_code == 422
 
 
-def test_cambiar_password_sin_token_devuelve_401(client):
+def test_change_password_without_token_returns_401(client):
     response = client.patch(PASSWORD, json={"current_password": "secreto123", "new_password": "nueva-clave-1"})
 
     assert response.status_code == 401
 
 
-def test_patch_me_sin_phone_conserva_el_telefono(client):
+def test_patch_me_without_phone_keeps_the_phone(client):
     headers = _headers(client)
 
     response = client.patch(ME, json={"name": "Lucía Pérez"}, headers=headers)
@@ -421,7 +421,7 @@ def _registrar_y_obtener_id(client):
     return _claims(token)["sub"]
 
 
-def test_refresh_con_token_valido_devuelve_un_token_nuevo_con_vigencia_completa(client):
+def test_refresh_with_token_valid_returns_a_token_new_with_validity_full(client):
     user_id = _registrar_y_obtener_id(client)
     # Token a punto de vencer (2 minutos): el nuevo tiene que traer la hora
     # completa, no heredar la del viejo.
@@ -440,7 +440,7 @@ def test_refresh_con_token_valido_devuelve_un_token_nuevo_con_vigencia_completa(
     assert 59 * 60 < restante <= 60 * 60
 
 
-def test_el_token_renovado_sirve_para_endpoints_de_cliente(client):
+def test_the_token_renewed_works_for_endpoints_of_customer(client):
     user_id = _registrar_y_obtener_id(client)
 
     new_item = client.post(
@@ -452,7 +452,7 @@ def test_el_token_renovado_sirve_para_endpoints_de_cliente(client):
     assert response.json()["email"] == "lucia@example.com"
 
 
-def test_se_puede_renovar_varias_veces_seguidas(client):
+def test_can_renew_several_times_in_a_row(client):
     token = client.post(REGISTER, json=payload()).json()["access_token"]
 
     for _ in range(3):
@@ -463,7 +463,7 @@ def test_se_puede_renovar_varias_veces_seguidas(client):
     assert client.get(ME, headers={"Authorization": f"Bearer {token}"}).status_code == 200
 
 
-def test_refresh_con_token_vencido_devuelve_401(client):
+def test_refresh_with_token_expired_returns_401(client):
     user_id = _registrar_y_obtener_id(client)
     expired = _token(user_id, minutes_count=-1)
 
@@ -474,17 +474,17 @@ def test_refresh_con_token_vencido_devuelve_401(client):
     assert "access_token" not in response.json()
 
 
-def test_refresh_sin_token_devuelve_401(client):
+def test_refresh_without_token_returns_401(client):
     assert client.post(REFRESH).status_code == 401
 
 
-def test_refresh_con_token_basura_devuelve_401(client):
+def test_refresh_with_token_garbage_returns_401(client):
     response = client.post(REFRESH, headers={"Authorization": "Bearer esto.no.es.un.jwt"})
 
     assert response.status_code == 401
 
 
-def test_refresh_con_token_firmado_con_otra_clave_devuelve_401(client):
+def test_refresh_with_token_signed_with_another_key_returns_401(client):
     user_id = _registrar_y_obtener_id(client)
     falso = jwt.encode(
         {"sub": user_id, "user_type": "client", "exp": datetime.now(timezone.utc) + timedelta(minutes=5)},
@@ -495,7 +495,7 @@ def test_refresh_con_token_firmado_con_otra_clave_devuelve_401(client):
     assert client.post(REFRESH, headers={"Authorization": f"Bearer {falso}"}).status_code == 401
 
 
-def test_refresh_de_un_cliente_que_ya_no_existe_devuelve_401(client):
+def test_refresh_of_a_customer_that_already_no_exists_returns_401(client):
     # Token válido y firmado, pero el usuario fue borrado de la base.
     response = client.post(REFRESH, headers={"Authorization": f"Bearer {_token(9999, minutes_count=5)}"})
 
@@ -508,7 +508,7 @@ def _create_seller(db_session, email="vendedor@example.com"):
     )
 
 
-def test_login_de_vendedor_devuelve_token_con_user_type_employee(client, db_session):
+def test_login_of_seller_returns_token_with_user_type_employee(client, db_session):
     _create_seller(db_session)
 
     response = client.post(LOGIN, json={"email": "vendedor@example.com", "password": "secreto123"})
@@ -517,7 +517,7 @@ def test_login_de_vendedor_devuelve_token_con_user_type_employee(client, db_sess
     assert _claims(response.json()["access_token"])["user_type"] == "employee"
 
 
-def test_refresh_con_token_de_cliente_conserva_user_type_client(client):
+def test_refresh_with_token_of_customer_keeps_user_type_client(client):
     token = client.post(REGISTER, json=payload()).json()["access_token"]
 
     response = client.post(REFRESH, headers={"Authorization": f"Bearer {token}"})
@@ -526,7 +526,7 @@ def test_refresh_con_token_de_cliente_conserva_user_type_client(client):
     assert _claims(response.json()["access_token"])["user_type"] == "client"
 
 
-def test_refresh_con_token_de_vendedor_devuelve_token_nuevo_de_vendedor(client, db_session):
+def test_refresh_with_token_of_seller_returns_token_new_of_seller(client, db_session):
     seller = _create_seller(db_session)
     old = _token(seller.user_id, minutes_count=2, user_type="employee")
 
@@ -539,7 +539,7 @@ def test_refresh_con_token_de_vendedor_devuelve_token_nuevo_de_vendedor(client, 
     assert new_item["exp"] > _claims(old)["exp"]
 
 
-def test_refresh_usa_el_user_type_de_la_base_y_no_el_del_token(client, db_session):
+def test_refresh_uses_the_user_type_of_the_db_and_no_the_of_the_token(client, db_session):
     seller = _create_seller(db_session)
     # Token con un user_type que no coincide con el guardado.
     token = _token(seller.user_id, minutes_count=5, user_type="client")
@@ -550,13 +550,13 @@ def test_refresh_usa_el_user_type_de_la_base_y_no_el_del_token(client, db_sessio
     assert _claims(response.json()["access_token"])["user_type"] == "employee"
 
 
-def test_refresh_de_un_vendedor_que_ya_no_existe_devuelve_401(client):
+def test_refresh_of_a_seller_that_already_no_exists_returns_401(client):
     token = _token(9999, minutes_count=5, user_type="employee")
 
     assert client.post(REFRESH, headers={"Authorization": f"Bearer {token}"}).status_code == 401
 
 
-def test_agregar_al_carrito_con_token_de_vendedor_devuelve_403(client, db_session):
+def test_add_to_the_cart_with_token_of_seller_returns_403(client, db_session):
     seller = _create_seller(db_session)
     token = _token(seller.user_id, minutes_count=5, user_type="employee")
 
@@ -570,7 +570,7 @@ def test_agregar_al_carrito_con_token_de_vendedor_devuelve_403(client, db_sessio
     assert response.json()["detail"] == "Esta acción requiere una cuenta de cliente."
 
 
-def test_perfil_de_cliente_con_token_de_vendedor_devuelve_403(client, db_session):
+def test_profile_of_customer_with_token_of_seller_returns_403(client, db_session):
     seller = _create_seller(db_session)
     token = _token(seller.user_id, minutes_count=5, user_type="employee")
 
@@ -583,7 +583,7 @@ def test_perfil_de_cliente_con_token_de_vendedor_devuelve_403(client, db_session
 
 
 @pytest.mark.parametrize("name", ["123", "Lucía @@", "L"])
-def test_nombre_invalido_en_el_registro_devuelve_422(client, db_session, name):
+def test_name_invalid_in_the_signup_returns_422(client, db_session, name):
     response = client.post(REGISTER, json=payload(name=name))
 
     assert response.status_code == 422
@@ -592,21 +592,21 @@ def test_nombre_invalido_en_el_registro_devuelve_422(client, db_session, name):
 
 
 @pytest.mark.parametrize("password", ["abcdefgh", "12345678", "Password1", "lucia2026"])
-def test_password_debil_en_el_registro_devuelve_422(client, db_session, password):
+def test_password_weak_in_the_signup_returns_422(client, db_session, password):
     response = client.post(REGISTER, json=payload(password=password))
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["body", "password"]
 
 
-def test_nombre_invalido_al_editar_el_perfil_devuelve_422(client):
+def test_name_invalid_to_the_edit_the_profile_returns_422(client):
     response = client.patch(ME, json={"name": "Lucía 123"}, headers=_headers(client))
 
     assert response.status_code == 422
 
 
 @pytest.mark.parametrize("new_value", ["solotexto", "qwerty123", "lucia-2026"])
-def test_cambiar_password_por_una_debil_devuelve_422(client, new_value):
+def test_change_password_by_a_weak_returns_422(client, new_value):
     response = client.patch(
         PASSWORD,
         json={"current_password": "secreto123", "new_password": new_value},
@@ -637,7 +637,7 @@ def _cambiar_password(client, token):
     )
 
 
-def test_los_tokens_de_sesion_llevan_la_version_de_sesion(client, db_session):
+def test_the_tokens_of_session_carry_the_version_of_session(client, db_session):
     registro = client.post(REGISTER, json=payload()).json()["access_token"]
     login = client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}).json()["access_token"]
     refreshed = client.post(REFRESH, headers=_bearer(login)).json()["access_token"]
@@ -647,7 +647,7 @@ def test_los_tokens_de_sesion_llevan_la_version_de_sesion(client, db_session):
     assert _claims(refreshed)["sv"] == 0
 
 
-def test_token_emitido_antes_de_cambiar_la_password_devuelve_401(client):
+def test_token_issued_before_of_change_the_password_returns_401(client):
     old = client.post(REGISTER, json=payload()).json()["access_token"]
     # Otro dispositivo con su propia sesión (el cambio se hace desde acá).
     other_device = client.post(
@@ -662,7 +662,7 @@ def test_token_emitido_antes_de_cambiar_la_password_devuelve_401(client):
         assert response.json()["detail"] == "Token inválido o expirado."
 
 
-def test_cambiar_password_devuelve_un_token_que_sigue_sirviendo(client):
+def test_change_password_returns_a_token_that_keeps_working(client):
     old = client.post(REGISTER, json=payload()).json()["access_token"]
 
     response = _cambiar_password(client, old)
@@ -675,7 +675,7 @@ def test_cambiar_password_devuelve_un_token_que_sigue_sirviendo(client):
     assert client.get(ME, headers=_bearer(body["access_token"])).status_code == 200
 
 
-def test_el_token_nuevo_del_cambio_de_password_se_puede_renovar(client):
+def test_the_token_new_of_the_change_of_password_can_renew(client):
     old = client.post(REGISTER, json=payload()).json()["access_token"]
     new_item = _cambiar_password(client, old).json()["access_token"]
 
@@ -685,7 +685,7 @@ def test_el_token_nuevo_del_cambio_de_password_se_puede_renovar(client):
     assert _claims(response.json()["access_token"])["sv"] == 1
 
 
-def test_un_cambio_de_password_fallido_no_cierra_las_sesiones(client):
+def test_a_change_of_password_failed_no_closes_the_sessions(client):
     token = client.post(REGISTER, json=payload()).json()["access_token"]
 
     response = client.patch(
@@ -698,7 +698,7 @@ def test_un_cambio_de_password_fallido_no_cierra_las_sesiones(client):
     assert client.get(ME, headers=_bearer(token)).status_code == 200
 
 
-def test_el_login_despues_del_cambio_trae_la_version_nueva(client):
+def test_the_login_after_of_the_change_brings_the_version_new(client):
     old = client.post(REGISTER, json=payload()).json()["access_token"]
     _cambiar_password(client, old)
 
@@ -708,7 +708,7 @@ def test_el_login_despues_del_cambio_trae_la_version_nueva(client):
     assert client.get(ME, headers=_bearer(token)).status_code == 200
 
 
-def test_restablecer_la_password_con_el_enlace_cierra_las_sesiones(client, db_session):
+def test_reset_the_password_with_the_link_closes_the_sessions(client, db_session):
     old = client.post(REGISTER, json=payload()).json()["access_token"]
     customer = db_session.scalars(select(Client)).one()
     link = create_purpose_token(
@@ -726,7 +726,7 @@ def test_restablecer_la_password_con_el_enlace_cierra_las_sesiones(client, db_se
     assert client.get(ME, headers=_bearer(new_item)).status_code == 200
 
 
-def test_refresh_con_un_token_anterior_al_cambio_de_password_devuelve_401(client):
+def test_refresh_with_a_token_previous_to_the_change_of_password_returns_401(client):
     old = client.post(REGISTER, json=payload()).json()["access_token"]
     _cambiar_password(client, old)
 
@@ -736,7 +736,7 @@ def test_refresh_con_un_token_anterior_al_cambio_de_password_devuelve_401(client
     assert "access_token" not in response.json()
 
 
-def test_token_sin_claim_sv_vale_mientras_la_version_sea_0(client):
+def test_token_without_claim_sv_counts_while_the_version_is_0(client):
     user_id = _registrar_y_obtener_id(client)
     # Emitido antes del deploy: sin el claim `sv`.
     without_sv = create_access_token(subject=user_id, extra_claims={"user_type": "client"})
@@ -746,7 +746,7 @@ def test_token_sin_claim_sv_vale_mientras_la_version_sea_0(client):
     assert client.post(REFRESH, headers=_bearer(without_sv)).status_code == 200
 
 
-def test_token_sin_claim_sv_deja_de_valer_despues_de_cambiar_la_password(client):
+def test_token_without_claim_sv_leaves_of_count_after_of_change_the_password(client):
     token = client.post(REGISTER, json=payload()).json()["access_token"]
     without_sv = create_access_token(subject=_claims(token)["sub"], extra_claims={"user_type": "client"})
     _cambiar_password(client, token)
@@ -755,14 +755,14 @@ def test_token_sin_claim_sv_deja_de_valer_despues_de_cambiar_la_password(client)
 
 
 @pytest.mark.parametrize("sv", ["0", 0.5, None, True, [0]])
-def test_token_con_sv_que_no_es_entero_devuelve_401(client, sv):
+def test_token_with_sv_that_no_is_integer_returns_401(client, sv):
     user_id = _registrar_y_obtener_id(client)
     token = create_access_token(subject=user_id, extra_claims={"user_type": "client", "sv": sv})
 
     assert client.get(ME, headers=_bearer(token)).status_code == 401
 
 
-def test_token_de_empleado_anterior_al_cambio_de_password_devuelve_401(client, db_session):
+def test_token_of_employee_previous_to_the_change_of_password_returns_401(client, db_session):
     seller = _create_seller(db_session)
     old = create_access_token(
         subject=str(seller.user_id), extra_claims={"user_type": "employee", "sv": 0}

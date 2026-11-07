@@ -2,7 +2,7 @@
 
 Es el único lugar del backend que habla con el proveedor: las
 funcionalidades (el asistente de compra, el dashboard) piden texto con
-`AIClient.generar` y no saben qué API hay detrás. En los tests se
+`AIClient.generate` y no saben qué API hay detrás. En los tests se
 reemplaza por un cliente falso (ver `get_ai_client`): el CI nunca llama a
 la IA real.
 """
@@ -28,7 +28,7 @@ class AIResponse:
 
 
 class AIClient(Protocol):
-    def generar(self, instructions: str, input_text: str) -> AIResponse: ...
+    def generate(self, instructions: str, input_text: str) -> AIResponse: ...
 
 
 def extract_text(reply: dict) -> str:
@@ -83,7 +83,7 @@ class GeminiClient:
         # Solo para los tests: un transporte falso en vez de la red.
         self.transport = transport
 
-    def generar(self, instructions: str, input_text: str) -> AIResponse:
+    def generate(self, instructions: str, input_text: str) -> AIResponse:
         if not self.key:
             raise AIUnavailable("No hay clave de IA configurada.")
 

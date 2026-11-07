@@ -153,7 +153,7 @@ def test_client_cannot_modify_other_clients_address(client, db_session):
         ("postal_code", "ABCDE"),
     ],
 )
-def test_datos_invalidos_se_rechazan_en_su_campo(client, db_session, field, value):
+def test_data_invalid_reject_in_its_field(client, db_session, field, value):
     headers = auth_headers(make_client(db_session))
 
     resp = create(client, headers, **{field: value})
@@ -162,7 +162,7 @@ def test_datos_invalidos_se_rechazan_en_su_campo(client, db_session, field, valu
     assert resp.json()["detail"][0]["loc"] == ["body", field]
 
 
-def test_ciudad_de_otro_departamento_se_rechaza(client, db_session):
+def test_city_of_another_department_rejects(client, db_session):
     headers = auth_headers(make_client(db_session))
 
     resp = create(client, headers, city="Montevideo", department="Artigas")
@@ -172,7 +172,7 @@ def test_ciudad_de_otro_departamento_se_rechaza(client, db_session):
     assert "Montevideo no está en el departamento de Artigas" in resp.json()["detail"][0]["msg"]
 
 
-def test_sin_numero_y_espacios_se_normalizan(client, db_session):
+def test_without_number_and_spaces_are_normalized(client, db_session):
     headers = auth_headers(make_client(db_session))
 
     body = create(client, headers, street="  Ruta   8 ", number="s/n", city="Pando",
@@ -183,7 +183,7 @@ def test_sin_numero_y_espacios_se_normalizan(client, db_session):
     )
 
 
-def test_direccion_duplicada_devuelve_409_sin_importar_mayusculas_ni_tildes(client, db_session):
+def test_address_duplicate_returns_409_without_matter_uppercase_nor_accents(client, db_session):
     headers = auth_headers(make_client(db_session))
     create(client, headers, street="Av. Italia", number="1234")
 
@@ -193,7 +193,7 @@ def test_direccion_duplicada_devuelve_409_sin_importar_mayusculas_ni_tildes(clie
     assert resp.json()["detail"] == "Ya tenés guardada esta dirección."
 
 
-def test_no_se_pueden_guardar_mas_de_10_direcciones(client, db_session):
+def test_no_can_save_more_of_10_addresses(client, db_session):
     headers = auth_headers(make_client(db_session))
     for _ in range(10):
         assert create(client, headers).status_code == 201

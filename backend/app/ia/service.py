@@ -39,12 +39,12 @@ def extract_json(texto: str) -> dict:
 
 
 def ask_structured(
-    customer: AIClient, instructions: str, input_text: str, modelo: type[ModelT]
+    ai_client: AIClient, instructions: str, input_text: str, modelo: type[ModelT]
 ) -> tuple[ModelT, int]:
     """Pide una respuesta y la valida contra `modelo`. Si no respeta el
     formato, se rechaza: nunca llega a la funcionalidad algo a medias.
     Devuelve el objeto validado y los tokens que se usaron."""
-    reply = customer.generar(instructions, input_text)
+    reply = ai_client.generate(instructions, input_text)
     try:
         return modelo.model_validate(extract_json(reply.texto)), reply.tokens
     except ValidationError as error:

@@ -55,7 +55,7 @@ def test_part_detail_returns_404_for_unknown_id(client):
     assert response.json() == {"detail": "Repuesto no encontrado."}
 
 
-def test_fabricantes_ordenados_por_cantidad_de_repuestos(client, db_session):
+def test_manufacturers_sorted_by_quantity_of_parts(client, db_session):
     create_part(db_session)
     for code in ("BRK-002", "BRK-003"):
         db_session.add(

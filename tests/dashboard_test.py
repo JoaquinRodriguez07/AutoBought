@@ -99,7 +99,7 @@ def _monthly_sales(db_session, customer, part, units, until=(2026, 3)):
 
 
 @pytest.mark.parametrize("ruta", [EVOLUCION, PROYECCION, RIESGO, f"{DETALLE}/1", VEHICULOS])
-def test_los_endpoints_del_dashboard_son_solo_para_vendedores(client, customer, ruta):
+def test_the_endpoints_of_the_dashboard_are_only_for_sellers(client, customer, ruta):
     assert client.get(ruta).status_code == 401
     assert client.get(ruta, headers=_headers(customer.user_id, "client")).status_code == 403
 
@@ -107,14 +107,14 @@ def test_los_endpoints_del_dashboard_son_solo_para_vendedores(client, customer, 
 # --- Evolución de ventas (HU 5.4) ---
 
 
-def test_evolucion_agrupa_unidades_y_facturacion_de_los_ultimos_12_meses(client, db_session, seller, customer):
+def test_trend_groups_units_and_revenue_of_the_last_12_months(client, db_session, seller, customer):
     _today(date(2026, 3, 31))
-    pastillas = _part(db_session, "FRE-001", stock=10)
-    _sale(db_session, customer, pastillas, 2, 2026, 1)
-    _sale(db_session, customer, pastillas, 3, 2026, 1)
-    _sale(db_session, customer, pastillas, 4, 2026, 3)
-    _sale(db_session, customer, pastillas, 50, 2026, 2, state=OrderStatus.CANCELLED)
-    _sale(db_session, customer, pastillas, 99, 2025, 3)  # hace 13 meses: afuera
+    brake_pads = _part(db_session, "FRE-001", stock=10)
+    _sale(db_session, customer, brake_pads, 2, 2026, 1)
+    _sale(db_session, customer, brake_pads, 3, 2026, 1)
+    _sale(db_session, customer, brake_pads, 4, 2026, 3)
+    _sale(db_session, customer, brake_pads, 50, 2026, 2, state=OrderStatus.CANCELLED)
+    _sale(db_session, customer, brake_pads, 99, 2025, 3)  # hace 13 meses: afuera
 
     periods = client.get(EVOLUCION, headers=seller).json()["months"]
 
@@ -124,7 +124,7 @@ def test_evolucion_agrupa_unidades_y_facturacion_de_los_ultimos_12_meses(client,
     assert [m["in_progress"] for m in periods] == [False] * 11 + [True]
 
 
-def test_evolucion_permite_ver_el_aumento_entre_dos_meses(client, db_session, seller, customer):
+def test_trend_allows_see_the_increase_between_two_months(client, db_session, seller, customer):
     # Escenario de la HU 5.4: un mes vendió más que el anterior.
     _today(date(2026, 3, 31))
     part = _part(db_session, "FRE-001", stock=10)
@@ -136,12 +136,12 @@ def test_evolucion_permite_ver_el_aumento_entre_dos_meses(client, db_session, se
     assert [(m["month"], m["units"]) for m in periods] == [("2026-02", 10), ("2026-03", 25)]
 
 
-def test_evolucion_filtra_por_categoria_y_por_repuesto(client, db_session, seller, customer):
+def test_trend_filters_by_category_and_by_part(client, db_session, seller, customer):
     _today(date(2026, 3, 31))
-    pastillas = _part(db_session, "FRE-001", stock=10, categoria="Frenos")
+    brake_pads = _part(db_session, "FRE-001", stock=10, categoria="Frenos")
     discos = _part(db_session, "FRE-002", stock=10, categoria="Frenos")
     filter_part = _part(db_session, "FIL-001", stock=10, categoria="Filtros")
-    _sale(db_session, customer, pastillas, 2, 2026, 3)
+    _sale(db_session, customer, brake_pads, 2, 2026, 3)
     _sale(db_session, customer, discos, 3, 2026, 3)
     _sale(db_session, customer, filter_part, 7, 2026, 3)
 
@@ -155,7 +155,7 @@ def test_evolucion_filtra_por_categoria_y_por_repuesto(client, db_session, selle
     assert units(category="Filtros", search="FRE") == 0
 
 
-def test_evolucion_incluye_la_proyeccion_del_mes_siguiente(client, db_session, seller, customer):
+def test_trend_includes_the_forecast_of_the_month_next(client, db_session, seller, customer):
     _today(date(2026, 3, 31))
     part = _part(db_session, "FRE-001", stock=10)
     _monthly_sales(db_session, customer, part, [10] * 12)
@@ -167,7 +167,7 @@ def test_evolucion_incluye_la_proyeccion_del_mes_siguiente(client, db_session, s
     assert body["projection"] == {"month": "2026-04", "units": 10}
 
 
-def test_evolucion_rechaza_periodos_fuera_de_rango(client, seller):
+def test_trend_rejects_periods_out_of_range(client, seller):
     assert client.get(EVOLUCION, params={"months": 0}, headers=seller).status_code == 422
     assert client.get(EVOLUCION, params={"months": 25}, headers=seller).status_code == 422
 
@@ -175,7 +175,7 @@ def test_evolucion_rechaza_periodos_fuera_de_rango(client, seller):
 # --- Proyección de demanda (HU 5.5) ---
 
 
-def test_proyeccion_por_repuesto_de_mayor_a_menor(client, db_session, seller, customer):
+def test_forecast_by_part_of_greater_a_smaller(client, db_session, seller, customer):
     _today(date(2026, 3, 31))
     creciente = _part(db_session, "FRE-001", stock=10)
     constante = _part(db_session, "FRE-002", stock=10)
@@ -193,7 +193,7 @@ def test_proyeccion_por_repuesto_de_mayor_a_menor(client, db_session, seller, cu
     ]
 
 
-def test_proyeccion_cuenta_el_mes_en_curso_a_mes_completo(client, db_session, seller, customer):
+def test_forecast_account_the_month_in_progress_a_month_complete(client, db_session, seller, customer):
     # El 15 de abril van 15 de 30 días: 5 unidades son 10 a mes completo.
     _today(date(2026, 4, 15))
     part = _part(db_session, "FRE-001", stock=10)
@@ -205,7 +205,7 @@ def test_proyeccion_cuenta_el_mes_en_curso_a_mes_completo(client, db_session, se
     assert body["parts"][0]["projected_units"] == 10
 
 
-def test_proyeccion_nunca_negativa_en_el_endpoint(client, db_session, seller, customer):
+def test_forecast_never_negative_in_the_endpoint(client, db_session, seller, customer):
     _today(date(2026, 3, 31))
     part = _part(db_session, "FRE-001", stock=10)
     _monthly_sales(db_session, customer, part, [120, 100, 80, 60, 40, 20, 0, 0, 0, 0, 0, 0])
@@ -213,7 +213,7 @@ def test_proyeccion_nunca_negativa_en_el_endpoint(client, db_session, seller, cu
     assert client.get(PROYECCION, headers=seller).json()["parts"][0]["projected_units"] == 0
 
 
-def test_proyeccion_filtra_y_limita(client, db_session, seller):
+def test_forecast_filters_and_limits(client, db_session, seller):
     _today(date(2026, 3, 31))
     _part(db_session, "FRE-001", stock=10, categoria="Frenos")
     _part(db_session, "FRE-002", stock=10, categoria="Frenos")
@@ -226,7 +226,7 @@ def test_proyeccion_filtra_y_limita(client, db_session, seller):
     assert len(one) == 1
 
 
-def test_los_calculos_no_cambian_las_ventas_ni_el_stock(client, db_session, seller, customer):
+def test_the_calculations_no_change_the_sales_nor_the_stock(client, db_session, seller, customer):
     # Escenario de la HU 5.5: datos reales intactos.
     _today(date(2026, 3, 31))
     part = _part(db_session, "FRE-001", stock=10)
@@ -247,7 +247,7 @@ def test_los_calculos_no_cambian_las_ventas_ni_el_stock(client, db_session, sell
 # --- Riesgo de agotamiento y alertas (HU 5.6 y 5.7) ---
 
 
-def test_riesgo_de_agotamiento_del_mas_urgente_al_menos_urgente(client, db_session, seller, customer):
+def test_risk_of_stockout_of_the_more_urgent_to_the_less_urgent(client, db_session, seller, customer):
     # Abril tiene 30 días: 30 unidades proyectadas son 1 por día.
     _today(date(2026, 3, 31))
     high = _part(db_session, "FRE-001", stock=10)  # 10 días
@@ -273,7 +273,7 @@ def test_riesgo_de_agotamiento_del_mas_urgente_al_menos_urgente(client, db_sessi
     assert body["parts"][1]["daily_demand"] == 1
 
 
-def test_dentro_de_un_nivel_primero_el_que_deja_mas_demanda_sin_cubrir(client, db_session, seller, customer):
+def test_inside_of_a_level_first_the_that_leaves_more_demand_without_cover(client, db_session, seller, customer):
     # Los dos tienen riesgo alto. El agotado casi no se vende (falta 1
     # unidad); al otro le quedan 10 días pero le faltan 60 para el mes.
     _today(date(2026, 3, 31))
@@ -287,7 +287,7 @@ def test_dentro_de_un_nivel_primero_el_que_deja_mas_demanda_sin_cubrir(client, d
     assert [(p["part_code"], p["risk"]) for p in parts_list] == [("FRE-002", "high"), ("FRE-001", "high")]
 
 
-def test_alertas_de_reposicion_solo_riesgo_alto_o_medio(client, db_session, seller, customer):
+def test_alerts_of_restock_only_risk_high_or_medium(client, db_session, seller, customer):
     _today(date(2026, 3, 31))
     high = _part(db_session, "FRE-001", stock=10)
     low = _part(db_session, "FRE-002", stock=100)
@@ -299,14 +299,14 @@ def test_alertas_de_reposicion_solo_riesgo_alto_o_medio(client, db_session, sell
     assert [p["part_code"] for p in body["parts"]] == ["FRE-001"]
 
 
-def test_sin_repuestos_en_riesgo_la_lista_de_alertas_esta_vacia(client, db_session, seller):
+def test_without_parts_in_risk_the_list_of_alerts_is_empty(client, db_session, seller):
     _today(date(2026, 3, 31))
     _part(db_session, "FRE-001", stock=100)
 
     assert client.get(RIESGO, params={"at_risk_only": True}, headers=seller).json()["parts"] == []
 
 
-def test_riesgo_filtra_por_categoria(client, db_session, seller):
+def test_risk_filters_by_category(client, db_session, seller):
     _today(date(2026, 3, 31))
     _part(db_session, "FRE-001", stock=1, categoria="Frenos")
     _part(db_session, "FIL-001", stock=1, categoria="Filtros")
@@ -319,7 +319,7 @@ def test_riesgo_filtra_por_categoria(client, db_session, seller):
 # --- Detalle de un repuesto (HU 5.8) ---
 
 
-def test_detalle_de_un_repuesto(client, db_session, seller, customer):
+def test_detail_of_a_part(client, db_session, seller, customer):
     _today(date(2026, 3, 31))
     part = _part(db_session, "FRE-001", stock=10)
     _monthly_sales(db_session, customer, part, [30] * 12)
@@ -340,7 +340,7 @@ def test_detalle_de_un_repuesto(client, db_session, seller, customer):
     assert body["risk"] == "high"
 
 
-def test_detalle_de_un_repuesto_que_nunca_se_vendio(client, db_session, seller):
+def test_detail_of_a_part_that_never_sold(client, db_session, seller):
     _today(date(2026, 3, 31))
     part = _part(db_session, "FRE-001", stock=4)
 
@@ -355,7 +355,7 @@ def test_detalle_de_un_repuesto_que_nunca_se_vendio(client, db_session, seller):
     assert body["risk"] == "low"
 
 
-def test_detalle_de_un_repuesto_que_no_existe(client, seller):
+def test_detail_of_a_part_that_no_exists(client, seller):
     response = client.get(f"{DETALLE}/9999", headers=seller)
 
     assert response.status_code == 404
@@ -365,7 +365,7 @@ def test_detalle_de_un_repuesto_que_no_existe(client, seller):
 # --- Filtros en stock y más vendidos (HU 5.9) ---
 
 
-def test_stock_filtra_por_categoria_y_por_repuesto(client, db_session, seller):
+def test_stock_filters_by_category_and_by_part(client, db_session, seller):
     _part(db_session, "FRE-001", stock=1, categoria="Frenos")
     _part(db_session, "FIL-001", stock=2, categoria="Filtros")
 
@@ -379,12 +379,12 @@ def test_stock_filtra_por_categoria_y_por_repuesto(client, db_session, seller):
     assert code_list(category="", search="") == ["FRE-001", "FIL-001"]
 
 
-def test_mas_vendidos_por_meses_calendario_y_categoria(client, db_session, seller, customer):
+def test_more_sold_by_months_calendar_and_category(client, db_session, seller, customer):
     _today(date(2026, 3, 31))
-    pastillas = _part(db_session, "FRE-001", stock=10, categoria="Frenos")
+    brake_pads = _part(db_session, "FRE-001", stock=10, categoria="Frenos")
     filter_part = _part(db_session, "FIL-001", stock=10, categoria="Filtros")
-    _sale(db_session, customer, pastillas, 5, 2026, 3)
-    _sale(db_session, customer, pastillas, 100, 2025, 10)  # hace 6 meses
+    _sale(db_session, customer, brake_pads, 5, 2026, 3)
+    _sale(db_session, customer, brake_pads, 100, 2025, 10)  # hace 6 meses
     _sale(db_session, customer, filter_part, 8, 2026, 2)
 
     def ranking(**params):
@@ -400,7 +400,7 @@ def test_mas_vendidos_por_meses_calendario_y_categoria(client, db_session, selle
 # --- Vehículos para el formulario de repuestos (HU 5.10) ---
 
 
-def test_vehiculos_para_el_formulario(client, db_session, seller):
+def test_vehicles_for_the_form(client, db_session, seller):
     db_session.add_all([
         CarModel(brand="Volkswagen", model="Gol", engine_code="1.6"),
         CarModel(brand="Chevrolet", model="Onix", engine_code="1.4 8V"),

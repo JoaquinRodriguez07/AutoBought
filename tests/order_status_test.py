@@ -18,7 +18,7 @@ from app.models.payment import Payment, PaymentStatus
 from app.models.stock_alert import StockAlert
 from backend.main import app
 from order_test import auth_headers, make_client, make_part
-from pago_test import FakeMPClient
+from payment_test import FakeMPClient
 
 ORDERS = "/api/v1/orders"
 
@@ -45,7 +45,7 @@ def customer(db_session):
 
 
 @pytest.fixture
-def pastillas(db_session):
+def brake_pads(db_session):
     # Lo que quedó después de la compra de 2.
     return make_part(db_session, stock=3, price=1500)
 
@@ -67,7 +67,7 @@ def make_order_for(db, customer, part, qty=2, state=OrderStatus.CONFIRMED, payme
     return order.order_id
 
 
-def cambiar(client, headers, order_id, state, motivo=None):
+def change_order_status(client, headers, order_id, state, motivo=None):
     body = {"status": state}
     if motivo is not None:
         body["reason"] = motivo
@@ -93,10 +93,10 @@ def texto(msg):
 # =====================================================
 
 
-def test_avanzar_un_pedido_pagado_a_empaquetando_avisa_al_cliente(client, db_session, mp, seller, customer, pastillas, sent_mails):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_advance_a_order_paid_a_packing_notifies_to_the_customer(client, db_session, mp, seller, customer, brake_pads, sent_mails):
+    order_id = make_order_for(db_session, customer, brake_pads)
 
-    reply = cambiar(client, seller, order_id, "packing")
+    reply = change_order_status(client, seller, order_id, "packing")
 
     assert reply.status_code == 200
     assert reply.json()["status"] == "packing"
@@ -107,11 +107,11 @@ def test_avanzar_un_pedido_pagado_a_empaquetando_avisa_al_cliente(client, db_ses
     assert "Lo estamos empaquetando" in texto(sent_mails[0])
 
 
-def test_avanza_de_a_un_paso_hasta_entregado_con_un_mail_en_cada_uno(client, db_session, mp, seller, customer, pastillas, sent_mails):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_advances_of_a_step_until_delivered_with_a_mail_in_each_one(client, db_session, mp, seller, customer, brake_pads, sent_mails):
+    order_id = make_order_for(db_session, customer, brake_pads)
 
     for next_value in ("packing", "shipped", "delivered"):
-        assert cambiar(client, seller, order_id, next_value).status_code == 200
+        assert change_order_status(client, seller, order_id, next_value).status_code == 200
 
     assert state(db_session, order_id) == OrderStatus.DELIVERED
     assert [m["Subject"] for m in sent_mails] == [
@@ -119,7 +119,7 @@ def test_avanza_de_a_un_paso_hasta_entregado_con_un_mail_en_cada_uno(client, db_
         f"Tu pedido #{order_id} fue enviado",
         f"Tu pedido #{order_id} fue entregado",
     ]
-    assert stock(db_session, pastillas) == 3  # avanzar no toca el stock
+    assert stock(db_session, brake_pads) == 3  # avanzar no toca el stock
 
 
 @pytest.mark.parametrize(
@@ -133,10 +133,10 @@ def test_avanza_de_a_un_paso_hasta_entregado_con_un_mail_en_cada_uno(client, db_
         (OrderStatus.PACKING, "packing"),
     ],
 )
-def test_orden_invalido_da_409_y_el_estado_no_cambia(client, db_session, mp, seller, customer, pastillas, sent_mails, since, hacia):
-    order_id = make_order_for(db_session, customer, pastillas, state=since)
+def test_order_invalid_gives_409_and_the_status_no_changes(client, db_session, mp, seller, customer, brake_pads, sent_mails, since, hacia):
+    order_id = make_order_for(db_session, customer, brake_pads, state=since)
 
-    reply = cambiar(client, seller, order_id, hacia)
+    reply = change_order_status(client, seller, order_id, hacia)
 
     assert reply.status_code == 409
     assert state(db_session, order_id) == since
@@ -144,10 +144,10 @@ def test_orden_invalido_da_409_y_el_estado_no_cambia(client, db_session, mp, sel
 
 
 @pytest.mark.parametrize("payment_data", [PaymentStatus.PENDING, PaymentStatus.REJECTED])
-def test_un_pedido_sin_pagar_no_se_puede_avanzar(client, db_session, mp, seller, customer, pastillas, sent_mails, payment_data):
-    order_id = make_order_for(db_session, customer, pastillas, payment_data=payment_data)
+def test_a_order_without_pay_no_can_advance(client, db_session, mp, seller, customer, brake_pads, sent_mails, payment_data):
+    order_id = make_order_for(db_session, customer, brake_pads, payment_data=payment_data)
 
-    reply = cambiar(client, seller, order_id, "packing")
+    reply = change_order_status(client, seller, order_id, "packing")
 
     assert reply.status_code == 409
     assert "todavía no está pagado" in reply.json()["detail"]
@@ -155,10 +155,10 @@ def test_un_pedido_sin_pagar_no_se_puede_avanzar(client, db_session, mp, seller,
     assert sent_mails == []
 
 
-def test_un_pedido_de_antes_de_mercado_pago_cuenta_como_pagado(client, db_session, mp, seller, customer, pastillas):
-    order_id = make_order_for(db_session, customer, pastillas, payment_data=None)
+def test_a_order_of_before_of_mercado_payment_account_as_paid(client, db_session, mp, seller, customer, brake_pads):
+    order_id = make_order_for(db_session, customer, brake_pads, payment_data=None)
 
-    assert cambiar(client, seller, order_id, "packing").status_code == 200
+    assert change_order_status(client, seller, order_id, "packing").status_code == 200
 
 
 # =====================================================
@@ -167,94 +167,94 @@ def test_un_pedido_de_antes_de_mercado_pago_cuenta_como_pagado(client, db_sessio
 
 
 @pytest.mark.parametrize("since", [OrderStatus.CONFIRMED, OrderStatus.PACKING, OrderStatus.SHIPPED])
-def test_cancelar_devuelve_el_pago_y_el_stock_y_avisa_con_el_motivo(client, db_session, mp, seller, customer, pastillas, sent_mails, since):
-    order_id = make_order_for(db_session, customer, pastillas, state=since)
+def test_cancel_returns_the_payment_and_the_stock_and_notifies_with_the_reason(client, db_session, mp, seller, customer, brake_pads, sent_mails, since):
+    order_id = make_order_for(db_session, customer, brake_pads, state=since)
 
-    reply = cambiar(client, seller, order_id, "cancelled", "  Se rompió la caja en el depósito.  ")
+    reply = change_order_status(client, seller, order_id, "cancelled", "  Se rompió la caja en el depósito.  ")
 
     assert reply.status_code == 200
     assert reply.json()["cancellation_reason"] == "Se rompió la caja en el depósito."
     assert reply.json()["can_cancel"] is False
     assert state(db_session, order_id) == OrderStatus.CANCELLED
-    assert stock(db_session, pastillas) == 5
+    assert stock(db_session, brake_pads) == 5
     assert mp.refunds == [("555", f"autobought-devolucion-pedido-{order_id}")]
     assert [m["Subject"] for m in sent_mails] == [f"Cancelamos tu pedido #{order_id}"]
     assert "Motivo: Se rompió la caja en el depósito." in texto(sent_mails[0])
 
 
 @pytest.mark.parametrize("motivo", [None, "", "   ", "no"])
-def test_cancelar_sin_motivo_da_422_y_no_cambia_nada(client, db_session, mp, seller, customer, pastillas, sent_mails, motivo):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_cancel_without_reason_gives_422_and_no_changes_nothing(client, db_session, mp, seller, customer, brake_pads, sent_mails, motivo):
+    order_id = make_order_for(db_session, customer, brake_pads)
 
-    reply = cambiar(client, seller, order_id, "cancelled", motivo)
+    reply = change_order_status(client, seller, order_id, "cancelled", motivo)
 
     assert reply.status_code == 422
     assert state(db_session, order_id) == OrderStatus.CONFIRMED
-    assert stock(db_session, pastillas) == 3
+    assert stock(db_session, brake_pads) == 3
     assert mp.refunds == []
     assert sent_mails == []
 
 
 @pytest.mark.parametrize("since", [OrderStatus.DELIVERED, OrderStatus.CANCELLED])
-def test_no_se_cancela_un_pedido_entregado_ni_uno_ya_cancelado(client, db_session, mp, seller, customer, pastillas, sent_mails, since):
-    order_id = make_order_for(db_session, customer, pastillas, state=since)
+def test_no_cancels_a_order_delivered_nor_one_already_cancelled(client, db_session, mp, seller, customer, brake_pads, sent_mails, since):
+    order_id = make_order_for(db_session, customer, brake_pads, state=since)
 
-    reply = cambiar(client, seller, order_id, "cancelled", "El cliente se arrepintió")
+    reply = change_order_status(client, seller, order_id, "cancelled", "El cliente se arrepintió")
 
     assert reply.status_code == 409
     assert state(db_session, order_id) == since
-    assert stock(db_session, pastillas) == 3  # el stock no vuelve dos veces
+    assert stock(db_session, brake_pads) == 3  # el stock no vuelve dos veces
     assert mp.refunds == []
     assert sent_mails == []
 
 
-def test_un_pedido_sin_pagar_no_se_cancela_a_mano(client, db_session, mp, seller, customer, pastillas, sent_mails):
+def test_a_order_without_pay_no_cancels_a_hand(client, db_session, mp, seller, customer, brake_pads, sent_mails):
     # Se cancela solo al vencer el plazo; cancelarlo antes dejaría vivo el link de pago.
-    order_id = make_order_for(db_session, customer, pastillas, payment_data=PaymentStatus.PENDING)
+    order_id = make_order_for(db_session, customer, brake_pads, payment_data=PaymentStatus.PENDING)
 
-    reply = cambiar(client, seller, order_id, "cancelled", "El cliente se arrepintió")
+    reply = change_order_status(client, seller, order_id, "cancelled", "El cliente se arrepintió")
 
     assert reply.status_code == 409
     assert "se cancela solo" in reply.json()["detail"]
     assert state(db_session, order_id) == OrderStatus.CONFIRMED
-    assert stock(db_session, pastillas) == 3
+    assert stock(db_session, brake_pads) == 3
 
 
-def test_si_mercado_pago_no_devuelve_el_pago_el_pedido_no_se_cancela(client, db_session, mp, seller, customer, pastillas, sent_mails, caplog):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_if_mercado_payment_no_returns_the_payment_the_order_no_cancels(client, db_session, mp, seller, customer, brake_pads, sent_mails, caplog):
+    order_id = make_order_for(db_session, customer, brake_pads)
     mp.error = MercadoPagoUnavailable("Mercado Pago respondió con error 500")
 
-    reply = cambiar(client, seller, order_id, "cancelled", "Sin stock real en el depósito")
+    reply = change_order_status(client, seller, order_id, "cancelled", "Sin stock real en el depósito")
 
     assert reply.status_code == 503
     assert state(db_session, order_id) == OrderStatus.CONFIRMED
-    assert stock(db_session, pastillas) == 3
+    assert stock(db_session, brake_pads) == 3
     assert sent_mails == []
     assert "No se pudo devolver el pago del pedido" in caplog.text
 
     # Al reintentar con Mercado Pago andando, se cancela.
     mp.error = None
-    assert cambiar(client, seller, order_id, "cancelled", "Sin stock real en el depósito").status_code == 200
-    assert stock(db_session, pastillas) == 5
+    assert change_order_status(client, seller, order_id, "cancelled", "Sin stock real en el depósito").status_code == 200
+    assert stock(db_session, brake_pads) == 5
 
 
-def test_cancelar_un_pedido_de_antes_de_mercado_pago_queda_en_el_log(client, db_session, mp, seller, customer, pastillas, caplog):
-    order_id = make_order_for(db_session, customer, pastillas, payment_data=None)
+def test_cancel_a_order_of_before_of_mercado_payment_stays_in_the_log(client, db_session, mp, seller, customer, brake_pads, caplog):
+    order_id = make_order_for(db_session, customer, brake_pads, payment_data=None)
 
-    assert cambiar(client, seller, order_id, "cancelled", "Sin stock real en el depósito").status_code == 200
+    assert change_order_status(client, seller, order_id, "cancelled", "Sin stock real en el depósito").status_code == 200
 
     assert mp.refunds == []
     assert "devolver el dinero a mano" in caplog.text
 
 
-def test_cancelar_avisa_a_quienes_esperaban_un_repuesto_agotado(client, db_session, mp, seller, customer, sent_mails):
+def test_cancel_notifies_a_those_who_were_waiting_a_part_sold_out(client, db_session, mp, seller, customer, sent_mails):
     sold_out = make_part(db_session, part_code="ACE-001", name="Aceite 10W-40", stock=0)
     order_id = make_order_for(db_session, customer, sold_out, qty=1)
     other = make_client(db_session, username="beto", email="beto@example.com")
     db_session.add(StockAlert(client_id=other.user_id, part_id=sold_out.id))
     db_session.commit()
 
-    assert cambiar(client, seller, order_id, "cancelled", "El cliente se arrepintió").status_code == 200
+    assert change_order_status(client, seller, order_id, "cancelled", "El cliente se arrepintió").status_code == 200
 
     assert stock(db_session, sold_out) == 1
     asuntos = {(m["To"], m["Subject"]) for m in sent_mails}
@@ -262,9 +262,9 @@ def test_cancelar_avisa_a_quienes_esperaban_un_repuesto_agotado(client, db_sessi
     assert (customer.email, f"Cancelamos tu pedido #{order_id}") in asuntos
 
 
-def test_el_cliente_ve_el_motivo_en_su_historial(client, db_session, mp, seller, customer, pastillas):
-    order_id = make_order_for(db_session, customer, pastillas)
-    cambiar(client, seller, order_id, "cancelled", "Sin stock real en el depósito")
+def test_the_customer_sees_the_reason_in_its_history(client, db_session, mp, seller, customer, brake_pads):
+    order_id = make_order_for(db_session, customer, brake_pads)
+    change_order_status(client, seller, order_id, "cancelled", "Sin stock real en el depósito")
 
     order_data = client.get(f"{ORDERS}/{order_id}", headers=auth_headers(customer)).json()
 
@@ -275,10 +275,10 @@ def test_el_cliente_ve_el_motivo_en_su_historial(client, db_session, mp, seller,
     assert order_data["status_history"][-1]["status"] == "cancelled"
 
 
-def test_cada_paso_del_vendedor_queda_en_la_linea_de_tiempo_del_cliente(client, db_session, mp, seller, customer, pastillas):
-    order_id = make_order_for(db_session, customer, pastillas)
-    cambiar(client, seller, order_id, "packing")
-    cambiar(client, seller, order_id, "shipped")
+def test_each_step_of_the_seller_stays_in_the_line_of_time_of_the_customer(client, db_session, mp, seller, customer, brake_pads):
+    order_id = make_order_for(db_session, customer, brake_pads)
+    change_order_status(client, seller, order_id, "packing")
+    change_order_status(client, seller, order_id, "shipped")
 
     order_data = client.get(f"{ORDERS}/{order_id}", headers=auth_headers(customer)).json()
 
@@ -292,17 +292,17 @@ def test_cada_paso_del_vendedor_queda_en_la_linea_de_tiempo_del_cliente(client, 
 # =====================================================
 
 
-def test_solo_vendedores_pueden_cambiar_el_estado(client, db_session, mp, customer, pastillas, sent_mails):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_only_sellers_can_change_the_status(client, db_session, mp, customer, brake_pads, sent_mails):
+    order_id = make_order_for(db_session, customer, brake_pads)
 
-    assert cambiar(client, auth_headers(customer), order_id, "packing").status_code == 403
-    assert cambiar(client, {}, order_id, "packing").status_code == 401
+    assert change_order_status(client, auth_headers(customer), order_id, "packing").status_code == 403
+    assert change_order_status(client, {}, order_id, "packing").status_code == 401
     assert state(db_session, order_id) == OrderStatus.CONFIRMED
     assert sent_mails == []
 
 
-def test_un_pedido_que_no_existe_da_404(client, mp, seller):
-    assert cambiar(client, seller, 999, "packing").status_code == 404
+def test_a_order_that_no_exists_gives_404(client, mp, seller):
+    assert change_order_status(client, seller, 999, "packing").status_code == 404
 
 
 # =====================================================
@@ -310,11 +310,11 @@ def test_un_pedido_que_no_existe_da_404(client, mp, seller):
 # =====================================================
 
 
-def test_el_listado_filtra_por_estado_y_dice_que_se_puede_hacer(client, db_session, mp, seller, customer, pastillas):
-    paid = make_order_for(db_session, customer, pastillas)
-    unpaid = make_order_for(db_session, customer, pastillas, payment_data=PaymentStatus.PENDING)
-    make_order_for(db_session, customer, pastillas, state=OrderStatus.PACKING)
-    make_order_for(db_session, customer, pastillas, state=OrderStatus.DELIVERED)
+def test_the_listing_filters_by_status_and_says_that_can_make(client, db_session, mp, seller, customer, brake_pads):
+    paid = make_order_for(db_session, customer, brake_pads)
+    unpaid = make_order_for(db_session, customer, brake_pads, payment_data=PaymentStatus.PENDING)
+    make_order_for(db_session, customer, brake_pads, state=OrderStatus.PACKING)
+    make_order_for(db_session, customer, brake_pads, state=OrderStatus.DELIVERED)
 
     everyone = client.get(f"{ORDERS}/seller", headers=seller).json()
     confirmed_orders = client.get(f"{ORDERS}/seller", headers=seller, params={"status": "confirmed"}).json()
@@ -333,8 +333,8 @@ def test_el_listado_filtra_por_estado_y_dice_que_se_puede_hacer(client, db_sessi
     assert by_id[unpaid]["payment_status"] == "pending"
 
 
-def test_el_listado_pagina(client, db_session, mp, seller, customer, pastillas):
-    ids = [make_order_for(db_session, customer, pastillas) for _ in range(3)]
+def test_the_listing_page(client, db_session, mp, seller, customer, brake_pads):
+    ids = [make_order_for(db_session, customer, brake_pads) for _ in range(3)]
 
     pagina = client.get(f"{ORDERS}/seller", headers=seller, params={"status": "confirmed", "limit": 2}).json()
     resto = client.get(
@@ -346,7 +346,7 @@ def test_el_listado_pagina(client, db_session, mp, seller, customer, pastillas):
     assert pagina["total"] == 3
 
 
-def test_el_listado_es_solo_para_vendedores(client, customer):
+def test_the_listing_is_only_for_sellers(client, customer):
     assert client.get(f"{ORDERS}/seller", headers=auth_headers(customer)).status_code == 403
     assert client.get(f"{ORDERS}/seller").status_code == 401
 
@@ -356,17 +356,17 @@ def test_el_listado_es_solo_para_vendedores(client, customer):
 # =====================================================
 
 
-def test_el_detalle_trae_productos_envio_cliente_y_pago(client, db_session, mp, seller, customer, pastillas):
+def test_the_detail_brings_products_shipping_customer_and_payment(client, db_session, mp, seller, customer, brake_pads):
     customer.phone = "099123456"
     db_session.commit()
-    order_id = make_order_for(db_session, customer, pastillas, qty=2)
+    order_id = make_order_for(db_session, customer, brake_pads, qty=2)
 
     reply = client.get(f"{ORDERS}/seller/{order_id}", headers=seller)
 
     assert reply.status_code == 200
     order_data = reply.json()
     assert order_data["items"] == [
-        {"part_id": pastillas.id, "part_code": "BRK-001", "name": "Pastillas de freno", "quantity": 2, "frozen_price": 1500}
+        {"part_id": brake_pads.id, "part_code": "BRK-001", "name": "Pastillas de freno", "quantity": 2, "frozen_price": 1500}
     ]
     assert order_data["total"] == 3000
     assert order_data["shipping_address"]["street"] == "Av. Italia"
@@ -377,22 +377,22 @@ def test_el_detalle_trae_productos_envio_cliente_y_pago(client, db_session, mp, 
     assert order_data["can_cancel"] is True
 
 
-def test_el_detalle_de_un_pedido_que_no_existe_da_404(client, seller):
+def test_the_detail_of_a_order_that_no_exists_gives_404(client, seller):
     assert client.get(f"{ORDERS}/seller/999", headers=seller).status_code == 404
 
 
-def test_el_detalle_es_solo_para_vendedores(client, db_session, customer, pastillas):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_the_detail_is_only_for_sellers(client, db_session, customer, brake_pads):
+    order_id = make_order_for(db_session, customer, brake_pads)
 
     assert client.get(f"{ORDERS}/seller/{order_id}", headers=auth_headers(customer)).status_code == 403
     assert client.get(f"{ORDERS}/seller/{order_id}").status_code == 401
 
 
-def test_el_listado_puede_traer_solo_los_pagados_para_preparar(client, db_session, mp, seller, customer, pastillas):
-    paid = make_order_for(db_session, customer, pastillas)
-    old = make_order_for(db_session, customer, pastillas, payment_data=None)  # de antes de Mercado Pago: ya cobrado
-    make_order_for(db_session, customer, pastillas, payment_data=PaymentStatus.PENDING)
-    make_order_for(db_session, customer, pastillas, payment_data=PaymentStatus.REJECTED)
+def test_the_listing_can_bring_only_the_paid_for_prepare(client, db_session, mp, seller, customer, brake_pads):
+    paid = make_order_for(db_session, customer, brake_pads)
+    old = make_order_for(db_session, customer, brake_pads, payment_data=None)  # de antes de Mercado Pago: ya cobrado
+    make_order_for(db_session, customer, brake_pads, payment_data=PaymentStatus.PENDING)
+    make_order_for(db_session, customer, brake_pads, payment_data=PaymentStatus.REJECTED)
 
     reply = client.get(
         f"{ORDERS}/seller", headers=seller, params={"status": "confirmed", "paid_only": "true"}
@@ -402,7 +402,7 @@ def test_el_listado_puede_traer_solo_los_pagados_para_preparar(client, db_sessio
     assert reply["total"] == 2 == reply["to_prepare"]
 
 
-def test_el_listado_se_ordena_por_fecha_cliente_o_total(client, db_session, mp, seller, pastillas):
+def test_the_listing_sorts_by_date_customer_or_total(client, db_session, mp, seller, brake_pads):
     bruno = make_client(db_session, username="bruno", email="bruno@example.com")
     bruno.name = "bruno Díaz"  # en minúscula: el orden no distingue mayúsculas
     carla = make_client(db_session, username="carla", email="carla@example.com")
@@ -410,9 +410,9 @@ def test_el_listado_se_ordena_por_fecha_cliente_o_total(client, db_session, mp, 
     ana = make_client(db_session, username="ana2", email="ana2@example.com")  # se llama "Ana"
     db_session.commit()
     # Total: 1 × 1500, 3 × 1500 y 2 × 1500.
-    de_bruno = make_order_for(db_session, bruno, pastillas, qty=1)
-    de_carla = make_order_for(db_session, carla, pastillas, qty=3)
-    de_ana = make_order_for(db_session, ana, pastillas, qty=2)
+    de_bruno = make_order_for(db_session, bruno, brake_pads, qty=1)
+    de_carla = make_order_for(db_session, carla, brake_pads, qty=3)
+    de_ana = make_order_for(db_session, ana, brake_pads, qty=2)
     for order_id, day_number in ((de_bruno, 3), (de_carla, 1), (de_ana, 2)):
         db_session.get(Order, order_id).created_at = datetime(2026, 11, day_number, tzinfo=timezone.utc)
     db_session.commit()
@@ -433,7 +433,7 @@ def test_el_listado_se_ordena_por_fecha_cliente_o_total(client, db_session, mp, 
     assert [o["order_id"] for o in unordered["orders"]] == [de_carla, de_ana, de_bruno]
 
 
-def test_un_orden_que_no_existe_da_422(client, seller):
+def test_a_order_that_no_exists_gives_422(client, seller):
     assert client.get(f"{ORDERS}/seller", headers=seller, params={"sort": "precio"}).status_code == 422
 
 
@@ -450,27 +450,27 @@ def test_un_orden_que_no_existe_da_422(client, seller):
         (OrderStatus.DELIVERED, OrderStatus.SHIPPED),
     ],
 )
-def test_volver_un_paso_atras_corrige_sin_mandar_mail(client, db_session, mp, seller, customer, pastillas, sent_mails, since, hacia):
-    order_id = make_order_for(db_session, customer, pastillas, state=since)
+def test_go_back_a_step_back_fixes_without_send_mail(client, db_session, mp, seller, customer, brake_pads, sent_mails, since, hacia):
+    order_id = make_order_for(db_session, customer, brake_pads, state=since)
     assert client.get(f"{ORDERS}/seller/{order_id}", headers=seller).json()["previous_status"] == hacia.value
 
-    reply = cambiar(client, seller, order_id, hacia.value)
+    reply = change_order_status(client, seller, order_id, hacia.value)
 
     assert reply.status_code == 200
     assert reply.json()["status"] == hacia.value
     assert state(db_session, order_id) == hacia
-    assert stock(db_session, pastillas) == 3  # el stock no se toca
+    assert stock(db_session, brake_pads) == 3  # el stock no se toca
     assert sent_mails == []
 
 
-def test_no_hay_a_donde_volver_si_esta_confirmado_cancelado_o_sin_pagar(client, db_session, mp, seller, customer, pastillas):
-    confirmed = make_order_for(db_session, customer, pastillas)
-    cancelled = make_order_for(db_session, customer, pastillas, state=OrderStatus.CANCELLED)
-    unpaid = make_order_for(db_session, customer, pastillas, state=OrderStatus.PACKING, payment_data=PaymentStatus.PENDING)
+def test_no_there_is_a_where_go_back_if_is_confirmed_cancelled_or_without_pay(client, db_session, mp, seller, customer, brake_pads):
+    confirmed = make_order_for(db_session, customer, brake_pads)
+    cancelled = make_order_for(db_session, customer, brake_pads, state=OrderStatus.CANCELLED)
+    unpaid = make_order_for(db_session, customer, brake_pads, state=OrderStatus.PACKING, payment_data=PaymentStatus.PENDING)
 
     for order_id in (confirmed, cancelled, unpaid):
         assert client.get(f"{ORDERS}/seller/{order_id}", headers=seller).json()["previous_status"] is None
-    assert cambiar(client, seller, unpaid, "confirmed").status_code == 409
+    assert change_order_status(client, seller, unpaid, "confirmed").status_code == 409
 
 
 # =====================================================
@@ -488,15 +488,15 @@ DIRECCION_NUEVA = {
 }
 
 
-def editar(client, headers, order_id, body):
+def edit_order(client, headers, order_id, body):
     return client.patch(f"{ORDERS}/seller/{order_id}", headers=headers, json=body)
 
 
 @pytest.mark.parametrize("since", [OrderStatus.CONFIRMED, OrderStatus.PACKING])
-def test_el_vendedor_corrige_la_direccion_mientras_no_se_envio(client, db_session, mp, seller, customer, pastillas, sent_mails, since):
-    order_id = make_order_for(db_session, customer, pastillas, state=since)
+def test_the_seller_fixes_the_address_while_no_shipping(client, db_session, mp, seller, customer, brake_pads, sent_mails, since):
+    order_id = make_order_for(db_session, customer, brake_pads, state=since)
 
-    reply = editar(client, seller, order_id, {"shipping_address": DIRECCION_NUEVA})
+    reply = edit_order(client, seller, order_id, {"shipping_address": DIRECCION_NUEVA})
 
     assert reply.status_code == 200
     assert reply.json()["shipping_address"] == DIRECCION_NUEVA
@@ -509,10 +509,10 @@ def test_el_vendedor_corrige_la_direccion_mientras_no_se_envio(client, db_sessio
 
 
 @pytest.mark.parametrize("since", [OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.CANCELLED])
-def test_la_direccion_no_se_cambia_si_el_pedido_ya_salio(client, db_session, mp, seller, customer, pastillas, since):
-    order_id = make_order_for(db_session, customer, pastillas, state=since)
+def test_the_address_no_changes_if_the_order_already_went_out(client, db_session, mp, seller, customer, brake_pads, since):
+    order_id = make_order_for(db_session, customer, brake_pads, state=since)
 
-    reply = editar(client, seller, order_id, {"shipping_address": DIRECCION_NUEVA})
+    reply = edit_order(client, seller, order_id, {"shipping_address": DIRECCION_NUEVA})
 
     assert reply.status_code == 409
     db_session.expire_all()
@@ -528,20 +528,20 @@ def test_la_direccion_no_se_cambia_si_el_pedido_ya_salio(client, db_session, mp,
         {"city": "Salto", "department": "Montevideo"},  # una ciudad que es otro departamento
     ],
 )
-def test_una_direccion_invalida_da_422(client, db_session, mp, seller, customer, pastillas, cambio):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_a_address_invalid_gives_422(client, db_session, mp, seller, customer, brake_pads, cambio):
+    order_id = make_order_for(db_session, customer, brake_pads)
 
-    reply = editar(client, seller, order_id, {"shipping_address": {**DIRECCION_NUEVA, **cambio}})
+    reply = edit_order(client, seller, order_id, {"shipping_address": {**DIRECCION_NUEVA, **cambio}})
 
     assert reply.status_code == 422
     db_session.expire_all()
     assert db_session.get(Order, order_id).ship_street == "Av. Italia"
 
 
-def test_la_nota_interna_se_guarda_y_el_cliente_no_la_ve(client, db_session, mp, seller, customer, pastillas):
-    order_id = make_order_for(db_session, customer, pastillas, state=OrderStatus.DELIVERED)
+def test_the_note_internal_saves_and_the_customer_no_the_sees(client, db_session, mp, seller, customer, brake_pads):
+    order_id = make_order_for(db_session, customer, brake_pads, state=OrderStatus.DELIVERED)
 
-    reply = editar(client, seller, order_id, {"internal_note": "  Pidió que se entregue de tarde.  "})
+    reply = edit_order(client, seller, order_id, {"internal_note": "  Pidió que se entregue de tarde.  "})
 
     assert reply.status_code == 200
     assert reply.json()["internal_note"] == "Pidió que se entregue de tarde."
@@ -551,23 +551,23 @@ def test_la_nota_interna_se_guarda_y_el_cliente_no_la_ve(client, db_session, mp,
     assert "Pidió que se entregue" not in str(client.get(ORDERS, headers=auth_headers(customer)).json())
 
     # Vacía, se borra.
-    assert editar(client, seller, order_id, {"internal_note": "   "}).json()["internal_note"] is None
+    assert edit_order(client, seller, order_id, {"internal_note": "   "}).json()["internal_note"] is None
 
 
-def test_editar_sin_nada_o_borrando_la_direccion_da_422(client, db_session, mp, seller, customer, pastillas):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_edit_without_nothing_or_clearing_the_address_gives_422(client, db_session, mp, seller, customer, brake_pads):
+    order_id = make_order_for(db_session, customer, brake_pads)
 
-    assert editar(client, seller, order_id, {}).status_code == 422
-    assert editar(client, seller, order_id, {"shipping_address": None}).status_code == 422
-    assert editar(client, seller, order_id, {"internal_note": "x" * 501}).status_code == 422
+    assert edit_order(client, seller, order_id, {}).status_code == 422
+    assert edit_order(client, seller, order_id, {"shipping_address": None}).status_code == 422
+    assert edit_order(client, seller, order_id, {"internal_note": "x" * 501}).status_code == 422
 
 
-def test_editar_es_solo_para_vendedores_y_de_pedidos_que_existen(client, db_session, mp, seller, customer, pastillas):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_edit_is_only_for_sellers_and_of_orders_that_exist(client, db_session, mp, seller, customer, brake_pads):
+    order_id = make_order_for(db_session, customer, brake_pads)
 
-    assert editar(client, auth_headers(customer), order_id, {"internal_note": "hola"}).status_code == 403
-    assert editar(client, {}, order_id, {"internal_note": "hola"}).status_code == 401
-    assert editar(client, seller, 999, {"internal_note": "hola"}).status_code == 404
+    assert edit_order(client, auth_headers(customer), order_id, {"internal_note": "hola"}).status_code == 403
+    assert edit_order(client, {}, order_id, {"internal_note": "hola"}).status_code == 401
+    assert edit_order(client, seller, 999, {"internal_note": "hola"}).status_code == 404
 
 
 
@@ -576,18 +576,18 @@ def test_editar_es_solo_para_vendedores_y_de_pedidos_que_existen(client, db_sess
 # =====================================================
 
 
-def test_cancelar_anota_cuando_se_devolvio_el_pago(client, db_session, mp, seller, customer, pastillas):
-    order_id = make_order_for(db_session, customer, pastillas)
+def test_cancel_records_when_refunded_the_payment(client, db_session, mp, seller, customer, brake_pads):
+    order_id = make_order_for(db_session, customer, brake_pads)
 
-    cambiar(client, seller, order_id, "cancelled", "Se rompió la caja en el depósito.")
+    change_order_status(client, seller, order_id, "cancelled", "Se rompió la caja en el depósito.")
 
     detail = client.get(f"{ORDERS}/seller/{order_id}", headers=seller).json()
     assert detail["refunded_at"] is not None
     assert detail["refund_pending"] is False
 
 
-def test_el_detalle_avisa_si_falta_devolver_el_pago(client, db_session, mp, seller, customer, pastillas):
-    order_id = make_order_for(db_session, customer, pastillas, state=OrderStatus.CANCELLED)
+def test_the_detail_notifies_if_missing_refund_the_payment(client, db_session, mp, seller, customer, brake_pads):
+    order_id = make_order_for(db_session, customer, brake_pads, state=OrderStatus.CANCELLED)
 
     detail = client.get(f"{ORDERS}/seller/{order_id}", headers=seller).json()
 
@@ -596,16 +596,16 @@ def test_el_detalle_avisa_si_falta_devolver_el_pago(client, db_session, mp, sell
 
 
 
-def test_cancelar_un_pago_sin_numero_de_mercado_pago_no_lo_llama_y_queda_para_devolver_a_mano(
-    client, db_session, mp, seller, customer, pastillas, caplog
+def test_cancel_a_payment_without_number_of_mercado_payment_no_it_calls_and_stays_for_refund_a_hand(
+    client, db_session, mp, seller, customer, brake_pads, caplog
 ):
     # Ej.: pedidos de los datos de prueba, aprobados pero sin el número de pago.
-    order_id = make_order_for(db_session, customer, pastillas)
+    order_id = make_order_for(db_session, customer, brake_pads)
     payment_data = db_session.get(Order, order_id).payment
     payment_data.mp_payment_id = None
     db_session.commit()
 
-    reply = cambiar(client, seller, order_id, "cancelled", "Se rompió la caja en el depósito.")
+    reply = change_order_status(client, seller, order_id, "cancelled", "Se rompió la caja en el depósito.")
 
     assert reply.status_code == 200
     assert state(db_session, order_id) == OrderStatus.CANCELLED

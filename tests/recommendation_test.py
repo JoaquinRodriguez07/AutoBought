@@ -86,7 +86,7 @@ def recommend(client, *parts):
 
 
 # Escenario: Sugerencias para un repuesto del carrito
-def test_sugerencias_para_un_repuesto_del_carrito(client, db_session):
+def test_suggestions_for_a_part_of_the_cart(client, db_session):
     # Dado un repuesto con stock compatible con Chevrolet Onix 2015
     parts = make_catalog(db_session)
     filter_part = parts["filtro_onix"]
@@ -110,7 +110,7 @@ def test_sugerencias_para_un_repuesto_del_carrito(client, db_session):
 
 
 # Escenario: Repuesto sin complementarios
-def test_repuesto_sin_complementarios_devuelve_lista_vacia(client, db_session):
+def test_part_without_complementary_returns_list_empty(client, db_session):
     # Dado un repuesto sin complementarios con stock: para las pastillas del
     # Cronos (Frenos -> Suspensión) solo hay un amortiguador sin stock.
     parts = make_catalog(db_session)
@@ -124,7 +124,7 @@ def test_repuesto_sin_complementarios_devuelve_lista_vacia(client, db_session):
 
 
 # Escenario: Repuesto inexistente
-def test_repuesto_inexistente_devuelve_404(client, db_session):
+def test_part_nonexistent_returns_404(client, db_session):
     make_catalog(db_session)
 
     # Cuando se solicitan recomendaciones para un repuesto que no existe
@@ -137,7 +137,7 @@ def test_repuesto_inexistente_devuelve_404(client, db_session):
 
 # Casos adicionales de la regla y del contrato
 
-def test_excluye_sin_stock_otros_vehiculos_y_otros_anios(client, db_session):
+def test_excludes_without_stock_others_vehicles_and_others_years(client, db_session):
     parts = make_catalog(db_session)
 
     # Encendido -> Filtros. Hay cinco filtros, pero solo dos sirven: quedan
@@ -151,7 +151,7 @@ def test_excluye_sin_stock_otros_vehiculos_y_otros_anios(client, db_session):
     ]
 
 
-def test_prioriza_categorias_y_corta_en_tres(client, db_session):
+def test_prioritizes_categories_and_stops_in_three(client, db_session):
     parts = make_catalog(db_session)
 
     # Filtros -> Lubricantes primero, después Encendido. Hay 4 candidatos
@@ -165,7 +165,7 @@ def test_prioriza_categorias_y_corta_en_tres(client, db_session):
     ]
 
 
-def test_mantiene_la_estructura_de_parts(client, db_session):
+def test_keeps_the_structure_of_parts(client, db_session):
     parts = make_catalog(db_session)
 
     response = recommend(client, parts["bujia_onix"])
@@ -194,7 +194,7 @@ def test_mantiene_la_estructura_de_parts(client, db_session):
     }
 
 
-def test_no_sugiere_repuestos_del_carrito_y_reparte_entre_ellos(client, db_session):
+def test_no_suggests_parts_of_the_cart_and_splits_between_them(client, db_session):
     parts = make_catalog(db_session)
 
     # Bujía (Encendido -> Filtros) y aceite (Lubricantes -> Filtros) del Onix:
@@ -210,7 +210,7 @@ def test_no_sugiere_repuestos_del_carrito_y_reparte_entre_ellos(client, db_sessi
     assert parts["filtro_aire_onix"].id in ids
 
 
-def test_reparte_entre_los_repuestos_del_carrito_y_corta_en_tres(client, db_session):
+def test_splits_between_the_parts_of_the_cart_and_stops_in_three(client, db_session):
     parts = make_catalog(db_session)
 
     # El filtro tiene 3 candidatos (aceite, bobina y cables) y la bujía uno
@@ -224,19 +224,19 @@ def test_reparte_entre_los_repuestos_del_carrito_y_corta_en_tres(client, db_sess
     ]
 
 
-def test_part_ids_es_obligatorio(client):
+def test_part_ids_is_required(client):
     response = client.get("/api/v1/recommendations")
 
     assert response.status_code == 422
 
 
-def test_part_ids_invalidos_devuelven_422(client):
+def test_part_ids_invalid_return_422(client):
     for raw in ("abc", "1,x", " , ", "-1", "²", "１"):
         response = client.get("/api/v1/recommendations", params={"part_ids": raw})
         assert response.status_code == 422, raw
 
 
-def test_categoria_sin_complementarias_devuelve_lista_vacia(client, db_session):
+def test_category_without_complementary_returns_list_empty(client, db_session):
     parts = make_catalog(db_session)
 
     response = recommend(client, parts["llavero"])
@@ -245,7 +245,7 @@ def test_categoria_sin_complementarias_devuelve_lista_vacia(client, db_session):
     assert response.json() == {"parts": []}
 
 
-def test_si_un_repuesto_del_carrito_no_existe_devuelve_404(client, db_session):
+def test_if_a_part_of_the_cart_no_exists_returns_404(client, db_session):
     parts = make_catalog(db_session)
 
     response = client.get(
@@ -256,7 +256,7 @@ def test_si_un_repuesto_del_carrito_no_existe_devuelve_404(client, db_session):
     assert "999" in response.json()["detail"]
 
 
-def test_ids_repetidos_no_cambian_el_resultado(client, db_session):
+def test_ids_repeated_no_change_the_result(client, db_session):
     parts = make_catalog(db_session)
     filter_id = parts["filtro_onix"].id
 
@@ -267,7 +267,7 @@ def test_ids_repetidos_no_cambian_el_resultado(client, db_session):
     assert repeated.json() == simple.json()
 
 
-def test_id_fuera_de_rango_devuelve_404(client, db_session):
+def test_id_out_of_range_returns_404(client, db_session):
     make_catalog(db_session)
 
     response = client.get(
@@ -277,13 +277,13 @@ def test_id_fuera_de_rango_devuelve_404(client, db_session):
     assert response.status_code == 404
 
 
-def test_id_con_demasiados_digitos_devuelve_422(client):
+def test_id_with_too_many_digits_returns_422(client):
     response = client.get("/api/v1/recommendations", params={"part_ids": "9" * 5000})
 
     assert response.status_code == 422
 
 
-def test_demasiados_part_ids_devuelven_422(client):
+def test_too_many_part_ids_return_422(client):
     response = client.get(
         "/api/v1/recommendations",
         params={"part_ids": ",".join(str(i) for i in range(1, 52))},

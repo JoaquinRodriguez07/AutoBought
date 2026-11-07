@@ -11,7 +11,7 @@ from app.ia.client import GeminiClient, AIUnavailable, extract_text, extract_tok
 from app.ia.service import recent_queries, check_limit, extract_json, ask_structured, record_usage
 from app.models.client import Client
 from app.models.ai_usage import AIUsage
-from ia_fake import FakeAIClient
+from ai_fake import FakeAIClient
 
 RESPUESTA_INTERACTIONS = {
     "id": "v1_abc",
@@ -38,12 +38,12 @@ def customer_with(handler) -> GeminiClient:
 # =====================================================
 
 
-def test_extrae_el_texto_final_sin_el_pensamiento():
+def test_extracts_the_text_final_without_the_thinking():
     assert extract_text(RESPUESTA_INTERACTIONS) == '{"ok": true}'
     assert extract_tokens(RESPUESTA_INTERACTIONS) == 321
 
 
-def test_tambien_entiende_generate_content():
+def test_also_understands_generate_content():
     reply = {
         "candidates": [{"content": {"parts": [{"text": "borrador", "thought": True}, {"text": "hola"}]}}],
         "usageMetadata": {"totalTokenCount": 12},
@@ -58,14 +58,14 @@ def test_tambien_entiende_generate_content():
 # =====================================================
 
 
-def test_manda_el_pedido_con_la_clave_y_devuelve_el_texto():
+def test_sends_the_order_with_the_key_and_returns_the_text():
     orders_list = []
 
     def handler(request: httpx.Request):
         orders_list.append(request)
         return httpx.Response(200, json=RESPUESTA_INTERACTIONS)
 
-    reply = customer_with(handler).generar("Sos un mecánico.", "chilla al frenar")
+    reply = customer_with(handler).generate("Sos un mecánico.", "chilla al frenar")
 
     assert reply.texto == '{"ok": true}'
     assert reply.tokens == 321
@@ -76,31 +76,31 @@ def test_manda_el_pedido_con_la_clave_y_devuelve_el_texto():
     assert "Sos un mecánico." in body_data or "Sos un mec\\u00e1nico." in body_data
 
 
-def test_sin_clave_no_esta_disponible():
+def test_without_key_no_is_available():
     with pytest.raises(AIUnavailable, match="clave"):
-        GeminiClient(key="").generar("x", "y")
+        GeminiClient(key="").generate("x", "y")
 
 
-def test_error_del_proveedor_no_esta_disponible_y_dice_el_motivo():
+def test_error_of_the_provider_no_is_available_and_says_the_reason():
     with pytest.raises(AIUnavailable, match="500"):
-        customer_with(lambda request: httpx.Response(500, json={"error": {"message": "boom"}})).generar("x", "y")
+        customer_with(lambda request: httpx.Response(500, json={"error": {"message": "boom"}})).generate("x", "y")
     with pytest.raises(AIUnavailable, match="API key not valid"):
-        customer_with(lambda request: httpx.Response(400, json={"error": {"message": "API key not valid."}})).generar("x", "y")
+        customer_with(lambda request: httpx.Response(400, json={"error": {"message": "API key not valid."}})).generate("x", "y")
 
 
-def test_tiempo_agotado_no_esta_disponible():
+def test_time_sold_out_no_is_available():
     def handler(request):
         raise httpx.ReadTimeout("lento", request=request)
 
     with pytest.raises(AIUnavailable, match="no respondió"):
-        customer_with(handler).generar("x", "y")
+        customer_with(handler).generate("x", "y")
 
 
-def test_respuesta_sin_texto_no_esta_disponible():
+def test_answer_without_text_no_is_available():
     vacia = {"steps": [{"type": "thought", "content": [{"type": "text", "text": "..."}]}]}
 
     with pytest.raises(AIUnavailable, match="no devolvió texto"):
-        customer_with(lambda request: httpx.Response(200, json=vacia)).generar("x", "y")
+        customer_with(lambda request: httpx.Response(200, json=vacia)).generate("x", "y")
 
 
 # =====================================================
@@ -108,13 +108,13 @@ def test_respuesta_sin_texto_no_esta_disponible():
 # =====================================================
 
 
-def test_acepta_json_dentro_de_un_bloque_de_codigo():
+def test_accepts_json_inside_of_a_block_of_code():
     texto = 'Acá va:\n```json\n{"diagnostico": "pastillas gastadas", "urgencia": "alta"}\n```'
 
     assert extract_json(texto) == {"diagnostico": "pastillas gastadas", "urgencia": "alta"}
 
 
-def test_valida_la_respuesta_contra_el_modelo():
+def test_validates_the_answer_against_the_modelo():
     customer = FakeAIClient('{"diagnostico": "batería descargada", "urgencia": "media"}', tokens=50)
 
     output, tokens = ask_structured(customer, "instrucciones", "no arranca", Output)
@@ -125,7 +125,7 @@ def test_valida_la_respuesta_contra_el_modelo():
 
 
 @pytest.mark.parametrize("texto", ["no sé", '{"diagnostico": "x"}', '{"diagnostico": 1, "urgencia": ', "[1, 2]"])
-def test_rechaza_lo_que_no_respeta_el_formato(texto):
+def test_rejects_it_that_no_respects_the_format(texto):
     with pytest.raises(AIUnavailable):
         ask_structured(FakeAIClient(texto), "i", "e", Output)
 
@@ -143,7 +143,7 @@ def make_client(db):
     return customer
 
 
-def test_registra_cada_consulta_con_sus_tokens(db_session):
+def test_records_each_query_with_its_tokens(db_session):
     customer = make_client(db_session)
 
     record_usage(db_session, customer.user_id, "asistente", tokens=120, ok=True)
@@ -155,7 +155,7 @@ def test_registra_cada_consulta_con_sus_tokens(db_session):
     assert recent_queries(db_session, customer.user_id) == 1
 
 
-def test_supera_el_limite_responde_429(db_session):
+def test_exceeds_the_limit_answers_429(db_session):
     customer = make_client(db_session)
     for _ in range(3):
         record_usage(db_session, customer.user_id, "asistente", tokens=10, ok=True)
@@ -168,7 +168,7 @@ def test_supera_el_limite_responde_429(db_session):
     assert error.value.status_code == 429
 
 
-def test_solo_cuentan_las_ultimas_24_horas(db_session):
+def test_only_count_the_last_24_hours(db_session):
     customer = make_client(db_session)
     old = AIUsage(user_id=customer.user_id, funcionalidad="asistente", tokens=1, ok=True,
                   created_at=datetime.now(timezone.utc) - timedelta(hours=25))

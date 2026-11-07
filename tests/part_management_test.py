@@ -75,7 +75,7 @@ def _data(car_model_ids, **cambios):
 # --- Ajustar stock ---
 
 
-def test_ajustar_stock(client, db_session, seller, vehicles):
+def test_adjust_stock(client, db_session, seller, vehicles):
     # Escenario de la HU: de 38 a 50 unidades.
     part = _part(db_session, vehicles[0], stock=38)
 
@@ -87,20 +87,20 @@ def test_ajustar_stock(client, db_session, seller, vehicles):
     assert [p["stock"] for p in client.get(PARTS).json()["parts"]] == [50]
 
 
-def test_ajustar_stock_rechaza_negativos(client, db_session, seller, vehicles):
+def test_adjust_stock_rejects_negative(client, db_session, seller, vehicles):
     part = _part(db_session, vehicles[0])
 
     assert client.patch(f"{PARTS}/{part.id}/stock", json={"stock": -1}, headers=seller).status_code == 422
 
 
-def test_ajustar_stock_de_un_repuesto_que_no_existe(client, seller):
+def test_adjust_stock_of_a_part_that_no_exists(client, seller):
     response = client.patch(f"{PARTS}/9999/stock", json={"stock": 5}, headers=seller)
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Repuesto no encontrado."
 
 
-def test_reponer_un_agotado_avisa_a_quienes_lo_esperaban(client, db_session, seller, customer, vehicles, sent_mails):
+def test_restock_a_sold_out_notifies_a_those_who_it_were_waiting(client, db_session, seller, customer, vehicles, sent_mails):
     part = _part(db_session, vehicles[0], stock=0)
     db_session.add(StockAlert(client_id=customer.user_id, part_id=part.id))
     db_session.commit()
@@ -114,7 +114,7 @@ def test_reponer_un_agotado_avisa_a_quienes_lo_esperaban(client, db_session, sel
 # --- Alta de repuesto ---
 
 
-def test_alta_de_repuesto(client, db_session, seller, vehicles):
+def test_signup_of_part(client, db_session, seller, vehicles):
     gol, onix = vehicles
 
     response = client.post(PARTS, json=_data([gol.id, onix.id]), headers=seller)
@@ -132,13 +132,13 @@ def test_alta_de_repuesto(client, db_session, seller, vehicles):
     assert fuera_de_rango == []
 
 
-def test_alta_limpia_los_espacios(client, seller, vehicles):
+def test_signup_clears_the_spaces(client, seller, vehicles):
     response = client.post(PARTS, json=_data([vehicles[0].id], name="  Discos de freno  "), headers=seller)
 
     assert response.json()["name"] == "Discos de freno"
 
 
-def test_alta_con_un_codigo_que_ya_existe(client, db_session, seller, vehicles):
+def test_signup_with_a_code_that_already_exists(client, db_session, seller, vehicles):
     _part(db_session, vehicles[0], code="FRE-100")
 
     response = client.post(PARTS, json=_data([vehicles[0].id], part_code="fre-100"), headers=seller)
@@ -159,13 +159,13 @@ def test_alta_con_un_codigo_que_ya_existe(client, db_session, seller, vehicles):
         {"part_code": ""},
     ],
 )
-def test_alta_con_datos_invalidos(client, seller, vehicles, cambios):
+def test_signup_with_data_invalid(client, seller, vehicles, cambios):
     response = client.post(PARTS, json=_data([vehicles[0].id], **cambios), headers=seller)
 
     assert response.status_code == 422
 
 
-def test_alta_con_un_vehiculo_que_no_existe(client, seller, vehicles):
+def test_signup_with_a_vehicle_that_no_exists(client, seller, vehicles):
     response = client.post(PARTS, json=_data([vehicles[0].id, 9999]), headers=seller)
 
     assert response.status_code == 422
@@ -175,7 +175,7 @@ def test_alta_con_un_vehiculo_que_no_existe(client, seller, vehicles):
 # --- Edición ---
 
 
-def test_editar_reemplaza_los_datos_y_los_vehiculos_sin_tocar_el_stock(client, db_session, seller, vehicles):
+def test_edit_replaces_the_data_and_the_vehicles_without_touching_the_stock(client, db_session, seller, vehicles):
     gol, onix = vehicles
     part = _part(db_session, gol, stock=38)
 
@@ -193,7 +193,7 @@ def test_editar_reemplaza_los_datos_y_los_vehiculos_sin_tocar_el_stock(client, d
     assert client.get(PARTS, params={"brand": "Volkswagen", "model": "Gol"}).json()["parts"] == []
 
 
-def test_editar_con_el_codigo_de_otro_repuesto(client, db_session, seller, vehicles):
+def test_edit_with_the_code_of_another_part(client, db_session, seller, vehicles):
     _part(db_session, vehicles[0], code="FRE-001")
     other = _part(db_session, vehicles[0], code="FRE-002")
 
@@ -202,11 +202,11 @@ def test_editar_con_el_codigo_de_otro_repuesto(client, db_session, seller, vehic
     assert response.status_code == 409
 
 
-def test_editar_un_repuesto_que_no_existe(client, seller, vehicles):
+def test_edit_a_part_that_no_exists(client, seller, vehicles):
     assert client.put(f"{PARTS}/9999", json=_data([vehicles[0].id]), headers=seller).status_code == 404
 
 
-def test_bajar_el_precio_avisa_a_quienes_lo_tienen_en_favoritos(client, db_session, seller, customer, vehicles, sent_mails):
+def test_lower_the_price_notifies_a_those_who_it_have_in_favorites(client, db_session, seller, customer, vehicles, sent_mails):
     part = _part(db_session, vehicles[0], price=2500)
     customer.marketing_emails = True
     db_session.add(Favorite(client_id=customer.user_id, part_id=part.id))
@@ -220,7 +220,7 @@ def test_bajar_el_precio_avisa_a_quienes_lo_tienen_en_favoritos(client, db_sessi
 # --- Permisos ---
 
 
-def test_cliente_sin_permiso(client, db_session, customer, vehicles):
+def test_customer_without_permission(client, db_session, customer, vehicles):
     # Escenario de la HU: un cliente intenta modificar un repuesto.
     part = _part(db_session, vehicles[0], stock=38)
     headers = _headers(customer.user_id, "client")
@@ -234,7 +234,7 @@ def test_cliente_sin_permiso(client, db_session, customer, vehicles):
     assert db_session.query(Part).count() == 1
 
 
-def test_sin_sesion_no_se_modifica_nada(client, db_session, vehicles):
+def test_without_session_no_modifies_nothing(client, db_session, vehicles):
     part = _part(db_session, vehicles[0])
 
     assert client.patch(f"{PARTS}/{part.id}/stock", json={"stock": 50}).status_code == 401

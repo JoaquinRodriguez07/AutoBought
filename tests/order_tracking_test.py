@@ -23,7 +23,7 @@ def order_data(client, db_session):
     return order_id, headers
 
 
-def pasar_a(db_session, order_id, *states, motivo=None):
+def move_to(db_session, order_id, *states, motivo=None):
     """Lo que hará el vendedor desde su panel (SCRUM-171)."""
     order = db_session.get(Order, order_id)
     for state in states:
@@ -48,7 +48,7 @@ def received(client, order_id, headers):
 # =====================================================
 
 
-def test_al_comprar_el_historial_arranca_en_confirmado_con_la_fecha(client, db_session, order_data):
+def test_to_the_buy_the_history_starts_in_confirmed_with_the_date(client, db_session, order_data):
     order_id, headers = order_data
 
     body = detail(client, order_id, headers)
@@ -61,9 +61,9 @@ def test_al_comprar_el_historial_arranca_en_confirmado_con_la_fecha(client, db_s
     assert body["cancel_reason"] is None
 
 
-def test_la_linea_de_tiempo_tiene_cada_etapa_en_orden(client, db_session, order_data):
+def test_the_line_of_time_has_each_stage_in_order(client, db_session, order_data):
     order_id, headers = order_data
-    pasar_a(db_session, order_id, OrderStatus.PACKING, OrderStatus.SHIPPED)
+    move_to(db_session, order_id, OrderStatus.PACKING, OrderStatus.SHIPPED)
 
     body = detail(client, order_id, headers)
 
@@ -72,16 +72,16 @@ def test_la_linea_de_tiempo_tiene_cada_etapa_en_orden(client, db_session, order_
     assert all(step["changed_at"] for step in body["status_history"])
 
 
-def test_el_historial_tambien_sale_en_la_lista_de_pedidos(client, db_session, order_data):
+def test_the_history_also_goes_out_in_the_list_of_orders(client, db_session, order_data):
     order_id, headers = order_data
-    pasar_a(db_session, order_id, OrderStatus.PACKING)
+    move_to(db_session, order_id, OrderStatus.PACKING)
 
     body = client.get("/api/v1/orders", headers=headers).json()
 
     assert states(body["orders"][0]) == ["confirmed", "packing"]
 
 
-def test_un_pedido_vencido_dice_que_se_cancelo_por_no_pagarse(client, db_session, order_data):
+def test_a_order_expired_says_that_cancelled_by_no_being_paid(client, db_session, order_data):
     order_id, headers = order_data
     payment = db_session.query(Payment).filter_by(order_id=order_id).one()
     payment.created_at = datetime.now(timezone.utc) - timedelta(minutes=16)
@@ -93,16 +93,16 @@ def test_un_pedido_vencido_dice_que_se_cancelo_por_no_pagarse(client, db_session
     assert body["cancel_reason"] == "expired"
 
 
-def test_un_pedido_cancelado_por_la_tienda_lo_dice(client, db_session, order_data):
+def test_a_order_cancelled_by_the_store_it_says(client, db_session, order_data):
     order_id, headers = order_data
-    pasar_a(db_session, order_id, OrderStatus.CANCELLED, motivo=CancelReason.STORE)
+    move_to(db_session, order_id, OrderStatus.CANCELLED, motivo=CancelReason.STORE)
 
     body = detail(client, order_id, headers)
 
     assert body["cancel_reason"] == "store"
 
 
-def test_un_pago_tardio_con_stock_vuelve_a_confirmar_el_pedido_en_el_historial(client, db_session, order_data):
+def test_a_payment_late_with_stock_returns_a_confirm_the_order_in_the_history(client, db_session, order_data):
     order_id, _ = order_data
     payment = db_session.query(Payment).filter_by(order_id=order_id).one()
     payment.created_at = datetime.now(timezone.utc) - timedelta(minutes=16)
@@ -120,7 +120,7 @@ def test_un_pago_tardio_con_stock_vuelve_a_confirmar_el_pedido_en_el_historial(c
     ]
 
 
-def test_un_pedido_sin_historial_muestra_la_compra_y_el_estado_actual(client, db_session, order_data):
+def test_a_order_without_history_shows_the_purchase_and_the_status_current(client, db_session, order_data):
     # Los pedidos de antes del historial (o los del seed) no tienen filas.
     order_id, headers = order_data
     db_session.query(OrderStatusHistory).delete()
@@ -135,7 +135,7 @@ def test_un_pedido_sin_historial_muestra_la_compra_y_el_estado_actual(client, db
     assert body["status_history"][1]["changed_at"] is None
 
 
-def test_un_pedido_viejo_cancelado_sin_pagar_se_considera_vencido(client, db_session, order_data):
+def test_a_order_old_cancelled_without_pay_considers_expired(client, db_session, order_data):
     order_id, headers = order_data
     db_session.query(OrderStatusHistory).delete()
     db_session.get(Order, order_id).status = OrderStatus.CANCELLED
@@ -149,9 +149,9 @@ def test_un_pedido_viejo_cancelado_sin_pagar_se_considera_vencido(client, db_ses
 # =====================================================
 
 
-def test_confirmar_la_llegada_de_un_pedido_enviado_lo_entrega_y_manda_el_mail(client, db_session, order_data, sent_mails):
+def test_confirm_the_arrival_of_a_order_shipped_it_delivery_and_sends_the_mail(client, db_session, order_data, sent_mails):
     order_id, headers = order_data
-    pasar_a(db_session, order_id, OrderStatus.PACKING, OrderStatus.SHIPPED)
+    move_to(db_session, order_id, OrderStatus.PACKING, OrderStatus.SHIPPED)
 
     response = received(client, order_id, headers)
 
@@ -168,9 +168,9 @@ def test_confirmar_la_llegada_de_un_pedido_enviado_lo_entrega_y_manda_el_mail(cl
     [[], [OrderStatus.PACKING], [OrderStatus.SHIPPED, OrderStatus.DELIVERED], [OrderStatus.CANCELLED]],
     ids=["confirmado", "empaquetando", "ya-entregado", "cancelado"],
 )
-def test_solo_se_confirma_la_llegada_de_un_pedido_enviado(client, db_session, order_data, sent_mails, camino):
+def test_only_confirms_the_arrival_of_a_order_shipped(client, db_session, order_data, sent_mails, camino):
     order_id, headers = order_data
-    pasar_a(db_session, order_id, *camino)
+    move_to(db_session, order_id, *camino)
     antes = states(detail(client, order_id, headers))
 
     response = received(client, order_id, headers)
@@ -180,9 +180,9 @@ def test_solo_se_confirma_la_llegada_de_un_pedido_enviado(client, db_session, or
     assert sent_mails == []
 
 
-def test_confirmar_la_llegada_de_un_pedido_ajeno_da_404(client, db_session, order_data, sent_mails):
+def test_confirm_the_arrival_of_a_order_foreign_gives_404(client, db_session, order_data, sent_mails):
     order_id, _ = order_data
-    pasar_a(db_session, order_id, OrderStatus.SHIPPED)
+    move_to(db_session, order_id, OrderStatus.SHIPPED)
     other = make_client(db_session, username="beto", email="beto@example.com")
 
     response = received(client, order_id, auth_headers(other))
@@ -192,7 +192,7 @@ def test_confirmar_la_llegada_de_un_pedido_ajeno_da_404(client, db_session, orde
     assert sent_mails == []
 
 
-def test_confirmar_la_llegada_sin_sesion_da_401(client, db_session, order_data):
+def test_confirm_the_arrival_without_session_gives_401(client, db_session, order_data):
     order_id, _ = order_data
 
     assert received(client, order_id, {}).status_code == 401

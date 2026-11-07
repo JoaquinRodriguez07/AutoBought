@@ -79,10 +79,10 @@ def auth_headers(user, user_type="client"):
 def test_confirm_order_creates_order_decreases_stock_and_clears_cart(client, db_session):
 	customer = make_client(db_session)
 	make_address(db_session, customer)
-	pastillas = make_part(db_session, stock=5, price=1000)
+	brake_pads = make_part(db_session, stock=5, price=1000)
 	filter_part = make_part(db_session, part_code="FLT-001", name="Filtro de aire", stock=4, price=3000)
-	make_cart(db_session, customer, [(pastillas, 2), (filter_part, 1)])
-	pastillas_id, filter_id, customer_id = pastillas.id, filter_part.id, customer.user_id
+	make_cart(db_session, customer, [(brake_pads, 2), (filter_part, 1)])
+	pastillas_id, filter_id, customer_id = brake_pads.id, filter_part.id, customer.user_id
 
 	response = client.post("/api/v1/orders", headers=auth_headers(customer))
 
@@ -165,9 +165,9 @@ def test_confirm_order_with_unverified_email_returns_403_and_changes_nothing(cli
 	customer.email_verified = False
 	db_session.commit()
 	make_address(db_session, customer)
-	pastillas = make_part(db_session, stock=5)
-	make_cart(db_session, customer, [(pastillas, 2)])
-	pastillas_id = pastillas.id
+	brake_pads = make_part(db_session, stock=5)
+	make_cart(db_session, customer, [(brake_pads, 2)])
+	pastillas_id = brake_pads.id
 
 	response = client.post("/api/v1/orders", headers=auth_headers(customer))
 
@@ -187,8 +187,8 @@ def test_confirm_order_with_own_address(client, db_session):
 	customer = make_client(db_session)
 	make_address(db_session, customer)
 	chosen = make_address(db_session, customer, street="Bv. Artigas", number="99", is_primary=False)
-	pastillas = make_part(db_session)
-	make_cart(db_session, customer, [(pastillas, 1)])
+	brake_pads = make_part(db_session)
+	make_cart(db_session, customer, [(brake_pads, 1)])
 	chosen_id = chosen.shipping_address_id
 
 	response = client.post(
@@ -226,9 +226,9 @@ def test_confirm_order_with_another_clients_address_is_rejected(client, db_sessi
 	other = make_client(db_session, username="beto", email="beto@example.com")
 	make_address(db_session, customer)
 	ajena = make_address(db_session, other)
-	pastillas = make_part(db_session, stock=5)
-	make_cart(db_session, customer, [(pastillas, 2)])
-	ajena_id, pastillas_id, customer_id = ajena.shipping_address_id, pastillas.id, customer.user_id
+	brake_pads = make_part(db_session, stock=5)
+	make_cart(db_session, customer, [(brake_pads, 2)])
+	ajena_id, pastillas_id, customer_id = ajena.shipping_address_id, brake_pads.id, customer.user_id
 
 	response = client.post(
 		"/api/v1/orders",

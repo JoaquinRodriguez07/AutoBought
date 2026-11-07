@@ -25,7 +25,7 @@ def make_catalog(db_session):
     db_session.commit()
 
 
-def test_extrae_pieza_modelo_y_anio(client, db_session):
+def test_extracts_piece_modelo_and_year(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "Pastillas de FRENO onix 2020!"})
@@ -40,7 +40,7 @@ def test_extrae_pieza_modelo_y_anio(client, db_session):
     }
 
 
-def test_mismos_resultados_que_los_filtros_en_cascada(client, db_session):
+def test_same_results_that_the_filters_in_cascade(client, db_session):
     make_catalog(db_session)
 
     cascade = client.get(
@@ -55,7 +55,7 @@ def test_mismos_resultados_que_los_filtros_en_cascada(client, db_session):
     assert [p["id"] for p in texto] == [p["id"] for p in cascade]
 
 
-def test_busqueda_sin_entidades_reconocibles(client, db_session):
+def test_search_without_entities_recognizable(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "xyz qwerty"})
@@ -71,7 +71,7 @@ def test_busqueda_sin_entidades_reconocibles(client, db_session):
     assert response.json()["parts"] == []
 
 
-def test_respeta_los_filtros_explicitos(client, db_session):
+def test_respects_the_filters_explicit(client, db_session):
     make_catalog(db_session)
 
     response = client.get(
@@ -82,7 +82,7 @@ def test_respeta_los_filtros_explicitos(client, db_session):
     assert codes == ["BRK-0002"]
 
 
-def test_ignora_palabras_de_mas(client, db_session):
+def test_ignores_words_of_more(client, db_session):
     make_catalog(db_session)
 
     response = client.get(
@@ -93,7 +93,7 @@ def test_ignora_palabras_de_mas(client, db_session):
     codes = [p["part_code"] for p in response.json()["parts"]]
     assert codes == ["BRK-0001"]
 
-def test_rechaza_busquedas_demasiado_largas(client, db_session):
+def test_rejects_searches_too_long(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "a" * 101})
@@ -101,7 +101,7 @@ def test_rechaza_busquedas_demasiado_largas(client, db_session):
     assert response.status_code == 422
 
 
-def test_encuentra_la_pieza_en_busquedas_largas(client, db_session):
+def test_finds_the_piece_in_searches_long(client, db_session):
     make_catalog(db_session)
 
     response = client.get(
@@ -127,7 +127,7 @@ ENTIDADES_FRENOS_ONIX = {
 }
 
 
-def test_error_de_tipeo(client, db_session):
+def test_error_of_typing(client, db_session):
     make_catalog(db_session)
 
     normal = client.get(
@@ -142,7 +142,7 @@ def test_error_de_tipeo(client, db_session):
     assert [p["part_code"] for p in with_error["parts"]] == ["BRK-0001"]
 
 
-def test_error_de_tipeo_en_el_modelo_y_la_marca(client, db_session):
+def test_error_of_typing_in_the_modelo_and_the_brand(client, db_session):
     # El auto no está en el nombre del repuesto (está en las
     # compatibilidades): el corrector igual tiene que reconocerlo.
     make_catalog(db_session)
@@ -156,7 +156,7 @@ def test_error_de_tipeo_en_el_modelo_y_la_marca(client, db_session):
     assert [p["part_code"] for p in response["parts"]] == ["BRK-0001"]
 
 
-def test_sinonimo(client, db_session):
+def test_synonym(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "balatas onix 2020"})
@@ -165,7 +165,7 @@ def test_sinonimo(client, db_session):
     assert [p["part_code"] for p in response.json()["parts"]] == ["BRK-0001"]
 
 
-def test_otro_orden(client, db_session):
+def test_another_order(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "freno pastillas onix 2020"})
@@ -174,7 +174,7 @@ def test_otro_orden(client, db_session):
     assert [p["part_code"] for p in response.json()["parts"]] == ["BRK-0001"]
 
 
-def test_sinonimo_con_error_de_tipeo_y_otro_orden(client, db_session):
+def test_synonym_with_error_of_typing_and_another_order(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "frenno pastilas onix 2020"})
@@ -182,7 +182,7 @@ def test_sinonimo_con_error_de_tipeo_y_otro_orden(client, db_session):
     assert response.json()["entities"] == ENTIDADES_FRENOS_ONIX
 
 
-def test_una_sola_palabra_no_se_confunde_con_otra_pieza(client, db_session):
+def test_a_single_word_no_confuses_with_another_piece(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "filtro onix 2020"})
@@ -218,7 +218,7 @@ def code_list(client, q):
     return response.json()["entities"], [p["part_code"] for p in response.json()["parts"]]
 
 
-def test_gasolero_trae_solo_autos_diesel(client, db_session):
+def test_diesel_brings_only_cars_diesel(client, db_session):
     make_catalog_combustible(db_session)
 
     entities, parts = code_list(client, "batería gasolero")
@@ -229,7 +229,7 @@ def test_gasolero_trae_solo_autos_diesel(client, db_session):
     assert code_list(client, "filtro de combustible gasolero")[1] == ["FIL-D"]
 
 
-def test_naftero_trae_solo_autos_nafta(client, db_session):
+def test_petrol_brings_only_cars_petrol(client, db_session):
     make_catalog_combustible(db_session)
 
     entities, parts = code_list(client, "filtro de combustible naftero")
@@ -238,7 +238,7 @@ def test_naftero_trae_solo_autos_nafta(client, db_session):
     assert parts == ["FIL-N"]
 
 
-def test_combustible_con_sinonimos_y_errores(client, db_session):
+def test_fuel_with_synonyms_and_errors(client, db_session):
     make_catalog_combustible(db_session)
 
     # "gasoil", "diésel" y un tipeo ("gasolro") son lo mismo que "gasolero".
@@ -248,7 +248,7 @@ def test_combustible_con_sinonimos_y_errores(client, db_session):
     assert code_list(client, "filtro combustible gasolina")[1] == ["FIL-N"]
 
 
-def test_combustible_solo_filtra_por_motor(client, db_session):
+def test_fuel_only_filters_by_engine(client, db_session):
     make_catalog_combustible(db_session)
 
     entities, parts = code_list(client, "gasolero")
@@ -257,7 +257,7 @@ def test_combustible_solo_filtra_por_motor(client, db_session):
     assert sorted(parts) == ["BAT-1", "FIL-D"]
 
 
-def test_sinonimos_del_rubro(client, db_session):
+def test_synonyms_of_the_trade(client, db_session):
     make_catalog_combustible(db_session)
 
     casos = {
@@ -270,7 +270,7 @@ def test_sinonimos_del_rubro(client, db_session):
         assert code_list(client, texto)[0]["part"] == piece, texto
 
 
-def test_diccionario_sin_claves_repetidas_ni_ciclos():
+def test_dictionary_without_keys_repeated_nor_cycles():
     from app.crud.text_search import FUEL_WORDS, SYNONYMS, _fold
 
     claves = [_fold(k) for k in SYNONYMS]

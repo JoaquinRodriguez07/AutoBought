@@ -10,7 +10,7 @@ class FakeAIClient:
         self.error = error
         self.orders_list: list[tuple[str, str]] = []
 
-    def generar(self, instructions: str, input_text: str) -> AIResponse:
+    def generate(self, instructions: str, input_text: str) -> AIResponse:
         self.orders_list.append((instructions, input_text))
         if self.error:
             raise self.error

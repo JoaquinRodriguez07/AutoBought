@@ -15,7 +15,7 @@ def _parts(db_session):
     db_session.commit()
 
 
-def test_los_usuarios_de_prueba_cumplen_las_validaciones_y_se_crean_completos(db_session):
+def test_the_users_of_test_meet_the_validations_and_create_complete(db_session):
     # Si una regla cambia y un dato de prueba deja de ser válido, esto falla.
     _parts(db_session)
 
@@ -31,7 +31,7 @@ def test_los_usuarios_de_prueba_cumplen_las_validaciones_y_se_crean_completos(db
     assert purchase.payment.status == PaymentStatus.APPROVED
 
 
-def test_correr_el_script_dos_veces_no_duplica_nada(db_session):
+def test_running_the_script_two_times_no_duplicates_nothing(db_session):
     for data in USUARIOS:
         create_user(db_session, data)
 
@@ -40,7 +40,7 @@ def test_correr_el_script_dos_veces_no_duplica_nada(db_session):
     assert all("ya existe" in msg for msg in messages)
 
 
-def test_el_vendedor_de_prueba_se_crea_como_empleado_y_puede_iniciar_sesion(client, db_session):
+def test_the_seller_of_test_creates_as_employee_and_can_start_session(client, db_session):
     for data in VENDEDORES:
         create_seller(db_session, data)
 
@@ -59,7 +59,7 @@ def test_el_vendedor_de_prueba_se_crea_como_empleado_y_puede_iniciar_sesion(clie
     assert ping.status_code == 200
 
 
-def test_correr_el_script_dos_veces_no_duplica_al_vendedor(db_session):
+def test_running_the_script_two_times_no_duplicates_to_the_seller(db_session):
     create_seller(db_session, VENDEDORES[0])
 
     msg = create_seller(db_session, VENDEDORES[0])

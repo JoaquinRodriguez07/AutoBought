@@ -35,7 +35,7 @@ def auth_headers(user, user_type="client"):
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_lista_vacia_para_cliente_nuevo(client, db_session):
+def test_list_empty_for_customer_new(client, db_session):
     ana = make_client(db_session)
 
     response = client.get(FAVORITES, headers=auth_headers(ana))
@@ -44,7 +44,7 @@ def test_lista_vacia_para_cliente_nuevo(client, db_session):
     assert response.json() == {"parts": []}
 
 
-def test_marcar_favorito_aparece_en_la_lista_con_datos_del_repuesto(client, db_session):
+def test_mark_favorite_appears_in_the_list_with_data_of_the_part(client, db_session):
     ana = make_client(db_session)
     part = make_part(db_session)
     car = CarModel(brand="Volkswagen", model="Gol", engine_code="EA111")
@@ -63,7 +63,7 @@ def test_marcar_favorito_aparece_en_la_lista_con_datos_del_repuesto(client, db_s
     assert parts[0]["compatible_brands"] == ["Volkswagen"]
 
 
-def test_la_lista_respeta_el_orden_en_que_se_marcaron(client, db_session):
+def test_the_list_respects_the_order_in_that_were_marked(client, db_session):
     ana = make_client(db_session)
     first = make_part(db_session, part_code="A")
     segundo = make_part(db_session, part_code="B")
@@ -75,7 +75,7 @@ def test_la_lista_respeta_el_orden_en_que_se_marcaron(client, db_session):
     assert ids == [segundo.id, first.id]
 
 
-def test_marcar_dos_veces_no_duplica(client, db_session):
+def test_mark_two_times_no_duplicates(client, db_session):
     ana = make_client(db_session)
     part = make_part(db_session)
 
@@ -86,7 +86,7 @@ def test_marcar_dos_veces_no_duplica(client, db_session):
     assert len(db_session.scalars(select(Favorite)).all()) == 1
 
 
-def test_marcar_repuesto_inexistente_devuelve_404(client, db_session):
+def test_mark_part_nonexistent_returns_404(client, db_session):
     ana = make_client(db_session)
 
     response = client.put(f"{FAVORITES}/999", headers=auth_headers(ana))
@@ -95,7 +95,7 @@ def test_marcar_repuesto_inexistente_devuelve_404(client, db_session):
     assert db_session.scalars(select(Favorite)).all() == []
 
 
-def test_quitar_favorito_deja_de_aparecer(client, db_session):
+def test_remove_favorite_leaves_of_appear(client, db_session):
     ana = make_client(db_session)
     part = make_part(db_session)
     client.put(f"{FAVORITES}/{part.id}", headers=auth_headers(ana))
@@ -106,14 +106,14 @@ def test_quitar_favorito_deja_de_aparecer(client, db_session):
     assert client.get(FAVORITES, headers=auth_headers(ana)).json() == {"parts": []}
 
 
-def test_quitar_un_favorito_que_no_estaba_devuelve_204(client, db_session):
+def test_remove_a_favorite_that_no_was_returns_204(client, db_session):
     ana = make_client(db_session)
     part = make_part(db_session)
 
     assert client.delete(f"{FAVORITES}/{part.id}", headers=auth_headers(ana)).status_code == 204
 
 
-def test_no_se_ven_ni_se_quitan_favoritos_de_otro_cliente(client, db_session):
+def test_no_see_nor_remove_favorites_of_another_customer(client, db_session):
     ana = make_client(db_session)
     beto = make_client(db_session, username="beto", email="beto@example.com")
     part = make_part(db_session)
@@ -126,13 +126,13 @@ def test_no_se_ven_ni_se_quitan_favoritos_de_otro_cliente(client, db_session):
     assert [p["id"] for p in client.get(FAVORITES, headers=auth_headers(ana)).json()["parts"]] == [part.id]
 
 
-def test_favoritos_requieren_token(client):
+def test_favorites_require_token(client):
     assert client.get(FAVORITES).status_code == 401
     assert client.put(f"{FAVORITES}/1").status_code == 401
     assert client.delete(f"{FAVORITES}/1").status_code == 401
 
 
-def test_favoritos_rechazan_empleados(client, db_session):
+def test_favorites_reject_employees(client, db_session):
     ana = make_client(db_session)
 
     assert client.get(FAVORITES, headers=auth_headers(ana, user_type="employee")).status_code == 403
