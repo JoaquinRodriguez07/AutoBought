@@ -6,7 +6,7 @@ export function slugifyProduct(displayName, id) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/^-|-$/g, "");
   const idEstable = String(id ?? "").trim();
 
   if (!/^\d+$/.test(idEstable)) return null;

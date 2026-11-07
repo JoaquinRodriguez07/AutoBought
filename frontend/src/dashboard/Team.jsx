@@ -7,11 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { decodeToken } from "../auth";
+import { EMAIL_PATTERN } from "../validations";
 import { addSeller, removeSeller, getSellers } from "./dashboardApi";
 import { FormField, DashboardDialog, QueryState, Panel, NoData } from "./pieces";
 import { useQuery } from "./useQuery";
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validate({ displayName, email }) {
   const errors = {};
@@ -137,7 +136,7 @@ export default function Team({ sessionUser }) {
   const queryState = useQuery(getSellers, "team");
   const [aviso, setNotice] = useState("");
   const [toDeactivate, setToDeactivate] = useState(null);
-  const miId = Number(sessionUser?.token ? decodeToken(sessionUser.token)?.sub : NaN);
+  const miId = Number(sessionUser?.token ? decodeToken(sessionUser.token)?.sub : Number.NaN);
 
   const onAdd = (newItem) => {
     setNotice(`Listo. Le mandamos un mail a ${newItem.email} para que elija su contraseña y entre al portal.`);

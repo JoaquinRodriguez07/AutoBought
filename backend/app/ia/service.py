@@ -2,7 +2,6 @@
 de uso. Lo usan todas las funcionalidades con IA."""
 
 import json
-import re
 from datetime import datetime, timedelta, timezone
 from typing import TypeVar
 
@@ -17,15 +16,13 @@ from app.models.ai_usage import AIUsage
 
 ModelT = TypeVar("Modelo", bound=BaseModel)
 
-_BLOQUE_CODIGO = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
-
-
 def extract_json(texto: str) -> dict:
     """El objeto JSON de la respuesta, aunque venga dentro de un bloque de
     código o con texto alrededor."""
-    bloque = _BLOQUE_CODIGO.search(texto)
-    if bloque:
-        texto = bloque.group(1)
+    # Si viene en un bloque ```json ... ```, se queda con lo de adentro.
+    partes = texto.split("```")
+    if len(partes) >= 3:
+        texto = partes[1].removeprefix("json")
     start_at, end = texto.find("{"), texto.rfind("}")
     if start_at == -1 or end <= start_at:
         raise AIUnavailable("La respuesta de la IA no trae un objeto JSON.")

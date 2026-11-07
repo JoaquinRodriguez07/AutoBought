@@ -35,7 +35,7 @@ const DOOR_NUMBER = /^\d{1,5}(?: ?(?:bis|[a-z]))?$/i;
 const NO_NUMBER = new Set(["s/n", "sn", "s/nº", "sin numero"]);
 const POSTAL_CODE = /^\d{5}$/;
 // Mismo criterio mínimo que EmailStr del backend: algo@dominio.tld
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
 export const PASSWORD_MIN = 8;
 const PASSWORD_MAX_BYTES = 72; // límite de bcrypt
@@ -80,7 +80,7 @@ export function validatePersonName(rawValue, field = "El nombre") {
 export function validateEmail(rawValue) {
   const cleaned = clean(rawValue);
   if (!cleaned) return "Ingresá tu correo electrónico.";
-  if (!EMAIL.test(cleaned)) return "Ingresá un correo electrónico válido.";
+  if (!EMAIL_PATTERN.test(cleaned)) return "Ingresá un correo electrónico válido.";
   return null;
 }
 
