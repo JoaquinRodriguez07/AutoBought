@@ -11,6 +11,7 @@ from app.crud.order import cancel_expired_orders
 from app.schemas.part import (
     BestSellersResponse,
     CategoriesResponse,
+    ManufacturersResponse,
     PartCreate,
     PartOut,
     PartsResponse,
@@ -100,6 +101,17 @@ def list_categories(db: Session = Depends(get_db)):
     return {
         "categories": [
             {"name": name, "count": count} for name, count in categorias
+        ]
+    }
+
+
+# Igual que "/categories", debe declararse antes de cualquier ruta "/{id}".
+@router.get("/manufacturers", response_model=ManufacturersResponse)
+def list_manufacturers(db: Session = Depends(get_db)):
+    """Fabricantes con repuestos, del que más tiene al que menos."""
+    return {
+        "manufacturers": [
+            {"name": name, "count": count} for name, count in crud_part.list_manufacturers(db)
         ]
     }
 

@@ -66,6 +66,10 @@ class CategoriesResponse(BaseModel):
     categories: list[CategoryOut]
 
 
+class ManufacturersResponse(BaseModel):
+    manufacturers: list[CategoryOut]
+
+
 def build_part_out(part: Part) -> PartOut:
     brands = []
     models = []

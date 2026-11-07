@@ -15,6 +15,10 @@ const ANIO = new Date().getFullYear();
 // Las marcas más buscadas: llevan al catálogo filtrado por esa marca (el
 // nombre es el mismo que en el backend). Cuatro, como los accesos de
 // "Mi cuenta", para que las columnas queden parejas.
+// El mail de contacto se puede cambiar con VITE_EMAIL_CONTACTO sin tocar el código.
+const EMAIL_CONTACTO =
+  import.meta.env.VITE_EMAIL_CONTACTO || "autobought.notificaciones@gmail.com";
+
 const MARCAS_POPULARES = ["Volkswagen", "Chevrolet", "Fiat", "Renault"];
 
 function Columna({ titulo, children }) {
@@ -92,7 +96,7 @@ export default function Footer({
         <Columna titulo="Ayuda">
           <li>
             <a
-              href="mailto:autobought.notificaciones@gmail.com"
+              href={`mailto:${EMAIL_CONTACTO}`}
               className="flex items-center gap-2 hover:text-orange-400 transition"
             >
               <IconoSobre className="w-4 h-4 shrink-0 text-orange-500" />

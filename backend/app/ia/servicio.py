@@ -55,7 +55,7 @@ def consultas_recientes(db: Session, user_id: int, ahora: datetime | None = None
     ahora = ahora or datetime.now(timezone.utc)
     desde = ahora - timedelta(hours=24)
     return db.scalar(
-        select(func.count()).select_from(UsoIA).where(UsoIA.user_id == user_id, UsoIA.created_at >= desde)
+        select(func.count()).select_from(UsoIA).where(UsoIA.user_id == user_id, UsoIA.ok.is_(True), UsoIA.created_at >= desde)
     ) or 0
 
 

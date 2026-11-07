@@ -1,5 +1,3 @@
-import re
-
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -18,35 +16,13 @@ from app.schemas.order import (
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
-# Errores de place_order sobre la dirección. Una id inexistente o de otro
-# cliente da el mismo 422.
-_ERRORES_DATOS_COMPRA = {
-    "Client has no shipping address": (
-        status.HTTP_400_BAD_REQUEST,
-        "Agregá una dirección de envío para confirmar la compra.",
-    ),
-    "Shipping address not found": (
-        status.HTTP_422_UNPROCESSABLE_CONTENT,
-        "La dirección de envío elegida no es válida.",
-    ),
-}
-
-
-def _detalle_sin_stock(db: Session, mensaje: str) -> str:
-    """Arma el detalle del 409 a partir del ValueError de place_order
-    ("Not enough stock for part {id}: requested X, available Y"),
-    usando el nombre del repuesto si todavía existe.
-    """
-    match = re.search(r"part (\d+): requested (\d+), available (\d+)", mensaje)
-    if match is None:
-        return "No hay stock suficiente para completar la compra."
-
-    part_id, pedido, disponible = (int(valor) for valor in match.groups())
-    part = crud_part.get_part(db, part_id)
-    repuesto = f"'{part.name}'" if part is not None else f"el repuesto {part_id}"
+def _detalle_sin_stock(db: Session, error: crud_order.SinStock) -> str:
+    """El detalle del 409, con el nombre del repuesto si todavía existe."""
+    part = crud_part.get_part(db, error.part_id)
+    repuesto = f"'{part.name}'" if part is not None else f"el repuesto {error.part_id}"
     return (
         f"No hay stock suficiente de {repuesto}: "
-        f"pediste {pedido}, hay {disponible}."
+        f"pediste {error.pedido}, hay {error.disponible}."
     )
 
 
@@ -87,25 +63,28 @@ def confirm_order(
             client_id,
             shipping_address_id=body.shipping_address_id,
         )
-    except ValueError as error:
-        mensaje = str(error)
-
-        if mensaje.startswith("Not enough stock"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=_detalle_sin_stock(db, mensaje),
-            )
-
-        if mensaje.startswith("Parts not found"):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Algún repuesto del carrito ya no está disponible.",
-            )
-
-        if mensaje in _ERRORES_DATOS_COMPRA:
-            codigo, detalle = _ERRORES_DATOS_COMPRA[mensaje]
-            raise HTTPException(status_code=codigo, detail=detalle)
-
+    except crud_order.SinStock as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_detalle_sin_stock(db, error),
+        )
+    except crud_order.RepuestosNoEncontrados:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Algún repuesto del carrito ya no está disponible.",
+        )
+    except crud_order.SinDireccion:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Agregá una dirección de envío para confirmar la compra.",
+        )
+    except crud_order.DireccionNoEncontrada:
+        # Una id inexistente o de otro cliente da el mismo 422.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La dirección de envío elegida no es válida.",
+        )
+    except crud_order.CarritoVacio:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tu carrito está vacío.",

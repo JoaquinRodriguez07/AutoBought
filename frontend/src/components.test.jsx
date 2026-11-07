@@ -15,6 +15,7 @@ jest.mock("./api", () => ({
   obtenerRepuestos: jest.fn(),
   obtenerRepuesto: jest.fn(),
   obtenerCategorias: jest.fn(),
+  obtenerFabricantes: jest.fn(() => Promise.resolve([])),
   obtenerMasVendidos: jest.fn(),
   obtenerCarrito: jest.fn(),
   agregarItemCarrito: jest.fn(),
@@ -101,6 +102,7 @@ import {
   marcarDireccionPrincipal,
   obtenerCarrito,
   obtenerCategorias,
+  obtenerFabricantes,
   obtenerMasVendidos,
   obtenerDirecciones,
   obtenerFavoritos,
@@ -247,7 +249,7 @@ function ControlesHistorialDetalle() {
 
 function ActivarVehiculo({ vehiculo }) {
   const { activarVehiculo } = useVehicle();
-  useEffect(() => activarVehiculo(vehiculo), [activarVehiculo]);
+  useEffect(() => activarVehiculo(vehiculo), [activarVehiculo, vehiculo]);
   return null;
 }
 
@@ -701,9 +703,14 @@ describe("Home", () => {
   it("opens the catalog filtered by the manufacturer clicked", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
+    obtenerFabricantes.mockResolvedValueOnce([
+      { nombre: "Bosch", cantidad: 40 },
+      { nombre: "Brembo", cantidad: 30 },
+    ]);
 
     render(<Home {...props} />);
-    await user.click(screen.getByRole("button", { name: "Brembo" }));
+    // La cinta repite los fabricantes (una copia para el loop): se toca la primera.
+    await user.click((await screen.findAllByRole("button", { name: "Brembo" }))[0]);
 
     expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { fabricante: "Brembo" });
   });
@@ -1762,7 +1769,6 @@ describe("DetalleProducto", () => {
   });
 
   it("shows the manufacturer above the name, never a compatible car brand, and the new details", async () => {
-    const user = userEvent.setup();
     const props = navigationProps();
     props.onAlternarFavorito = jest.fn();
     props.esFavorito = jest.fn(() => false);
@@ -1810,7 +1816,6 @@ describe("DetalleProducto", () => {
   });
 
   it("does not invent warranty data when the product has no warranty fields", async () => {
-    const user = userEvent.setup();
     const repuestoSinGarantia = mapearRepuesto({
       id: 8,
       name: "Filtro sin garantía informada",

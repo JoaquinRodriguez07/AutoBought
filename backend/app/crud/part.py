@@ -97,6 +97,19 @@ def list_categories(db: Session) -> list[tuple[str, int]]:
     return [(category, count) for category, count in db.execute(query).all()]
 
 
+def list_manufacturers(db: Session) -> list[tuple[str, int]]:
+    """Los fabricantes con repuestos y cuántos tiene cada uno, del que más
+    tiene al que menos (los que destaca el inicio)."""
+    cantidad = func.count(Part.id)
+    query = (
+        select(Part.manufacturer, cantidad)
+        .where(Part.manufacturer.is_not(None))
+        .group_by(Part.manufacturer)
+        .order_by(cantidad.desc(), Part.manufacturer)
+    )
+    return [(nombre, total) for nombre, total in db.execute(query).all()]
+
+
 def filtrar_repuestos(
     query,
     category: str | None = None,

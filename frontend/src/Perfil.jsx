@@ -32,14 +32,17 @@ export default function Perfil({
     telefono: usuario.telefono || "",
   });
 
+  // Si cambia el usuario (ej. se renovó la sesión) mientras se edita, no se
+  // pisa lo que el cliente está escribiendo.
   useEffect(() => {
+    if (editando) return;
     setDatos({
       nombre: nombreCompleto(usuario),
       apellido: "",
       email: usuario.email || "",
       telefono: usuario.telefono || "",
     });
-  }, [usuario]);
+  }, [usuario, editando]);
 
   useEffect(() => {
     if (!usuario?.token) return;
@@ -57,6 +60,8 @@ export default function Perfil({
     return () => {
       desmontado = true;
     };
+    // Solo al entrar al perfil: trae los datos frescos una vez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!usuario) {

@@ -21,6 +21,34 @@ from app.models.shipping_address import ShippingAddress
 logger = logging.getLogger(__name__)
 
 
+# Por qué no se pudo hacer el pedido. Siguen siendo ValueError (con el mismo
+# mensaje de siempre), pero el endpoint los distingue por la clase.
+class CarritoVacio(ValueError):
+    pass
+
+
+class SinDireccion(ValueError):
+    pass
+
+
+class DireccionNoEncontrada(ValueError):
+    pass
+
+
+class RepuestosNoEncontrados(ValueError):
+    pass
+
+
+class SinStock(ValueError):
+    def __init__(self, part_id: int, pedido: int, disponible: int):
+        super().__init__(
+            f"Not enough stock for part {part_id}: requested {pedido}, available {disponible}"
+        )
+        self.part_id = part_id
+        self.pedido = pedido
+        self.disponible = disponible
+
+
 def _get_owned_or_primary(db: Session, model, pk_column, client_id: int, chosen_id: int | None):
     """Devuelve la fila elegida si es del cliente; sin elección, la principal."""
     query = select(model).where(model.client_id == client_id)
@@ -66,9 +94,9 @@ def place_order(
             .with_for_update()
         )
         if cart is None:
-            raise ValueError("Client cart not found")
+            raise CarritoVacio("Client cart not found")
         if not cart.items:
-            raise ValueError("Cannot place an order from an empty cart")
+            raise CarritoVacio("Cannot place an order from an empty cart")
 
         address = _get_owned_or_primary(
             db, ShippingAddress, ShippingAddress.shipping_address_id,
@@ -76,8 +104,8 @@ def place_order(
         )
         if address is None:
             if shipping_address_id is None:
-                raise ValueError("Client has no shipping address")
-            raise ValueError("Shipping address not found")
+                raise SinDireccion("Client has no shipping address")
+            raise DireccionNoEncontrada("Shipping address not found")
 
         part_ids = [item.part_id for item in cart.items]
         parts = db.scalars(
@@ -89,15 +117,12 @@ def place_order(
 
         missing_part_ids = [part_id for part_id in part_ids if part_id not in parts_by_id]
         if missing_part_ids:
-            raise ValueError(f"Parts not found: {missing_part_ids}")
+            raise RepuestosNoEncontrados(f"Parts not found: {missing_part_ids}")
 
         for cart_item in cart.items:
             part = parts_by_id[cart_item.part_id]
             if part.stock < cart_item.amount:
-                raise ValueError(
-                    f"Not enough stock for part {part.id}: "
-                    f"requested {cart_item.amount}, available {part.stock}"
-                )
+                raise SinStock(part.id, cart_item.amount, part.stock)
 
         order = Order(
             client_id=client_id,
@@ -153,14 +178,20 @@ def cancel_expired_orders(db: Session, ahora: datetime | None = None) -> int:
     # El mismo plazo que `Payment.due_at`, pero filtrado en la base: casi
     # siempre no hay ninguno vencido y no se trae nada.
     limite = ahora - timedelta(minutes=MINUTOS_PARA_PAGAR)
+    vencidos = (
+        Payment.status != PaymentStatus.APPROVED,
+        Order.status == OrderStatus.CONFIRMED,
+        Payment.created_at <= limite,
+    )
+    # Se llama en cada vista del catálogo: primero se pregunta sin bloquear
+    # nada. Casi siempre no hay vencidos y no se bloquea ni se guarda nada.
+    if db.scalar(select(Payment.payment_id).join(Order).where(*vencidos).limit(1)) is None:
+        return 0
+
     pagos = db.scalars(
         select(Payment)
         .join(Order)
-        .where(
-            Payment.status != PaymentStatus.APPROVED,
-            Order.status == OrderStatus.CONFIRMED,
-            Payment.created_at <= limite,
-        )
+        .where(*vencidos)
         .options(selectinload(Payment.order).selectinload(Order.items))
         .order_by(Payment.payment_id)
         # Solo se bloquean los pagos, siempre en el mismo orden. Si otra

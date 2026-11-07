@@ -4,7 +4,7 @@ import { usarImagenGenerica } from "./mapearRepuesto";
 import Navbar from "./Navbar";
 import InvitacionAsistente from "./InvitacionAsistente";
 import VehicleSelector from "./VehicleSelector";
-import { obtenerCategorias, obtenerMasVendidos } from "./api";
+import { obtenerCategorias, obtenerFabricantes, obtenerMasVendidos } from "./api";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";
 import { useVehicle } from "./context/VehicleContext";
 import repuestos from "./assets/repuestos.jpg";
@@ -45,9 +45,8 @@ import SuzukiLogo from "./assets/Logos Vehiculos/Suzuki.png";
 import VolkswagenLogo from "./assets/Logos Vehiculos/Volkswagen.webp";
 import PedidosEnCursoInicio from "./PedidosEnCursoInicio";
 
-// Los fabricantes principales del catálogo (ver MANUFACTURERS en
-// backend/scripts/generate_dataset.py).
-const FABRICANTES = ["Bosch", "Brembo", "NGK", "Mann-Filter", "Monroe", "Valeo", "Castrol", "Moura"];
+// Cuántos fabricantes muestra la cinta: los que más repuestos tienen.
+const CANTIDAD_FABRICANTES = 8;
 
 // Ícono de cada categoría. Las categorías vienen del servidor: una que no
 // esté acá (nueva) se muestra con el ícono genérico, sin romper nada.
@@ -70,7 +69,8 @@ const ICONOS_CATEGORIA = {
 
 // Las que más se buscan van destacadas, más grandes, en una fila; el resto, de a 5 por fila
 // (con las 14 categorías de hoy, 4 + 5 + 5: todas las filas completas).
-const CATEGORIAS_DESTACADAS = ["Frenos", "Filtros", "Motor", "Suspensión"];
+// Las categorías grandes del mosaico: las que más repuestos tienen.
+const CANTIDAD_DESTACADAS = 4;
 
 // Los pasos de "Cómo comprar".
 const PASOS_COMPRA = [
@@ -131,6 +131,7 @@ export default function Home({
   // de error.
 
   const [categorias, setCategorias] = useState(null);
+  const [fabricantes, setFabricantes] = useState([]);
 
   useEffect(() => {
     let activo = true;
@@ -145,6 +146,13 @@ export default function Home({
         setCategorias([]);
       });
 
+    // Si falla, la cinta de fabricantes queda vacía.
+    obtenerFabricantes()
+      .then((lista) => {
+        if (activo) setFabricantes(lista.slice(0, CANTIDAD_FABRICANTES).map((f) => f.nombre));
+      })
+      .catch(() => {});
+
     return () => {
       activo = false;
     };
@@ -157,6 +165,10 @@ export default function Home({
   // Las marcas del catálogo (los nombres, iguales que en el backend,
   // filtran el catálogo). Geely y JAC todavía no tienen logo.
   const simpleIcon = (slug) => `https://cdn.simpleicons.org/${slug}/000000`;
+  const destacadas = [...(categorias || [])]
+    .sort((a, b) => b.cantidad - a.cantidad)
+    .slice(0, CANTIDAD_DESTACADAS);
+
   const marcas = [
     { nombre: "Volkswagen", logo: VolkswagenLogo },
     { nombre: "Chevrolet", logo: ChevroletLogo },
@@ -382,7 +394,7 @@ export default function Home({
 
           <Cinta reversa>
             {(copia) =>
-              FABRICANTES.map((fabricante) => (
+              fabricantes.map((fabricante) => (
                 <button
                   key={fabricante}
                   type="button"
@@ -419,9 +431,7 @@ export default function Home({
         {/* Mosaico: las destacadas grandes arriba y el resto debajo. */}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {(categorias || [])
-            .filter((c) => CATEGORIAS_DESTACADAS.includes(c.nombre))
-            .sort((a, b) => CATEGORIAS_DESTACADAS.indexOf(a.nombre) - CATEGORIAS_DESTACADAS.indexOf(b.nombre))
+          {destacadas
             .map((categoria) => (
               <TarjetaCategoria
                 key={categoria.nombre}
@@ -435,7 +445,7 @@ export default function Home({
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3">
           {(categorias || [])
-            .filter((c) => !CATEGORIAS_DESTACADAS.includes(c.nombre))
+            .filter((c) => !destacadas.includes(c))
             .map((categoria) => (
               <TarjetaCategoria
                 key={categoria.nombre}

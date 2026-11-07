@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_client, get_db
-from app.core.config import BACKEND_URL, FRONTEND_URL
+from app.core.config import BACKEND_URL, FRONTEND_URL, MONEDA
 from app.core.mercadopago import ClienteMercadoPago, MercadoPagoNoDisponible, firma_valida, get_cliente_mp
 from app.core.notificaciones import notificar_compra, notificar_pago_sin_stock
 from app.crud import order as crud_order
@@ -17,10 +17,6 @@ from app.models.payment import PaymentStatus
 
 router = APIRouter(prefix="/pagos", tags=["pagos"])
 logger = logging.getLogger(__name__)
-
-# Los precios de la tienda están en pesos uruguayos.
-MONEDA = "UYU"
-
 
 class LinkPagoOut(BaseModel):
     url: str

@@ -51,3 +51,19 @@ def test_part_detail_returns_404_for_unknown_id(client):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Repuesto no encontrado."}
+
+
+def test_fabricantes_ordenados_por_cantidad_de_repuestos(client, db_session):
+    crear_repuesto(db_session)
+    for codigo in ("BRK-002", "BRK-003"):
+        db_session.add(
+            Part(part_code=codigo, name="Disco", manufacturer="Brembo", category="Brakes", price=900, stock=1)
+        )
+    db_session.commit()
+
+    response = client.get("/api/v1/parts/manufacturers")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "manufacturers": [{"name": "Brembo", "count": 2}, {"name": "Bosch", "count": 1}]
+    }

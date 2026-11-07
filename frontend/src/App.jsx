@@ -157,64 +157,6 @@ function App() {
     };
   }, [userId, haySesionConToken, vendedor]);
 
-  /* =====================================================
-     DIRECCIONES
-  ====================================================== */
-
-  const [direcciones, setDirecciones] = useState(() => {
-    try {
-      return (
-        JSON.parse(
-          localStorage.getItem(
-            "autobought-direcciones"
-          )
-        ) || []
-      );
-    } catch {
-      return [];
-    }
-  });
-
-  /* =====================================================
-     HISTORIAL DE COMPRAS
-  ====================================================== */
-
-  const [historialCompras, setHistorialCompras] =
-    useState(() => {
-      try {
-        return (
-          JSON.parse(
-            localStorage.getItem(
-              "autobought-historial-compras"
-            )
-          ) || []
-        );
-      } catch {
-        return [];
-      }
-    });
-
-  /* =====================================================
-     GUARDAR DIRECCIONES
-  ====================================================== */
-
-  useEffect(() => {
-    localStorage.setItem(
-      "autobought-direcciones",
-      JSON.stringify(direcciones)
-    );
-  }, [direcciones]);
-
-  /* =====================================================
-     GUARDAR HISTORIAL
-  ====================================================== */
-
-  useEffect(() => {
-    localStorage.setItem(
-      "autobought-historial-compras",
-      JSON.stringify(historialCompras)
-    );
-  }, [historialCompras]);
 
   /* =====================================================
      NAVEGACIÓN
@@ -830,8 +772,6 @@ function App() {
           element={
             <Direcciones
               {...propsNavbar}
-              direcciones={direcciones}
-              setDirecciones={setDirecciones}
             />
           }
         />
@@ -860,7 +800,6 @@ function App() {
           element={
             <HistorialCompras
               {...propsNavbar}
-              historialCompras={historialCompras}
             />
           }
         />

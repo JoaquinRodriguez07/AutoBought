@@ -1,11 +1,17 @@
+from functools import lru_cache
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import esta_activo, get_current_client, get_current_user, get_db
 from app.core import validators
-from app.core.auth_attempts import clear_failures, is_blocked, register_failure
-from app.core.config import FRONTEND_URL
+from app.core.auth_attempts import clear_failures, is_blocked, puede_mandar_mail, register_failure
+from app.core.config import (
+    FRONTEND_URL,
+    VIGENCIA_RECUPERACION_MINUTOS,
+    VIGENCIA_VERIFICACION_MINUTOS,
+)
 from app.core.email import programar_mail
 from app.core.security import (
     DARSE_DE_BAJA,
@@ -40,8 +46,6 @@ RECUPERACION_PEDIDA = (
     "Si el correo está registrado, te mandamos un enlace para elegir una contraseña nueva."
 )
 
-VIGENCIA_VERIFICACION_MINUTOS = 24 * 60
-VIGENCIA_RECUPERACION_MINUTOS = 30
 
 
 def _mandar_verificacion(background_tasks: BackgroundTasks, user: User) -> None:
@@ -80,6 +84,11 @@ def _token_de_sesion(user: User) -> Token:
     return Token(access_token=access_token)
 
 
+@lru_cache(maxsize=1)
+def _hash_falso() -> str:
+    return hash_password("contraseña que no es de nadie")
+
+
 @router.post("/login", response_model=Token)
 def login(credentials: LoginRequest, db: Session = Depends(get_db)):
     if is_blocked(db, credentials.email):
@@ -89,8 +98,11 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
         )
 
     user = crud_user.get_user_by_email(db, credentials.email)
+    # Si el correo no existe se compara igual contra un hash falso: así el
+    # login tarda lo mismo y no deja adivinar qué correos tienen cuenta.
+    hash_a_comparar = user.password if user else _hash_falso()
 
-    if not user or not verify_password(credentials.password, user.password):
+    if not verify_password(credentials.password, hash_a_comparar) or not user:
         register_failure(db, credentials.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -157,10 +169,17 @@ def verify_email(data: VerifyEmailRequest, db: Session = Depends(get_db)):
 @router.post("/verify-email/resend", status_code=status.HTTP_204_NO_CONTENT)
 def resend_verification(
     background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
 ):
-    if not client.email_verified:
-        _mandar_verificacion(background_tasks, client)
+    if client.email_verified:
+        return
+    if not puede_mandar_mail(db, "verificar", client.email):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Ya te mandamos varios mails. Probá de nuevo en unos minutos.",
+        )
+    _mandar_verificacion(background_tasks, client)
 
 
 @router.post("/password/forgot", status_code=status.HTTP_202_ACCEPTED)
@@ -169,11 +188,11 @@ def forgot_password(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    """Responde siempre lo mismo, exista o no el correo, para no revelar
-    quién tiene cuenta."""
+    """Responde siempre lo mismo, exista o no el correo y aunque se haya
+    llegado al límite de mails, para no revelar quién tiene cuenta."""
     user = crud_user.get_user_by_email(db, data.email)
     # A un vendedor dado de baja no se le manda nada (como si no existiera).
-    if user is not None and esta_activo(user):
+    if user is not None and esta_activo(user) and puede_mandar_mail(db, "recuperar", user.email):
         token = create_purpose_token(
             str(user.user_id),
             RECUPERAR_PASSWORD,

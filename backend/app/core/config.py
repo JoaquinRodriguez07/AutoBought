@@ -7,6 +7,10 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
+# Sin clave, los tokens no se pueden firmar y los enlaces de los mails
+# quedarían firmados con "None": mejor que el backend no arranque.
+if not SECRET_KEY:
+    raise RuntimeError("Falta SECRET_KEY (ver .env.example).")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
@@ -53,6 +57,29 @@ BACKEND_URL = os.getenv("BACKEND_URL", "").rstrip("/")
 # Cuánto tiempo tiene el cliente para pagar un pedido. Mientras tanto el
 # stock queda reservado; pasado el plazo, el pedido se cancela y el stock vuelve.
 MINUTOS_PARA_PAGAR = int(os.getenv("MINUTOS_PARA_PAGAR", "15"))
+
+# Orígenes que pueden llamar a la API desde el navegador, separados por coma.
+CORS_ORIGINS = [
+    origen.strip().rstrip("/")
+    for origen in os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,"
+        "http://127.0.0.1:5174,https://autobought.vercel.app",
+    ).split(",")
+    if origen.strip()
+]
+
+# Moneda en la que están los precios de la tienda (la que se cobra en Mercado Pago).
+MONEDA = os.getenv("MONEDA", "UYU")
+
+# Cuánto duran los enlaces que van por mail.
+VIGENCIA_VERIFICACION_MINUTOS = int(os.getenv("VIGENCIA_VERIFICACION_MINUTOS", str(24 * 60)))
+VIGENCIA_RECUPERACION_MINUTOS = int(os.getenv("VIGENCIA_RECUPERACION_MINUTOS", "30"))
+
+# Bloqueo por intentos fallidos: tantos fallos dentro de la ventana bloquean
+# el correo durante esa misma ventana.
+MAX_INTENTOS_FALLIDOS = int(os.getenv("MAX_INTENTOS_FALLIDOS", "5"))
+VENTANA_INTENTOS_MINUTOS = int(os.getenv("VENTANA_INTENTOS_MINUTOS", "15"))
 
 # Vercel Cron lo manda para llamar a /tareas/diarias. Vacío: nadie puede llamarlo.
 CRON_SECRET = os.getenv("CRON_SECRET", "")

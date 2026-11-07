@@ -14,6 +14,7 @@ jest.mock("./api", () => ({
   obtenerRepuestos: jest.fn(),
   obtenerRepuesto: jest.fn(),
   obtenerCategorias: jest.fn(),
+  obtenerFabricantes: jest.fn(() => Promise.resolve([])),
   obtenerCarrito: jest.fn(),
   agregarItemCarrito: jest.fn(),
   actualizarItemCarrito: jest.fn(),
