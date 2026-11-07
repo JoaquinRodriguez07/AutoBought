@@ -13,7 +13,11 @@ test("favoritos: marcar uno, verlo en la lista y agregarlo al carrito desde ahí
     .first()
     .locator("h3")
     .innerText();
-  const tarjeta = page.locator("article").filter({ has: page.getByRole("heading", { name: nombre, exact: true }) });
+  // El título de la tarjeta es un botón "Ver detalle de <nombre>": por él se
+  // encuentra la tarjeta.
+  const tarjeta = page
+    .locator("article")
+    .filter({ has: page.getByRole("button", { name: `Ver detalle de ${nombre}`, exact: true }) });
   await tarjeta.getByRole("button", { name: "Marcar como favorito" }).click();
   await expect(tarjeta.getByRole("button", { name: "Quitar de favoritos" })).toBeVisible();
 

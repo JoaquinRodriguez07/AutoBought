@@ -11,7 +11,8 @@ export async function iniciarSesion(page, { email, password }) {
   await page.goto("/login");
   await page.getByPlaceholder("tu@email.com").fill(email);
   await page.getByPlaceholder("••••••••").fill(password);
-  await page.getByRole("button", { name: "INICIAR SESIÓN", exact: true }).click();
+  // El del formulario: la barra de arriba también puede tener "Iniciar sesión".
+  await page.locator("form").getByRole("button", { name: "Iniciar sesión", exact: true }).click();
   await expect(page).not.toHaveURL(/\/login/);
 }
 
