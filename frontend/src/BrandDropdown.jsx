@@ -1,3 +1,5 @@
+// Desplegable de marcas de autos del selector de vehículo.
+
 import { useEffect, useState } from "react";
 import { obtenerMarcas } from "./api";
 

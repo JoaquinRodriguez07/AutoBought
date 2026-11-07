@@ -1,3 +1,5 @@
+// Formulario de alta y edición de un repuesto.
+
 import { useEffect, useState } from "react";
 import { CircleAlertIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";

@@ -1,3 +1,5 @@
+// Ventana para ajustar el stock de un repuesto.
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

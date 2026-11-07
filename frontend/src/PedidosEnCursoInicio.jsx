@@ -1,3 +1,5 @@
+// Los pedidos en curso en el banner del inicio.
+
 import { useNavigate } from "react-router-dom";
 
 import { usePedidos } from "./context/PedidosContext";

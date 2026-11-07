@@ -1,3 +1,5 @@
+"""Tests de los datos del catálogo generados por scripts/generate_dataset.py."""
+
 import copy
 import json
 from pathlib import Path

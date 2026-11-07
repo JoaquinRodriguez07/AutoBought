@@ -1,3 +1,5 @@
+// Piezas comunes de las pantallas de login y registro.
+
 import { useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 

@@ -1,3 +1,5 @@
+// Tests del texto del plazo para pagar.
+
 import { pagaloAntesDe, textoPlazoPago } from "./plazoPago";
 
 describe("textoPlazoPago", () => {

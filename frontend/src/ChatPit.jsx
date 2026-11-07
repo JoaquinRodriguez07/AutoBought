@@ -1,3 +1,5 @@
+// El chat con Pit, el asistente de compra con IA.
+
 import { useEffect, useRef, useState } from "react";
 import { usarImagenGenerica } from "./mapearRepuesto";
 import toast from "react-hot-toast";

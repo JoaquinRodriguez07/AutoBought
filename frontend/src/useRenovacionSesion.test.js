@@ -1,3 +1,5 @@
+// Tests de la renovación automática de la sesión.
+
 import { act, renderHook } from "@testing-library/react";
 
 jest.mock("./api", () => ({ renovarToken: jest.fn() }));

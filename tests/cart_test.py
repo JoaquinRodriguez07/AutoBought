@@ -1,3 +1,5 @@
+"""Tests del carrito."""
+
 from app.core.security import create_access_token
 from app.models.client import Client
 from app.models.employee import Employee
@@ -378,7 +380,7 @@ def test_client_cannot_modify_another_clients_cart(client, db_session):
 		headers=auth_headers(customer_a),
 	)
 
-	# cliente_b no tiene ese item en SU carrito, aunque exista en el de cliente_a
+	# customer_b no tiene ese item en SU carrito, aunque exista en el de customer_a
 	response = client.patch(
 		f"/api/v1/cart/items/{part.id}",
 		json={"amount": 1},
@@ -391,6 +393,6 @@ def test_client_cannot_modify_another_clients_cart(client, db_session):
 	)
 	assert response.status_code == 404
 
-	# el carrito de cliente_a no cambió
+	# el carrito de customer_a no cambió
 	cart_a = client.get("/api/v1/cart", headers=auth_headers(customer_a)).json()
 	assert cart_a["items"][0]["amount"] == 2

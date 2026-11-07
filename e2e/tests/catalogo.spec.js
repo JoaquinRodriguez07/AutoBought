@@ -1,3 +1,5 @@
+// Recorridos E2E del catálogo: categorías, marcas, fabricantes y búsqueda desde el inicio.
+
 import { test, expect } from "@playwright/test";
 import { clicEnCinta } from "../helpers.js";
 

@@ -1,3 +1,5 @@
+// La dirección legible de un repuesto (/repuesto/123-nombre) y cómo sacarle el id.
+
 export function slugificarProducto(nombre, id) {
   const nombreSlug = String(nombre ?? "")
     .normalize("NFD")

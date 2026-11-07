@@ -1,3 +1,5 @@
+"""Contraseñas (bcrypt) y tokens JWT: de sesión y de los enlaces que van por mail."""
+
 import hashlib
 from datetime import datetime, timedelta, timezone
 

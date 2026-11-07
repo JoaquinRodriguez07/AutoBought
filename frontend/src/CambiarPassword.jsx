@@ -1,3 +1,5 @@
+// Pantalla para cambiar la contraseña desde «Seguridad».
+
 import { useState } from "react";
 import { cambiarPassword } from "./api";
 import { guardarSesion, obtenerSesion } from "./auth";

@@ -227,7 +227,7 @@ def _popularidad(parts: list[Part], rng: random.Random) -> tuple[dict[int, float
         )
         at_risk += with_stock[:AT_RISK_BY_CATEGORY]
 
-    # Peso que hace falta para que el último mes vendan VENTAS_SOBRE_STOCK
+    # Peso que hace falta para que el último mes vendan SALES_OVER_STOCK
     # veces su stock: participación objetivo sobre el total de elecciones.
     average_items = sum(n * p for n, p in zip(*ITEMS_PER_ORDER)) / sum(ITEMS_PER_ORDER[1])
     last_month_choices = LAST_MONTH_ORDERS * average_items

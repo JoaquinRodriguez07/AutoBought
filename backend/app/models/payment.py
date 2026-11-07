@@ -1,3 +1,5 @@
+"""ModelT del pago de un pedido con Mercado Pago."""
+
 import enum
 from datetime import datetime, timedelta, timezone
 

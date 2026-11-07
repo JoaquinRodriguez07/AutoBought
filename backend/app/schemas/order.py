@@ -1,3 +1,5 @@
+"""Schemas de los pedidos, para el cliente y para el vendedor."""
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field, model_validator

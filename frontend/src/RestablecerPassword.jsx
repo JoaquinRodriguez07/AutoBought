@@ -1,3 +1,5 @@
+// Pantalla para elegir una contraseña nueva desde el enlace del mail.
+
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { restablecerPassword } from "./api";

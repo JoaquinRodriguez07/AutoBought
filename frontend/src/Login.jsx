@@ -1,3 +1,5 @@
+// Pantalla de inicio de sesión.
+
 import { useState } from "react";
 import Navbar from "./Navbar";
 import { login, obtenerPerfil } from "./api";

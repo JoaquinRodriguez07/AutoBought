@@ -1,3 +1,5 @@
+// La conversación con Pit, compartida entre el panel y el chat.
+
 import { createContext, useCallback, useContext, useState } from "react";
 
 import { useConversacionPit } from "../useConversacionPit";

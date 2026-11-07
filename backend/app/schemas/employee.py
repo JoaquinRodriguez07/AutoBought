@@ -1,3 +1,5 @@
+"""Schemas del equipo de vendedores."""
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.core import validators

@@ -1,3 +1,5 @@
+// Tests de la validación de teléfonos.
+
 import { formatearTelefonoUY, normalizarTelefonoUY } from "./telefono";
 
 describe("normalizarTelefonoUY", () => {

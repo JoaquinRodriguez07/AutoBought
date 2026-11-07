@@ -1,3 +1,5 @@
+"""Pagos de Mercado Pago: aplicar el estado que informa, y devolver los pagos."""
+
 import logging
 from datetime import datetime, timezone
 
@@ -100,8 +102,17 @@ def refund_key(order_id: int) -> str:
 
 
 def refund(db: Session, payment: Payment, mp_client: MercadoPagoClient) -> bool:
-    """Devuelve el pago en Mercado Pago y anota cuándo. Si Mercado Pago falla,
-    queda en el log y sin fecha: el cron lo vuelve a intentar. Devuelve si salió."""
+    """Devuelve el pago en Mercado Pago y anota cuándo.
+
+    Args:
+        db: la sesión de la base.
+        payment: el pago aprobado que se devuelve.
+        mp_client: el cliente de Mercado Pago (en los tests, uno falso).
+
+    Returns:
+        Si la devolución salió. Si Mercado Pago falla, queda en el log y el
+        cron la reintenta.
+    """
     if payment.refunded_at is not None:
         return True
     if not payment.mp_payment_id:

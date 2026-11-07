@@ -1,3 +1,5 @@
+"""Arma y manda los mails con las plantillas de app/templates/emails."""
+
 import logging
 import smtplib
 from email.message import EmailMessage
@@ -29,7 +31,7 @@ def build_message(
     """Arma el mail con la plantilla HTML y una versión en texto plano para
     los clientes de correo que no muestran HTML.
 
-    Los mails comerciales pasan `enlace_baja`: va al pie del mail y en el
+    Los mails comerciales pasan `unsubscribe_link`: va al pie del mail y en el
     encabezado List-Unsubscribe, con el que Gmail muestra su propio botón
     de «Anular suscripción»."""
     contexto = {"frontend_url": FRONTEND_URL, "enlace_baja": unsubscribe_link, **data}
@@ -59,7 +61,7 @@ def _send_smtp(msg: EmailMessage) -> None:
 def send_mail(
     recipient: str, subject: str, template: str, data: dict, unsubscribe_link: str | None = None
 ) -> bool:
-    """Se llama con programar_mail: si el envío falla, la acción del
+    """Se llama con schedule_mail: si el envío falla, la acción del
     usuario ya se hizo, así que solo se registra.
     Devuelve si salió, para las tareas diarias."""
     msg = build_message(recipient, subject, template, data, unsubscribe_link)
@@ -84,7 +86,7 @@ def _mask(email_address: str) -> str:
 
 def schedule_mail(background_tasks, *args, **kwargs) -> None:
     """Manda el mail en segundo plano (después de responder) o ya mismo,
-    según MAILS_EN_SEGUNDO_PLANO (ver config.py). Sin background_tasks,
+    según SEND_MAILS_IN_BACKGROUND (ver config.py). Sin background_tasks,
     sale ya mismo."""
     if background_tasks is None or not SEND_MAILS_IN_BACKGROUND:
         send_mail(*args, **kwargs)

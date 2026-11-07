@@ -1,3 +1,5 @@
+"""Junta los routers de todos los endpoints bajo /api/v1."""
+
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import auth, brands, parts, models, years, cart, shipping_address, orders, payments

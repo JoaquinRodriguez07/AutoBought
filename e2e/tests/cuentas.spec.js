@@ -1,3 +1,5 @@
+// Recorridos E2E de cuentas: registro con verificación del correo y entrada del vendedor.
+
 import { test, expect } from "@playwright/test";
 import { VENDEDOR, enlaceDelMail, iniciarSesion } from "../helpers.js";
 

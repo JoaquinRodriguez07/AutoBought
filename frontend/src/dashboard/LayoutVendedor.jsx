@@ -1,3 +1,5 @@
+// El armado del portal del vendedor: menú lateral y contenido.
+
 import { useEffect, useState } from "react";
 import {
   BoxesIcon,

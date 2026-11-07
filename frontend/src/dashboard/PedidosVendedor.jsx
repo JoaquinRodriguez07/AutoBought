@@ -1,3 +1,5 @@
+// Listado de pedidos del portal del vendedor.
+
 import { useState } from "react";
 import { CircleAlertIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";

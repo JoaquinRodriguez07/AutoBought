@@ -1,3 +1,5 @@
+"""Límite de intentos fallidos de login y de mails de cuenta por correo."""
+
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select

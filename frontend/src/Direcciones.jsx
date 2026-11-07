@@ -1,3 +1,5 @@
+// Pantalla de las direcciones de envío del cliente.
+
 import { useEffect, useState } from "react";
 import CuentaLayout from "./CuentaLayout";
 import {

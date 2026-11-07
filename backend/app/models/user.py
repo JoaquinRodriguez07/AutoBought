@@ -1,3 +1,5 @@
+"""ModelT base de los usuarios (clientes y vendedores comparten tabla)."""
+
 from sqlalchemy import Boolean, Column, Integer, String, false
 
 from app.db.base import Base

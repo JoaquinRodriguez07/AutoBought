@@ -1,3 +1,5 @@
+// Tests de las direcciones de los repuestos.
+
 import { extraerIdProducto, slugificarProducto } from "./slugProducto";
 
 describe("slugificarProducto", () => {

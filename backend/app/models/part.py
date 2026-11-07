@@ -1,3 +1,5 @@
+"""ModelT de un repuesto del catálogo."""
+
 from sqlalchemy import JSON, Column, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship

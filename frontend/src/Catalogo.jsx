@@ -1,3 +1,5 @@
+// Pantalla del catálogo: filtros, búsqueda, tarjetas de repuestos y favoritos.
+
 import { useEffect, useMemo, useState } from "react";
 import { usarImagenGenerica } from "./mapearRepuesto";
 import { useLocation, useSearchParams } from "react-router-dom";

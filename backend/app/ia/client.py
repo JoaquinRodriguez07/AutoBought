@@ -2,8 +2,8 @@
 
 Es el único lugar del backend que habla con el proveedor: las
 funcionalidades (el asistente de compra, el dashboard) piden texto con
-`ClienteIA.generar` y no saben qué API hay detrás. En los tests se
-reemplaza por un cliente falso (ver `get_cliente_ia`): el CI nunca llama a
+`AIClient.generar` y no saben qué API hay detrás. En los tests se
+reemplaza por un cliente falso (ver `get_ai_client`): el CI nunca llama a
 la IA real.
 """
 

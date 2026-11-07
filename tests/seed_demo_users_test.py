@@ -1,3 +1,5 @@
+"""Tests del script que crea los usuarios de prueba."""
+
 from app.core.security import verify_password
 from app.crud import user as crud_user
 from app.models.order import Order

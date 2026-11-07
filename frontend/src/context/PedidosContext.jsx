@@ -1,3 +1,5 @@
+// Los pedidos del cliente para el ícono de la barra y el inicio.
+
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { obtenerHistorialCompras } from "../api";

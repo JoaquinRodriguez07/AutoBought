@@ -1,3 +1,5 @@
+// Barra de filtros del dashboard del vendedor.
+
 import { useState } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";

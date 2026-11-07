@@ -1,3 +1,5 @@
+// El carrito del cliente, compartido por toda la tienda.
+
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";

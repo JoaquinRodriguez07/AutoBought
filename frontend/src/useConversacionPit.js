@@ -1,3 +1,5 @@
+// Hook con la conversación con Pit: mensajes, envío y errores.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { consultarAsistente } from "./api";

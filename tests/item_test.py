@@ -1,3 +1,4 @@
+"""Tests del catálogo: marcas, repuestos y su forma de salida."""
 
 import pytest
 

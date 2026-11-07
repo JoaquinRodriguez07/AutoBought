@@ -139,7 +139,7 @@ def notify_purchase(order: Order, background_tasks: BackgroundTasks | None = Non
 def notify_paid_without_stock(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
     """El cliente pagó después de que el pedido venciera y ya no queda stock:
     el pedido sigue cancelado y se le devuelve el dinero en Mercado Pago
-    (ver pagos._avisar_pago_aprobado)."""
+    (ver payments._notify_approved_payment)."""
     _schedule(
         background_tasks,
         order.client.email,

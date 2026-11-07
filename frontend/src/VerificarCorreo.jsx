@@ -1,3 +1,5 @@
+// Pantalla del enlace de verificación del correo.
+
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { verificarCorreo } from "./api";

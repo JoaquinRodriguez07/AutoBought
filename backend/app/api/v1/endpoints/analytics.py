@@ -1,3 +1,5 @@
+"""Endpoints del dashboard del vendedor: stock, más vendidos, ventas por mes, proyección de demanda y riesgo de agotamiento."""
+
 from datetime import date
 from typing import Optional
 

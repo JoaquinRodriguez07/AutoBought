@@ -1,21 +1,22 @@
-"""Generates the catalog data files.
+"""Genera los archivos de datos del catálogo.
 
-Usage: python -m scripts.generate_dataset
+Uso: python -m scripts.generate_dataset
 
-Writes data/car_models.json and data/parts.json. The catalogs below are the
-source of truth: to add a car or a part, edit them here and rerun.
+Escribe data/car_models.json y data/parts.json. Los catálogos de abajo son
+la fuente de verdad: para agregar un auto o un repuesto, se editan acá y se
+vuelve a correr.
 
-Compatibility rules:
-- Engine parts (filters, spark plugs, timing belt, water pump) fit every
-  model that shares the same engine code.
-- Model-specific parts (brakes, suspension, body) are per model, because
-  sharing an engine doesn't mean sharing brake pads.
-- Universal parts (oil, coolant, wipers) fit the whole catalog.
+Reglas de compatibilidad:
+- Los repuestos de motor (filtros, bujías, correa de distribución, bomba de
+  agua) le sirven a todo modelo con el mismo código de motor.
+- Los repuestos propios de cada modelo (frenos, suspensión, carrocería) van
+  por modelo: compartir el motor no significa compartir las pastillas.
+- Los universales (aceite, refrigerante, escobillas) le sirven a todo el catálogo.
 
-Manufacturers: each part comes from several manufacturers, like in a real
-store, and each one is a different product (own code, price and stock).
-The main manufacturer makes it for every car; the others only for some
-(see covers), so for a given car there may be one option or several.
+Fabricantes: cada repuesto lo hacen varios fabricantes, como en una tienda
+real, y cada uno es un producto distinto (con su código, precio y stock).
+El fabricante principal lo hace para todos los autos; los demás solo para
+algunos (ver covers), así que para un auto puede haber una opción o varias.
 """
 
 import json

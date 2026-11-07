@@ -1,3 +1,5 @@
+"""Endpoints del catálogo de repuestos y del alta y edición de repuestos del vendedor."""
+
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status

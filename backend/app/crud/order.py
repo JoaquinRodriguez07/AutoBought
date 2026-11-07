@@ -1,3 +1,5 @@
+"""Pedidos: armarlos desde el carrito, cambiar su estado, vencerlos y listarlos."""
+
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Literal
@@ -79,13 +81,17 @@ def place_order(
     client_id: int,
     shipping_address_id: int | None = None,
 ) -> Order:
-    """Place an order from a client's cart in a single transaction.
+    """Arma el pedido con el carrito del cliente, todo en una transacción.
 
-    Without an explicit shipping address, the client's primary one is used;
-    it must belong to the client. The order starts with a pending payment:
-    the client pays it afterwards on Mercado Pago. The stock is taken now,
-    so it stays reserved while the client pays (or retries a rejected payment),
-    until the deadline (see `cancel_expired_orders`).
+    Sin dirección elegida se usa la principal; tiene que ser del cliente.
+    El pedido arranca con el pago pendiente: el cliente lo paga después en
+    Mercado Pago. El stock se descuenta ahora, así queda reservado mientras
+    paga (o reintenta un pago rechazado), hasta el plazo (ver
+    `cancel_expired_orders`).
+
+    Raises:
+        EmptyCart, NoShippingAddress, ShippingAddressNotFound, PartsNotFound,
+        OutOfStock: por qué no se pudo armar el pedido.
     """
     with db.begin():
         cart = db.scalar(
@@ -362,7 +368,7 @@ def apply_status_change(
 ) -> None:
     """Cambia el estado (ya validado con check_status_change). Al cancelar,
     guarda el motivo y devuelve el stock. No hace commit: lo hace quien llama,
-    después de devolver el pago. Pasa por `cambiar_estado`, así el cambio
+    después de devolver el pago. Pasa por `change_status`, así el cambio
     queda en el historial y el cliente lo ve en su línea de tiempo."""
     if new_status == OrderStatus.CANCELLED:
         change_status(order, new_status, CancelReason.STORE)

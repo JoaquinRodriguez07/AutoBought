@@ -1,3 +1,5 @@
+// Pantalla con todas las marcas de autos.
+
 import { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import { obtenerMarcas } from "./api";

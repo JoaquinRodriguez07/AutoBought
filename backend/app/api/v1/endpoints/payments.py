@@ -1,3 +1,5 @@
+"""Endpoints de pago con Mercado Pago: el link de pago, la verificación al volver y el aviso (webhook)."""
+
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status

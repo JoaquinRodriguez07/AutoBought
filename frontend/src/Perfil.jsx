@@ -1,3 +1,5 @@
+// Pantalla del perfil del cliente.
+
 import { useEffect, useRef, useState } from "react";
 import CuentaLayout from "./CuentaLayout";
 import { actualizarPerfil, obtenerPerfil } from "./api";

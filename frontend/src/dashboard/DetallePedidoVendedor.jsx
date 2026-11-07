@@ -1,3 +1,5 @@
+// Detalle de un pedido en el portal del vendedor.
+
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";

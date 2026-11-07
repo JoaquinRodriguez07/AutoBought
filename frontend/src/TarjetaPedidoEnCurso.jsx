@@ -1,3 +1,5 @@
+// La tarjeta de un pedido en curso, con su progreso.
+
 import { IconoCheck } from "./Iconos";
 import { imagenDeRepuesto, usarImagenGenerica } from "./mapearRepuesto";
 import { pagaloAntesDe } from "./plazoPago";

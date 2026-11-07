@@ -1,3 +1,5 @@
+"""Consultas y cambios de los repuestos del catálogo."""
+
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -166,7 +168,7 @@ def list_best_sellers(
     #     porque un más vendido sin stock es justo lo que hay que reponer.
     #   - since: solo las ventas desde ese momento. El dashboard lo usa
     #     para contar meses calendario enteros en vez de N días.
-    #   - category / search: los filtros del dashboard (filtrar_repuestos).
+    #   - category / search: los filtros del dashboard (filter_parts).
     units_sold = func.sum(OrderItem.quantity).label("units_sold")
     query = (
         select(Part, units_sold)

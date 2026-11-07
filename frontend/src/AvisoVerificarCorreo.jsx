@@ -1,3 +1,5 @@
+// Aviso fijo abajo mientras el cliente no verificó su correo.
+
 import { useEffect, useRef, useState } from "react";
 import { obtenerPerfil, reenviarVerificacion } from "./api";
 

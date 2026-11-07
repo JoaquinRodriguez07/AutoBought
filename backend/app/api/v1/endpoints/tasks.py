@@ -1,3 +1,5 @@
+"""Endpoint de las tareas diarias que llama Vercel Cron."""
+
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status

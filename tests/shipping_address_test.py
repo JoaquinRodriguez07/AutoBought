@@ -1,3 +1,5 @@
+"""Tests de las direcciones de envío."""
+
 import itertools
 
 import pytest

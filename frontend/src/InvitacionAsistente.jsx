@@ -1,3 +1,5 @@
+// Invitación a usar Pit, el asistente con IA.
+
 import { useNavigate } from "react-router-dom";
 
 import { esVendedor, obtenerSesion, sesionValida } from "./auth";

@@ -1,3 +1,5 @@
+"""Tests de la búsqueda en lenguaje natural."""
+
 from app.models.car_model import CarModel
 from app.models.compatibility import Compatibility
 from app.models.part import Part

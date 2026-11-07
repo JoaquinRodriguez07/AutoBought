@@ -8,7 +8,7 @@ En producción no se usa este script: Vercel Cron llama a las mismas
 tareas por GET /api/v1/tareas/diarias (ver el vercel.json de la raíz).
 
 Se puede correr más de una vez: cada recordatorio se manda una sola vez
-(ver app/core/notificaciones.py). Solo les llega a los clientes que no
+(ver app/core/notifications.py). Solo les llega a los clientes que no
 se dieron de baja de los mails comerciales.
 """
 

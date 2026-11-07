@@ -1,3 +1,5 @@
+"""Tests de los mails de pedidos y avisos, y de las tareas diarias."""
+
 import re
 from datetime import datetime, timedelta, timezone
 

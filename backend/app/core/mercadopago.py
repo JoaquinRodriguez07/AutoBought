@@ -4,7 +4,7 @@ Es el único lugar del backend que habla con Mercado Pago: crear el link de
 pago de un pedido (preferencia), consultar un pago y devolverlo cuando el
 vendedor cancela un pedido pagado. La
 tarjeta se carga en la página de Mercado Pago: nunca pasa por la tienda.
-En los tests se reemplaza por un cliente falso (ver `get_cliente_mp`): el CI
+En los tests se reemplaza por un cliente falso (ver `get_mp_client`): el CI
 nunca llama a Mercado Pago.
 """
 

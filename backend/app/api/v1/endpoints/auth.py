@@ -1,3 +1,5 @@
+"""Endpoints de la cuenta: registro, login, verificación del correo, recuperación de la contraseña y perfil."""
+
 from functools import lru_cache
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status

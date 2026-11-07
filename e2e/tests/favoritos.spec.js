@@ -1,3 +1,5 @@
+// Recorrido E2E de favoritos: marcar, ver la lista y agregar al carrito desde ahí.
+
 import { test, expect } from "@playwright/test";
 import { ANA, avisoAgregado, iniciarSesion } from "../helpers.js";
 

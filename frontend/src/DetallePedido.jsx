@@ -1,3 +1,5 @@
+// Detalle de un pedido del cliente: seguimiento, pago, productos y envío.
+
 import { useState } from "react";
 
 import { confirmarRecepcion, crearLinkPago } from "./api";

@@ -1,3 +1,5 @@
+// Proyección de la demanda del mes que viene.
+
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";

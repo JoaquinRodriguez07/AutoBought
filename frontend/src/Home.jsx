@@ -1,3 +1,5 @@
+// La página de inicio de la tienda.
+
 import { useEffect, useRef, useState } from "react";
 import { usarImagenGenerica } from "./mapearRepuesto";
 

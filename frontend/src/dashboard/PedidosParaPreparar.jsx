@@ -1,3 +1,5 @@
+// Resumen de los pedidos pagados que esperan que se preparen.
+
 import { ChevronRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { obtenerPedidos } from "./apiDashboard";

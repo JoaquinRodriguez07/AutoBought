@@ -1,3 +1,5 @@
+"""Endpoints de pedidos: confirmar la compra, historial del cliente y gestión de pedidos del vendedor."""
+
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -107,7 +109,7 @@ def confirm_order(
             detail="Tu carrito está vacío.",
         )
 
-    # El mail de la compra sale cuando Mercado Pago aprueba el pago (ver pagos.py).
+    # El mail de la compra sale cuando Mercado Pago aprueba el pago (ver payments.py).
     return build_order_detail_out(order)
 
 

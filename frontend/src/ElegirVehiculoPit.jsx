@@ -1,3 +1,5 @@
+// Selector del vehículo con el que arranca la charla con Pit.
+
 import { useEffect, useState } from "react";
 
 import BrandDropdown from "./BrandDropdown";

@@ -1,3 +1,5 @@
+"""Tests del registro, el login, la sesión y el perfil."""
+
 from datetime import datetime, timedelta, timezone
 
 import jwt

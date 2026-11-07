@@ -1,3 +1,5 @@
+"""Schemas de los repuestos: lo que muestra el catálogo y lo que carga el vendedor."""
+
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator

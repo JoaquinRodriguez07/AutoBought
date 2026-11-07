@@ -1,3 +1,5 @@
+// Pantalla para pedir el enlace de recuperación de la contraseña.
+
 import { useState } from "react";
 import { pedirRecuperacion } from "./api";
 import ErrorCampo from "./ErrorCampo";

@@ -1,3 +1,5 @@
+// Tests del detalle de un pedido del vendedor.
+
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation, useParams } from "react-router-dom";

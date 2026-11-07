@@ -1,3 +1,5 @@
+"""Tests de la confirmación de la compra."""
+
 from app.core.security import create_access_token
 from app.models.cart import Cart
 from app.models.cart_item import CartItem

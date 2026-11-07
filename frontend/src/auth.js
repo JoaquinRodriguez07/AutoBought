@@ -1,3 +1,5 @@
+// La sesión guardada en el navegador y lo que dice su token.
+
 const SESION_KEY = "autobought-sesion";
 
 // Cuánto antes de que venza el token se pide uno nuevo. Con tokens de 60

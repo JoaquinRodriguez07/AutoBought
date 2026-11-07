@@ -1,3 +1,5 @@
+"""Schemas de las direcciones de envío."""
+
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator

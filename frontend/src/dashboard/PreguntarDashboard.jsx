@@ -1,3 +1,5 @@
+// Preguntas en lenguaje natural sobre ventas y stock.
+
 import { useState } from "react";
 import { ArrowUpIcon, CircleAlertIcon, SparklesIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";

@@ -1,3 +1,5 @@
+// «Mi cuenta»: la entrada a las secciones de la cuenta.
+
 import { useNavigate } from "react-router-dom";
 
 import CuentaLayout from "./CuentaLayout";

@@ -1,3 +1,5 @@
+// La aplicación: rutas, sesión, providers y la barra de navegación.
+
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";

@@ -1,3 +1,5 @@
+"""Tests de los mails de cuenta y del envío por SMTP."""
+
 import re
 import smtplib
 

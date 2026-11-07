@@ -1,3 +1,5 @@
+// Tests de las llamadas al backend del dashboard.
+
 jest.mock("../api", () => ({ API_BASE_URL: "http://api", avisarSesionInvalida: jest.fn() }));
 jest.mock("../auth", () => ({ obtenerSesion: () => ({ token: "token-vendedor" }) }));
 

@@ -1,3 +1,5 @@
+// Pantalla de los repuestos favoritos.
+
 import { usarImagenGenerica } from "./mapearRepuesto";
 import Navbar from "./Navbar";
 import BotonAgregarCarrito from "./BotonAgregarCarrito";

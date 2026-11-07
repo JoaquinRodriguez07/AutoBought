@@ -1,3 +1,5 @@
+"""Dependencias de FastAPI: la sesión de la base y quién está autenticado (cliente, vendedor o cualquiera)."""
+
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -31,7 +33,7 @@ def _invalid_credentials() -> HTTPException:
     )
 
 
-def _decodificar_token(
+def _decode_token(
     credentials: HTTPAuthorizationCredentials | None,
 ) -> tuple[int, str | None, int]:
     """Valida el token y devuelve (id de usuario, user_type, versión de sesión).
@@ -40,7 +42,7 @@ def _decodificar_token(
     claim `sv` no es un entero. Un token sin `sv` (emitido antes de que
     existiera) cuenta como versión 0.
     No toca la base: cada dependencia busca al usuario que le corresponde y
-    compara la versión con _verificar_version_de_sesion.
+    compara la versión con _check_session_version.
     """
     if credentials is None:
         raise _invalid_credentials()
@@ -85,7 +87,7 @@ def get_current_client(
     contraseña cambió después de emitirlo.
     403 si el token es válido pero no es de un cliente (ej: empleado).
     """
-    client_id, user_type, session_version = _decodificar_token(credentials)
+    client_id, user_type, session_version = _decode_token(credentials)
 
     if user_type != "client":
         raise HTTPException(
@@ -111,7 +113,7 @@ def get_current_employee(
     contraseña cambió después de emitirlo.
     403 si el token es válido pero no es de un empleado (ej: cliente).
     """
-    employee_id, user_type, session_version = _decodificar_token(credentials)
+    employee_id, user_type, session_version = _decode_token(credentials)
 
     if user_type != "employee":
         raise HTTPException(
@@ -150,7 +152,7 @@ def get_current_user(
     Para endpoints que sirven a cualquier rol (ej: renovar la sesión); los
     que son de un solo rol usan get_current_client / get_current_employee.
     """
-    user_id, _, session_version = _decodificar_token(credentials)
+    user_id, _, session_version = _decode_token(credentials)
 
     user = db.get(User, user_id)
     if user is None or not is_active(user):

@@ -1,3 +1,5 @@
+"""Endpoint de Pit, el asistente de compra con IA."""
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status

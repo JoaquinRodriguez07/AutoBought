@@ -1,3 +1,5 @@
+// Detalle de un repuesto en el portal del vendedor, con sus ventas.
+
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeftIcon, PackagePlusIcon, PencilIcon } from "lucide-react";

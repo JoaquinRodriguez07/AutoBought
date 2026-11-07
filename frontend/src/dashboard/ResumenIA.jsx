@@ -1,3 +1,5 @@
+// Resumen del dashboard hecho con IA.
+
 import { useEffect, useState } from "react";
 import { RefreshCwIcon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";

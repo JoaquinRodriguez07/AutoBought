@@ -1,3 +1,5 @@
+// Tests de las sugerencias del carrito.
+
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 

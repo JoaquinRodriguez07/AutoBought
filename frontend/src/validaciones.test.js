@@ -1,3 +1,5 @@
+// Tests de las validaciones de los formularios.
+
 import {
   validarDireccion,
   validarNombrePersona,

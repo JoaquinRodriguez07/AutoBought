@@ -1,3 +1,5 @@
+// El panel lateral de Pit, el asistente con IA.
+
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 

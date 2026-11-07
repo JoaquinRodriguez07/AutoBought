@@ -1,3 +1,5 @@
+"""Tests del script que genera el historial de pedidos de prueba."""
+
 import json
 from collections import Counter
 from datetime import date, timedelta

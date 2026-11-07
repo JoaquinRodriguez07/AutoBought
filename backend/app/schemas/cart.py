@@ -1,3 +1,5 @@
+"""Schemas del carrito y sus repuestos."""
+
 from pydantic import BaseModel, Field
 
 from app.models.cart import Cart

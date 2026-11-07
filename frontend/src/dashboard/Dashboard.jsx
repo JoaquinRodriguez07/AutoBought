@@ -1,3 +1,5 @@
+// El portal del vendedor: secciones y rutas del dashboard.
+
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRightIcon, DollarSignIcon, PackageCheckIcon, PackageXIcon, PlusIcon, ShoppingCartIcon } from "lucide-react";

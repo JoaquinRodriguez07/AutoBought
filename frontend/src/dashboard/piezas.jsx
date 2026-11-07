@@ -1,3 +1,5 @@
+// Piezas comunes del dashboard: estados de carga, insignias e indicadores.
+
 import {
   ArrowDownRightIcon,
   ArrowUpRightIcon,

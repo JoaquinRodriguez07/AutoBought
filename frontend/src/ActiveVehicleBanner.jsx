@@ -1,3 +1,5 @@
+// Franja del vehículo activo en el catálogo, con su editor desplegable.
+
 import { useState } from "react";
 
 import { useVehicle } from "./context/VehicleContext";

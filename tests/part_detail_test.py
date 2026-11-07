@@ -1,3 +1,5 @@
+"""Tests del detalle de un repuesto y de los fabricantes."""
+
 from app.models.car_model import CarModel
 from app.models.compatibility import Compatibility
 from app.models.part import Part

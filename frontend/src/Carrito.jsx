@@ -1,3 +1,5 @@
+// Pantalla del carrito y la confirmación de la compra.
+
 import { useState } from "react";
 import { usarImagenGenerica } from "./mapearRepuesto";
 import Navbar from "./Navbar";

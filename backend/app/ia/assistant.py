@@ -170,7 +170,7 @@ def history_text(result: "AssistantResult") -> str:
 
 
 def new_history(historial: list[dict], texto: str, result: "AssistantResult") -> list[dict]:
-    """El historial con este mensaje y su respuesta; solo los últimos MAX_HISTORIAL."""
+    """El historial con este mensaje y su respuesta; solo los últimos MAX_HISTORY."""
     messages = [
         *historial,
         {"rol": "cliente", "texto": texto},
@@ -210,7 +210,7 @@ def recommend(
     anio: int,
     historial: list[dict] = (),
 ) -> tuple[AssistantResult, int]:
-    """Devuelve el resultado y los tokens usados. Lanza IANoDisponible si la
+    """Devuelve el resultado y los tokens usados. Lanza AIUnavailable si la
     IA no responde o responde algo que no sirve."""
     input_text = build_input(texto, marca, modelo, anio, historial)
     output, tokens = ask_structured(ai_client, INSTRUCCIONES, input_text, AIOutput)

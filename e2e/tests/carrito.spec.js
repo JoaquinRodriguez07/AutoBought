@@ -1,3 +1,5 @@
+// Recorridos E2E del carrito: el aviso al agregar, deshacer e ir al carrito.
+
 import { test, expect } from "@playwright/test";
 import { ANA, avisoAgregado, iniciarSesion } from "../helpers.js";
 

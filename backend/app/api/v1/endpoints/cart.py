@@ -1,3 +1,5 @@
+"""Endpoints del carrito del cliente: ver, agregar, cambiar cantidades, quitar y vaciar."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 

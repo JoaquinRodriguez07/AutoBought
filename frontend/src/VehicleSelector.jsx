@@ -1,3 +1,5 @@
+// Selector de vehículo (marca, modelo y año).
+
 import { useEffect, useState } from "react";
 
 import BrandDropdown from "./BrandDropdown";

@@ -1,3 +1,5 @@
+"""ModelT de un auto del catálogo (marca, modelo y motor)."""
+
 from sqlalchemy import Column, Integer, String
 
 from app.db.base import Base

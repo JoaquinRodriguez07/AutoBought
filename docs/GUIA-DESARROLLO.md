@@ -23,6 +23,7 @@ Todo lo necesario para trabajar en AutoBought: base de datos, carga de datos, da
   - [Tareas diarias](#tareas-diarias)
 - [Tests de punta a punta (E2E)](#tests-de-punta-a-punta-e2e)
 - [Asistente de compra con IA](#asistente-de-compra-con-ia)
+- [Estilo del código y los comentarios](#estilo-del-código-y-los-comentarios)
 
 ## Base de datos y migraciones (Alembic)
 
@@ -272,7 +273,7 @@ Si cambia algo del catálogo o de los pedidos y hay que regenerar todo, lo más 
 
 El dashboard es parte de la tienda en React, en la ruta `/dashboard`: al iniciar sesión, el vendedor (`vendedor@autobought.com` de `scripts.seed_demo_users`) entra directo ahí. Solo lo ven las sesiones de vendedor, y su código (con [Recharts](https://recharts.org) para los gráficos y [Base UI](https://base-ui.com) para los controles) se descarga recién cuando entra un vendedor. Los componentes están en `frontend/src/dashboard/`.
 
-Los cálculos son del backend, en `/api/v1/analytics/*` (endpoints en `app/api/v1/endpoints/analytics.py`, cálculos puros en `app/core/analitica.py`). Responden 401 sin sesión y 403 a una cuenta de cliente. Para que los gráficos tengan forma, cargar antes `scripts.seed_order_history`.
+Los cálculos son del backend, en `/api/v1/analytics/*` (endpoints en `app/api/v1/endpoints/analytics.py`, cálculos puros en `app/core/analytics_math.py`). Responden 401 sin sesión y 403 a una cuenta de cliente. Para que los gráficos tengan forma, cargar antes `scripts.seed_order_history`.
 
 | Sección | Endpoint | Qué muestra |
 |---|---|---|
@@ -286,12 +287,12 @@ Los cálculos son del backend, en `/api/v1/analytics/*` (endpoints en `app/api/v
 
 - **Filtros:** categoría, repuesto (nombre o código) y período (3, 6 o 12 meses calendario, el actual incluido) en todas las secciones; van en la URL, así que al volver del detalle quedan como estaban. El período aplica a las ventas; la proyección siempre mira 12 meses.
 - **Proyección:** regresión lineal (numpy) sobre las unidades de los últimos 12 meses, evaluada en el mes siguiente. El mes en curso se lleva a mes completo al ritmo que lleva (el día 15 de un mes de 30 cuenta el doble), si no siempre parecería una caída. Nunca da menos de 0 y no modifica ventas ni stock.
-- **Riesgo:** días de cobertura = stock / (demanda proyectada / días del mes proyectado). Alto con menos de 15 días, medio de 15 a 30, bajo con más de 30 o sin demanda proyectada. Los umbrales están en `app/core/analitica.py`.
+- **Riesgo:** días de cobertura = stock / (demanda proyectada / días del mes proyectado). Alto con menos de 15 días, medio de 15 a 30, bajo con más de 30 o sin demanda proyectada. Los umbrales están en `app/core/analytics_math.py`.
 - **Alta, edición y stock:** `POST /api/v1/parts`, `PUT /api/v1/parts/{id}` y `PATCH /api/v1/parts/{id}/stock`, solo para vendedores. Un repuesto necesita al menos un vehículo compatible para aparecer en el catálogo. Reponer un agotado manda el aviso de «Avisame cuando haya», y bajar el precio, el de baja de precio a quienes lo tienen en favoritos.
 
 ## Mails
 
-El backend manda mails para verificar el correo al registrarse, recuperar la contraseña y avisar cuando la contraseña cambia; para confirmar cada compra; para avisar que volvió el stock de un repuesto agotado (botón «Avisame cuando haya»); y recordatorios de carrito abandonado y de mantenimiento. El vendedor dispara desde el dashboard el aviso de vuelta de stock (al reponer un agotado) y el de baja de precio de un favorito. Los mails de pedidos ante un cambio de estado o una cancelación ya están en `app/core/notificaciones.py`: falta que la gestión de pedidos y la cancelación los llamen.
+El backend manda mails para verificar el correo al registrarse, recuperar la contraseña y avisar cuando la contraseña cambia; para confirmar cada compra; para avisar que volvió el stock de un repuesto agotado (botón «Avisame cuando haya»); y recordatorios de carrito abandonado y de mantenimiento. El vendedor dispara desde el dashboard el aviso de vuelta de stock (al reponer un agotado) y el de baja de precio de un favorito. Los mails de pedidos ante un cambio de estado o una cancelación ya están en `app/core/notifications.py`: falta que la gestión de pedidos y la cancelación los llamen.
 
 **En local** no hace falta configurar nada: `docker compose up -d` levanta **Mailpit**, un servidor de mail falso. Todos los mails que manda el backend, a cualquier dirección, se ven en http://localhost:8025 y no llega nada a ningún correo real.
 
@@ -331,6 +332,50 @@ Ojo: en local usan tu base. Cada recorrido deja las cosas como estaban (deshace 
 
 ## Asistente de compra con IA
 
-**Pit** es el asistente: un botón flotante abajo a la derecha (para clientes con sesión) que abre un chat al costado, sin salir de la página. El cliente cuenta con sus palabras qué le pasa al auto (con un vehículo elegido) y conversa con Pit, que le da un diagnóstico breve, la urgencia y los repuestos que le sirven. La conversación sigue al navegar por la tienda y se borra al cerrar sesión; el historial que se le manda a la IA lo firma el backend (`app/ia/firma.py`), así nadie puede inventar mensajes de Pit. La IA (Gemini, `backend/app/ia/`) solo interpreta el síntoma y elige tipos de repuesto de una lista cerrada; los repuestos concretos los elige el backend entre los que existen, son compatibles con el vehículo y tienen stock.
+**Pit** es el asistente: un botón flotante abajo a la derecha (para clientes con sesión) que abre un chat al costado, sin salir de la página. El cliente cuenta con sus palabras qué le pasa al auto (con un vehículo elegido) y conversa con Pit, que le da un diagnóstico breve, la urgencia y los repuestos que le sirven. La conversación sigue al navegar por la tienda y se borra al cerrar sesión; el historial que se le manda a la IA lo firma el backend (`app/ia/signature.py`), así nadie puede inventar mensajes de Pit. La IA (Gemini, `backend/app/ia/`) solo interpreta el síntoma y elige tipos de repuesto de una lista cerrada; los repuestos concretos los elige el backend entre los que existen, son compatibles con el vehículo y tienen stock.
 
 Para usarlo en local, poné `GEMINI_API_KEY` en el `.env` de la raíz (ver `.env.example`) y reiniciá el backend. Sin clave, el asistente responde "no disponible" y ofrece buscar el mismo texto en el catálogo. Cada cliente tiene un límite de consultas por día (`IA_LIMITE_DIARIO`, 20 por defecto) y cada consulta queda registrada con sus tokens en la tabla `uso_ia`. Los tests usan un cliente de IA falso: el CI nunca llama a la IA real.
+
+## Estilo del código y los comentarios
+
+**Idioma.** El código va en inglés: nombres de funciones, clases, variables, módulos y archivos. Los comentarios, los docstrings, los textos de pantalla y los mails van en español.
+
+Algunos nombres siguen en español a propósito, porque son un contrato con otra parte y cambiarlos rompe algo:
+
+- Las rutas de la API (`/pagos`, `/asistente`, `/tareas`): las usan el frontend, Vercel Cron y Mercado Pago.
+- Los campos del JSON que lee el frontend (por ejemplo `estado` en la verificación del pago, o `texto`, `marca` y `firma` en el asistente) y los que se le piden a Gemini (`diagnostico`, `tipos`...).
+- Las tablas y columnas de la base (`uso_ia`, `funcionalidad`): cambiarlas pide una migración.
+- Las variables de entorno (`MINUTOS_PARA_PAGAR`, `IA_LIMITE_DIARIO`...): están cargadas en Vercel y en cada `.env`.
+- Los nombres de las plantillas de mail (`verificar_correo`, `pago_sin_stock`...).
+
+**Cabecera de cada archivo.** Una o dos líneas arriba de todo que digan qué hay en el archivo. En Python es el docstring del módulo; en JavaScript, un comentario `//`.
+
+```python
+"""Pedidos: armarlos desde el carrito, cambiar su estado, vencerlos y listarlos."""
+```
+
+```js
+// El carrito del cliente, compartido por toda la tienda.
+```
+
+**Funciones.** Estilo Google, pero liviano:
+
+- Las funciones públicas que no son obvias (`crud/`, `core/`, `ia/`, `api.js` y los helpers del frontend) llevan un docstring con qué hacen y, cuando ayuda, `Args:`, `Returns:` y `Raises:`. En JavaScript se usa JSDoc (`@param`, `@returns`).
+- Los endpoints, los componentes de React y las funciones cortas no lo llevan: alcanza con una línea de qué hacen y, sobre todo, por qué.
+- Un comentario explica lo que el código no dice (una regla del negocio, un caso raro, por qué se hace así), no repite lo que ya se lee.
+
+```python
+def refund(db: Session, payment: Payment, mp_client: MercadoPagoClient) -> bool:
+    """Devuelve el pago en Mercado Pago y anota cuándo.
+
+    Args:
+        db: la sesión de la base.
+        payment: el pago aprobado que se devuelve.
+        mp_client: el cliente de Mercado Pago (en los tests, uno falso).
+
+    Returns:
+        Si la devolución salió. Si Mercado Pago falla, queda en el log y el
+        cron la reintenta.
+    """
+```
+

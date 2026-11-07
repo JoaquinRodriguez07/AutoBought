@@ -1,3 +1,5 @@
+"""Tests de los endpoints del dashboard del vendedor."""
+
 from datetime import datetime, timedelta, timezone
 
 import jwt

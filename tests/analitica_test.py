@@ -1,4 +1,4 @@
-"""Cálculos del dashboard del vendedor (app/core/analitica.py), con datos
+"""Cálculos del dashboard del vendedor (app/core/analytics_math.py), con datos
 chicos y conocidos: agrupado por mes (HU 5.4), proyección (HU 5.5) y
 riesgo de agotamiento (HU 5.6)."""
 

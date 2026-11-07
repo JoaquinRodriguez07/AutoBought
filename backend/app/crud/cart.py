@@ -1,3 +1,5 @@
+"""Consultas y cambios del carrito del cliente."""
+
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 

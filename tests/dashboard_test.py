@@ -1,7 +1,7 @@
 """Endpoints del dashboard del vendedor: evolución de ventas, proyección,
 riesgo de agotamiento, detalle de un repuesto y filtros (HU 5.4 a 5.9).
 
-El día se fija con la dependencia fecha_de_hoy. Las ventas van a mediodía
+El día se fija con la dependencia today. Las ventas van a mediodía
 UTC de mediados de mes, lejos del cambio de mes en cualquier zona horaria.
 """
 

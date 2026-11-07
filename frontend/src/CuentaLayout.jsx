@@ -1,3 +1,5 @@
+// El armado común de las pantallas de «Mi cuenta» (menú y contenido).
+
 import { useNavigate } from "react-router-dom";
 
 import Navbar from "./Navbar";

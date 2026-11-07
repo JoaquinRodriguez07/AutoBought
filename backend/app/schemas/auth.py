@@ -1,3 +1,5 @@
+"""Schemas de la cuenta: registro, login, enlaces por mail y token."""
+
 from pydantic import BaseModel, EmailStr, Field, ValidationInfo, field_validator
 
 from app.core import validators

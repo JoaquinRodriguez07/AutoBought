@@ -1,3 +1,5 @@
+// Tests de la conversión de repuestos del backend a la pantalla.
+
 import {
   IMAGEN_PLACEHOLDER,
   mapearCategoria,

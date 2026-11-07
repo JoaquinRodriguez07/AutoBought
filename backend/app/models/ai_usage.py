@@ -1,3 +1,5 @@
+"""ModelT de cada consulta a la IA (límite diario y costo)."""
+
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, func
 
 from app.db.base import Base

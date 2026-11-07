@@ -1,3 +1,5 @@
+"""Tests del servicio de IA: el cliente de Gemini, el límite diario y el registro de uso."""
+
 from datetime import datetime, timedelta, timezone
 
 import httpx

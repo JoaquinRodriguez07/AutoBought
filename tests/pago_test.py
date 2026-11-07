@@ -436,7 +436,7 @@ def test_verificar_con_mercado_pago_caido_da_503(client, db_session, mp, order_d
 
 def test_verificar_con_un_id_que_no_es_un_numero_no_consulta(client, db_session, mp, order_data):
     order_id, headers = order_data
-    # Si se consultara, el ClienteMPFalso fallaría: no tiene ese pago.
+    # Si se consultara, el FakeMPClient fallaría: no tiene ese pago.
     response = verificar(client, order_id, headers, payment_id="null")
 
     assert response.status_code == 200

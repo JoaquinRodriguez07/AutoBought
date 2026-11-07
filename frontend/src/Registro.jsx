@@ -1,3 +1,5 @@
+// Pantalla de registro de un cliente.
+
 import { useState } from "react";
 import { registrar as registrarEnApi } from "./api";
 import { decodeToken } from "./auth";

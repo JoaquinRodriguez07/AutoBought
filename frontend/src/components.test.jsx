@@ -1,3 +1,5 @@
+// Tests de los componentes de la tienda.
+
 import { act, fireEvent, render as renderBase, screen, waitFor, within } from "@testing-library/react";
 import { useEffect } from "react";
 import userEvent from "@testing-library/user-event";
@@ -202,11 +204,11 @@ const startClientSession = () => {
 };
 
 /**
- * Renders test UI inside a memory router and cart provider.
- * @param {import("react").ReactNode} ui - UI to render with the shared providers.
- * @param {import("@testing-library/react").RenderOptions} [options] - Options
- * forwarded to React Testing Library's render function.
- * @returns {import("@testing-library/react").RenderResult} Queries and render utilities.
+ * Renderiza la pantalla del test dentro de un router en memoria y del carrito.
+ * @param {import("react").ReactNode} ui - Lo que se renderiza, con los providers compartidos.
+ * @param {import("@testing-library/react").RenderOptions} [options] - Opciones
+ * que se le pasan al render de React Testing Library.
+ * @returns {import("@testing-library/react").RenderResult} Las consultas y utilidades del render.
  */
 
 function render(ui, options = {}) {

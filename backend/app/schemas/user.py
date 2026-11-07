@@ -1,3 +1,5 @@
+"""Schemas del perfil del cliente, la contraseña y las preferencias de mails."""
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core import validators
@@ -53,7 +55,7 @@ class ClientUpdate(BaseModel):
         return normalize_uy_phone(value)
 
 
-def _cabe_en_bcrypt(value: str) -> str:
+def _fits_in_bcrypt(value: str) -> str:
     if len(value.encode("utf-8")) > 72:
         raise ValueError("La contraseña no puede superar los 72 bytes.")
     return value
@@ -67,8 +69,8 @@ class PasswordChange(BaseModel):
 
     @field_validator("current_password")
     @classmethod
-    def password_cabe_en_bcrypt(cls, value: str) -> str:
-        return _cabe_en_bcrypt(value)
+    def password_fits_in_bcrypt(cls, value: str) -> str:
+        return _fits_in_bcrypt(value)
 
     @field_validator("new_password")
     @classmethod

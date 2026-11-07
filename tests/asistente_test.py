@@ -1,3 +1,5 @@
+"""Tests del asistente de compra con IA (con una IA falsa)."""
+
 import json
 from pathlib import Path
 

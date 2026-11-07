@@ -1,3 +1,5 @@
+// Pantalla del enlace «No quiero recibir estos mails».
+
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { darseDeBaja } from "./api";

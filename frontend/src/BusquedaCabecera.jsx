@@ -1,3 +1,4 @@
+// Buscador de la barra de navegación.
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";

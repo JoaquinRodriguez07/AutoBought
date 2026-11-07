@@ -1,3 +1,5 @@
+"""La aplicación FastAPI: CORS y las rutas de /api/v1."""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

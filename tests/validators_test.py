@@ -1,3 +1,4 @@
+"""Tests de las validaciones de nombres, contraseñas y direcciones."""
 
 import pytest
 

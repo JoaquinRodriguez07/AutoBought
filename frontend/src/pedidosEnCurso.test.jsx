@@ -1,3 +1,5 @@
+// Tests de los pedidos en curso fuera de «Mis pedidos».
+
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";

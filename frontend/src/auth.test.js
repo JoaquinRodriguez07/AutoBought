@@ -1,3 +1,5 @@
+// Tests de la sesión (auth.js).
+
 import {
   MARGEN_RENOVACION_MS,
   esAdmin,

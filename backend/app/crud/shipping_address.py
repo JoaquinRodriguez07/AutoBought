@@ -1,3 +1,5 @@
+"""Consultas y cambios de las direcciones de envío del cliente."""
+
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 

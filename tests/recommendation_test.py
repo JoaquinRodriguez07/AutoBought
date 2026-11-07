@@ -1,3 +1,5 @@
+"""Tests de las recomendaciones de repuestos complementarios."""
+
 from sqlalchemy import select
 
 from app.models.car_model import CarModel

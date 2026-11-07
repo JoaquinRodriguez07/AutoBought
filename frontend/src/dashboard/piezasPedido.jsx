@@ -1,3 +1,5 @@
+// Piezas de los pedidos del vendedor: insignias, acciones y ventanas.
+
 import { useState } from "react";
 import { ArrowRightIcon, CircleAlertIcon, Undo2Icon, XCircleIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";

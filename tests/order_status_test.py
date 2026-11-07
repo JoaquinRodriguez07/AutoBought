@@ -1,6 +1,6 @@
 """El vendedor gestiona el estado de los pedidos (SCRUM-171).
 
-Mercado Pago está simulado (ClienteMPFalso) y los mails van a la lista del
+Mercado Pago está simulado (FakeMPClient) y los mails van a la lista del
 fixture `mails` (SMTP falso, ver conftest.py).
 """
 

@@ -1,3 +1,5 @@
+// Repuestos en riesgo de agotarse.
+
 import { useState } from "react";
 import { PackagePlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";

@@ -1,3 +1,5 @@
+"""Configuración del backend: lee las variables de entorno (ver .env.example)."""
+
 import os
 
 from dotenv import load_dotenv
@@ -28,7 +30,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 # Los mails salen en segundo plano, después de responder. En Vercel no: la
 # función se congela al responder y la tarea puede no correr nunca, así que
 # allá se mandan antes de responder (Vercel define VERCEL=1). Se puede
-# forzar con MAILS_EN_SEGUNDO_PLANO=1 o 0.
+# forzar con SEND_MAILS_IN_BACKGROUND=1 o 0.
 SEND_MAILS_IN_BACKGROUND = os.getenv(
     "MAILS_EN_SEGUNDO_PLANO", "0" if os.getenv("VERCEL") else "1"
 ) == "1"

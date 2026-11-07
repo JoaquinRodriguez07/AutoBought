@@ -1,3 +1,5 @@
+// «Mis compras › Anteriores»: los pedidos que ya terminaron.
+
 import { useEffect, useState } from "react";
 
 import { obtenerDetalleCompra, obtenerHistorialCompras } from "./api";

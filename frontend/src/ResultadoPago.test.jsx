@@ -1,3 +1,5 @@
+// Tests de la pantalla de vuelta de Mercado Pago.
+
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

@@ -1,3 +1,5 @@
+"""Consultas del dashboard: ventas por repuesto y mes, y la proyección de demanda."""
+
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -22,7 +24,7 @@ def list_sales(
     # Cada ítem vendido desde `since`: (repuesto, fecha del pedido,
     # unidades, facturación). Igual que en los más vendidos, los pedidos
     # cancelados no cuentan. El agrupado por mes se hace en Python
-    # (analitica.agrupar_por_mes): SQLite y Postgres truncan fechas
+    # (analytics_math.group_by_month): SQLite y Postgres truncan fechas
     # distinto y el mes se cuenta en la hora de Uruguay.
     query = (
         select(

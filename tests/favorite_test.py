@@ -1,3 +1,5 @@
+"""Tests de los favoritos."""
+
 from sqlalchemy import select
 
 from app.core.security import create_access_token

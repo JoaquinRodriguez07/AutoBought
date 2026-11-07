@@ -1,3 +1,5 @@
+"""Consultas y cambios de los avisos de vuelta de stock."""
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session

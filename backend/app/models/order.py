@@ -1,3 +1,5 @@
+"""ModelT del pedido y sus estados."""
+
 import enum
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
@@ -70,7 +72,7 @@ class Order(Base):
         cascade="all, delete-orphan",
     )
     # Los pedidos de antes de esta tabla (y los del seed de historial) no
-    # tienen filas: ver `schemas.order.linea_de_tiempo`.
+    # tienen filas: ver `schemas.order.timeline`.
     status_history = relationship(
         "OrderStatusHistory",
         back_populates="order",

@@ -1,3 +1,5 @@
+// Tests de los avisos de la tienda (verificar el correo, darse de baja).
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";

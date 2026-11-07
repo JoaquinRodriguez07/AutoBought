@@ -1,3 +1,5 @@
+"""Endpoints de las direcciones de envío del cliente."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 

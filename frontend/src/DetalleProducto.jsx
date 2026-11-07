@@ -1,3 +1,5 @@
+// Pantalla del detalle de un repuesto.
+
 import { useEffect, useState } from "react";
 import { usarImagenGenerica } from "./mapearRepuesto";
 import Navbar from "./Navbar";

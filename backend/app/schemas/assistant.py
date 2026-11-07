@@ -1,3 +1,5 @@
+"""Schemas del asistente de compra: la consulta y la respuesta."""
+
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator

@@ -1,3 +1,5 @@
+"""Schemas de las respuestas del dashboard del vendedor."""
+
 from typing import Literal
 
 from pydantic import BaseModel

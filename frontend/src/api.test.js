@@ -1,3 +1,5 @@
+// Tests de las llamadas al backend (api.js).
+
 jest.mock("./auth", () => ({
   obtenerSesion: jest.fn(),
 }));
@@ -85,13 +87,13 @@ const uiPart = {
 };
 
 /**
- * Creates a fetch response stub with a resolving or rejecting JSON mock.
- * @param {*} data - Value resolved by json() when no jsonError is supplied.
- * @param {Object} [options={}] - Response metadata and JSON failure overrides.
- * @param {number} [options.status=200] - HTTP status code.
- * @param {boolean} [options.ok=true] - Success flag, independent of status.
- * @param {Error} [options.jsonError] - Truthy error that makes json() reject.
- * @returns {{ok: boolean, status: number, json: Function}} Fetch response stub.
+ * Una respuesta de fetch falsa, con un json() que resuelve o falla.
+ * @param {*} data - Lo que devuelve json() si no se pasa jsonError.
+ * @param {Object} [options={}] - Datos de la respuesta y el error de json().
+ * @param {number} [options.status=200] - Código HTTP.
+ * @param {boolean} [options.ok=true] - Si salió bien, aparte del código.
+ * @param {Error} [options.jsonError] - Si está, json() falla con este error.
+ * @returns {{ok: boolean, status: number, json: Function}} La respuesta falsa.
  */
 function response(data, { status = 200, ok = true, jsonError } = {}) {
   return {

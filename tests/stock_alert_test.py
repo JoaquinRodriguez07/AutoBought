@@ -1,3 +1,5 @@
+"""Tests de los avisos de vuelta de stock."""
+
 from app.core.security import create_access_token
 from app.models.client import Client
 from app.models.part import Part

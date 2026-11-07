@@ -1,3 +1,5 @@
+// Las pestañas de «Mis compras»: en curso y anteriores.
+
 import { useNavigate } from "react-router-dom";
 
 import { usePedidos } from "./context/PedidosContext";

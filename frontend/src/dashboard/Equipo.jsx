@@ -1,3 +1,5 @@
+// El equipo de vendedores: alta y baja (solo administradores).
+
 import { useState } from "react";
 import { CircleCheckIcon, UserPlusIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
