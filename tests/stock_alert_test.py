@@ -7,11 +7,11 @@ ALERTS = "/api/v1/stock-alerts"
 
 
 def make_client(db_session, username="ana", email="ana@example.com"):
-    cliente = Client(username=username, password="secret", name="Ana", email=email)
-    db_session.add(cliente)
+    customer = Client(username=username, password="secret", name="Ana", email=email)
+    db_session.add(customer)
     db_session.commit()
-    db_session.refresh(cliente)
-    return cliente
+    db_session.refresh(customer)
+    return customer
 
 
 def make_part(db_session, stock=0, part_code="FAR-001"):
@@ -72,9 +72,9 @@ def test_cancelar_la_suscripcion(client, db_session):
     client.put(f"{ALERTS}/{part.id}", headers=headers)
 
     response = client.delete(f"{ALERTS}/{part.id}", headers=headers)
-    sin_suscripcion = client.delete(f"{ALERTS}/{part.id}", headers=headers)
+    without_subscription = client.delete(f"{ALERTS}/{part.id}", headers=headers)
 
-    assert response.status_code == sin_suscripcion.status_code == 204
+    assert response.status_code == without_subscription.status_code == 204
     assert client.get(ALERTS, headers=headers).json() == {"part_ids": []}
 
 

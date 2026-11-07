@@ -13,14 +13,14 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from app.crud import part as crud_part
-from app.ia.cliente import ClienteIA
-from app.ia.servicio import pedir_estructurado
+from app.ia.client import AIClient
+from app.ia.service import ask_structured
 from app.models.part import Part
 
 # Los tipos de pieza del catálogo (backend/scripts/generate_dataset.py):
 # el nombre de cada repuesto empieza así. Un test verifica que cubran todo
 # el catálogo.
-TIPOS_REPUESTO = [
+PART_TYPES = [
     "Filtro de aceite",
     "Filtro de aire",
     "Filtro de combustible",
@@ -71,10 +71,10 @@ TIPOS_REPUESTO = [
 ]
 
 MAX_TIPOS = 3
-REPUESTOS_POR_TIPO = 2
+PARTS_PER_TYPE = 2
 # Mensajes de la conversación que se le pasan a la IA (4 idas y vueltas):
 # alcanza para el contexto y el costo en tokens no crece sin control.
-MAX_HISTORIAL = 8
+MAX_HISTORY = 8
 MAX_OPCIONES = 3
 MAX_LARGO_OPCION = 40
 
@@ -84,7 +84,7 @@ Un cliente te cuenta, con sus palabras, qué le pasa a su auto. Puede venir tamb
 2. Indicar la urgencia: "alta" si puede ser peligroso seguir manejando (frenos, dirección, pérdida de líquidos, recalentamiento), "media" si conviene resolverlo pronto, "baja" si es mantenimiento.
 3. Si la urgencia es alta, dar un aviso de seguridad corto (por ejemplo: "Si los frenos fallan, no manejes y llamá a un mecánico."). Si no, null.
 4. Elegir de 1 a {MAX_TIPOS} tipos de repuesto que probablemente necesite, SOLO de esta lista y escritos exactamente igual:
-{chr(10).join(f"- {tipo}" for tipo in TIPOS_REPUESTO)}
+{chr(10).join(f"- {tipo}" for tipo in PART_TYPES)}
    Para cada uno, un motivo breve que lo relacione con el síntoma.
 5. Si hace falta más información para afinar, una sola pregunta corta y de 2 a 3 respuestas posibles muy cortas para que el cliente las toque (por ejemplo "Siempre" o "Solo al frenar fuerte"); si no, "pregunta": null y "opciones": [].
 6. Si el mensaje no tiene que ver con un auto o con repuestos, "fuera_de_tema": true, "tipos": [] y en el diagnóstico explicá amablemente que solo podés ayudar con problemas del auto.
@@ -95,34 +95,34 @@ Respondé SOLO con un objeto JSON, sin texto antes ni después, con esta forma:
 {{"diagnostico": "...", "urgencia": "alta|media|baja", "aviso": "..." o null, "tipos": [{{"tipo": "...", "motivo": "..."}}], "pregunta": "..." o null, "opciones": ["..."], "fuera_de_tema": false}}"""
 
 
-class TipoSugerido(BaseModel):
+class SuggestedType(BaseModel):
     tipo: str
     motivo: str = Field(min_length=1, max_length=300)
 
 
-class SalidaIA(BaseModel):
+class AIOutput(BaseModel):
     """Lo que tiene que devolver la IA. Si no cumple, se descarta entera."""
 
     diagnostico: str = Field(min_length=1, max_length=600)
     urgencia: Literal["alta", "media", "baja"]
     aviso: str | None = Field(default=None, max_length=300)
-    tipos: list[TipoSugerido] = Field(default_factory=list, max_length=6)
+    tipos: list[SuggestedType] = Field(default_factory=list, max_length=6)
     pregunta: str | None = Field(default=None, max_length=300)
     opciones: list[str] = Field(default_factory=list)
     fuera_de_tema: bool = False
 
     @field_validator("opciones", mode="before")
     @classmethod
-    def opciones_cortas(cls, valor):
+    def short_options(cls, value):
         """Respuestas rápidas: hasta 3 y cortas. Lo que sobra se descarta en
         vez de rechazar toda la respuesta."""
-        if not isinstance(valor, list):
+        if not isinstance(value, list):
             return []
-        limpias = [o.strip() for o in valor if isinstance(o, str) and 0 < len(o.strip()) <= MAX_LARGO_OPCION]
+        limpias = [o.strip() for o in value if isinstance(o, str) and 0 < len(o.strip()) <= MAX_LARGO_OPCION]
         return limpias[:MAX_OPCIONES]
 
 
-class Recomendacion(BaseModel):
+class Recommendation(BaseModel):
     tipo: str
     motivo: str
     repuestos: list[Part]
@@ -130,114 +130,114 @@ class Recomendacion(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
 
-class Resultado(BaseModel):
+class AssistantResult(BaseModel):
     diagnostico: str
     urgencia: Literal["alta", "media", "baja"]
     aviso: str | None
     pregunta: str | None
     opciones: list[str]
     fuera_de_tema: bool
-    recomendaciones: list[Recomendacion]
+    recomendaciones: list[Recommendation]
 
     model_config = {"arbitrary_types_allowed": True}
 
 
-def armar_entrada(texto: str, marca: str, modelo: str, anio: int, historial: list[dict] = ()) -> str:
+def build_input(texto: str, marca: str, modelo: str, anio: int, historial: list[dict] = ()) -> str:
     """El texto que le llega a la IA: el vehículo, la conversación previa (si
     hay) y el último mensaje. La IA no recuerda nada entre llamadas: lo que
     no esté acá, no lo sabe."""
-    partes = [f"Vehículo del cliente: {marca} {modelo} {anio}."]
+    parts_list = [f"Vehículo del cliente: {marca} {modelo} {anio}."]
     if historial:
-        conversacion = "\n".join(
-            f"{'Cliente' if mensaje['rol'] == 'cliente' else 'Pit'}: {mensaje['texto']}" for mensaje in historial
+        conversation = "\n".join(
+            f"{'Cliente' if msg['rol'] == 'cliente' else 'Pit'}: {msg['texto']}" for msg in historial
         )
-        partes.append(f"Conversación hasta ahora:\n\"\"\"\n{conversacion}\n\"\"\"")
-    partes.append(f"Último mensaje del cliente:\n\"\"\"\n{texto}\n\"\"\"")
-    return "\n".join(partes)
+        parts_list.append(f"Conversación hasta ahora:\n\"\"\"\n{conversation}\n\"\"\"")
+    parts_list.append(f"Último mensaje del cliente:\n\"\"\"\n{texto}\n\"\"\"")
+    return "\n".join(parts_list)
 
 
-def texto_para_historial(resultado: "Resultado") -> str:
+def history_text(result: "AssistantResult") -> str:
     """Lo que respondió Pit, en texto, para que la IA lo vea en el próximo
     mensaje. Lo arma el backend: el navegador nunca escribe lo que "dijo" Pit."""
-    partes = [resultado.diagnostico]
-    if resultado.aviso:
-        partes.append(resultado.aviso)
-    if resultado.recomendaciones:
-        partes.append("Le recomendé: " + ", ".join(r.tipo for r in resultado.recomendaciones) + ".")
-    if resultado.pregunta:
-        partes.append(resultado.pregunta)
-    return " ".join(partes)
+    parts_list = [result.diagnostico]
+    if result.aviso:
+        parts_list.append(result.aviso)
+    if result.recomendaciones:
+        parts_list.append("Le recomendé: " + ", ".join(r.tipo for r in result.recomendaciones) + ".")
+    if result.pregunta:
+        parts_list.append(result.pregunta)
+    return " ".join(parts_list)
 
 
-def nuevo_historial(historial: list[dict], texto: str, resultado: "Resultado") -> list[dict]:
+def new_history(historial: list[dict], texto: str, result: "AssistantResult") -> list[dict]:
     """El historial con este mensaje y su respuesta; solo los últimos MAX_HISTORIAL."""
-    mensajes = [
+    messages = [
         *historial,
         {"rol": "cliente", "texto": texto},
-        {"rol": "asistente", "texto": texto_para_historial(resultado)},
+        {"rol": "asistente", "texto": history_text(result)},
     ]
-    return mensajes[-MAX_HISTORIAL:]
+    return messages[-MAX_HISTORY:]
 
 
-def repuestos_para(db: Session, tipo: str, marca: str, modelo: str, anio: int) -> list[Part]:
+def parts_for(db: Session, tipo: str, marca: str, modelo: str, anio: int) -> list[Part]:
     """Los repuestos de ese tipo compatibles con el vehículo: primero los
     que tienen stock y los más baratos, uno por fabricante."""
-    candidatos = [
+    candidates = [
         part
         for part in crud_part.list_parts(db, brand=marca, model=modelo, year=anio, search=tipo)
         if part.name.startswith(tipo)
     ]
-    candidatos.sort(key=lambda part: (part.stock <= 0, part.price))
+    candidates.sort(key=lambda part: (part.stock <= 0, part.price))
 
-    elegidos: list[Part] = []
-    fabricantes: set[str] = set()
-    for part in candidatos:
-        if part.manufacturer in fabricantes:
+    chosen_parts: list[Part] = []
+    manufacturers: set[str] = set()
+    for part in candidates:
+        if part.manufacturer in manufacturers:
             continue
-        elegidos.append(part)
-        fabricantes.add(part.manufacturer)
-        if len(elegidos) == REPUESTOS_POR_TIPO:
+        chosen_parts.append(part)
+        manufacturers.add(part.manufacturer)
+        if len(chosen_parts) == PARTS_PER_TYPE:
             break
-    return elegidos
+    return chosen_parts
 
 
-def recomendar(
+def recommend(
     db: Session,
-    cliente_ia: ClienteIA,
+    ai_client: AIClient,
     texto: str,
     marca: str,
     modelo: str,
     anio: int,
     historial: list[dict] = (),
-) -> tuple[Resultado, int]:
+) -> tuple[AssistantResult, int]:
     """Devuelve el resultado y los tokens usados. Lanza IANoDisponible si la
     IA no responde o responde algo que no sirve."""
-    entrada = armar_entrada(texto, marca, modelo, anio, historial)
-    salida, tokens = pedir_estructurado(cliente_ia, INSTRUCCIONES, entrada, SalidaIA)
+    input_text = build_input(texto, marca, modelo, anio, historial)
+    output, tokens = ask_structured(ai_client, INSTRUCCIONES, input_text, AIOutput)
 
-    recomendaciones: list[Recomendacion] = []
+    recomendaciones: list[Recommendation] = []
     vistos: set[str] = set()
-    for sugerido in salida.tipos:
+    for suggested in output.tipos:
         # Lo que no está en la lista, o repetido, se descarta.
-        tipo = next((t for t in TIPOS_REPUESTO if t.lower() == sugerido.tipo.strip().lower()), None)
+        tipo = next((t for t in PART_TYPES if t.lower() == suggested.tipo.strip().lower()), None)
         if tipo is None or tipo in vistos:
             continue
         vistos.add(tipo)
-        repuestos = repuestos_para(db, tipo, marca, modelo, anio)
+        repuestos = parts_for(db, tipo, marca, modelo, anio)
         # Sin repuestos compatibles con el vehículo, no se recomienda.
         if repuestos:
-            recomendaciones.append(Recomendacion(tipo=tipo, motivo=sugerido.motivo, repuestos=repuestos))
+            recomendaciones.append(Recommendation(tipo=tipo, motivo=suggested.motivo, repuestos=repuestos))
         if len(recomendaciones) == MAX_TIPOS:
             break
 
-    resultado = Resultado(
-        diagnostico=salida.diagnostico,
-        urgencia=salida.urgencia,
-        aviso=salida.aviso if salida.urgencia == "alta" else None,
-        pregunta=salida.pregunta,
+    result = AssistantResult(
+        diagnostico=output.diagnostico,
+        urgencia=output.urgencia,
+        aviso=output.aviso if output.urgencia == "alta" else None,
+        pregunta=output.pregunta,
         # Sin pregunta, las respuestas rápidas no tienen sentido.
-        opciones=salida.opciones if salida.pregunta else [],
-        fuera_de_tema=salida.fuera_de_tema,
-        recomendaciones=[] if salida.fuera_de_tema else recomendaciones,
+        opciones=output.opciones if output.pregunta else [],
+        fuera_de_tema=output.fuera_de_tema,
+        recomendaciones=[] if output.fuera_de_tema else recomendaciones,
     )
-    return resultado, tokens
+    return result, tokens

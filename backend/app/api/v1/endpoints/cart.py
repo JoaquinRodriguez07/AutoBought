@@ -36,11 +36,11 @@ def add_item(
             detail="Repuesto no encontrado.",
         )
 
-    item_actual = crud_cart.get_cart_item(db, client.user_id, body.part_id)
-    cantidad_previa = item_actual.amount if item_actual else 0
-    cantidad_final = cantidad_previa + body.amount
+    current_item = crud_cart.get_cart_item(db, client.user_id, body.part_id)
+    previous_quantity = current_item.amount if current_item else 0
+    final_quantity = previous_quantity + body.amount
 
-    if cantidad_final > part.stock:
+    if final_quantity > part.stock:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"No hay stock suficiente. Disponible: {part.stock} unidades.",
@@ -86,8 +86,8 @@ def remove_item(
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
 ):
-    eliminado = crud_cart.remove_item(db, client.user_id, part_id)
-    if not eliminado:
+    deleted_item = crud_cart.remove_item(db, client.user_id, part_id)
+    if not deleted_item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="El repuesto no está en el carrito.",

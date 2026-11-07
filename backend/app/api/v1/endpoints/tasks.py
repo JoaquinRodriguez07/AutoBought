@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.core.config import CRON_SECRET
-from app.core.mercadopago import ClienteMercadoPago, get_cliente_mp
-from app.core.notificaciones import TAREAS_DIARIAS
+from app.core.mercadopago import MercadoPagoClient, get_mp_client
+from app.core.notifications import DAILY_TASKS
 from app.crud import payment as crud_payment
 from app.crud.order import cancel_expired_orders
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/tareas", tags=["tareas"])
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def _verificar_cron(credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme)) -> None:
+def _verify_cron(credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme)) -> None:
     """Vercel Cron manda `Authorization: Bearer <CRON_SECRET>`. Sin el
     secreto configurado no se acepta ningún pedido."""
     if (
@@ -27,17 +27,17 @@ def _verificar_cron(credentials: HTTPAuthorizationCredentials | None = Depends(_
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autorizado.")
 
 
-@router.get("/diarias", dependencies=[Depends(_verificar_cron)])
-def correr_tareas_diarias(
+@router.get("/diarias", dependencies=[Depends(_verify_cron)])
+def run_daily_tasks(
     db: Session = Depends(get_db),
-    cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
+    mp_client: MercadoPagoClient = Depends(get_mp_client),
 ) -> dict[str, int]:
     """Lo llama Vercel Cron una vez por día (ver el vercel.json de la raíz).
     Devuelve cuántos mails mandó cada tarea, cuántos pedidos sin pagar
     canceló la limpieza (de respaldo: también se cancelan al comprar y al
     ver el historial) y cuántas devoluciones pendientes salieron (las de
     pagos tardíos sin stock que Mercado Pago no devolvió en el momento)."""
-    resultado = {nombre: tarea(db, None) for nombre, tarea in TAREAS_DIARIAS.items()}
-    resultado["Pedidos vencidos cancelados"] = cancel_expired_orders(db)
-    resultado["Devoluciones hechas"] = crud_payment.devolver_pendientes(db, cliente_mp)
-    return resultado
+    result = {name_value: task(db, None) for name_value, task in DAILY_TASKS.items()}
+    result["Pedidos vencidos cancelados"] = cancel_expired_orders(db)
+    result["Devoluciones hechas"] = crud_payment.refund_pending(db, mp_client)
+    return result

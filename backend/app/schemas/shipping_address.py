@@ -38,41 +38,41 @@ class ShippingAddressCreate(BaseModel):
 
     @field_validator("personal_name")
     @classmethod
-    def alias_valido(cls, value: str) -> str:
-        return validators.alias_direccion(value)
+    def valid_alias(cls, value: str) -> str:
+        return validators.address_alias(value)
 
     @field_validator("street")
     @classmethod
-    def calle_valida(cls, value: str) -> str:
-        return validators.calle(value)
+    def valid_street(cls, value: str) -> str:
+        return validators.street_name(value)
 
     @field_validator("number")
     @classmethod
-    def numero_valido(cls, value: str) -> str:
-        return validators.numero_puerta(value)
+    def valid_number(cls, value: str) -> str:
+        return validators.door_number(value)
 
     @field_validator("apartment")
     @classmethod
-    def apartamento_valido(cls, value: str | None) -> str | None:
+    def valid_apartment(cls, value: str | None) -> str | None:
         return validators.apartamento(value)
 
     @field_validator("city")
     @classmethod
-    def ciudad_valida(cls, value: str) -> str:
-        return validators.ciudad(value)
+    def valid_city(cls, value: str) -> str:
+        return validators.city_name(value)
 
     @field_validator("postal_code")
     @classmethod
-    def codigo_postal_valido(cls, value: str | None) -> str | None:
-        return validators.codigo_postal(value)
+    def valid_postal_code(cls, value: str | None) -> str | None:
+        return validators.postal_code_value(value)
 
     @field_validator("department")
     @classmethod
-    def ciudad_del_departamento(cls, value: Department, info: ValidationInfo) -> Department:
+    def city_matches_department(cls, value: Department, info: ValidationInfo) -> Department:
         # `city` se declara antes, así que ya está validada (si no falló).
         city = info.data.get("city")
         if city:
-            validators.ciudad_en_departamento(city, value.value, [d.value for d in Department])
+            validators.city_in_department(city, value.value, [d.value for d in Department])
         return value
 
 

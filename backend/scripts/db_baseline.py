@@ -232,7 +232,7 @@ def main(argv=None):
     from app.db.session import engine
 
     with engine.connect() as connection:
-        if args.accion == "completar":
+        if args.action_name == "completar":
             # Todo o nada: si algo falla (por ejemplo, una columna NOT NULL sin
             # default en una tabla con filas), no queda nada a medias.
             with connection.begin():
@@ -247,7 +247,7 @@ def main(argv=None):
             transaction.rollback()
 
         print_report(report)
-        if args.accion != "stamp" or report.revision is not None or report.empty:
+        if args.action_name != "stamp" or report.revision is not None or report.empty:
             return 0 if report.revision is not None or report.empty or report.matches else 1
         if report.missing or report.different:
             print("No se hizo el stamp: primero resolvé lo de arriba.")

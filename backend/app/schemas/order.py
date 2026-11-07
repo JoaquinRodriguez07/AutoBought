@@ -86,22 +86,22 @@ class OrderListOut(BaseModel):
     orders: list[OrderDetailOut]
 
 
-def linea_de_tiempo(order: Order) -> list[OrderStatusStepOut]:
+def timeline(order: Order) -> list[OrderStatusStepOut]:
     """Los estados por los que pasó el pedido. Los de antes del historial
     (o los del seed) no tienen filas: se arma con la compra y el estado
     actual, que no se sabe cuándo cambió."""
     if order.status_history:
         return [
-            OrderStatusStepOut(status=fila.status, changed_at=fila.changed_at)
-            for fila in order.status_history
+            OrderStatusStepOut(status=row.status, changed_at=row.changed_at)
+            for row in order.status_history
         ]
-    pasos = [OrderStatusStepOut(status=OrderStatus.CONFIRMED, changed_at=order.created_at)]
+    steps = [OrderStatusStepOut(status=OrderStatus.CONFIRMED, changed_at=order.created_at)]
     if order.status != OrderStatus.CONFIRMED:
-        pasos.append(OrderStatusStepOut(status=order.status, changed_at=None))
-    return pasos
+        steps.append(OrderStatusStepOut(status=order.status, changed_at=None))
+    return steps
 
 
-def motivo_de_cancelacion(order: Order) -> CancelReason | None:
+def cancel_reason_of(order: Order) -> CancelReason | None:
     if order.status != OrderStatus.CANCELLED:
         return None
     if order.status_history:
@@ -114,8 +114,8 @@ def motivo_de_cancelacion(order: Order) -> CancelReason | None:
 
 
 # Lo que se pide al cancelar: lo lee el cliente en el mail.
-MOTIVO_MIN = 5
-MOTIVO_MAX = 200
+REASON_MIN = 5
+REASON_MAX = 200
 
 
 class OrderStatusUpdate(BaseModel):
@@ -123,22 +123,22 @@ class OrderStatusUpdate(BaseModel):
 
     status: OrderStatus
     # Obligatorio para cancelar; en los demás cambios se ignora.
-    reason: str | None = Field(default=None, max_length=MOTIVO_MAX)
+    reason: str | None = Field(default=None, max_length=REASON_MAX)
 
     @model_validator(mode="after")
-    def motivo_al_cancelar(self):
+    def reason_when_cancelling(self):
         if self.status != OrderStatus.CANCELLED:
             self.reason = None
             return self
         self.reason = (self.reason or "").strip()
-        if len(self.reason) < MOTIVO_MIN:
+        if len(self.reason) < REASON_MIN:
             raise ValueError(
                 "Para cancelar un pedido hay que contar el motivo: le llega al cliente en el mail."
             )
         return self
 
 
-NOTA_MAX = 500
+NOTE_MAX = 500
 
 
 class OrderShippingAddressIn(ShippingAddressCreate):
@@ -154,10 +154,10 @@ class SellerOrderUpdate(BaseModel):
 
     shipping_address: OrderShippingAddressIn | None = None
     # Vacía o solo espacios: se borra la nota.
-    internal_note: str | None = Field(default=None, max_length=NOTA_MAX)
+    internal_note: str | None = Field(default=None, max_length=NOTE_MAX)
 
     @model_validator(mode="after")
-    def algo_para_cambiar(self):
+    def something_to_change(self):
         if not self.model_fields_set & {"shipping_address", "internal_note"}:
             raise ValueError("Mandá la dirección de envío o la nota interna.")
         if "shipping_address" in self.model_fields_set and self.shipping_address is None:
@@ -257,7 +257,7 @@ def build_order_detail_out(order: Order) -> OrderDetailOut:
         payment_due_at=order.payment.due_at if order.payment else None,
         total=order.total,
         items=items,
-        status_history=linea_de_tiempo(order),
-        cancel_reason=motivo_de_cancelacion(order),
+        status_history=timeline(order),
+        cancel_reason=cancel_reason_of(order),
         cancellation_reason=order.cancellation_reason,
     )

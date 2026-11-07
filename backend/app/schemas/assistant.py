@@ -2,11 +2,11 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.ia.asistente import MAX_HISTORIAL
+from app.ia.assistant import MAX_HISTORY
 from app.schemas.part import PartOut, build_part_out
 
 
-class MensajeHistorial(BaseModel):
+class HistoryMessage(BaseModel):
     """Un mensaje de la conversación. No se le sacan los espacios: tiene que
     llegar idéntico a como se firmó."""
 
@@ -16,7 +16,7 @@ class MensajeHistorial(BaseModel):
     texto: str = Field(min_length=1, max_length=2000)
 
 
-class AsistenteRequest(BaseModel):
+class AssistantRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     texto: str = Field(min_length=3, max_length=500)
@@ -25,53 +25,53 @@ class AsistenteRequest(BaseModel):
     anio: int = Field(ge=1950, le=2100)
     # La conversación hasta ahora, tal como la devolvió el backend, con su
     # firma. Vacío en el primer mensaje.
-    historial: list[MensajeHistorial] = Field(default_factory=list, max_length=MAX_HISTORIAL)
+    historial: list[HistoryMessage] = Field(default_factory=list, max_length=MAX_HISTORY)
     firma: str | None = Field(default=None, max_length=128)
 
     @field_validator("texto", "marca", "modelo")
     @classmethod
-    def sin_espacios_de_mas(cls, valor: str) -> str:
-        valor = valor.strip()
-        if not valor:
+    def without_extra_spaces(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
             raise ValueError("No puede estar vacío.")
-        return valor
+        return value
 
 
-class RecomendacionOut(BaseModel):
+class RecommendationOut(BaseModel):
     tipo: str
     motivo: str
     repuestos: list[PartOut]
 
 
-class AsistenteOut(BaseModel):
+class AssistantOut(BaseModel):
     diagnostico: str
     urgencia: Literal["alta", "media", "baja"]
     aviso: str | None
     pregunta: str | None
     opciones: list[str]
     fuera_de_tema: bool
-    recomendaciones: list[RecomendacionOut]
+    recomendaciones: list[RecommendationOut]
     # Lo que el frontend tiene que mandar en el próximo mensaje.
-    historial: list[MensajeHistorial]
+    historial: list[HistoryMessage]
     firma: str
 
 
-def build_asistente_out(resultado, historial: list[dict], firma: str) -> AsistenteOut:
-    return AsistenteOut(
+def build_assistant_out(result, historial: list[dict], signature: str) -> AssistantOut:
+    return AssistantOut(
         historial=historial,
-        firma=firma,
-        diagnostico=resultado.diagnostico,
-        urgencia=resultado.urgencia,
-        aviso=resultado.aviso,
-        pregunta=resultado.pregunta,
-        opciones=resultado.opciones,
-        fuera_de_tema=resultado.fuera_de_tema,
+        firma=signature,
+        diagnostico=result.diagnostico,
+        urgencia=result.urgencia,
+        aviso=result.aviso,
+        pregunta=result.pregunta,
+        opciones=result.opciones,
+        fuera_de_tema=result.fuera_de_tema,
         recomendaciones=[
-            RecomendacionOut(
-                tipo=recomendacion.tipo,
-                motivo=recomendacion.motivo,
-                repuestos=[build_part_out(part) for part in recomendacion.repuestos],
+            RecommendationOut(
+                tipo=recommendation.tipo,
+                motivo=recommendation.motivo,
+                repuestos=[build_part_out(part) for part in recommendation.repuestos],
             )
-            for recomendacion in resultado.recomendaciones
+            for recommendation in result.recomendaciones
         ],
     )

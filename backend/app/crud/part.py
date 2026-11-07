@@ -73,9 +73,9 @@ def list_parts(
     # Filtro exacto (insensible a mayúsculas/minúsculas) por categoría.
     # A diferencia de la búsqueda por nombre/código, no admite coincidencias
     # parciales porque la categoría es un valor discreto (ej: "frenos").
-    categoria_term = (category or "").strip()
-    if categoria_term:
-        query = query.where(func.lower(Part.category) == categoria_term.lower())
+    category_term = (category or "").strip()
+    if category_term:
+        query = query.where(func.lower(Part.category) == category_term.lower())
 
     return list(db.scalars(query).unique().all())
 
@@ -100,17 +100,17 @@ def list_categories(db: Session) -> list[tuple[str, int]]:
 def list_manufacturers(db: Session) -> list[tuple[str, int]]:
     """Los fabricantes con repuestos y cuántos tiene cada uno, del que más
     tiene al que menos (los que destaca el inicio)."""
-    cantidad = func.count(Part.id)
+    qty = func.count(Part.id)
     query = (
-        select(Part.manufacturer, cantidad)
+        select(Part.manufacturer, qty)
         .where(Part.manufacturer.is_not(None))
         .group_by(Part.manufacturer)
-        .order_by(cantidad.desc(), Part.manufacturer)
+        .order_by(qty.desc(), Part.manufacturer)
     )
-    return [(nombre, total) for nombre, total in db.execute(query).all()]
+    return [(name_value, total) for name_value, total in db.execute(query).all()]
 
 
-def filtrar_repuestos(
+def filter_parts(
     query,
     category: str | None = None,
     search: str | None = None,
@@ -119,9 +119,9 @@ def filtrar_repuestos(
     # Filtros del dashboard del vendedor (HU 5.9), los mismos en todas sus
     # vistas: categoría exacta y búsqueda parcial por nombre o código, sin
     # distinguir mayúsculas, igual que en el catálogo.
-    categoria_term = (category or "").strip()
-    if categoria_term:
-        query = query.where(func.lower(Part.category) == categoria_term.lower())
+    category_term = (category or "").strip()
+    if category_term:
+        query = query.where(func.lower(Part.category) == category_term.lower())
 
     term = (search or "").strip()
     if term:
@@ -143,7 +143,7 @@ def list_stock(
     # lo que hay que reponer queda arriba. Sin compatibilidades: el
     # dashboard no las muestra.
     query = select(Part).order_by(Part.stock, Part.part_code, Part.id)
-    query = filtrar_repuestos(query, category=category, search=search)
+    query = filter_parts(query, category=category, search=search)
     return list(db.scalars(query).all())
 
 
@@ -194,7 +194,7 @@ def list_best_sellers(
     if in_stock:
         query = query.where(Part.stock > 0)
 
-    query = filtrar_repuestos(query, category=category, search=search)
+    query = filter_parts(query, category=category, search=search)
 
     return [(part, int(units)) for part, units in db.execute(query).all()]
 
@@ -212,14 +212,14 @@ def part_code_in_use(db: Session, part_code: str, exclude_id: int | None = None)
 
 
 def missing_car_models(db: Session, car_model_ids: list[int]) -> list[int]:
-    existentes = set(db.scalars(select(CarModel.id).where(CarModel.id.in_(car_model_ids))))
-    return [car_model_id for car_model_id in car_model_ids if car_model_id not in existentes]
+    existing = set(db.scalars(select(CarModel.id).where(CarModel.id.in_(car_model_ids))))
+    return [car_model_id for car_model_id in car_model_ids if car_model_id not in existing]
 
 
 def _set_data(db: Session, part: Part, data) -> None:
-    campos = data.model_dump(exclude={"compatibilities", "stock"})
-    for campo, valor in campos.items():
-        setattr(part, campo, valor)
+    fields = data.model_dump(exclude={"compatibilities", "stock"})
+    for field, value in fields.items():
+        setattr(part, field, value)
 
     # Se reemplazan todas: el formulario manda la lista completa.
     if part.id is not None:

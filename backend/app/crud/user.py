@@ -22,10 +22,10 @@ def _username_disponible(db: Session, email: str) -> str:
     pide: se deriva de la parte local del correo, con sufijo aleatorio si
     ya está tomado."""
     base = re.sub(r"[^a-z0-9._-]", "", email.split("@")[0].lower())[:50] or "cliente"
-    candidato = base
-    while db.scalars(select(User).where(User.username == candidato)).first():
-        candidato = f"{base}_{secrets.token_hex(3)}"
-    return candidato
+    candidate = base
+    while db.scalars(select(User).where(User.username == candidate)).first():
+        candidate = f"{base}_{secrets.token_hex(3)}"
+    return candidate
 
 
 def create_client(

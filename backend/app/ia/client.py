@@ -12,31 +12,31 @@ from typing import Protocol
 
 import httpx
 
-from app.core.config import GEMINI_API_KEY, GEMINI_API_URL, GEMINI_MODEL, IA_TIMEOUT_SEGUNDOS
+from app.core.config import GEMINI_API_KEY, GEMINI_API_URL, GEMINI_MODEL, AI_TIMEOUT_SECONDS
 
 
-class IANoDisponible(Exception):
+class AIUnavailable(Exception):
     """La IA no se puede usar ahora: falta la clave, no respondió a tiempo,
     devolvió un error o una respuesta que no sirve. Cada funcionalidad lo
     maneja con un plan B y un mensaje claro."""
 
 
 @dataclass
-class RespuestaIA:
+class AIResponse:
     texto: str
     tokens: int = 0
 
 
-class ClienteIA(Protocol):
-    def generar(self, instrucciones: str, entrada: str) -> RespuestaIA: ...
+class AIClient(Protocol):
+    def generar(self, instructions: str, input_text: str) -> AIResponse: ...
 
 
-def extraer_texto(respuesta: dict) -> str:
+def extract_text(reply: dict) -> str:
     """El texto final de la respuesta. Se ignoran los pasos de "pensamiento"
     y se aceptan las dos formas de la API: `steps[].content[]` con
     `type: "text"` (Interactions) y `candidates[].content.parts[].text`
     (generateContent)."""
-    partes: list[str] = []
+    parts_list: list[str] = []
 
     def recorrer(nodo, en_pensamiento: bool) -> None:
         if isinstance(nodo, list):
@@ -47,80 +47,80 @@ def extraer_texto(respuesta: dict) -> str:
             return
         pensamiento = en_pensamiento or nodo.get("type") == "thought" or nodo.get("thought") is True
         texto = nodo.get("text")
-        es_texto = nodo.get("type") == "text" or ("text" in nodo and "type" not in nodo)
-        if not pensamiento and es_texto and isinstance(texto, str):
-            partes.append(texto)
+        is_text = nodo.get("type") == "text" or ("text" in nodo and "type" not in nodo)
+        if not pensamiento and is_text and isinstance(texto, str):
+            parts_list.append(texto)
             return
-        for clave, hijo in nodo.items():
-            if clave != "text":
+        for key, hijo in nodo.items():
+            if key != "text":
                 recorrer(hijo, pensamiento)
 
-    recorrer(respuesta.get("steps") or respuesta.get("candidates") or [], False)
-    return "".join(partes).strip()
+    recorrer(reply.get("steps") or reply.get("candidates") or [], False)
+    return "".join(parts_list).strip()
 
 
-def extraer_tokens(respuesta: dict) -> int:
-    uso = respuesta.get("usage") or {}
-    if "total_tokens" in uso:
-        return int(uso["total_tokens"])
-    uso = respuesta.get("usageMetadata") or {}
-    return int(uso.get("totalTokenCount", 0))
+def extract_tokens(reply: dict) -> int:
+    usage = reply.get("usage") or {}
+    if "total_tokens" in usage:
+        return int(usage["total_tokens"])
+    usage = reply.get("usageMetadata") or {}
+    return int(usage.get("totalTokenCount", 0))
 
 
-class ClienteGemini:
+class GeminiClient:
     def __init__(
         self,
-        clave: str = GEMINI_API_KEY,
+        key: str = GEMINI_API_KEY,
         modelo: str = GEMINI_MODEL,
-        timeout: float = IA_TIMEOUT_SEGUNDOS,
+        timeout: float = AI_TIMEOUT_SECONDS,
         transport: httpx.BaseTransport | None = None,
         url: str = GEMINI_API_URL,
     ):
-        self.clave = clave
+        self.key = key
         self.modelo = modelo
         self.timeout = timeout
         self.url = url
         # Solo para los tests: un transporte falso en vez de la red.
         self.transport = transport
 
-    def generar(self, instrucciones: str, entrada: str) -> RespuestaIA:
-        if not self.clave:
-            raise IANoDisponible("No hay clave de IA configurada.")
+    def generar(self, instructions: str, input_text: str) -> AIResponse:
+        if not self.key:
+            raise AIUnavailable("No hay clave de IA configurada.")
 
-        pedido = {
+        order_data = {
             "model": self.modelo,
-            "system_instruction": instrucciones,
-            "input": entrada,
+            "system_instruction": instructions,
+            "input": input_text,
             "store": False,
             "generation_config": {"thinking_level": "low", "max_output_tokens": 2048},
         }
         try:
             with httpx.Client(timeout=self.timeout, transport=self.transport) as http:
-                respuesta = http.post(
+                reply = http.post(
                     self.url,
-                    json=pedido,
-                    headers={"x-goog-api-key": self.clave},
+                    json=order_data,
+                    headers={"x-goog-api-key": self.key},
                 )
         except httpx.HTTPError as error:
-            raise IANoDisponible(f"La IA no respondió: {error.__class__.__name__}.") from error
+            raise AIUnavailable(f"La IA no respondió: {error.__class__.__name__}.") from error
 
-        if respuesta.status_code != 200:
+        if reply.status_code != 200:
             # El cuerpo del error de Google dice el motivo (clave inválida, sin
             # crédito, modelo inexistente...). Nunca trae la clave.
-            raise IANoDisponible(f"La IA respondió con error {respuesta.status_code}: {respuesta.text[:300]}")
+            raise AIUnavailable(f"La IA respondió con error {reply.status_code}: {reply.text[:300]}")
 
         try:
-            cuerpo = respuesta.json()
+            body_data = reply.json()
         except ValueError as error:
-            raise IANoDisponible("La IA devolvió algo que no es JSON.") from error
+            raise AIUnavailable("La IA devolvió algo que no es JSON.") from error
 
-        texto = extraer_texto(cuerpo)
+        texto = extract_text(body_data)
         if not texto:
-            raise IANoDisponible("La IA no devolvió texto.")
-        return RespuestaIA(texto=texto, tokens=extraer_tokens(cuerpo))
+            raise AIUnavailable("La IA no devolvió texto.")
+        return AIResponse(texto=texto, tokens=extract_tokens(body_data))
 
 
-def get_cliente_ia() -> ClienteIA:
+def get_ai_client() -> AIClient:
     """Dependencia de FastAPI. Los tests la reemplazan por un cliente falso
     con `app.dependency_overrides`."""
-    return ClienteGemini()
+    return GeminiClient()

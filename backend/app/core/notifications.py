@@ -20,8 +20,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import FRONTEND_URL
-from app.core.email import enviar_mail, programar_mail
-from app.core.security import DARSE_DE_BAJA, create_purpose_token
+from app.core.email import send_mail, schedule_mail
+from app.core.security import UNSUBSCRIBE_PURPOSE, create_purpose_token
 from app.crud.payment import is_paid_order
 from app.models.cart import Cart
 from app.models.cart_item import CartItem
@@ -34,13 +34,13 @@ from app.models.payment import Payment
 from app.models.stock_alert import StockAlert
 
 # El enlace de baja no vence: tiene que seguir sirviendo en un mail viejo.
-VIGENCIA_BAJA_MINUTOS = 10 * 365 * 24 * 60
+UNSUBSCRIBE_LINK_MINUTES = 10 * 365 * 24 * 60
 
-HORAS_CARRITO_ABANDONADO = 24
+ABANDONED_CART_HOURS = 24
 
 # Cada cuántos meses se suele cambiar cada repuesto, según cómo empieza su
 # nombre en el catálogo. Lo que no está acá no genera recordatorio.
-MESES_MANTENIMIENTO = {
+MAINTENANCE_MONTHS = {
     # Antes que "Aceite": el de caja dura mucho más que el de motor.
     "Aceite de caja": 48,
     "Aceite": 6,
@@ -56,7 +56,7 @@ MESES_MANTENIMIENTO = {
 
 # Solo se recuerda si el plazo se cumplió hace poco. Si no, la primera vez
 # que corren las tareas mandaría un recordatorio por cada compra vieja.
-DIAS_VENTANA_MANTENIMIENTO = 7
+MAINTENANCE_WINDOW_DAYS = 7
 
 _ESTADOS = {
     OrderStatus.PACKING: ("se está preparando", "Lo estamos empaquetando. Te avisamos cuando salga para tu dirección."),
@@ -65,35 +65,35 @@ _ESTADOS = {
 }
 
 
-def precio(pesos: int) -> str:
+def format_price(pesos: int) -> str:
     return "$ " + f"{pesos:,}".replace(",", ".")
 
 
-def enlace_baja(client: Client) -> str:
-    token = create_purpose_token(str(client.user_id), DARSE_DE_BAJA, VIGENCIA_BAJA_MINUTOS)
+def unsubscribe_link(client: Client) -> str:
+    token = create_purpose_token(str(client.user_id), UNSUBSCRIBE_PURPOSE, UNSUBSCRIBE_LINK_MINUTES)
     return f"{FRONTEND_URL}/baja-mails?token={token}"
 
 
-def _enlace_repuesto(part: Part) -> str:
+def _part_link(part: Part) -> str:
     # Cuando exista el detalle con URL propia (HU 1.16), apuntar ahí.
     return f"{FRONTEND_URL}/catalogo?q={quote(part.name)}"
 
 
-def _programar(background_tasks: BackgroundTasks | None, *args, **kwargs) -> None:
-    programar_mail(background_tasks, *args, **kwargs)
+def _schedule(background_tasks: BackgroundTasks | None, *args, **kwargs) -> None:
+    schedule_mail(background_tasks, *args, **kwargs)
 
 
-def _como_utc(fecha: datetime) -> datetime:
+def _como_utc(when: datetime) -> datetime:
     # SQLite devuelve las fechas sin zona; Postgres, con zona.
-    return fecha if fecha.tzinfo else fecha.replace(tzinfo=timezone.utc)
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
 
 
-def _sumar_meses(fecha: datetime, meses: int) -> datetime:
-    total = fecha.month - 1 + meses
-    anio, mes = fecha.year + total // 12, total % 12 + 1
+def _add_months(when: datetime, periods: int) -> datetime:
+    total = when.month - 1 + periods
+    anio, period = when.year + total // 12, total % 12 + 1
     # Del 31 de agosto a 6 meses es el 28 o 29 de febrero, no un error.
-    dia = min(fecha.day, calendar.monthrange(anio, mes)[1])
-    return fecha.replace(year=anio, month=mes, day=dia)
+    day_number = min(when.day, calendar.monthrange(anio, period)[1])
+    return when.replace(year=anio, month=period, day=day_number)
 
 
 # =====================================================
@@ -101,79 +101,79 @@ def _sumar_meses(fecha: datetime, meses: int) -> datetime:
 # =====================================================
 
 
-def _datos_pedido(order: Order) -> dict:
+def _order_data(order: Order) -> dict:
     items = [
         {
             "nombre": item.part.name,
             "cantidad": item.quantity,
-            "subtotal": precio(item.frozen_price * item.quantity),
+            "subtotal": format_price(item.frozen_price * item.quantity),
         }
         for item in order.items
     ]
-    direccion = f"{order.ship_street} {order.ship_number}"
+    address = f"{order.ship_street} {order.ship_number}"
     if order.ship_apartment:
-        direccion += f", apto. {order.ship_apartment}"
-    direccion += f", {order.ship_city}, {order.ship_department}"
+        address += f", apto. {order.ship_apartment}"
+    address += f", {order.ship_city}, {order.ship_department}"
 
     return {
         "nombre": order.client.name,
         "pedido": order.order_id,
         "items": items,
-        "total": precio(sum(item.frozen_price * item.quantity for item in order.items)),
-        "direccion": direccion,
+        "total": format_price(sum(item.frozen_price * item.quantity for item in order.items)),
+        "direccion": address,
         "pago": order.payment_method_label,
         "enlace": f"{FRONTEND_URL}/historial",
     }
 
 
-def notificar_compra(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
-    _programar(
+def notify_purchase(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
+    _schedule(
         background_tasks,
         order.client.email,
         f"Confirmamos tu pedido #{order.order_id}",
         "confirmacion_compra",
-        _datos_pedido(order),
+        _order_data(order),
     )
 
 
-def notificar_pago_sin_stock(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
+def notify_paid_without_stock(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
     """El cliente pagó después de que el pedido venciera y ya no queda stock:
     el pedido sigue cancelado y se le devuelve el dinero en Mercado Pago
     (ver pagos._avisar_pago_aprobado)."""
-    _programar(
+    _schedule(
         background_tasks,
         order.client.email,
         f"No pudimos completar tu pedido #{order.order_id}",
         "pago_sin_stock",
-        _datos_pedido(order),
+        _order_data(order),
     )
 
 
-def notificar_cambio_de_estado(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
+def notify_status_change(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
     """Llamar después de cambiar `order.status` (panel del vendedor o
     cancelación). Para «confirmado» no hay mail: ese es el de la compra."""
-    datos = _datos_pedido(order)
+    data = _order_data(order)
 
     if order.status == OrderStatus.CANCELLED:
-        _programar(
+        _schedule(
             background_tasks,
             order.client.email,
             f"Cancelamos tu pedido #{order.order_id}",
             "cancelacion_pedido",
-            {**datos, "motivo": order.cancellation_reason},
+            {**data, "motivo": order.cancellation_reason},
         )
         return
 
     if order.status not in _ESTADOS:
         return
 
-    estado, detalle = _ESTADOS[order.status]
-    _programar(
+    state, detail = _ESTADOS[order.status]
+    _schedule(
         background_tasks,
         order.client.email,
-        f"Tu pedido #{order.order_id} {estado}",
+        f"Tu pedido #{order.order_id} {state}",
         "cambio_estado",
-        {**datos, "estado": estado, "detalle_estado": detalle},
+        {**data, "estado": state, "detalle_estado": detail},
     )
 
 
@@ -182,20 +182,20 @@ def notificar_cambio_de_estado(order: Order, background_tasks: BackgroundTasks |
 # =====================================================
 
 
-def notificar_vuelta_de_stock(
-    db: Session, part: Part, stock_anterior: int, background_tasks: BackgroundTasks | None = None
+def notify_back_in_stock(
+    db: Session, part: Part, previous_stock: int, background_tasks: BackgroundTasks | None = None
 ) -> int:
     """Llamar después de cambiar `part.stock` (reposición del vendedor o
     cancelación de un pedido). Si pasó de 0 a más, avisa a los suscritos
     y borra las suscripciones. Devuelve a cuántos avisó."""
-    if stock_anterior > 0 or part.stock <= 0:
+    if previous_stock > 0 or part.stock <= 0:
         return 0
 
     alertas = db.scalars(
         select(StockAlert).where(StockAlert.part_id == part.id).options(selectinload(StockAlert.client))
     ).all()
     for alerta in alertas:
-        _programar(
+        _schedule(
             background_tasks,
             alerta.client.email,
             f"Volvió a haber stock de {part.name}",
@@ -203,8 +203,8 @@ def notificar_vuelta_de_stock(
             {
                 "nombre": alerta.client.name,
                 "repuesto": part.name,
-                "precio": precio(part.price),
-                "enlace": _enlace_repuesto(part),
+                "precio": format_price(part.price),
+                "enlace": _part_link(part),
             },
         )
         db.delete(alerta)
@@ -212,21 +212,21 @@ def notificar_vuelta_de_stock(
     return len(alertas)
 
 
-def notificar_baja_de_precio(
-    db: Session, part: Part, precio_anterior: int, background_tasks: BackgroundTasks | None = None
+def notify_price_drop(
+    db: Session, part: Part, previous_price: int, background_tasks: BackgroundTasks | None = None
 ) -> int:
     """Llamar después de cambiar `part.price`. Si bajó, avisa a quienes lo
     tienen en favoritos y no se dieron de baja. Devuelve a cuántos avisó."""
-    if part.price >= precio_anterior:
+    if part.price >= previous_price:
         return 0
 
-    clientes = db.scalars(
+    customers = db.scalars(
         select(Client)
         .join(Favorite, Favorite.client_id == Client.user_id)
         .where(Favorite.part_id == part.id, Client.marketing_emails.is_(True))
     ).all()
-    for client in clientes:
-        _programar(
+    for client in customers:
+        _schedule(
             background_tasks,
             client.email,
             f"Bajó el precio de {part.name}",
@@ -234,13 +234,13 @@ def notificar_baja_de_precio(
             {
                 "nombre": client.name,
                 "repuesto": part.name,
-                "precio_anterior": precio(precio_anterior),
-                "precio": precio(part.price),
-                "enlace": _enlace_repuesto(part),
+                "precio_anterior": format_price(previous_price),
+                "precio": format_price(part.price),
+                "enlace": _part_link(part),
             },
-            enlace_baja=enlace_baja(client),
+            unsubscribe_link=unsubscribe_link(client),
         )
-    return len(clientes)
+    return len(customers)
 
 
 # =====================================================
@@ -248,11 +248,11 @@ def notificar_baja_de_precio(
 # =====================================================
 
 
-def recordar_carritos_abandonados(db: Session, ahora: datetime | None = None) -> int:
+def remind_abandoned_carts(db: Session, current_time: datetime | None = None) -> int:
     """Un recordatorio por carrito con productos que no se tocó en 24 horas.
     Si el cliente lo vuelve a tocar y lo deja otra vez, recibe otro."""
-    ahora = ahora or datetime.now(timezone.utc)
-    limite = ahora - timedelta(hours=HORAS_CARRITO_ABANDONADO)
+    current_time = current_time or datetime.now(timezone.utc)
+    limit_value = current_time - timedelta(hours=ABANDONED_CART_HOURS)
 
     carritos = db.scalars(
         select(Cart)
@@ -261,14 +261,14 @@ def recordar_carritos_abandonados(db: Session, ahora: datetime | None = None) ->
         .options(selectinload(Cart.client), selectinload(Cart.items).selectinload(CartItem.part))
     ).all()
 
-    enviados = 0
+    sent = 0
     for cart in carritos:
-        actualizado = _como_utc(cart.updated_at)
-        ya_avisado = cart.reminder_sent_at is not None and _como_utc(cart.reminder_sent_at) >= actualizado
-        if actualizado > limite or ya_avisado:
+        updated = _como_utc(cart.updated_at)
+        already_notified = cart.reminder_sent_at is not None and _como_utc(cart.reminder_sent_at) >= updated
+        if updated > limit_value or already_notified:
             continue
 
-        if not enviar_mail(
+        if not send_mail(
             cart.client.email,
             "Te quedó algo en el carrito",
             "carrito_abandonado",
@@ -277,36 +277,36 @@ def recordar_carritos_abandonados(db: Session, ahora: datetime | None = None) ->
                 "items": [{"nombre": item.part.name, "cantidad": item.amount} for item in cart.items],
                 "enlace": f"{FRONTEND_URL}/carrito",
             },
-            enlace_baja=enlace_baja(cart.client),
+            unsubscribe_link=unsubscribe_link(cart.client),
         ):
             continue  # Sin marcar: se reintenta en la próxima corrida.
-        cart.reminder_sent_at = ahora
-        enviados += 1
+        cart.reminder_sent_at = current_time
+        sent += 1
 
     db.commit()
-    return enviados
+    return sent
 
 
-def _meses_de(part: Part) -> int | None:
+def _months_of(part: Part) -> int | None:
     return next(
-        (meses for prefijo, meses in MESES_MANTENIMIENTO.items() if part.name.startswith(prefijo)),
+        (periods for prefijo, periods in MAINTENANCE_MONTHS.items() if part.name.startswith(prefijo)),
         None,
     )
 
 
-def _tipo(part: Part) -> str:
+def _type_of(part: Part) -> str:
     """El repuesto sin el fabricante: "Bujía NGK 1.4 8V" y "Bujía Bosch 1.4 8V"
     son el mismo tipo de repuesto."""
     return part.name.replace(f" {part.manufacturer}", "", 1)
 
 
-def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
+def remind_maintenance(db: Session, current_time: datetime | None = None) -> int:
     """Un recordatorio por repuesto comprado cuyo plazo de cambio se cumplió
     en los últimos 7 días. Pedidos cancelados o sin pagar no cuentan, y si el cliente
     volvió a comprar el mismo tipo de repuesto (aunque sea de otro
     fabricante), el recordatorio es el de la compra nueva."""
-    ahora = ahora or datetime.now(timezone.utc)
-    mas_viejo = _sumar_meses(ahora, -max(MESES_MANTENIMIENTO.values())) - timedelta(days=DIAS_VENTANA_MANTENIMIENTO)
+    current_time = current_time or datetime.now(timezone.utc)
+    oldest = _add_months(current_time, -max(MAINTENANCE_MONTHS.values())) - timedelta(days=MAINTENANCE_WINDOW_DAYS)
 
     items = db.scalars(
         select(OrderItem)
@@ -317,14 +317,14 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
             OrderItem.reminder_sent_at.is_(None),
             Order.status != OrderStatus.CANCELLED,
             is_paid_order(),
-            Order.created_at >= mas_viejo,
+            Order.created_at >= oldest,
             Client.marketing_emails.is_(True),
         )
         .options(selectinload(OrderItem.part), selectinload(OrderItem.order).selectinload(Order.client))
     ).all()
 
-    ultima_compra: dict[tuple[int, str], datetime] = {}
-    for client_id, part, fecha in db.execute(
+    last_purchase: dict[tuple[int, str], datetime] = {}
+    for client_id, part, when in db.execute(
         select(Order.client_id, Part, func.max(Order.created_at))
         .join(OrderItem, OrderItem.order_id == Order.order_id)
         .join(Part, Part.id == OrderItem.part_id)
@@ -332,43 +332,43 @@ def recordar_mantenimientos(db: Session, ahora: datetime | None = None) -> int:
         .where(Order.status != OrderStatus.CANCELLED, is_paid_order())
         .group_by(Order.client_id, Part.id)
     ):
-        clave = (client_id, _tipo(part))
-        ultima_compra[clave] = max(ultima_compra.get(clave, _como_utc(fecha)), _como_utc(fecha))
+        key = (client_id, _type_of(part))
+        last_purchase[key] = max(last_purchase.get(key, _como_utc(when)), _como_utc(when))
 
-    enviados = 0
+    sent = 0
     for item in items:
-        meses = _meses_de(item.part)
-        if meses is None:
+        periods = _months_of(item.part)
+        if periods is None:
             continue
-        comprado = _como_utc(item.order.created_at)
-        if ultima_compra[(item.order.client_id, _tipo(item.part))] > comprado:
+        bought = _como_utc(item.order.created_at)
+        if last_purchase[(item.order.client_id, _type_of(item.part))] > bought:
             continue
-        vence = _sumar_meses(comprado, meses)
-        if not ahora - timedelta(days=DIAS_VENTANA_MANTENIMIENTO) <= vence <= ahora:
+        vence = _add_months(bought, periods)
+        if not current_time - timedelta(days=MAINTENANCE_WINDOW_DAYS) <= vence <= current_time:
             continue
 
         client = item.order.client
-        if not enviar_mail(
+        if not send_mail(
             client.email,
             f"¿Toca cambiar {item.part.name}?",
             "recordatorio_mantenimiento",
             {
                 "nombre": client.name,
                 "repuesto": item.part.name,
-                "meses": meses,
-                "enlace": _enlace_repuesto(item.part),
+                "meses": periods,
+                "enlace": _part_link(item.part),
             },
-            enlace_baja=enlace_baja(client),
+            unsubscribe_link=unsubscribe_link(client),
         ):
             continue  # Sin marcar: se reintenta en la próxima corrida.
-        item.reminder_sent_at = ahora
-        enviados += 1
+        item.reminder_sent_at = current_time
+        sent += 1
 
     db.commit()
-    return enviados
+    return sent
 
 
-TAREAS_DIARIAS: dict[str, Callable[[Session, datetime | None], int]] = {
-    "Carritos abandonados": recordar_carritos_abandonados,
-    "Recordatorios de mantenimiento": recordar_mantenimientos,
+DAILY_TASKS: dict[str, Callable[[Session, datetime | None], int]] = {
+    "Carritos abandonados": remind_abandoned_carts,
+    "Recordatorios de mantenimiento": remind_maintenance,
 }

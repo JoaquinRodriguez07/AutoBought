@@ -24,7 +24,7 @@ def get_db():
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def _credenciales_invalidas() -> HTTPException:
+def _invalid_credentials() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token inválido o expirado.",
@@ -43,36 +43,36 @@ def _decodificar_token(
     compara la versión con _verificar_version_de_sesion.
     """
     if credentials is None:
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     try:
         payload = jwt.decode(
             credentials.credentials, SECRET_KEY, algorithms=[JWT_ALGORITHM]
         )
     except jwt.PyJWTError:
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     user_id = payload.get("sub")
     if user_id is None:
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     try:
         user_id = int(user_id)
     except (TypeError, ValueError):
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     session_version = payload.get("sv", 0)
     # bool es subclase de int: `true` en el JWT no es una versión válida.
     if isinstance(session_version, bool) or not isinstance(session_version, int):
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     return user_id, payload.get("user_type"), session_version
 
 
-def _verificar_version_de_sesion(user: User, session_version: int) -> None:
+def _check_session_version(user: User, session_version: int) -> None:
     """401 si la contraseña cambió después de emitir el token."""
     if user.session_version != session_version:
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
 
 def get_current_client(
@@ -95,8 +95,8 @@ def get_current_client(
 
     client = db.get(Client, client_id)
     if client is None:
-        raise _credenciales_invalidas()
-    _verificar_version_de_sesion(client, session_version)
+        raise _invalid_credentials()
+    _check_session_version(client, session_version)
 
     return client
 
@@ -122,8 +122,8 @@ def get_current_employee(
     employee = db.get(Employee, employee_id)
     # Un vendedor dado de baja no puede seguir usando una sesión abierta.
     if employee is None or not employee.active:
-        raise _credenciales_invalidas()
-    _verificar_version_de_sesion(employee, session_version)
+        raise _invalid_credentials()
+    _check_session_version(employee, session_version)
 
     return employee
 
@@ -153,13 +153,13 @@ def get_current_user(
     user_id, _, session_version = _decodificar_token(credentials)
 
     user = db.get(User, user_id)
-    if user is None or not esta_activo(user):
-        raise _credenciales_invalidas()
-    _verificar_version_de_sesion(user, session_version)
+    if user is None or not is_active(user):
+        raise _invalid_credentials()
+    _check_session_version(user, session_version)
 
     return user
 
 
-def esta_activo(user: User) -> bool:
+def is_active(user: User) -> bool:
     """Los clientes siempre; los vendedores, mientras no se los dé de baja."""
     return not isinstance(user, Employee) or user.active

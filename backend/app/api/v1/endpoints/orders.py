@@ -5,12 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_client, get_current_employee, get_db
 from app.core.mercadopago import (
-    ClienteMercadoPago,
-    MercadoPagoNoDisponible,
-    get_cliente_mp,
+    MercadoPagoClient,
+    MercadoPagoUnavailable,
+    get_mp_client,
     mercadopago_configurado,
 )
-from app.core.notificaciones import notificar_cambio_de_estado, notificar_vuelta_de_stock
+from app.core.notifications import notify_status_change, notify_back_in_stock
 from app.crud import order as crud_order
 from app.crud import part as crud_part
 from app.crud import payment as crud_payment
@@ -33,13 +33,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
-def _detalle_sin_stock(db: Session, error: crud_order.SinStock) -> str:
+def _out_of_stock_detail(db: Session, error: crud_order.OutOfStock) -> str:
     """El detalle del 409, con el nombre del repuesto si todavía existe."""
     part = crud_part.get_part(db, error.part_id)
-    repuesto = f"'{part.name}'" if part is not None else f"el repuesto {error.part_id}"
+    part_item = f"'{part.name}'" if part is not None else f"el repuesto {error.part_id}"
     return (
-        f"No hay stock suficiente de {repuesto}: "
-        f"pediste {error.pedido}, hay {error.disponible}."
+        f"No hay stock suficiente de {part_item}: "
+        f"pediste {error.order_data}, hay {error.disponible}."
     )
 
 
@@ -80,28 +80,28 @@ def confirm_order(
             client_id,
             shipping_address_id=body.shipping_address_id,
         )
-    except crud_order.SinStock as error:
+    except crud_order.OutOfStock as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=_detalle_sin_stock(db, error),
+            detail=_out_of_stock_detail(db, error),
         )
-    except crud_order.RepuestosNoEncontrados:
+    except crud_order.PartsNotFound:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Algún repuesto del carrito ya no está disponible.",
         )
-    except crud_order.SinDireccion:
+    except crud_order.NoShippingAddress:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Agregá una dirección de envío para confirmar la compra.",
         )
-    except crud_order.DireccionNoEncontrada:
+    except crud_order.ShippingAddressNotFound:
         # Una id inexistente o de otro cliente da el mismo 422.
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="La dirección de envío elegida no es válida.",
         )
-    except crud_order.CarritoVacio:
+    except crud_order.EmptyCart:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tu carrito está vacío.",
@@ -210,7 +210,7 @@ def change_order_status(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     employee: Employee = Depends(get_current_employee),
-    cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
+    mp_client: MercadoPagoClient = Depends(get_mp_client),
 ):
     """El vendedor avanza el pedido un paso (solo si está pagado), lo vuelve
     un paso atrás si se equivocó, o lo cancela con un motivo (solo si no se
@@ -229,7 +229,7 @@ def change_order_status(
 
     volver = crud_order.is_step_back(order, body.status)
     if body.status == OrderStatus.CANCELLED:
-        _devolver_pago(db, order, cliente_mp)
+        _refund_payment(db, order, mp_client)
 
     crud_order.apply_status_change(db, order, body.status, body.reason)
     db.commit()
@@ -243,12 +243,12 @@ def change_order_status(
     if body.status == OrderStatus.CANCELLED:
         # Si algún repuesto estaba agotado, avisa a quienes lo esperaban.
         for item in order.items:
-            notificar_vuelta_de_stock(db, item.part, item.part.stock - item.quantity, background_tasks)
-    notificar_cambio_de_estado(order, background_tasks)
+            notify_back_in_stock(db, item.part, item.part.stock - item.quantity, background_tasks)
+    notify_status_change(order, background_tasks)
     return build_seller_order_out(order)
 
 
-def _devolver_pago(db: Session, order, cliente_mp: ClienteMercadoPago) -> None:
+def _refund_payment(db: Session, order, mp_client: MercadoPagoClient) -> None:
     """Antes de cancelar un pedido pagado, se devuelve el pago. Si Mercado
     Pago falla, no se cancela nada: el vendedor lo reintenta (la clave de
     idempotencia hace que no se devuelva dos veces)."""
@@ -262,8 +262,8 @@ def _devolver_pago(db: Session, order, cliente_mp: ClienteMercadoPago) -> None:
         )
         return
     try:
-        cliente_mp.devolver_pago(payment.mp_payment_id, crud_payment.clave_devolucion(order.order_id))
-    except MercadoPagoNoDisponible as error:
+        mp_client.refund_payment(payment.mp_payment_id, crud_payment.refund_key(order.order_id))
+    except MercadoPagoUnavailable as error:
         db.rollback()
         logger.warning("No se pudo devolver el pago del pedido %s: %s", order.order_id, error)
         raise HTTPException(
@@ -271,7 +271,7 @@ def _devolver_pago(db: Session, order, cliente_mp: ClienteMercadoPago) -> None:
             detail="No pudimos devolver el pago en Mercado Pago, así que el pedido no se canceló. Probá de nuevo en un rato.",
         )
     # Se guarda junto con la cancelación (el commit lo hace quien llama).
-    crud_payment.marcar_devuelto(db, payment)
+    crud_payment.mark_refunded(db, payment)
 
 
 @router.get("/{order_id}", response_model=OrderDetailOut)
@@ -313,5 +313,5 @@ def confirm_received(
             detail="Solo se puede confirmar la llegada de un pedido enviado.",
         )
 
-    notificar_cambio_de_estado(order, background_tasks)
+    notify_status_change(order, background_tasks)
     return build_order_detail_out(order)

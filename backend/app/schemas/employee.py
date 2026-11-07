@@ -12,7 +12,7 @@ class EmployeeCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def name_valido(cls, value: str) -> str:
-        return validators.nombre_persona(value)
+        return validators.person_name(value)
 
 
 class EmployeeOut(BaseModel):

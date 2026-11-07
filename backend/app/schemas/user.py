@@ -41,7 +41,7 @@ class ClientUpdate(BaseModel):
     @field_validator("name")
     @classmethod
     def name_valido(cls, value: str) -> str:
-        return validators.nombre_persona(value)
+        return validators.person_name(value)
 
     @field_validator("phone")
     @classmethod
@@ -72,7 +72,7 @@ class PasswordChange(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def password_nueva_segura(cls, value: str) -> str:
+    def new_password_is_safe(cls, value: str) -> str:
         # La regla de que no contenga el correo se chequea en el endpoint,
         # que es el que conoce al cliente.
         return validators.password_segura(value)

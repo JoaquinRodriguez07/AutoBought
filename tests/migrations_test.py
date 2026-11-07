@@ -97,11 +97,11 @@ def legacy_schema(engine):
     tablas de las migraciones siguientes."""
     Base.metadata.create_all(
         bind=engine,
-        tables=[tabla for nombre, tabla in Base.metadata.tables.items() if nombre not in TABLAS_POSTERIORES],
+        tables=[table_name for name_value, table_name in Base.metadata.tables.items() if name_value not in TABLAS_POSTERIORES],
     )
     with engine.begin() as connection:
-        for tabla, columna in sorted(COLUMNAS_POSTERIORES):
-            connection.execute(text(f'ALTER TABLE "{tabla}" DROP COLUMN {columna}'))
+        for table_name, column_name in sorted(COLUMNAS_POSTERIORES):
+            connection.execute(text(f'ALTER TABLE "{table_name}" DROP COLUMN {column_name}'))
     with engine.begin() as connection:
         if engine.dialect.name == "postgresql":
             connection.execute(text("ALTER TABLE part DROP CONSTRAINT uq_part_part_code"))
@@ -266,7 +266,7 @@ def test_downgrade_deshace_cada_migracion(sqlite_engine):
     assert revision_of(sqlite_engine) == head_revision()
 
 
-def downgrade_0003_con_un_pedido_empaquetando(engine):
+def downgrade_0003_with_packing_order(engine):
     """Con la 0003 aplicada, un pedido en «Empaquetando» con su historial;
     después se deshace la 0003. Devuelve el estado con que queda el pedido."""
     migrate(engine)
@@ -286,7 +286,7 @@ def downgrade_0003_con_un_pedido_empaquetando(engine):
 
 
 def test_deshacer_la_0003_pasa_los_empaquetando_a_confirmado(sqlite_engine):
-    assert downgrade_0003_con_un_pedido_empaquetando(sqlite_engine) == "confirmed"
+    assert downgrade_0003_with_packing_order(sqlite_engine) == "confirmed"
     assert revision_of(sqlite_engine) == "0002"
 
 
@@ -303,8 +303,8 @@ def test_la_0004_hace_administrador_al_vendedor_mas_antiguo(sqlite_engine):
     migrate(sqlite_engine)
 
     with sqlite_engine.connect() as connection:
-        filas = connection.execute(text("SELECT user_id, is_admin, active FROM employee ORDER BY user_id")).all()
-    assert [tuple(fila) for fila in filas] == [(7, 1, 1), (9, 0, 1)]
+        result_rows = connection.execute(text("SELECT user_id, is_admin, active FROM employee ORDER BY user_id")).all()
+    assert [tuple(row) for row in result_rows] == [(7, 1, 1), (9, 0, 1)]
 
 
 def test_insertar_un_codigo_nuevo_funciona(sqlite_engine):
@@ -399,8 +399,8 @@ def test_el_seed_no_toca_lo_que_ya_estaba(sqlite_engine, catalogo):
     seed.seed_catalog(db, car_models, parts)
 
     assert counts(sqlite_engine) == antes
-    primero = db.query(Part).filter_by(part_code=parts[0]["part_code"]).one()
-    assert (primero.price, primero.stock) == (1, 99)
+    first = db.query(Part).filter_by(part_code=parts[0]["part_code"]).one()
+    assert (first.price, first.stock) == (1, 99)
     assert_relations_intact(sqlite_engine)
 
 
@@ -412,7 +412,7 @@ def test_el_seed_no_inserta_un_codigo_que_otro_cargo_mientras_tanto(sqlite_engin
     db = sessionmaker(bind=sqlite_engine)()
     original = seed.insert_ignoring
 
-    def otro_proceso_carga_primero(session, model, *columns):
+    def other_process_loads_first(session, model, *columns):
         if model is Part:
             session.execute(text(
                 "INSERT INTO part (part_code, name, manufacturer, category, price, stock) "
@@ -420,10 +420,10 @@ def test_el_seed_no_inserta_un_codigo_que_otro_cargo_mientras_tanto(sqlite_engin
             ), {"code": parts[0]["part_code"]})
         return original(session, model, *columns)
 
-    monkeypatch.setattr(seed, "insert_ignoring", otro_proceso_carga_primero)
-    _, nuevos, _ = seed.seed_catalog(db, car_models, parts)
+    monkeypatch.setattr(seed, "insert_ignoring", other_process_loads_first)
+    _, new_items, _ = seed.seed_catalog(db, car_models, parts)
 
-    assert nuevos == len(parts) - 1
+    assert new_items == len(parts) - 1
     assert counts(sqlite_engine)["part"] == len(parts)
     assert_relations_intact(sqlite_engine)
 
@@ -513,7 +513,7 @@ def test_pg_base_existente_se_incorpora_sin_recrear_tablas(pg_engine):
     # Las tablas que ya estaban son las mismas (no se recrearon); solo se
     # suman alembic_version y las de las migraciones siguientes.
     despues = table_oids(pg_engine)
-    assert {tabla: despues[tabla] for tabla in oids} == oids
+    assert {table_name: despues[table_name] for table_name in oids} == oids
     assert set(despues) - set(oids) == {"alembic_version"} | TABLAS_POSTERIORES
     assert counts(pg_engine) == antes
     assert part_unique_constraints(pg_engine) == {"uq_part_part_code": ["part_code"]}
@@ -693,40 +693,40 @@ def test_pg_dos_seeds_a_la_vez_no_duplican(pg_engine, catalogo):
     migrate(pg_engine)
     Session = sessionmaker(bind=pg_engine)
     barrera = threading.Barrier(2)
-    resultados, errores = [], []
+    results, errors = [], []
 
-    def correr():
+    def run():
         db = Session()
         try:
             barrera.wait()
-            resultados.append(seed.seed_catalog(db, car_models, parts))
+            results.append(seed.seed_catalog(db, car_models, parts))
         except Exception as error:  # se revisa abajo
-            errores.append(error)
+            errors.append(error)
         finally:
             db.close()
 
-    hilos = [threading.Thread(target=correr) for _ in range(2)]
+    hilos = [threading.Thread(target=run) for _ in range(2)]
     for hilo in hilos:
         hilo.start()
     for hilo in hilos:
         hilo.join()
 
-    assert errores == []
+    assert errors == []
     # Uno cargó todo y el otro, al esperar el lock, no encontró nada que cargar.
-    assert sorted(resultados) == [(0, 0, 0), (len(car_models), len(parts), 0)]
-    tablas = counts(pg_engine)
-    assert tablas["part"] == len(parts)
-    assert tablas["car_model"] == len(car_models)
-    assert tablas["compatibility"] == sum(len(p["compatibilities"]) for p in parts)
+    assert sorted(results) == [(0, 0, 0), (len(car_models), len(parts), 0)]
+    table_names = counts(pg_engine)
+    assert table_names["part"] == len(parts)
+    assert table_names["car_model"] == len(car_models)
+    assert table_names["compatibility"] == sum(len(p["compatibilities"]) for p in parts)
     assert_relations_intact(pg_engine)
 
 
 @postgres
 def test_pg_deshacer_la_0003_saca_empaquetando_del_enum(pg_engine):
-    assert downgrade_0003_con_un_pedido_empaquetando(pg_engine) == "confirmed"
+    assert downgrade_0003_with_packing_order(pg_engine) == "confirmed"
     with pg_engine.connect() as connection:
-        valores = connection.execute(text("SELECT unnest(enum_range(NULL::order_status))::text")).scalars().all()
-    assert valores == ["confirmed", "shipped", "delivered", "cancelled"]
+        values_list = connection.execute(text("SELECT unnest(enum_range(NULL::order_status))::text")).scalars().all()
+    assert values_list == ["confirmed", "shipped", "delivered", "cancelled"]
 
     # Y se puede volver a aplicar.
     migrate(pg_engine)

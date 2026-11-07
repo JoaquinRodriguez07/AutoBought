@@ -6,9 +6,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_client, get_db
-from app.core.config import BACKEND_URL, FRONTEND_URL, MONEDA
-from app.core.mercadopago import ClienteMercadoPago, MercadoPagoNoDisponible, firma_valida, get_cliente_mp
-from app.core.notificaciones import notificar_compra, notificar_pago_sin_stock
+from app.core.config import BACKEND_URL, FRONTEND_URL, CURRENCY
+from app.core.mercadopago import MercadoPagoClient, MercadoPagoUnavailable, valid_signature, get_mp_client
+from app.core.notifications import notify_purchase, notify_paid_without_stock
 from app.crud import order as crud_order
 from app.crud import payment as crud_payment
 from app.models.client import Client
@@ -18,30 +18,30 @@ from app.models.payment import PaymentStatus
 router = APIRouter(prefix="/pagos", tags=["pagos"])
 logger = logging.getLogger(__name__)
 
-class LinkPagoOut(BaseModel):
+class PaymentLinkOut(BaseModel):
     url: str
 
 
-class VerificarPagoIn(BaseModel):
+class VerifyPaymentIn(BaseModel):
     payment_id: str
 
 
-class EstadoPagoOut(BaseModel):
+class PaymentStatusOut(BaseModel):
     estado: PaymentStatus
 
 
-def _armar_preferencia(order) -> dict:
+def _build_preference(order) -> dict:
     """La preferencia de Mercado Pago: qué se cobra y adónde vuelve el cliente.
     El número de pedido va en `external_reference`, y vuelve en cada pago."""
     volver = f"{FRONTEND_URL}/pago?pedido={order.order_id}"
-    preferencia = {
+    preference = {
         "items": [
             {
                 "id": str(item.part_id),
                 "title": item.part.name,
                 "quantity": item.quantity,
                 "unit_price": item.frozen_price,
-                "currency_id": MONEDA,
+                "currency_id": CURRENCY,
             }
             for item in order.items
         ],
@@ -58,32 +58,32 @@ def _armar_preferencia(order) -> dict:
     # Mercado Pago solo vuelve solo (sin que el cliente toque "Volver al
     # sitio") a direcciones https; en local el cliente vuelve con el botón.
     if volver.startswith("https://"):
-        preferencia["auto_return"] = "approved"
+        preference["auto_return"] = "approved"
     # Sin dirección pública (en local) Mercado Pago no tiene adónde avisar.
     if BACKEND_URL:
-        preferencia["notification_url"] = f"{BACKEND_URL}/api/v1/pagos/webhook"
-    return preferencia
+        preference["notification_url"] = f"{BACKEND_URL}/api/v1/pagos/webhook"
+    return preference
 
 
-def _avisar_pago_aprobado(
-    db: Session, order, background_tasks: BackgroundTasks, cliente_mp: ClienteMercadoPago
+def _notify_approved_payment(
+    db: Session, order, background_tasks: BackgroundTasks, mp_client: MercadoPagoClient
 ) -> None:
     """El mail de la compra o, si el pedido había vencido y ya no hay stock
     (sigue cancelado), se le devuelve el dinero y se le avisa. Si Mercado
     Pago no devuelve ahora, el cron lo reintenta: el mail sale igual."""
     if order.status == OrderStatus.CANCELLED:
-        crud_payment.devolver(db, order.payment, cliente_mp)
-        notificar_pago_sin_stock(order, background_tasks)
+        crud_payment.refund(db, order.payment, mp_client)
+        notify_paid_without_stock(order, background_tasks)
     else:
-        notificar_compra(order, background_tasks)
+        notify_purchase(order, background_tasks)
 
 
 @router.post("/webhook")
-async def recibir_aviso(
+async def receive_notification(
     request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
+    mp_client: MercadoPagoClient = Depends(get_mp_client),
 ):
     """Aviso de Mercado Pago de que un pago cambió.
 
@@ -92,66 +92,66 @@ async def recibir_aviso(
     los avisos que no sirven (otro tipo, otro pedido) también responden 200.
     """
     try:
-        cuerpo = await request.json()
+        body_data = await request.json()
     except ValueError:
-        cuerpo = {}
-    if not isinstance(cuerpo, dict):
-        cuerpo = {}
+        body_data = {}
+    if not isinstance(body_data, dict):
+        body_data = {}
 
     params = request.query_params
-    tipo = params.get("type") or params.get("topic") or cuerpo.get("type")
-    pago_id = params.get("data.id") or params.get("id") or (cuerpo.get("data") or {}).get("id")
-    if tipo != "payment" or not pago_id:
+    tipo = params.get("type") or params.get("topic") or body_data.get("type")
+    payment_id_value = params.get("data.id") or params.get("id") or (body_data.get("data") or {}).get("id")
+    if tipo != "payment" or not payment_id_value:
         return {"ok": True}
-    pago_id = str(pago_id)
+    payment_id_value = str(payment_id_value)
     # Los ids de pago de Mercado Pago son números. Cualquier otra cosa se
     # descarta antes de armar la dirección de la consulta.
-    if not pago_id.isdigit():
+    if not payment_id_value.isdigit():
         return {"ok": True}
 
-    if not firma_valida(
+    if not valid_signature(
         request.headers.get("x-signature"),
         request.headers.get("x-request-id"),
-        pago_id,
+        payment_id_value,
     ):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Firma inválida.")
 
     # La consulta a Mercado Pago y la base son bloqueantes: van en un hilo
     # para no frenar el resto del backend (la función es async por el body).
     try:
-        pago = await run_in_threadpool(cliente_mp.consultar_pago, pago_id)
-    except MercadoPagoNoDisponible as error:
-        logger.warning("No se pudo consultar el pago %s: %s", pago_id, error)
+        payment_data = await run_in_threadpool(mp_client.get_payment, payment_id_value)
+    except MercadoPagoUnavailable as error:
+        logger.warning("No se pudo consultar el pago %s: %s", payment_id_value, error)
         # Mercado Pago vuelve a mandar el aviso más tarde.
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail="No pudimos consultar el pago."
         ) from error
 
-    if not pago.referencia or not pago.referencia.isdigit():
+    if not payment_data.reference or not payment_data.reference.isdigit():
         return {"ok": True}
 
-    def aplicar():
-        payment, recien_aprobado = crud_payment.apply_mp_status(
-            db, int(pago.referencia), pago.id, pago.estado, pago.monto
+    def apply():
+        payment, just_approved = crud_payment.apply_mp_status(
+            db, int(payment_data.reference), payment_data.id, payment_data.state, payment_data.charged_amount
         )
         # El pedido se carga acá, en el hilo, para el mail.
-        return payment.order if recien_aprobado else None
+        return payment.order if just_approved else None
 
-    pedido_aprobado = await run_in_threadpool(aplicar)
-    if pedido_aprobado is not None:
+    approved_order = await run_in_threadpool(apply)
+    if approved_order is not None:
         # La devolución (si hace falta) llama a Mercado Pago: también en un hilo.
-        await run_in_threadpool(_avisar_pago_aprobado, db, pedido_aprobado, background_tasks, cliente_mp)
+        await run_in_threadpool(_notify_approved_payment, db, approved_order, background_tasks, mp_client)
     return {"ok": True}
 
 
-@router.post("/{order_id}/verificar", response_model=EstadoPagoOut)
-def verificar_pago(
+@router.post("/{order_id}/verificar", response_model=PaymentStatusOut)
+def verify_payment(
     order_id: int,
-    datos: VerificarPagoIn,
+    data: VerifyPaymentIn,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
-    cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
+    mp_client: MercadoPagoClient = Depends(get_mp_client),
 ):
     """Confirma el pago al volver de Mercado Pago, sin esperar el aviso.
 
@@ -162,34 +162,34 @@ def verificar_pago(
     payment = crud_payment.get_payment_for_client(db, order_id, client.user_id)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pedido no encontrado.")
-    if not datos.payment_id.isdigit():
-        return EstadoPagoOut(estado=payment.status)
+    if not data.payment_id.isdigit():
+        return PaymentStatusOut(estado=payment.status)
 
     try:
-        pago = cliente_mp.consultar_pago(datos.payment_id)
-    except MercadoPagoNoDisponible as error:
-        logger.warning("No se pudo verificar el pago %s del pedido %s: %s", datos.payment_id, order_id, error)
+        payment_data = mp_client.get_payment(data.payment_id)
+    except MercadoPagoUnavailable as error:
+        logger.warning("No se pudo verificar el pago %s del pedido %s: %s", data.payment_id, order_id, error)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="No pudimos conectar con Mercado Pago. Probá de nuevo en un rato.",
         ) from error
 
     # Que nadie marque su pedido como pagado con el pago de otro pedido.
-    if pago.referencia != str(order_id):
-        return EstadoPagoOut(estado=payment.status)
+    if payment_data.reference != str(order_id):
+        return PaymentStatusOut(estado=payment.status)
 
-    payment, recien_aprobado = crud_payment.apply_mp_status(db, order_id, pago.id, pago.estado, pago.monto)
-    if recien_aprobado:
-        _avisar_pago_aprobado(db, payment.order, background_tasks, cliente_mp)
-    return EstadoPagoOut(estado=payment.status)
+    payment, just_approved = crud_payment.apply_mp_status(db, order_id, payment_data.id, payment_data.state, payment_data.charged_amount)
+    if just_approved:
+        _notify_approved_payment(db, payment.order, background_tasks, mp_client)
+    return PaymentStatusOut(estado=payment.status)
 
 
-@router.post("/{order_id}", response_model=LinkPagoOut)
-def crear_link_pago(
+@router.post("/{order_id}", response_model=PaymentLinkOut)
+def create_payment_link(
     order_id: int,
     db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
-    cliente_mp: ClienteMercadoPago = Depends(get_cliente_mp),
+    mp_client: MercadoPagoClient = Depends(get_mp_client),
 ):
     """Link de Mercado Pago para pagar el pedido.
 
@@ -214,9 +214,9 @@ def crear_link_pago(
     reutilizar = payment.status == PaymentStatus.PENDING and payment.mp_preference_id
     try:
         if reutilizar:
-            return LinkPagoOut(url=cliente_mp.consultar_preferencia(payment.mp_preference_id))
-        preference_id, url = cliente_mp.crear_preferencia(_armar_preferencia(payment.order))
-    except MercadoPagoNoDisponible as error:
+            return PaymentLinkOut(url=mp_client.get_preference(payment.mp_preference_id))
+        preference_id, url = mp_client.create_preference(_build_preference(payment.order))
+    except MercadoPagoUnavailable as error:
         # El cliente ve un mensaje genérico; el motivo real (falta el token,
         # token inválido, dato rechazado...) queda en el log del backend.
         logger.warning("No se pudo crear el link de pago del pedido %s: %s", order_id, error)
@@ -226,4 +226,4 @@ def crear_link_pago(
         )
 
     crud_payment.set_preference(db, payment, preference_id)
-    return LinkPagoOut(url=url)
+    return PaymentLinkOut(url=url)

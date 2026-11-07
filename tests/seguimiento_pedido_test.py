@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.crud.order import cambiar_estado, cancel_expired_orders, reactivate_paid_order
+from app.crud.order import change_status, cancel_expired_orders, reactivate_paid_order
 from app.models.order import Order, OrderStatus
 from app.models.order_status_history import CancelReason, OrderStatusHistory
 from app.models.payment import Payment
@@ -13,33 +13,33 @@ from order_test import auth_headers, make_address, make_cart, make_client, make_
 
 
 @pytest.fixture
-def pedido(client, db_session):
+def order_data(client, db_session):
     """Un pedido recién confirmado y los headers de su cliente."""
-    cliente = make_client(db_session)
-    make_address(db_session, cliente)
-    make_cart(db_session, cliente, [(make_part(db_session, stock=5, price=1500), 2)])
-    headers = auth_headers(cliente)
+    customer = make_client(db_session)
+    make_address(db_session, customer)
+    make_cart(db_session, customer, [(make_part(db_session, stock=5, price=1500), 2)])
+    headers = auth_headers(customer)
     order_id = client.post("/api/v1/orders", headers=headers).json()["order_id"]
     return order_id, headers
 
 
-def pasar_a(db_session, order_id, *estados, motivo=None):
+def pasar_a(db_session, order_id, *states, motivo=None):
     """Lo que hará el vendedor desde su panel (SCRUM-171)."""
     order = db_session.get(Order, order_id)
-    for estado in estados:
-        cambiar_estado(order, estado, motivo)
+    for state in states:
+        change_status(order, state, motivo)
     db_session.commit()
 
 
-def detalle(client, order_id, headers):
+def detail(client, order_id, headers):
     return client.get(f"/api/v1/orders/{order_id}", headers=headers).json()
 
 
-def estados(body):
-    return [paso["status"] for paso in body["status_history"]]
+def states(body):
+    return [step["status"] for step in body["status_history"]]
 
 
-def recibido(client, order_id, headers):
+def received(client, order_id, headers):
     return client.post(f"/api/v1/orders/{order_id}/recibido", headers=headers)
 
 
@@ -48,62 +48,62 @@ def recibido(client, order_id, headers):
 # =====================================================
 
 
-def test_al_comprar_el_historial_arranca_en_confirmado_con_la_fecha(client, db_session, pedido):
-    order_id, headers = pedido
+def test_al_comprar_el_historial_arranca_en_confirmado_con_la_fecha(client, db_session, order_data):
+    order_id, headers = order_data
 
-    body = detalle(client, order_id, headers)
+    body = detail(client, order_id, headers)
 
-    assert estados(body) == ["confirmed"]
-    fecha = datetime.fromisoformat(body["status_history"][0]["changed_at"])
-    if fecha.tzinfo is None:
-        fecha = fecha.replace(tzinfo=timezone.utc)
-    assert abs(datetime.now(timezone.utc) - fecha) < timedelta(minutes=1)
+    assert states(body) == ["confirmed"]
+    when = datetime.fromisoformat(body["status_history"][0]["changed_at"])
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    assert abs(datetime.now(timezone.utc) - when) < timedelta(minutes=1)
     assert body["cancel_reason"] is None
 
 
-def test_la_linea_de_tiempo_tiene_cada_etapa_en_orden(client, db_session, pedido):
-    order_id, headers = pedido
+def test_la_linea_de_tiempo_tiene_cada_etapa_en_orden(client, db_session, order_data):
+    order_id, headers = order_data
     pasar_a(db_session, order_id, OrderStatus.PACKING, OrderStatus.SHIPPED)
 
-    body = detalle(client, order_id, headers)
+    body = detail(client, order_id, headers)
 
     assert body["status"] == "shipped"
-    assert estados(body) == ["confirmed", "packing", "shipped"]
-    assert all(paso["changed_at"] for paso in body["status_history"])
+    assert states(body) == ["confirmed", "packing", "shipped"]
+    assert all(step["changed_at"] for step in body["status_history"])
 
 
-def test_el_historial_tambien_sale_en_la_lista_de_pedidos(client, db_session, pedido):
-    order_id, headers = pedido
+def test_el_historial_tambien_sale_en_la_lista_de_pedidos(client, db_session, order_data):
+    order_id, headers = order_data
     pasar_a(db_session, order_id, OrderStatus.PACKING)
 
     body = client.get("/api/v1/orders", headers=headers).json()
 
-    assert estados(body["orders"][0]) == ["confirmed", "packing"]
+    assert states(body["orders"][0]) == ["confirmed", "packing"]
 
 
-def test_un_pedido_vencido_dice_que_se_cancelo_por_no_pagarse(client, db_session, pedido):
-    order_id, headers = pedido
+def test_un_pedido_vencido_dice_que_se_cancelo_por_no_pagarse(client, db_session, order_data):
+    order_id, headers = order_data
     payment = db_session.query(Payment).filter_by(order_id=order_id).one()
     payment.created_at = datetime.now(timezone.utc) - timedelta(minutes=16)
     db_session.commit()
 
-    body = detalle(client, order_id, headers)
+    body = detail(client, order_id, headers)
 
-    assert estados(body) == ["confirmed", "cancelled"]
+    assert states(body) == ["confirmed", "cancelled"]
     assert body["cancel_reason"] == "expired"
 
 
-def test_un_pedido_cancelado_por_la_tienda_lo_dice(client, db_session, pedido):
-    order_id, headers = pedido
+def test_un_pedido_cancelado_por_la_tienda_lo_dice(client, db_session, order_data):
+    order_id, headers = order_data
     pasar_a(db_session, order_id, OrderStatus.CANCELLED, motivo=CancelReason.STORE)
 
-    body = detalle(client, order_id, headers)
+    body = detail(client, order_id, headers)
 
     assert body["cancel_reason"] == "store"
 
 
-def test_un_pago_tardio_con_stock_vuelve_a_confirmar_el_pedido_en_el_historial(client, db_session, pedido):
-    order_id, _ = pedido
+def test_un_pago_tardio_con_stock_vuelve_a_confirmar_el_pedido_en_el_historial(client, db_session, order_data):
+    order_id, _ = order_data
     payment = db_session.query(Payment).filter_by(order_id=order_id).one()
     payment.created_at = datetime.now(timezone.utc) - timedelta(minutes=16)
     db_session.commit()
@@ -115,33 +115,33 @@ def test_un_pago_tardio_con_stock_vuelve_a_confirmar_el_pedido_en_el_historial(c
 
     db_session.expire_all()
     historial = db_session.query(OrderStatusHistory).filter_by(order_id=order_id).order_by(OrderStatusHistory.id)
-    assert [fila.status for fila in historial] == [
+    assert [row.status for row in historial] == [
         OrderStatus.CONFIRMED, OrderStatus.CANCELLED, OrderStatus.CONFIRMED,
     ]
 
 
-def test_un_pedido_sin_historial_muestra_la_compra_y_el_estado_actual(client, db_session, pedido):
+def test_un_pedido_sin_historial_muestra_la_compra_y_el_estado_actual(client, db_session, order_data):
     # Los pedidos de antes del historial (o los del seed) no tienen filas.
-    order_id, headers = pedido
+    order_id, headers = order_data
     db_session.query(OrderStatusHistory).delete()
     db_session.get(Order, order_id).status = OrderStatus.SHIPPED
     db_session.commit()
 
-    body = detalle(client, order_id, headers)
+    body = detail(client, order_id, headers)
 
-    assert estados(body) == ["confirmed", "shipped"]
+    assert states(body) == ["confirmed", "shipped"]
     assert body["status_history"][0]["changed_at"] is not None
     # No se sabe cuándo se envió.
     assert body["status_history"][1]["changed_at"] is None
 
 
-def test_un_pedido_viejo_cancelado_sin_pagar_se_considera_vencido(client, db_session, pedido):
-    order_id, headers = pedido
+def test_un_pedido_viejo_cancelado_sin_pagar_se_considera_vencido(client, db_session, order_data):
+    order_id, headers = order_data
     db_session.query(OrderStatusHistory).delete()
     db_session.get(Order, order_id).status = OrderStatus.CANCELLED
     db_session.commit()
 
-    assert detalle(client, order_id, headers)["cancel_reason"] == "expired"
+    assert detail(client, order_id, headers)["cancel_reason"] == "expired"
 
 
 # =====================================================
@@ -149,18 +149,18 @@ def test_un_pedido_viejo_cancelado_sin_pagar_se_considera_vencido(client, db_ses
 # =====================================================
 
 
-def test_confirmar_la_llegada_de_un_pedido_enviado_lo_entrega_y_manda_el_mail(client, db_session, pedido, mails):
-    order_id, headers = pedido
+def test_confirmar_la_llegada_de_un_pedido_enviado_lo_entrega_y_manda_el_mail(client, db_session, order_data, sent_mails):
+    order_id, headers = order_data
     pasar_a(db_session, order_id, OrderStatus.PACKING, OrderStatus.SHIPPED)
 
-    response = recibido(client, order_id, headers)
+    response = received(client, order_id, headers)
 
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "delivered"
-    assert estados(body) == ["confirmed", "packing", "shipped", "delivered"]
+    assert states(body) == ["confirmed", "packing", "shipped", "delivered"]
     assert db_session.get(Order, order_id).status == OrderStatus.DELIVERED
-    assert [mail["Subject"] for mail in mails] == [f"Tu pedido #{order_id} fue entregado"]
+    assert [mail_message["Subject"] for mail_message in sent_mails] == [f"Tu pedido #{order_id} fue entregado"]
 
 
 @pytest.mark.parametrize(
@@ -168,31 +168,31 @@ def test_confirmar_la_llegada_de_un_pedido_enviado_lo_entrega_y_manda_el_mail(cl
     [[], [OrderStatus.PACKING], [OrderStatus.SHIPPED, OrderStatus.DELIVERED], [OrderStatus.CANCELLED]],
     ids=["confirmado", "empaquetando", "ya-entregado", "cancelado"],
 )
-def test_solo_se_confirma_la_llegada_de_un_pedido_enviado(client, db_session, pedido, mails, camino):
-    order_id, headers = pedido
+def test_solo_se_confirma_la_llegada_de_un_pedido_enviado(client, db_session, order_data, sent_mails, camino):
+    order_id, headers = order_data
     pasar_a(db_session, order_id, *camino)
-    antes = estados(detalle(client, order_id, headers))
+    antes = states(detail(client, order_id, headers))
 
-    response = recibido(client, order_id, headers)
+    response = received(client, order_id, headers)
 
     assert response.status_code == 409
-    assert estados(detalle(client, order_id, headers)) == antes
-    assert mails == []
+    assert states(detail(client, order_id, headers)) == antes
+    assert sent_mails == []
 
 
-def test_confirmar_la_llegada_de_un_pedido_ajeno_da_404(client, db_session, pedido, mails):
-    order_id, _ = pedido
+def test_confirmar_la_llegada_de_un_pedido_ajeno_da_404(client, db_session, order_data, sent_mails):
+    order_id, _ = order_data
     pasar_a(db_session, order_id, OrderStatus.SHIPPED)
-    otro = make_client(db_session, username="beto", email="beto@example.com")
+    other = make_client(db_session, username="beto", email="beto@example.com")
 
-    response = recibido(client, order_id, auth_headers(otro))
+    response = received(client, order_id, auth_headers(other))
 
     assert response.status_code == 404
     assert db_session.get(Order, order_id).status == OrderStatus.SHIPPED
-    assert mails == []
+    assert sent_mails == []
 
 
-def test_confirmar_la_llegada_sin_sesion_da_401(client, db_session, pedido):
-    order_id, _ = pedido
+def test_confirmar_la_llegada_sin_sesion_da_401(client, db_session, order_data):
+    order_id, _ = order_data
 
-    assert recibido(client, order_id, {}).status_code == 401
+    assert received(client, order_id, {}).status_code == 401

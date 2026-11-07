@@ -41,7 +41,7 @@ def test_extrae_pieza_modelo_y_anio(client, db_session):
 def test_mismos_resultados_que_los_filtros_en_cascada(client, db_session):
     make_catalog(db_session)
 
-    cascada = client.get(
+    cascade = client.get(
         "/api/v1/parts",
         params={"brand": "Chevrolet", "model": "Onix", "year": 2020, "categoria": "Frenos"},
     ).json()["parts"]
@@ -49,8 +49,8 @@ def test_mismos_resultados_que_los_filtros_en_cascada(client, db_session):
         "/api/v1/parts", params={"q": "pastillas de freno onix 2020"}
     ).json()["parts"]
 
-    assert len(cascada) > 0
-    assert [p["id"] for p in texto] == [p["id"] for p in cascada]
+    assert len(cascade) > 0
+    assert [p["id"] for p in texto] == [p["id"] for p in cascade]
 
 
 def test_busqueda_sin_entidades_reconocibles(client, db_session):
@@ -131,13 +131,13 @@ def test_error_de_tipeo(client, db_session):
     normal = client.get(
         "/api/v1/parts", params={"q": "pastillas de freno onix 2020"}
     ).json()
-    con_error = client.get(
+    with_error = client.get(
         "/api/v1/parts", params={"q": "pastiyas de freno onix 2020"}
     ).json()
 
-    assert con_error["entities"] == ENTIDADES_FRENOS_ONIX
-    assert [p["id"] for p in con_error["parts"]] == [p["id"] for p in normal["parts"]]
-    assert [p["part_code"] for p in con_error["parts"]] == ["BRK-0001"]
+    assert with_error["entities"] == ENTIDADES_FRENOS_ONIX
+    assert [p["id"] for p in with_error["parts"]] == [p["id"] for p in normal["parts"]]
+    assert [p["part_code"] for p in with_error["parts"]] == ["BRK-0001"]
 
 
 def test_error_de_tipeo_en_el_modelo_y_la_marca(client, db_session):
@@ -195,23 +195,23 @@ def make_catalog_combustible(db_session):
     hilux = CarModel(brand="Toyota", model="Hilux", engine_code="2.8 1GD")
     onix = CarModel(brand="Chevrolet", model="Onix", engine_code="1.0 Turbo")
 
-    filtro_diesel = Part(part_code="FIL-D", name="Filtro de combustible Hilux",
+    diesel_filter = Part(part_code="FIL-D", name="Filtro de combustible Hilux",
                          manufacturer="Bosch", category="Filtros", price=900, stock=5)
-    filtro_nafta = Part(part_code="FIL-N", name="Filtro de combustible Onix",
+    petrol_filter = Part(part_code="FIL-N", name="Filtro de combustible Onix",
                         manufacturer="Bosch", category="Filtros", price=900, stock=5)
     bateria = Part(part_code="BAT-1", name="Batería 60Ah",
                    manufacturer="Bosch", category="Eléctrico", price=5000, stock=5)
-    filtro_diesel.compatibilities = [Compatibility(car_model=hilux, year_from=2016, year_to=2024)]
-    filtro_nafta.compatibilities = [Compatibility(car_model=onix, year_from=2020, year_to=2024)]
+    diesel_filter.compatibilities = [Compatibility(car_model=hilux, year_from=2016, year_to=2024)]
+    petrol_filter.compatibilities = [Compatibility(car_model=onix, year_from=2020, year_to=2024)]
     bateria.compatibilities = [
         Compatibility(car_model=hilux, year_from=2016, year_to=2024),
         Compatibility(car_model=onix, year_from=2020, year_to=2024),
     ]
-    db_session.add_all([filtro_diesel, filtro_nafta, bateria])
+    db_session.add_all([diesel_filter, petrol_filter, bateria])
     db_session.commit()
 
 
-def codigos(client, q):
+def code_list(client, q):
     response = client.get("/api/v1/parts", params={"q": q})
     return response.json()["entities"], [p["part_code"] for p in response.json()["parts"]]
 
@@ -219,18 +219,18 @@ def codigos(client, q):
 def test_gasolero_trae_solo_autos_diesel(client, db_session):
     make_catalog_combustible(db_session)
 
-    entities, parts = codigos(client, "batería gasolero")
+    entities, parts = code_list(client, "batería gasolero")
 
     assert entities["fuel"] == "diesel"
     assert entities["part"] == "batería"
     assert parts == ["BAT-1"]
-    assert codigos(client, "filtro de combustible gasolero")[1] == ["FIL-D"]
+    assert code_list(client, "filtro de combustible gasolero")[1] == ["FIL-D"]
 
 
 def test_naftero_trae_solo_autos_nafta(client, db_session):
     make_catalog_combustible(db_session)
 
-    entities, parts = codigos(client, "filtro de combustible naftero")
+    entities, parts = code_list(client, "filtro de combustible naftero")
 
     assert entities["fuel"] == "nafta"
     assert parts == ["FIL-N"]
@@ -241,15 +241,15 @@ def test_combustible_con_sinonimos_y_errores(client, db_session):
 
     # "gasoil", "diésel" y un tipeo ("gasolro") son lo mismo que "gasolero".
     for texto in ("filtro de gasoil", "filtro diésel", "filtro combustible gasolro"):
-        assert codigos(client, texto)[1] == ["FIL-D"], texto
+        assert code_list(client, texto)[1] == ["FIL-D"], texto
     # "nafta"/"gasolina" también filtran por motor.
-    assert codigos(client, "filtro combustible gasolina")[1] == ["FIL-N"]
+    assert code_list(client, "filtro combustible gasolina")[1] == ["FIL-N"]
 
 
 def test_combustible_solo_filtra_por_motor(client, db_session):
     make_catalog_combustible(db_session)
 
-    entities, parts = codigos(client, "gasolero")
+    entities, parts = code_list(client, "gasolero")
 
     assert entities == {"part": None, "brand": None, "model": None, "year": None, "fuel": "diesel"}
     assert sorted(parts) == ["BAT-1", "FIL-D"]
@@ -264,8 +264,8 @@ def test_sinonimos_del_rubro(client, db_session):
         "acumulador gasolero": "batería",
         "filtro de nafta": "filtro de combustible",
     }
-    for texto, pieza in casos.items():
-        assert codigos(client, texto)[0]["part"] == pieza, texto
+    for texto, piece in casos.items():
+        assert code_list(client, texto)[0]["part"] == piece, texto
 
 
 def test_diccionario_sin_claves_repetidas_ni_ciclos():

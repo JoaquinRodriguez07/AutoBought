@@ -7,11 +7,11 @@ from app.models.client import Client
 
 
 def make_client(db_session, username="ana", email="ana@example.com"):
-    cliente = Client(username=username, password="secret", name="Ana", email=email)
-    db_session.add(cliente)
+    customer = Client(username=username, password="secret", name="Ana", email=email)
+    db_session.add(customer)
     db_session.commit()
-    db_session.refresh(cliente)
-    return cliente
+    db_session.refresh(customer)
+    return customer
 
 
 def auth_headers(user):
@@ -138,7 +138,7 @@ def test_client_cannot_modify_other_clients_address(client, db_session):
 
 
 @pytest.mark.parametrize(
-    "campo, valor",
+    "field, value",
     [
         ("personal_name", "   "),
         ("personal_name", "123"),
@@ -151,13 +151,13 @@ def test_client_cannot_modify_other_clients_address(client, db_session):
         ("postal_code", "ABCDE"),
     ],
 )
-def test_datos_invalidos_se_rechazan_en_su_campo(client, db_session, campo, valor):
+def test_datos_invalidos_se_rechazan_en_su_campo(client, db_session, field, value):
     headers = auth_headers(make_client(db_session))
 
-    resp = create(client, headers, **{campo: valor})
+    resp = create(client, headers, **{field: value})
 
     assert resp.status_code == 422
-    assert resp.json()["detail"][0]["loc"] == ["body", campo]
+    assert resp.json()["detail"][0]["loc"] == ["body", field]
 
 
 def test_ciudad_de_otro_departamento_se_rechaza(client, db_session):

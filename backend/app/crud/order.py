@@ -5,7 +5,7 @@ from typing import Literal
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.config import MINUTOS_PARA_PAGAR
+from app.core.config import MINUTES_TO_PAY
 from app.models.car_model import CarModel
 from app.models.cart import Cart
 from app.models.cart_item import CartItem
@@ -24,29 +24,29 @@ logger = logging.getLogger(__name__)
 
 # Por qué no se pudo hacer el pedido. Siguen siendo ValueError (con el mismo
 # mensaje de siempre), pero el endpoint los distingue por la clase.
-class CarritoVacio(ValueError):
+class EmptyCart(ValueError):
     pass
 
 
-class SinDireccion(ValueError):
+class NoShippingAddress(ValueError):
     pass
 
 
-class DireccionNoEncontrada(ValueError):
+class ShippingAddressNotFound(ValueError):
     pass
 
 
-class RepuestosNoEncontrados(ValueError):
+class PartsNotFound(ValueError):
     pass
 
 
-class SinStock(ValueError):
-    def __init__(self, part_id: int, pedido: int, disponible: int):
+class OutOfStock(ValueError):
+    def __init__(self, part_id: int, order_data: int, disponible: int):
         super().__init__(
-            f"Not enough stock for part {part_id}: requested {pedido}, available {disponible}"
+            f"Not enough stock for part {part_id}: requested {order_data}, available {disponible}"
         )
         self.part_id = part_id
-        self.pedido = pedido
+        self.order_data = order_data
         self.disponible = disponible
 
 
@@ -60,13 +60,13 @@ def _get_owned_or_primary(db: Session, model, pk_column, client_id: int, chosen_
     return db.scalar(query)
 
 
-def cambiar_estado(order: Order, estado: OrderStatus, motivo: CancelReason | None = None) -> None:
+def change_status(order: Order, state: OrderStatus, motivo: CancelReason | None = None) -> None:
     """Cambia el estado del pedido y lo deja en su historial, con la fecha:
     de ahí sale la línea de tiempo del cliente. Todo cambio de estado pasa
     por acá (también los del vendedor). No hace commit: lo hace quien llama."""
-    order.status = estado
+    order.status = state
     order.status_history.append(
-        OrderStatusHistory(status=estado, reason=motivo.value if motivo else None)
+        OrderStatusHistory(status=state, reason=motivo.value if motivo else None)
     )
 
 
@@ -95,9 +95,9 @@ def place_order(
             .with_for_update()
         )
         if cart is None:
-            raise CarritoVacio("Client cart not found")
+            raise EmptyCart("Client cart not found")
         if not cart.items:
-            raise CarritoVacio("Cannot place an order from an empty cart")
+            raise EmptyCart("Cannot place an order from an empty cart")
 
         address = _get_owned_or_primary(
             db, ShippingAddress, ShippingAddress.shipping_address_id,
@@ -105,8 +105,8 @@ def place_order(
         )
         if address is None:
             if shipping_address_id is None:
-                raise SinDireccion("Client has no shipping address")
-            raise DireccionNoEncontrada("Shipping address not found")
+                raise NoShippingAddress("Client has no shipping address")
+            raise ShippingAddressNotFound("Shipping address not found")
 
         part_ids = [item.part_id for item in cart.items]
         parts = db.scalars(
@@ -118,12 +118,12 @@ def place_order(
 
         missing_part_ids = [part_id for part_id in part_ids if part_id not in parts_by_id]
         if missing_part_ids:
-            raise RepuestosNoEncontrados(f"Parts not found: {missing_part_ids}")
+            raise PartsNotFound(f"Parts not found: {missing_part_ids}")
 
         for cart_item in cart.items:
             part = parts_by_id[cart_item.part_id]
             if part.stock < cart_item.amount:
-                raise SinStock(part.id, cart_item.amount, part.stock)
+                raise OutOfStock(part.id, cart_item.amount, part.stock)
 
         order = Order(
             client_id=client_id,
@@ -138,7 +138,7 @@ def place_order(
             payment_method_label=PAYMENT_LABEL,
             payment=Payment(status=PaymentStatus.PENDING),
         )
-        cambiar_estado(order, OrderStatus.CONFIRMED)
+        change_status(order, OrderStatus.CONFIRMED)
         db.add(order)
         db.flush()
 
@@ -157,7 +157,7 @@ def place_order(
         return order
 
 
-def _cambiar_stock(db: Session, order: Order, signo: int) -> None:
+def _change_stock(db: Session, order: Order, signo: int) -> None:
     # En SQL (stock = stock ± n) y no en Python: así no pisa una compra que
     # esté descontando el mismo repuesto al mismo tiempo.
     for item in order.items:
@@ -168,31 +168,31 @@ def _cambiar_stock(db: Session, order: Order, signo: int) -> None:
         )
 
 
-def cancel_expired_orders(db: Session, ahora: datetime | None = None) -> int:
+def cancel_expired_orders(db: Session, current_time: datetime | None = None) -> int:
     """Cancela los pedidos que no se pagaron a tiempo y devuelve su stock.
 
     No hay un proceso que corra cada minuto: se llama antes de comprar, al
     ver el historial o el catálogo, al pedir un link de pago, en el dashboard
     de stock del vendedor y en las tareas diarias. Devuelve cuántos canceló.
     """
-    ahora = (ahora or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    current_time = (current_time or datetime.now(timezone.utc)).astimezone(timezone.utc)
     # El mismo plazo que `Payment.due_at`, pero filtrado en la base: casi
     # siempre no hay ninguno vencido y no se trae nada.
-    limite = ahora - timedelta(minutes=MINUTOS_PARA_PAGAR)
-    vencidos = (
+    limit_value = current_time - timedelta(minutes=MINUTES_TO_PAY)
+    expired_items = (
         Payment.status != PaymentStatus.APPROVED,
         Order.status == OrderStatus.CONFIRMED,
-        Payment.created_at <= limite,
+        Payment.created_at <= limit_value,
     )
     # Se llama en cada vista del catálogo: primero se pregunta sin bloquear
     # nada. Casi siempre no hay vencidos y no se bloquea ni se guarda nada.
-    if db.scalar(select(Payment.payment_id).join(Order).where(*vencidos).limit(1)) is None:
+    if db.scalar(select(Payment.payment_id).join(Order).where(*expired_items).limit(1)) is None:
         return 0
 
-    pagos = db.scalars(
+    payments = db.scalars(
         select(Payment)
         .join(Order)
-        .where(*vencidos)
+        .where(*expired_items)
         .options(selectinload(Payment.order).selectinload(Order.items))
         .order_by(Payment.payment_id)
         # Solo se bloquean los pagos, siempre en el mismo orden. Si otra
@@ -201,12 +201,12 @@ def cancel_expired_orders(db: Session, ahora: datetime | None = None) -> int:
         .with_for_update(skip_locked=True, of=Payment)
     ).all()
 
-    for payment in pagos:
-        cambiar_estado(payment.order, OrderStatus.CANCELLED, CancelReason.EXPIRED)
-        _cambiar_stock(db, payment.order, +1)
+    for payment in payments:
+        change_status(payment.order, OrderStatus.CANCELLED, CancelReason.EXPIRED)
+        _change_stock(db, payment.order, +1)
 
     db.commit()
-    return len(pagos)
+    return len(payments)
 
 
 def reactivate_paid_order(db: Session, order: Order) -> bool:
@@ -215,20 +215,20 @@ def reactivate_paid_order(db: Session, order: Order) -> bool:
     vuelve a estar confirmado. Si no, queda cancelado y en el log, para
     devolver el dinero a mano (al cliente se le avisa por mail desde el
     endpoint). No hace commit: lo hace quien llama."""
-    partes = {
+    parts_list = {
         part.id: part
         for part in db.scalars(
             select(Part).where(Part.id.in_([item.part_id for item in order.items])).with_for_update()
         )
     }
-    if any(partes[item.part_id].stock < item.quantity for item in order.items):
+    if any(parts_list[item.part_id].stock < item.quantity for item in order.items):
         logger.warning(
             "Pedido %s pagado después de vencer y sin stock: se devuelve el pago.", order.order_id
         )
         return False
 
-    _cambiar_stock(db, order, -1)
-    cambiar_estado(order, OrderStatus.CONFIRMED)
+    _change_stock(db, order, -1)
+    change_status(order, OrderStatus.CONFIRMED)
     return True
 
 
@@ -237,7 +237,7 @@ def confirm_received(db: Session, order: Order) -> bool:
     «Entregado». Devuelve False (y no cambia nada) si no estaba enviado."""
     if order.status != OrderStatus.SHIPPED:
         return False
-    cambiar_estado(order, OrderStatus.DELIVERED)
+    change_status(order, OrderStatus.DELIVERED)
     db.commit()
     return True
 
@@ -253,7 +253,7 @@ NEXT_STATUS = {
     OrderStatus.SHIPPED: OrderStatus.DELIVERED,
 }
 # ...volver un paso atrás, para corregir un error (sin mail al cliente)...
-PREVIOUS_STATUS = {siguiente: actual for actual, siguiente in NEXT_STATUS.items()}
+PREVIOUS_STATUS = {next_value: current for current, next_value in NEXT_STATUS.items()}
 # ...o cancelar, si todavía no se entregó. Es algo excepcional: pide motivo
 # y devuelve el pago (ver el endpoint).
 CANCELLABLE = set(NEXT_STATUS)
@@ -299,32 +299,32 @@ def can_edit_shipping(order: Order) -> bool:
 
 def check_status_change(order: Order, new_status: OrderStatus) -> None:
     """InvalidStatusChange si el vendedor no puede pasar el pedido a `new_status`."""
-    actual = _NOMBRES[order.status]
+    current = _NOMBRES[order.status]
     if order.status == new_status:
-        raise InvalidStatusChange(f"El pedido ya está {actual}.")
+        raise InvalidStatusChange(f"El pedido ya está {current}.")
     if is_step_back(order, new_status):
         return
     if order.status not in CANCELLABLE:
-        anterior = previous_status(order)
-        if anterior is not None:
-            raise InvalidStatusChange(f"El pedido ya está {actual}: solo puede volver a {_NOMBRES[anterior]}.")
-        raise InvalidStatusChange(f"El pedido ya está {actual}: no se puede cambiar.")
+        previous = previous_status(order)
+        if previous is not None:
+            raise InvalidStatusChange(f"El pedido ya está {current}: solo puede volver a {_NOMBRES[previous]}.")
+        raise InvalidStatusChange(f"El pedido ya está {current}: no se puede cambiar.")
     if not order.is_paid:
         # Sin pagar no se prepara ni se cancela a mano: si no se paga a
         # tiempo se cancela solo (cancel_expired_orders) y el stock vuelve.
         # Cancelarlo antes dejaría vivo el link de pago, y pagarlo lo reactivaría.
         raise InvalidStatusChange(
             "El pedido todavía no está pagado. Si no se paga en "
-            f"{MINUTOS_PARA_PAGAR} minutos desde la compra, se cancela solo y el stock vuelve."
+            f"{MINUTES_TO_PAY} minutos desde la compra, se cancela solo y el stock vuelve."
         )
     if new_status == OrderStatus.CANCELLED:
         return
-    siguiente = NEXT_STATUS[order.status]
-    if new_status != siguiente:
-        anterior = previous_status(order)
-        volver = f", volver a {_NOMBRES[anterior]}" if anterior else ""
+    next_value = NEXT_STATUS[order.status]
+    if new_status != next_value:
+        previous = previous_status(order)
+        volver = f", volver a {_NOMBRES[previous]}" if previous else ""
         raise InvalidStatusChange(
-            f"Un pedido {actual} solo puede pasar a {_NOMBRES[siguiente]}{volver} (o cancelarse)."
+            f"Un pedido {current} solo puede pasar a {_NOMBRES[next_value]}{volver} (o cancelarse)."
         )
 
 
@@ -365,14 +365,14 @@ def apply_status_change(
     después de devolver el pago. Pasa por `cambiar_estado`, así el cambio
     queda en el historial y el cliente lo ve en su línea de tiempo."""
     if new_status == OrderStatus.CANCELLED:
-        cambiar_estado(order, new_status, CancelReason.STORE)
+        change_status(order, new_status, CancelReason.STORE)
         order.cancellation_reason = reason
-        _cambiar_stock(db, order, +1)
+        _change_stock(db, order, +1)
     else:
-        cambiar_estado(order, new_status)
+        change_status(order, new_status)
 
 
-def _pagado():
+def _is_paid():
     # = crud.payment.is_paid_order(), que no se importa porque crud.payment
     # importa este módulo. Pide un outer join con Payment.
     return or_(Payment.payment_id.is_(None), Payment.status == PaymentStatus.APPROVED)
@@ -381,7 +381,7 @@ def _pagado():
 SellerOrderSort = Literal["priority", "newest", "oldest", "client_asc", "client_desc", "total_desc", "total_asc"]
 
 
-def _total_del_pedido():
+def _order_total():
     # El total no se guarda: es la suma de los productos al precio de la compra.
     return (
         select(func.coalesce(func.sum(OrderItem.frozen_price * OrderItem.quantity), 0))
@@ -408,19 +408,19 @@ def list_orders_for_seller(
     if status is not None:
         query = query.where(Order.status == status)
     if paid_only:
-        query = query.outerjoin(Payment, Payment.order_id == Order.order_id).where(_pagado())
+        query = query.outerjoin(Payment, Payment.order_id == Order.order_id).where(_is_paid())
     total = db.scalar(select(func.count()).select_from(query.subquery()))
 
     if sort == "priority":
-        orden = Order.created_at.asc() if status in NEXT_STATUS else Order.created_at.desc()
+        ordering = Order.created_at.asc() if status in NEXT_STATUS else Order.created_at.desc()
     elif sort in ("newest", "oldest"):
-        orden = Order.created_at.desc() if sort == "newest" else Order.created_at.asc()
+        ordering = Order.created_at.desc() if sort == "newest" else Order.created_at.asc()
     elif sort in ("client_asc", "client_desc"):
         query = query.join(Client, Client.user_id == Order.client_id)
-        nombre = func.lower(Client.name)
-        orden = nombre.asc() if sort == "client_asc" else nombre.desc()
+        name_value = func.lower(Client.name)
+        ordering = name_value.asc() if sort == "client_asc" else name_value.desc()
     else:
-        orden = _total_del_pedido().desc() if sort == "total_desc" else _total_del_pedido().asc()
+        ordering = _order_total().desc() if sort == "total_desc" else _order_total().asc()
 
     orders = db.scalars(
         query.options(
@@ -428,7 +428,7 @@ def list_orders_for_seller(
             selectinload(Order.payment),
             selectinload(Order.client),
         )
-        .order_by(orden, Order.order_id)
+        .order_by(ordering, Order.order_id)
         .limit(limit)
         .offset(offset)
     ).all()
@@ -460,7 +460,7 @@ def count_orders_to_prepare(db: Session) -> int:
         select(func.count())
         .select_from(Order)
         .outerjoin(Payment, Payment.order_id == Order.order_id)
-        .where(Order.status == OrderStatus.CONFIRMED, _pagado())
+        .where(Order.status == OrderStatus.CONFIRMED, _is_paid())
     )
 
 

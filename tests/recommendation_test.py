@@ -87,24 +87,24 @@ def recommend(client, *parts):
 def test_sugerencias_para_un_repuesto_del_carrito(client, db_session):
     # Dado un repuesto con stock compatible con Chevrolet Onix 2015
     parts = make_catalog(db_session)
-    filtro = parts["filtro_onix"]
-    assert filtro.stock > 0
-    assert is_compatible(db_session, filtro.id, "Chevrolet", "Onix", 2015)
+    filter_part = parts["filtro_onix"]
+    assert filter_part.stock > 0
+    assert is_compatible(db_session, filter_part.id, "Chevrolet", "Onix", 2015)
 
     # Cuando se solicitan recomendaciones para ese repuesto
-    response = recommend(client, filtro)
+    response = recommend(client, filter_part)
 
     # Entonces la API devuelve entre 1 y 3 repuestos
     assert response.status_code == 200
-    sugeridos = response.json()["parts"]
-    assert 1 <= len(sugeridos) <= 3
-    for sugerido in sugeridos:
+    suggested_items = response.json()["parts"]
+    assert 1 <= len(suggested_items) <= 3
+    for suggested in suggested_items:
         # Y todos son compatibles con Chevrolet Onix 2015
-        assert is_compatible(db_session, sugerido["id"], "Chevrolet", "Onix", 2015)
+        assert is_compatible(db_session, suggested["id"], "Chevrolet", "Onix", 2015)
         # Y ninguno es el mismo repuesto consultado
-        assert sugerido["id"] != filtro.id
+        assert suggested["id"] != filter_part.id
         # Y todos tienen stock mayor a 0
-        assert sugerido["stock"] > 0
+        assert suggested["stock"] > 0
 
 
 # Escenario: Repuesto sin complementarios
@@ -256,13 +256,13 @@ def test_si_un_repuesto_del_carrito_no_existe_devuelve_404(client, db_session):
 
 def test_ids_repetidos_no_cambian_el_resultado(client, db_session):
     parts = make_catalog(db_session)
-    filtro_id = parts["filtro_onix"].id
+    filter_id = parts["filtro_onix"].id
 
-    repetido = client.get("/api/v1/recommendations", params={"part_ids": f"{filtro_id},{filtro_id}"})
+    repeated = client.get("/api/v1/recommendations", params={"part_ids": f"{filter_id},{filter_id}"})
     simple = recommend(client, parts["filtro_onix"])
 
-    assert repetido.status_code == 200
-    assert repetido.json() == simple.json()
+    assert repeated.status_code == 200
+    assert repeated.json() == simple.json()
 
 
 def test_id_fuera_de_rango_devuelve_404(client, db_session):

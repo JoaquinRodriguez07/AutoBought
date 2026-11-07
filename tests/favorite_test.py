@@ -11,11 +11,11 @@ FAVORITES = "/api/v1/favorites"
 
 
 def make_client(db_session, username="ana", email="ana@example.com"):
-    cliente = Client(username=username, password="secret", name="Ana", email=email)
-    db_session.add(cliente)
+    customer = Client(username=username, password="secret", name="Ana", email=email)
+    db_session.add(customer)
     db_session.commit()
-    db_session.refresh(cliente)
-    return cliente
+    db_session.refresh(customer)
+    return customer
 
 
 def make_part(db_session, **overrides):
@@ -63,14 +63,14 @@ def test_marcar_favorito_aparece_en_la_lista_con_datos_del_repuesto(client, db_s
 
 def test_la_lista_respeta_el_orden_en_que_se_marcaron(client, db_session):
     ana = make_client(db_session)
-    primero = make_part(db_session, part_code="A")
+    first = make_part(db_session, part_code="A")
     segundo = make_part(db_session, part_code="B")
 
     client.put(f"{FAVORITES}/{segundo.id}", headers=auth_headers(ana))
-    client.put(f"{FAVORITES}/{primero.id}", headers=auth_headers(ana))
+    client.put(f"{FAVORITES}/{first.id}", headers=auth_headers(ana))
 
     ids = [p["id"] for p in client.get(FAVORITES, headers=auth_headers(ana)).json()["parts"]]
-    assert ids == [segundo.id, primero.id]
+    assert ids == [segundo.id, first.id]
 
 
 def test_marcar_dos_veces_no_duplica(client, db_session):
@@ -117,10 +117,10 @@ def test_no_se_ven_ni_se_quitan_favoritos_de_otro_cliente(client, db_session):
     part = make_part(db_session)
     client.put(f"{FAVORITES}/{part.id}", headers=auth_headers(ana))
 
-    lista_beto = client.get(FAVORITES, headers=auth_headers(beto)).json()
+    beto_list = client.get(FAVORITES, headers=auth_headers(beto)).json()
     client.delete(f"{FAVORITES}/{part.id}", headers=auth_headers(beto))
 
-    assert lista_beto == {"parts": []}
+    assert beto_list == {"parts": []}
     assert [p["id"] for p in client.get(FAVORITES, headers=auth_headers(ana)).json()["parts"]] == [part.id]
 
 

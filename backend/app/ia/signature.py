@@ -19,28 +19,28 @@ from app.core.config import SECRET_KEY
 
 # Separa esta firma de cualquier otro uso de SECRET_KEY (por ejemplo, los
 # tokens del login): una firma de acá nunca sirve para otra cosa.
-PROPOSITO = "asistente-historial-v1"
+PURPOSE = "asistente-historial-v1"
 
 
-def _contenido(user_id: int, marca: str, modelo: str, anio: int, historial: list[dict]) -> bytes:
-    datos = {
-        "proposito": PROPOSITO,
+def _content(user_id: int, marca: str, modelo: str, anio: int, historial: list[dict]) -> bytes:
+    data = {
+        "proposito": PURPOSE,
         "usuario": user_id,
         "vehiculo": [marca, modelo, anio],
         "historial": historial,
     }
     # Los mismos datos tienen que dar siempre exactamente los mismos bytes:
     # claves ordenadas y sin espacios.
-    return json.dumps(datos, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
 
 
-def firmar(user_id: int, marca: str, modelo: str, anio: int, historial: list[dict]) -> str:
-    contenido = _contenido(user_id, marca, modelo, anio, historial)
-    return hmac.new(SECRET_KEY.encode("utf-8"), contenido, hashlib.sha256).hexdigest()
+def sign(user_id: int, marca: str, modelo: str, anio: int, historial: list[dict]) -> str:
+    content = _content(user_id, marca, modelo, anio, historial)
+    return hmac.new(SECRET_KEY.encode("utf-8"), content, hashlib.sha256).hexdigest()
 
 
-def firma_valida(firma: str, user_id: int, marca: str, modelo: str, anio: int, historial: list[dict]) -> bool:
-    esperada = firmar(user_id, marca, modelo, anio, historial)
+def valid_signature(signature: str, user_id: int, marca: str, modelo: str, anio: int, historial: list[dict]) -> bool:
+    expected = sign(user_id, marca, modelo, anio, historial)
     # compare_digest tarda lo mismo acierte o no, así no da pistas de cuántos
     # caracteres de la firma coinciden.
-    return hmac.compare_digest(firma, esperada)
+    return hmac.compare_digest(signature, expected)

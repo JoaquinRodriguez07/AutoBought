@@ -304,7 +304,7 @@ Los usuarios de prueba de `scripts.seed_demo_users` ya tienen el correo verifica
 Los recordatorios de carrito abandonado (24 horas sin tocarlo) y de mantenimiento (según cada cuánto se cambia el repuesto: aceite y filtros a los 6 meses, bujías a los 12, etc.) los manda un script:
 
 ```bash
-docker exec backend uv run python -m scripts.tareas_diarias
+docker exec backend uv run python -m scripts.daily_tasks
 ```
 
 En producción el backend corre en Vercel, que no tiene cron de servidor: las tareas están expuestas en `GET /api/v1/tareas/diarias` y las llama **Vercel Cron** todos los días a las 10 (hora de Uruguay), según el `vercel.json` de la raíz. El endpoint solo responde si el pedido trae `Authorization: Bearer <CRON_SECRET>`; Vercel lo agrega solo si la variable `CRON_SECRET` está cargada en el proyecto de Vercel. Se puede correr más de una vez: cada recordatorio sale una sola vez, y si un mail falla, ese recordatorio se reintenta al día siguiente.

@@ -3,7 +3,7 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, f
 from app.db.base import Base
 
 
-class UsoIA(Base):
+class AIUsage(Base):
     """Una consulta a la IA: para el límite por usuario y para saber cuánto
     se usa (y cuánto cuesta) cada funcionalidad."""
 

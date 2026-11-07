@@ -67,9 +67,9 @@ def mercadopago_configurado(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def mails(monkeypatch):
+def sent_mails(monkeypatch):
     """Ningún test manda mails reales: el envío SMTP se reemplaza por una
     lista con los mensajes que se habrían mandado."""
-    enviados = []
-    monkeypatch.setattr("app.core.email._enviar_smtp", enviados.append)
-    return enviados
+    sent = []
+    monkeypatch.setattr("app.core.email._send_smtp", sent.append)
+    return sent
