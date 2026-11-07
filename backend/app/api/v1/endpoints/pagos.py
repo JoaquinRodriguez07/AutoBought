@@ -69,10 +69,14 @@ def _armar_preferencia(order) -> dict:
     return preferencia
 
 
-def _avisar_pago_aprobado(order, background_tasks: BackgroundTasks) -> None:
+def _avisar_pago_aprobado(
+    db: Session, order, background_tasks: BackgroundTasks, cliente_mp: ClienteMercadoPago
+) -> None:
     """El mail de la compra o, si el pedido había vencido y ya no hay stock
-    (sigue cancelado), el aviso de que se le devuelve el dinero."""
+    (sigue cancelado), se le devuelve el dinero y se le avisa. Si Mercado
+    Pago no devuelve ahora, el cron lo reintenta: el mail sale igual."""
     if order.status == OrderStatus.CANCELLED:
+        crud_payment.devolver(db, order.payment, cliente_mp)
         notificar_pago_sin_stock(order, background_tasks)
     else:
         notificar_compra(order, background_tasks)
@@ -139,7 +143,8 @@ async def recibir_aviso(
 
     pedido_aprobado = await run_in_threadpool(aplicar)
     if pedido_aprobado is not None:
-        _avisar_pago_aprobado(pedido_aprobado, background_tasks)
+        # La devolución (si hace falta) llama a Mercado Pago: también en un hilo.
+        await run_in_threadpool(_avisar_pago_aprobado, db, pedido_aprobado, background_tasks, cliente_mp)
     return {"ok": True}
 
 
@@ -179,7 +184,7 @@ def verificar_pago(
 
     payment, recien_aprobado = crud_payment.apply_mp_status(db, order_id, pago.id, pago.estado, pago.monto)
     if recien_aprobado:
-        _avisar_pago_aprobado(payment.order, background_tasks)
+        _avisar_pago_aprobado(db, payment.order, background_tasks, cliente_mp)
     return EstadoPagoOut(estado=payment.status)
 
 

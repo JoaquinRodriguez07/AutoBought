@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { DEPARTAMENTOS, limpiar, validarDireccion } from "../validaciones";
 import { cambiarEstadoPedido, editarPedido } from "./apiDashboard";
 import { formatearPesos } from "./formato";
-import { ESTADOS_PEDIDO, MOTIVO_MAX, MOTIVO_MIN, PAGOS_PEDIDO } from "./pedidos";
+import { DEVOLUCION_PEDIDO, ESTADOS_PEDIDO, MOTIVO_MAX, MOTIVO_MIN, PAGOS_PEDIDO } from "./pedidos";
 import { Campo, Dialogo } from "./piezas";
 
 /* Piezas de los pedidos que usan el listado y el detalle (SCRUM-171). */
@@ -27,8 +27,14 @@ export function InsigniaEstadoPedido({ estado }) {
   return <Insignia tono={ESTADOS_PEDIDO[estado].tono}>{ESTADOS_PEDIDO[estado].texto}</Insignia>;
 }
 
-export function InsigniaPago({ estadoPago }) {
-  return <Insignia tono={PAGOS_PEDIDO[estadoPago].tono}>{PAGOS_PEDIDO[estadoPago].texto}</Insignia>;
+// El estado del pago; en un cancelado ya pagado, si se devolvió o falta devolverlo.
+export function InsigniaPago({ pedido }) {
+  const { texto, tono } = pedido.devueltoEl
+    ? DEVOLUCION_PEDIDO.devuelto
+    : pedido.faltaDevolver
+      ? DEVOLUCION_PEDIDO.falta
+      : PAGOS_PEDIDO[pedido.estadoPago];
+  return <Insignia tono={tono}>{texto}</Insignia>;
 }
 
 // Qué se puede hacer con el pedido. La regla la decide el backend
@@ -89,8 +95,9 @@ export function AccionesPedido({ pedido, ocupado, onAvanzar, onCancelar, onVolve
   );
 }
 
-// Cancelar es excepcional: pide el motivo (le llega al cliente) y avisa
-// todo lo que pasa, porque no se puede deshacer.
+// Pide el motivo (le llega al cliente) y avisa todo lo que pasa, porque no
+// se puede deshacer. Sin número de pago de Mercado Pago (pedidos viejos) la
+// plata no se devuelve sola: se avisa que va a mano.
 function ContenidoCancelar({ pedido, onCancelado }) {
   const [motivo, setMotivo] = useState("");
   const [error, setError] = useState("");
@@ -117,9 +124,10 @@ function ContenidoCancelar({ pedido, onCancelado }) {
       <Alert>
         <CircleAlertIcon />
         <AlertDescription className="text-xs leading-relaxed">
-          Usalo solo en casos excepcionales (no hay stock real, el cliente se arrepintió…). Se le devuelve el pago
-          completo ({formatearPesos(pedido.total)}) en Mercado Pago, el stock vuelve al catálogo y el cliente recibe un
-          mail con el motivo. No se puede deshacer.
+          {pedido.idPagoMP
+            ? `Se le devuelve el pago completo (${formatearPesos(pedido.total)}) en Mercado Pago. `
+            : `Este pago no pasó por Mercado Pago: los ${formatearPesos(pedido.total)} los tenés que devolver a mano. `}
+          El stock vuelve al catálogo y el cliente recibe un mail con el motivo que escribas. No se puede deshacer.
         </AlertDescription>
       </Alert>
       <Campo id="motivo-cancelacion" etiqueta="Motivo" error={error}>
@@ -133,7 +141,7 @@ function ContenidoCancelar({ pedido, onCancelado }) {
         />
       </Campo>
       <Button type="submit" variant="destructive" disabled={guardando} className="h-10 px-6 self-end">
-        {guardando ? "Cancelando…" : "Cancelar pedido y devolver el pago"}
+        {guardando ? "Cancelando…" : pedido.idPagoMP ? "Cancelar pedido y devolver el pago" : "Cancelar pedido"}
       </Button>
     </form>
   );

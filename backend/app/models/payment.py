@@ -36,6 +36,9 @@ class Payment(Base):
     mp_preference_id = Column(String(100))
     # El pago de Mercado Pago que decidió el estado (aprobado o rechazado).
     mp_payment_id = Column(String(50))
+    # Cuándo se le devolvió el dinero al cliente en Mercado Pago (pedido
+    # cancelado por la tienda, o pagado tarde y sin stock); None si no se devolvió.
+    refunded_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now(), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True),

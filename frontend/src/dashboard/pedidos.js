@@ -22,6 +22,12 @@ export const PAGOS_PEDIDO = {
   null: { texto: "Pagado", tono: TONOS.verde },
 };
 
+// Un pedido cancelado y pagado: si ya se le devolvió el dinero al cliente.
+export const DEVOLUCION_PEDIDO = {
+  devuelto: { texto: "Devuelto", tono: TONOS.neutro },
+  falta: { texto: "Falta devolver", tono: TONOS.rojo },
+};
+
 // Cómo se puede ordenar el listado (el orden lo hace el backend, porque el
 // listado viene de a páginas). "priority": en curso, el que más espera
 // primero; cerrados, el más nuevo.

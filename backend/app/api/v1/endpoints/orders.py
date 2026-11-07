@@ -14,6 +14,7 @@ from app.core.mercadopago import (
 from app.core.notificaciones import notificar_cambio_de_estado, notificar_vuelta_de_stock
 from app.crud import order as crud_order
 from app.crud import part as crud_part
+from app.crud import payment as crud_payment
 from app.models.client import Client
 from app.models.employee import Employee
 from app.models.order import OrderStatus
@@ -272,15 +273,16 @@ def _devolver_pago(db: Session, order, cliente_mp: ClienteMercadoPago) -> None:
     Pago falla, no se cancela nada: el vendedor lo reintenta (la clave de
     idempotencia hace que no se devuelva dos veces)."""
     payment = order.payment
-    if payment is None:
-        # Pedidos de antes de Mercado Pago: se cobraron con tarjeta en la tienda.
+    if payment is None or not payment.mp_payment_id:
+        # Pedidos de antes de Mercado Pago (cobrados con tarjeta en la tienda) o
+        # cargados sin el número de pago: no hay nada que pedirle a Mercado Pago.
         logger.warning(
             "Pedido %s cancelado por el vendedor sin pago de Mercado Pago: devolver el dinero a mano.",
             order.order_id,
         )
         return
     try:
-        cliente_mp.devolver_pago(payment.mp_payment_id, f"autobought-devolucion-pedido-{order.order_id}")
+        cliente_mp.devolver_pago(payment.mp_payment_id, crud_payment.clave_devolucion(order.order_id))
     except MercadoPagoNoDisponible as error:
         db.rollback()
         logger.warning("No se pudo devolver el pago del pedido %s: %s", order.order_id, error)
@@ -288,6 +290,8 @@ def _devolver_pago(db: Session, order, cliente_mp: ClienteMercadoPago) -> None:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="No pudimos devolver el pago en Mercado Pago, así que el pedido no se canceló. Probá de nuevo en un rato.",
         )
+    # Se guarda junto con la cancelación (el commit lo hace quien llama).
+    crud_payment.marcar_devuelto(db, payment)
 
 
 @router.get("/{order_id}", response_model=OrderDetailOut)

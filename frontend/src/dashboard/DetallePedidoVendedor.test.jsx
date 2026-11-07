@@ -296,3 +296,21 @@ describe("nota interna", () => {
     expect(await screen.findByText("No pudimos guardar los cambios del pedido.")).toBeInTheDocument();
   });
 });
+
+it("says when the payment was refunded, and warns when it is still pending", async () => {
+  obtenerPedido.mockResolvedValue(pedido({ estado: "cancelled", devueltoEl: "2026-11-07T10:00:00Z" }));
+  const { unmount } = renderDetalle();
+  expect(await screen.findByText(/^Devuelto el /)).toBeInTheDocument();
+  unmount();
+
+  obtenerPedido.mockResolvedValue(pedido({ estado: "cancelled", faltaDevolver: true }));
+  renderDetalle();
+  expect(await screen.findByText(/Falta devolver el pago/)).toBeInTheDocument();
+});
+
+it("says to refund by hand when the payment did not go through Mercado Pago", async () => {
+  obtenerPedido.mockResolvedValue(pedido({ estado: "cancelled", idPagoMP: null, faltaDevolver: true }));
+  renderDetalle();
+
+  expect(await screen.findByText("Este pago no pasó por Mercado Pago: devolvé el dinero a mano.")).toBeInTheDocument();
+});

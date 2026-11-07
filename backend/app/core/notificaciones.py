@@ -138,7 +138,8 @@ def notificar_compra(order: Order, background_tasks: BackgroundTasks | None = No
 
 def notificar_pago_sin_stock(order: Order, background_tasks: BackgroundTasks | None = None) -> None:
     """El cliente pagó después de que el pedido venciera y ya no queda stock:
-    el pedido sigue cancelado y se le devuelve el dinero (a mano, por ahora)."""
+    el pedido sigue cancelado y se le devuelve el dinero en Mercado Pago
+    (ver pagos._avisar_pago_aprobado)."""
     _programar(
         background_tasks,
         order.client.email,

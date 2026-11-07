@@ -15,6 +15,19 @@ const POR_PAGINA = 50;
 const ORDEN_POR_DEFECTO = "priority";
 const ITEMS_ORDEN = Object.entries(ORDENES_PEDIDO).map(([value, label]) => ({ value, label }));
 
+// Trae los primeros `visibles` pedidos de a una página por pedido (el
+// backend no da más de 200 juntos). Se piden todas de nuevo cada vez, así
+// un cambio de estado se ve en cualquier página que ya esté a la vista.
+async function pedirVisibles(filtros, visibles) {
+  const paginas = Math.ceil(visibles / POR_PAGINA);
+  const respuestas = await Promise.all(
+    Array.from({ length: paginas }, (_, i) =>
+      obtenerPedidos(i === 0 ? { ...filtros, limite: POR_PAGINA } : { ...filtros, limite: POR_PAGINA, desde: i * POR_PAGINA })
+    )
+  );
+  return { ...respuestas[0], pedidos: respuestas.flatMap((respuesta) => respuesta.pedidos) };
+}
+
 function textoProductos(items) {
   const unidades = items.reduce((total, item) => total + item.cantidad, 0);
   const primero = items[0] ? `${items[0].cantidad} × ${items[0].nombre}` : "";
@@ -57,11 +70,13 @@ export default function PedidosVendedor({ estadoInicial = "todos", onCambio, onD
 
   const consulta = useConsulta(
     () =>
-      obtenerPedidos({
-        estado: estado === "todos" ? undefined : estado,
-        limite: visibles,
-        orden: orden === ORDEN_POR_DEFECTO ? undefined : orden,
-      }),
+      pedirVisibles(
+        {
+          estado: estado === "todos" ? undefined : estado,
+          orden: orden === ORDEN_POR_DEFECTO ? undefined : orden,
+        },
+        visibles
+      ),
     `${estado}|${orden}|${visibles}|${version}`
   );
   const cambio = useCambioDeEstado((pedido) => {
@@ -155,7 +170,7 @@ export default function PedidosVendedor({ estadoInicial = "todos", onCambio, onD
                         </TableCell>
                         <TableCell className="text-right font-semibold tabular-nums">{formatearPesos(pedido.total)}</TableCell>
                         <TableCell>
-                          <InsigniaPago estadoPago={pedido.estadoPago} />
+                          <InsigniaPago pedido={pedido} />
                         </TableCell>
                         <TableCell>
                           <InsigniaEstadoPedido estado={pedido.estado} />

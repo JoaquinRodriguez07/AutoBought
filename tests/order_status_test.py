@@ -568,3 +568,48 @@ def test_editar_es_solo_para_vendedores_y_de_pedidos_que_existen(client, db_sess
     assert editar(client, auth_headers(cliente), order_id, {"internal_note": "hola"}).status_code == 403
     assert editar(client, {}, order_id, {"internal_note": "hola"}).status_code == 401
     assert editar(client, vendedor, 999, {"internal_note": "hola"}).status_code == 404
+
+
+
+# =====================================================
+# Devolución del pago
+# =====================================================
+
+
+def test_cancelar_anota_cuando_se_devolvio_el_pago(client, db_session, mp, vendedor, cliente, pastillas):
+    order_id = hacer_pedido(db_session, cliente, pastillas)
+
+    cambiar(client, vendedor, order_id, "cancelled", "Se rompió la caja en el depósito.")
+
+    detalle = client.get(f"{ORDERS}/seller/{order_id}", headers=vendedor).json()
+    assert detalle["refunded_at"] is not None
+    assert detalle["refund_pending"] is False
+
+
+def test_el_detalle_avisa_si_falta_devolver_el_pago(client, db_session, mp, vendedor, cliente, pastillas):
+    order_id = hacer_pedido(db_session, cliente, pastillas, estado=OrderStatus.CANCELLED)
+
+    detalle = client.get(f"{ORDERS}/seller/{order_id}", headers=vendedor).json()
+
+    assert detalle["refunded_at"] is None
+    assert detalle["refund_pending"] is True
+
+
+
+def test_cancelar_un_pago_sin_numero_de_mercado_pago_no_lo_llama_y_queda_para_devolver_a_mano(
+    client, db_session, mp, vendedor, cliente, pastillas, caplog
+):
+    # Ej.: pedidos de los datos de prueba, aprobados pero sin el número de pago.
+    order_id = hacer_pedido(db_session, cliente, pastillas)
+    pago = db_session.get(Order, order_id).payment
+    pago.mp_payment_id = None
+    db_session.commit()
+
+    respuesta = cambiar(client, vendedor, order_id, "cancelled", "Se rompió la caja en el depósito.")
+
+    assert respuesta.status_code == 200
+    assert estado(db_session, order_id) == OrderStatus.CANCELLED
+    assert mp.devoluciones == []
+    assert f"Pedido {order_id} cancelado por el vendedor sin pago de Mercado Pago" in caplog.text
+    detalle = client.get(f"{ORDERS}/seller/{order_id}", headers=vendedor).json()
+    assert detalle["refund_pending"] is True

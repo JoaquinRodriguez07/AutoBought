@@ -199,10 +199,24 @@ function Pago({ pedido }) {
     <Panel titulo="Pago" id="titulo-pago-pedido">
       <dl className="flex flex-col gap-3">
         <Dato titulo="Estado">
-          <InsigniaPago estadoPago={pedido.estadoPago} />
+          <InsigniaPago pedido={pedido} />
         </Dato>
         <Dato titulo="Medio de pago">{pedido.metodoPago}</Dato>
         {pedido.idPagoMP && <Dato titulo="N.º de pago en Mercado Pago">{pedido.idPagoMP}</Dato>}
+        {pedido.devueltoEl && (
+          <Dato titulo="Devolución">
+            Devuelto el {new Date(pedido.devueltoEl).toLocaleDateString("es-UY")}
+          </Dato>
+        )}
+        {pedido.faltaDevolver && (
+          <Dato titulo="Devolución">
+            <span className="font-medium text-destructive">
+              {pedido.idPagoMP
+                ? "Falta devolver el pago: Mercado Pago no respondió. Se reintenta solo cada día."
+                : "Este pago no pasó por Mercado Pago: devolvé el dinero a mano."}
+            </span>
+          </Dato>
+        )}
         <Dato titulo="Total">{formatearPesos(pedido.total)}</Dato>
       </dl>
     </Panel>
