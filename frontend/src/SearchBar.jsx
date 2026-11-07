@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { IconoCerrar, IconoLupa } from "./Iconos";
+import { CloseIcon, SearchIcon } from "./Icons";
 
 /**
  * SearchBar
@@ -24,7 +24,7 @@ import { IconoCerrar, IconoLupa } from "./Iconos";
  */
 // El buscador del catálogo: la lupa de la barra lo enfoca en vez de abrir
 // otro buscador encima.
-export const ID_BUSCADOR_CATALOGO = "buscador-catalogo";
+export const CATALOG_SEARCH_ID = "buscador-catalogo";
 
 export default function SearchBar({
   value,
@@ -60,7 +60,7 @@ export default function SearchBar({
     }
   };
 
-  const limpiar = () => {
+  const clean = () => {
     actualizar("");
     onSubmit?.("");
   };
@@ -85,11 +85,11 @@ export default function SearchBar({
       {interno && (
         <button
           type="button"
-          onClick={limpiar}
+          onClick={clean}
           aria-label="Limpiar búsqueda"
           className="px-3 text-gray-400 hover:text-gray-600"
         >
-          <IconoCerrar />
+          <CloseIcon />
         </button>
       )}
 
@@ -99,7 +99,7 @@ export default function SearchBar({
         aria-label="Buscar"
         className="bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition"
       >
-        <IconoLupa className="w-5 h-5" />
+        <SearchIcon className="w-5 h-5" />
       </button>
     </div>
   );

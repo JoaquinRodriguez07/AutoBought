@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { useVehicle } from "./context/VehicleContext";
-import { IconoAuto } from "./Iconos";
+import { CarIcon } from "./Icons";
 import VehicleSelector from "./VehicleSelector";
 
 /** Franja del vehículo activo del catálogo con editor local desplegable. */
@@ -23,7 +23,7 @@ export default function ActiveVehicleBanner({ onBorrar }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-orange-500">
-            <IconoAuto className="h-5 w-5" />
+            <CarIcon className="h-5 w-5" />
           </span>
           <p className="min-w-0 text-sm">
             <span className="text-gray-300">Mostrando repuestos para: </span>

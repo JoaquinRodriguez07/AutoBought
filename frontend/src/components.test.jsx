@@ -6,46 +6,46 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 
 jest.mock("./api", () => ({
-  buscarTexto: jest.fn(),
+  searchText: jest.fn(),
   login: jest.fn(),
-  registrar: jest.fn(),
-  obtenerPerfil: jest.fn(),
-  renovarToken: jest.fn(),
-  alSesionInvalida: jest.fn(),
-  actualizarPerfil: jest.fn(),
-  cambiarPassword: jest.fn(),
-  obtenerRepuestos: jest.fn(),
-  obtenerRepuesto: jest.fn(),
-  obtenerCategorias: jest.fn(),
-  obtenerFabricantes: jest.fn(() => Promise.resolve([])),
-  obtenerMasVendidos: jest.fn(),
-  obtenerCarrito: jest.fn(),
-  agregarItemCarrito: jest.fn(),
-  actualizarItemCarrito: jest.fn(),
-  eliminarItemCarrito: jest.fn(),
-  vaciarCarritoAPI: jest.fn(),
-  obtenerMarcas: jest.fn(),
-  obtenerModelos: jest.fn(),
-  obtenerAnios: jest.fn(),
-  obtenerDirecciones: jest.fn(),
-  crearDireccion: jest.fn(),
-  marcarDireccionPrincipal: jest.fn(),
-  eliminarDireccionAPI: jest.fn(),
-  obtenerRecomendaciones: jest.fn(),
-  obtenerFavoritos: jest.fn(),
-  obtenerHistorialCompras: jest.fn(),
-  obtenerDetalleCompra: jest.fn(),
-  agregarFavoritoAPI: jest.fn(),
-  quitarFavoritoAPI: jest.fn(),
-  pedirRecuperacion: jest.fn(),
-  restablecerPassword: jest.fn(),
-  verificarCorreo: jest.fn(),
-  reenviarVerificacion: jest.fn(),
-  obtenerAvisosStock: jest.fn(),
-  agregarAvisoStock: jest.fn(),
-  quitarAvisoStock: jest.fn(),
-  guardarPreferenciasMails: jest.fn(),
-  darseDeBaja: jest.fn(),
+  register: jest.fn(),
+  getProfile: jest.fn(),
+  renewToken: jest.fn(),
+  onInvalidSession: jest.fn(),
+  updateProfile: jest.fn(),
+  changePassword: jest.fn(),
+  getParts: jest.fn(),
+  getPart: jest.fn(),
+  getCategories: jest.fn(),
+  getManufacturers: jest.fn(() => Promise.resolve([])),
+  getBestSellers: jest.fn(),
+  getCart: jest.fn(),
+  addCartItem: jest.fn(),
+  updateCartItem: jest.fn(),
+  removeCartItem: jest.fn(),
+  clearCartApi: jest.fn(),
+  getBrands: jest.fn(),
+  getModels: jest.fn(),
+  getYears: jest.fn(),
+  getAddresses: jest.fn(),
+  createAddress: jest.fn(),
+  setPrimaryAddress: jest.fn(),
+  deleteAddressApi: jest.fn(),
+  getRecommendations: jest.fn(),
+  getFavorites: jest.fn(),
+  getPurchaseHistory: jest.fn(),
+  getPurchaseDetail: jest.fn(),
+  addFavoriteApi: jest.fn(),
+  removeFavoriteApi: jest.fn(),
+  requestPasswordReset: jest.fn(),
+  resetPassword: jest.fn(),
+  verifyEmail: jest.fn(),
+  resendVerification: jest.fn(),
+  getStockAlerts: jest.fn(),
+  addStockAlert: jest.fn(),
+  removeStockAlert: jest.fn(),
+  saveMailPreferences: jest.fn(),
+  unsubscribe: jest.fn(),
 }));
 jest.mock(
   "react-hot-toast",
@@ -56,84 +56,84 @@ jest.mock(
 import App from "./App";
 import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import BrandDropdown from "./BrandDropdown";
-import BusquedaCabecera from "./BusquedaCabecera";
-import CambiarPassword from "./CambiarPassword";
-import Carrito from "./Carrito";
-import Catalogo from "./Catalogo";
-import DetalleProducto from "./DetalleProducto";
-import Favoritos from "./Favoritos";
-import { mapearRepuesto } from "./mapearRepuesto";
-import ConfirmacionAgregarCarrito, { DURACION_AVISO_MS } from "./ConfirmacionAgregarCarrito";
+import HeaderSearch from "./HeaderSearch";
+import ChangePassword from "./ChangePassword";
+import CartPage from "./CartPage";
+import Catalog from "./Catalog";
+import ProductDetail from "./ProductDetail";
+import Favorites from "./Favorites";
+import { mapPart } from "./mapPart";
+import AddedToCartNotice, { NOTICE_DURATION_MS } from "./AddedToCartNotice";
 import Home from "./Home";
 import Login from "./Login";
-import Marcas from "./Marcas";
+import Brands from "./Brands";
 import ModelDropdown from "./ModelDropdown";
 import Navbar from "./Navbar";
-import Perfil from "./Perfil";
-import InicioCuenta from "./InicioCuenta";
-import Notificaciones from "./Notificaciones";
-import Seguridad from "./Seguridad";
-import Registro from "./Registro";
-import Direcciones from "./Direcciones";
-import HistorialCompras from "./HistorialCompras";
+import Profile from "./Profile";
+import AccountHome from "./AccountHome";
+import Notifications from "./Notifications";
+import Security from "./Security";
+import Register from "./Register";
+import Addresses from "./Addresses";
+import PurchaseHistory from "./PurchaseHistory";
 import ProtectedRoute from "./ProtectedRoute";
-import { crearToken } from "./testTokens";
+import { createToken } from "./testTokens";
 import SearchBar from "./SearchBar";
-import SinResultadosBusqueda from "./SinResultadosBusqueda";
-import InvitacionAsistente from "./InvitacionAsistente";
-import PanelPit from "./PanelPit";
+import NoSearchResults from "./NoSearchResults";
+import AssistantInvite from "./AssistantInvite";
+import PitPanel from "./PitPanel";
 import Footer from "./Footer";
 import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
 import { useVehicle } from "./context/VehicleContext";
 import { PitProvider } from "./context/PitContext";
 
-import { filtrarRepuestos } from "./filtrarRepuestos";
+import { filterParts } from "./filterParts";
 import toast from "react-hot-toast";
 import {
-  buscarTexto,
-  agregarFavoritoAPI,
-  actualizarPerfil,
-  cambiarPassword,
-  agregarItemCarrito,
-  actualizarItemCarrito,
-  crearDireccion,
-  eliminarDireccionAPI,
-  eliminarItemCarrito,
+  searchText,
+  addFavoriteApi,
+  updateProfile,
+  changePassword,
+  addCartItem,
+  updateCartItem,
+  createAddress,
+  deleteAddressApi,
+  removeCartItem,
   login,
-  marcarDireccionPrincipal,
-  obtenerCarrito,
-  obtenerCategorias,
-  obtenerFabricantes,
-  obtenerMasVendidos,
-  obtenerDirecciones,
-  obtenerFavoritos,
-  obtenerHistorialCompras,
-  obtenerDetalleCompra,
-  obtenerMarcas,
-  obtenerModelos,
-  obtenerAnios,
-  obtenerRepuestos,
-  obtenerRepuesto,
-  obtenerPerfil,
-  obtenerRecomendaciones,
-  quitarFavoritoAPI,
-  registrar,
-  vaciarCarritoAPI,
-  renovarToken,
-  alSesionInvalida,
-  verificarCorreo,
-  obtenerAvisosStock,
-  agregarAvisoStock,
-  quitarAvisoStock,
+  setPrimaryAddress,
+  getCart,
+  getCategories,
+  getManufacturers,
+  getBestSellers,
+  getAddresses,
+  getFavorites,
+  getPurchaseHistory,
+  getPurchaseDetail,
+  getBrands,
+  getModels,
+  getYears,
+  getParts,
+  getPart,
+  getProfile,
+  getRecommendations,
+  removeFavoriteApi,
+  register,
+  clearCartApi,
+  renewToken,
+  onInvalidSession,
+  verifyEmail,
+  getStockAlerts,
+  addStockAlert,
+  removeStockAlert,
 } from "./api";
 import {
   decodeToken,
-  guardarSesion,
-  haySesionActiva,
-  obtenerSesion,
-  sesionValida,
-  TIPO_VENDEDOR,
+  saveSession,
+  hasActiveSession,
+  getSession,
+  isSessionValid,
+  SELLER_TYPE,
 } from "./auth";
 
 const navigationProps = () => ({
@@ -256,40 +256,40 @@ function ActivarVehiculo({ vehiculo }) {
 }
 
 beforeEach(() => {
-  obtenerRepuesto.mockImplementation(async (id) =>
+  getPart.mockImplementation(async (id) =>
     catalogProducts.find((item) => String(item.partId ?? item.id) === String(id)) ?? null
   );
-  obtenerRepuestos.mockImplementation(({ categoria } = {}) =>
+  getParts.mockImplementation(({ categoria } = {}) =>
     Promise.resolve(
       categoria
         ? catalogProducts.filter((item) => item.categoria === categoria)
         : catalogProducts
     )
   );
-  obtenerCategorias.mockResolvedValue([
+  getCategories.mockResolvedValue([
     { nombre: "Frenos", cantidad: 2 },
     { nombre: "Motor", cantidad: 1 },
   ]);
-  obtenerMasVendidos.mockResolvedValue([]);
-  obtenerCarrito.mockResolvedValue(emptyCart);
-  agregarItemCarrito.mockResolvedValue(emptyCart);
-  actualizarItemCarrito.mockResolvedValue(emptyCart);
-  eliminarItemCarrito.mockResolvedValue(emptyCart);
-  vaciarCarritoAPI.mockResolvedValue(emptyCart);
-  obtenerMarcas.mockResolvedValue([{ brand: "Volkswagen" }]);
-  obtenerModelos.mockResolvedValue([]);
-  obtenerAnios.mockResolvedValue([]);
-  obtenerDirecciones.mockResolvedValue([]);
-  crearDireccion.mockResolvedValue({});
-  marcarDireccionPrincipal.mockResolvedValue({});
-  eliminarDireccionAPI.mockResolvedValue({});
-  obtenerRecomendaciones.mockResolvedValue([]);
-  obtenerFavoritos.mockResolvedValue([]);
-  obtenerAvisosStock.mockResolvedValue([]);
-  obtenerHistorialCompras.mockResolvedValue([]);
-  obtenerDetalleCompra.mockResolvedValue({});
-  agregarFavoritoAPI.mockResolvedValue();
-  quitarFavoritoAPI.mockResolvedValue();
+  getBestSellers.mockResolvedValue([]);
+  getCart.mockResolvedValue(emptyCart);
+  addCartItem.mockResolvedValue(emptyCart);
+  updateCartItem.mockResolvedValue(emptyCart);
+  removeCartItem.mockResolvedValue(emptyCart);
+  clearCartApi.mockResolvedValue(emptyCart);
+  getBrands.mockResolvedValue([{ brand: "Volkswagen" }]);
+  getModels.mockResolvedValue([]);
+  getYears.mockResolvedValue([]);
+  getAddresses.mockResolvedValue([]);
+  createAddress.mockResolvedValue({});
+  setPrimaryAddress.mockResolvedValue({});
+  deleteAddressApi.mockResolvedValue({});
+  getRecommendations.mockResolvedValue([]);
+  getFavorites.mockResolvedValue([]);
+  getStockAlerts.mockResolvedValue([]);
+  getPurchaseHistory.mockResolvedValue([]);
+  getPurchaseDetail.mockResolvedValue({});
+  addFavoriteApi.mockResolvedValue();
+  removeFavoriteApi.mockResolvedValue();
 });
 
 afterEach(() => {
@@ -448,7 +448,7 @@ describe("Navbar", () => {
     const user = userEvent.setup();
     const props = navigationProps();
     localStorage.setItem("autobought-sesion", JSON.stringify({ nombre: "Ana" }));
-    obtenerCarrito.mockResolvedValue({ items: [{ ...product, cantidad: 2 }], total: 3000 });
+    getCart.mockResolvedValue({ items: [{ ...product, cantidad: 2 }], total: 3000 });
 
     render(<Navbar paginaActual="home" {...props} />);
 
@@ -528,7 +528,7 @@ describe("Footer dentro del catálogo (App)", () => {
 
   it("filtra por la marca tocada aunque ya se esté en el catálogo", async () => {
     const user = userEvent.setup();
-    obtenerRepuestos.mockResolvedValue(autos);
+    getParts.mockResolvedValue(autos);
     renderBase(
       <MemoryRouter initialEntries={["/catalogo"]}>
         <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
@@ -554,7 +554,7 @@ describe("Footer dentro del catálogo (App)", () => {
 
   it("vuelve a aplicar la misma marca después de destildarla", async () => {
     const user = userEvent.setup();
-    obtenerRepuestos.mockResolvedValue(autos);
+    getParts.mockResolvedValue(autos);
     renderBase(
       <MemoryRouter initialEntries={["/catalogo?marca=Fiat"]}>
         <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
@@ -605,8 +605,8 @@ describe("Home", () => {
   it("loads model and year options and searches with the selected vehicle", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    obtenerModelos.mockResolvedValue(["Golf", "Polo"]);
-    obtenerAnios.mockResolvedValue([2020, 2021]);
+    getModels.mockResolvedValue(["Golf", "Polo"]);
+    getYears.mockResolvedValue([2020, 2021]);
 
     render(<Home {...props} />);
 
@@ -614,11 +614,11 @@ describe("Home", () => {
     expect(await screen.findByRole("option", { name: "Volkswagen" })).toBeInTheDocument();
     await user.selectOptions(brandSelect, "Volkswagen");
     expect(await screen.findByRole("option", { name: "Golf" })).toBeInTheDocument();
-    expect(obtenerModelos).toHaveBeenCalledWith("Volkswagen");
+    expect(getModels).toHaveBeenCalledWith("Volkswagen");
 
     await user.selectOptions(modelSelect, "Golf");
     expect(await screen.findByRole("option", { name: "2020" })).toBeInTheDocument();
-    expect(obtenerAnios).toHaveBeenCalledWith("Volkswagen", "Golf");
+    expect(getYears).toHaveBeenCalledWith("Volkswagen", "Golf");
 
     await user.selectOptions(yearSelect, "2021");
     await user.click(screen.getByRole("button", { name: /^BUSCAR REPUESTOS$/i }));
@@ -660,21 +660,21 @@ describe("Home", () => {
   it("asks for 8 best sellers and adds one to the cart without opening its detail", async () => {
     const user = userEvent.setup();
     const props = { ...navigationProps(), onDetalle: jest.fn() };
-    obtenerMasVendidos.mockResolvedValue([catalogProducts[0]]);
+    getBestSellers.mockResolvedValue([catalogProducts[0]]);
     startClientSession();
 
     render(<Home {...props} />);
 
-    expect(obtenerMasVendidos).toHaveBeenCalledWith({ limite: 8 });
+    expect(getBestSellers).toHaveBeenCalledWith({ limite: 8 });
     await user.click(await screen.findByRole("button", { name: /^agregar$/i }));
 
-    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith(catalogProducts[0].id, 1));
+    await waitFor(() => expect(addCartItem).toHaveBeenCalledWith(catalogProducts[0].id, 1));
     expect(props.onDetalle).not.toHaveBeenCalled();
   });
 
   it("keeps the landing page available when categories fail to load", async () => {
     const props = navigationProps();
-    obtenerCategorias.mockRejectedValue(new Error("API unavailable"));
+    getCategories.mockRejectedValue(new Error("API unavailable"));
 
     render(<Home {...props} />);
 
@@ -687,7 +687,7 @@ describe("Home", () => {
   it("shows the real best sellers and opens the detail of the one clicked", async () => {
     const user = userEvent.setup();
     const props = { ...navigationProps(), onDetalle: jest.fn() };
-    obtenerMasVendidos.mockResolvedValue([catalogProducts[0]]);
+    getBestSellers.mockResolvedValue([catalogProducts[0]]);
 
     render(<Home {...props} />);
 
@@ -705,7 +705,7 @@ describe("Home", () => {
   it("opens the catalog filtered by the manufacturer clicked", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    obtenerFabricantes.mockResolvedValueOnce([
+    getManufacturers.mockResolvedValueOnce([
       { nombre: "Bosch", cantidad: 40 },
       { nombre: "Brembo", cantidad: 30 },
     ]);
@@ -728,8 +728,8 @@ describe("Home", () => {
   });
 
   it.each([
-    ["there are no sales", () => obtenerMasVendidos.mockResolvedValue([])],
-    ["the request fails", () => obtenerMasVendidos.mockRejectedValue(new Error("API unavailable"))],
+    ["there are no sales", () => getBestSellers.mockResolvedValue([])],
+    ["the request fails", () => getBestSellers.mockRejectedValue(new Error("API unavailable"))],
   ])("hides the best sellers section when %s", async (_caso, preparar) => {
     preparar();
 
@@ -746,7 +746,7 @@ describe("BrandDropdown", () => {
   it("loads available brands and reports the selected value", async () => {
     const user = userEvent.setup();
     const onChange = jest.fn();
-    obtenerMarcas.mockResolvedValue([
+    getBrands.mockResolvedValue([
       { brand: "Volkswagen" },
       { brand: "Toyota" },
     ]);
@@ -758,7 +758,7 @@ describe("BrandDropdown", () => {
       .toBeInTheDocument();
     expect(select).toHaveValue("Toyota");
     expect(screen.getByRole("option", { name: "Toyota" })).toBeInTheDocument();
-    expect(obtenerMarcas).toHaveBeenCalledTimes(1);
+    expect(getBrands).toHaveBeenCalledTimes(1);
 
     await user.selectOptions(select, "Volkswagen");
     expect(onChange).toHaveBeenCalledWith("Volkswagen");
@@ -767,7 +767,7 @@ describe("BrandDropdown", () => {
   it("logs a brand lookup failure and keeps the placeholder available", async () => {
     const error = new Error("Brands unavailable");
     const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
-    obtenerMarcas.mockRejectedValue(error);
+    getBrands.mockRejectedValue(error);
 
     render(<BrandDropdown value="" onChange={jest.fn()} />);
 
@@ -785,7 +785,7 @@ describe("ModelDropdown", () => {
   it("disables selection without a brand and loads options when a brand is selected", async () => {
     const user = userEvent.setup();
     const onChange = jest.fn();
-    obtenerModelos.mockResolvedValue(["Corolla", "Yaris"]);
+    getModels.mockResolvedValue(["Corolla", "Yaris"]);
     const { rerender } = render(
       <ModelDropdown brand="" value="" onChange={onChange} />
     );
@@ -793,7 +793,7 @@ describe("ModelDropdown", () => {
     expect(screen.getByRole("combobox")).toBeDisabled();
     expect(screen.getByRole("option", { name: "Selecciona una Marca primero" }))
       .toBeInTheDocument();
-    expect(obtenerModelos).not.toHaveBeenCalled();
+    expect(getModels).not.toHaveBeenCalled();
 
     rerender(
       <MemoryRouter>
@@ -807,7 +807,7 @@ describe("ModelDropdown", () => {
     expect(screen.getByRole("option", { name: "Yaris" })).toBeInTheDocument();
     const loadedSelect = screen.getByRole("combobox");
     expect(loadedSelect).toBeEnabled();
-    expect(obtenerModelos).toHaveBeenCalledWith("Toyota");
+    expect(getModels).toHaveBeenCalledWith("Toyota");
 
     await user.selectOptions(loadedSelect, "Corolla");
     expect(onChange).toHaveBeenCalledWith("Corolla");
@@ -816,7 +816,7 @@ describe("ModelDropdown", () => {
   it("logs a model lookup failure and leaves only the placeholder option", async () => {
     const error = new Error("Models unavailable");
     const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
-    obtenerModelos.mockRejectedValue(error);
+    getModels.mockRejectedValue(error);
 
     render(<ModelDropdown brand="Toyota" value="" onChange={jest.fn()} />);
 
@@ -834,11 +834,11 @@ describe("Catalogo", () => {
   it("shows 24 parts at first and the rest with Ver más", async () => {
     const user = userEvent.setup();
     const props = { ...navigationProps(), onAlternarFavorito: jest.fn(), onDetalle: jest.fn(), esFavorito: jest.fn(() => false) };
-    obtenerRepuestos.mockResolvedValue(
+    getParts.mockResolvedValue(
       Array.from({ length: 30 }, (_, i) => ({ ...product, id: `P-${i}`, codigo: `P-${i}`, nombre: `Repuesto número ${i}` }))
     );
 
-    render(<Catalogo {...props} />);
+    render(<Catalog {...props} />);
 
     expect(await screen.findByText("Repuesto número 23")).toBeInTheDocument();
     expect(screen.queryByText("Repuesto número 24")).not.toBeInTheDocument();
@@ -856,7 +856,7 @@ describe("Catalogo", () => {
     props.onDetalle = jest.fn();
     props.esFavorito = jest.fn(() => false);
 
-    render(<Catalogo {...props} />);
+    render(<Catalog {...props} />);
 
     const filters = screen.getByRole("complementary", { name: "Filtros" });
     expect(filters).toHaveClass("lg:sticky", "lg:top-24", "lg:overflow-y-auto");
@@ -871,7 +871,7 @@ describe("Catalogo", () => {
     props.esFavorito = jest.fn(() => false);
 
     startClientSession();
-    render(<Catalogo {...props} categoriaInicial="Frenos" />);
+    render(<Catalog {...props} categoriaInicial="Frenos" />);
 
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     const search = screen.getByPlaceholderText(/buscar repuesto/i);
@@ -883,7 +883,7 @@ describe("Catalogo", () => {
     await user.click(screen.getByRole("button", { name: "+" }));
     await user.click(screen.getByRole("button", { name: /agregar/i }));
 
-    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("DB5678", 2));
+    await waitFor(() => expect(addCartItem).toHaveBeenCalledWith("DB5678", 2));
   });
 
   // Después de agregar, el botón dice "Agregado" por un momento: se
@@ -915,11 +915,11 @@ describe("Catalogo", () => {
   it("shows a non-blocking notice that merges repeated adds and closes or goes to the cart", async () => {
     const user = userEvent.setup();
     startClientSession();
-    agregarItemCarrito
+    addCartItem
       .mockResolvedValueOnce(carritoConPastillas(1))
       .mockResolvedValueOnce(carritoConPastillas(2));
 
-    render(<><Catalogo {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
+    render(<><Catalog {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
     await esperarCatalogo();
     await user.click(botonesAgregar()[0]);
 
@@ -960,9 +960,9 @@ describe("Catalogo", () => {
     const user = userEvent.setup();
     startClientSession();
     let responder;
-    agregarItemCarrito.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+    addCartItem.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
 
-    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    render(<Catalog {...catalogoProps()} categoriaInicial="Frenos" />);
     await esperarCatalogo();
     await user.click(botonesAgregar()[0]);
 
@@ -975,14 +975,14 @@ describe("Catalogo", () => {
   it("undo removes the line when nothing was in the cart before", async () => {
     const user = userEvent.setup();
     startClientSession();
-    agregarItemCarrito.mockResolvedValue(carritoConPastillas(1));
+    addCartItem.mockResolvedValue(carritoConPastillas(1));
 
-    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    render(<Catalog {...catalogoProps()} categoriaInicial="Frenos" />);
     await esperarCatalogo();
     await user.click(botonesAgregar()[0]);
 
     await user.click(await screen.findByRole("button", { name: "Deshacer" }));
-    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("BP1234"));
+    await waitFor(() => expect(removeCartItem).toHaveBeenCalledWith("BP1234"));
     expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
   });
 
@@ -990,27 +990,27 @@ describe("Catalogo", () => {
     const user = userEvent.setup();
     startClientSession();
     // El carrito ya tenía 2 unidades: después de agregar 1 quedan 3.
-    agregarItemCarrito.mockResolvedValue(carritoConPastillas(3));
+    addCartItem.mockResolvedValue(carritoConPastillas(3));
 
-    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    render(<Catalog {...catalogoProps()} categoriaInicial="Frenos" />);
     await esperarCatalogo();
     await user.click(botonesAgregar()[0]);
 
     await user.click(await screen.findByRole("button", { name: "Deshacer" }));
 
-    await waitFor(() => expect(actualizarItemCarrito).toHaveBeenCalledWith("BP1234", 2));
-    expect(eliminarItemCarrito).not.toHaveBeenCalled();
+    await waitFor(() => expect(updateCartItem).toHaveBeenCalledWith("BP1234", 2));
+    expect(removeCartItem).not.toHaveBeenCalled();
   });
 
   it("explains a stock conflict with the units already in the cart", async () => {
     const user = userEvent.setup();
     startClientSession();
-    obtenerCarrito.mockResolvedValue(carritoConPastillas(4));
-    agregarItemCarrito.mockRejectedValue(
+    getCart.mockResolvedValue(carritoConPastillas(4));
+    addCartItem.mockRejectedValue(
       Object.assign(new Error("No hay stock suficiente. Disponible: 5 unidades."), { status: 409 })
     );
 
-    render(<Catalogo {...catalogoProps()} categoriaInicial="Frenos" />);
+    render(<Catalog {...catalogoProps()} categoriaInicial="Frenos" />);
     await esperarCatalogo();
     await waitFor(() =>
       expect(within(screen.getByTitle("Carrito")).getByText("4")).toBeInTheDocument()
@@ -1027,14 +1027,14 @@ describe("Catalogo", () => {
   it("asks an anonymous visitor to log in with a button instead of only a message", async () => {
     const user = userEvent.setup();
 
-    render(<><Catalogo {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
+    render(<><Catalog {...catalogoProps()} categoriaInicial="Frenos" /><RutaActual /></>);
     await esperarCatalogo();
     await user.click(botonesAgregar()[0]);
 
     const aviso = screen
       .getByText("Iniciá sesión para agregar productos al carrito.")
       .closest("[aria-live]");
-    expect(agregarItemCarrito).not.toHaveBeenCalled();
+    expect(addCartItem).not.toHaveBeenCalled();
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent(/^\/$/);
 
     await user.click(within(aviso).getByRole("button", { name: "Iniciar sesión" }));
@@ -1048,7 +1048,7 @@ describe("Catalogo", () => {
     props.onDetalle = jest.fn();
     props.esFavorito = jest.fn(() => false);
 
-    render(<Catalogo {...props} categoriaInicial="Frenos" />);
+    render(<Catalog {...props} categoriaInicial="Frenos" />);
 
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     // Solo los fabricantes de lo cargado (Frenos): Mann es de Motor.
@@ -1072,13 +1072,13 @@ describe("Catalogo", () => {
     props.onAlternarFavorito = jest.fn();
     props.onDetalle = jest.fn();
     props.esFavorito = jest.fn(() => false);
-    obtenerRepuestos.mockResolvedValue([
+    getParts.mockResolvedValue([
       { ...catalogProducts[0], precio: 1500, stock: 0, marcas: ["Chevrolet"], modelos: ["Onix"] },
       { ...catalogProducts[1], precio: 4200, stock: 3, marcas: ["Ford"], modelos: ["Ka"] },
       { ...catalogProducts[2], precio: 900, stock: 8, marcas: ["Chevrolet", "Ford"], modelos: [] },
     ]);
 
-    render(<Catalogo {...props} />);
+    render(<Catalog {...props} />);
 
     expect(await screen.findByText("Para Chevrolet Onix")).toBeInTheDocument();
 
@@ -1109,12 +1109,12 @@ describe("Catalogo", () => {
     props.onDetalle = jest.fn();
     props.esFavorito = jest.fn(() => false);
 
-    render(<Catalogo {...props} categoriaInicial="Frenos" />);
+    render(<Catalog {...props} categoriaInicial="Frenos" />);
 
     await user.click(await screen.findByRole("button", { name: /Motor/ }));
     expect(await screen.findByText("Filtro de Aire")).toBeInTheDocument();
     await waitFor(() => {
-      expect(obtenerRepuestos).toHaveBeenCalledWith(
+      expect(getParts).toHaveBeenCalledWith(
         expect.objectContaining({ categoria: "Motor" })
       );
     });
@@ -1130,14 +1130,14 @@ it("exits free search mode when changing category", async () => {
   const user = userEvent.setup();
   const props = navigationProps();
 
-  buscarTexto.mockResolvedValue({
+  searchText.mockResolvedValue({
     parts: [],
     entities: { part: true },
   });
 
   render(
     <>
-      <Catalogo
+      <Catalog
         {...props}
         categoriaInicial="Frenos"
         esFavorito={() => false}
@@ -1152,7 +1152,7 @@ it("exits free search mode when changing category", async () => {
   );
 
   await waitFor(() => {
-    expect(obtenerRepuestos).toHaveBeenCalledWith(
+    expect(getParts).toHaveBeenCalledWith(
       expect.objectContaining({ categoria: "Motor" })
     );
   });
@@ -1168,35 +1168,35 @@ it("exits free search mode when changing category", async () => {
 it("shows free search results and activates the detected vehicle", async () => {
   const props = navigationProps();
 
-  buscarTexto.mockResolvedValue({
+  searchText.mockResolvedValue({
     parts: [catalogProducts[0]],
     entities: { part: "pastillas de freno", brand: "Chevrolet", model: "Onix", year: 2020 },
   });
 
   render(
-    <Catalogo {...props} esFavorito={() => false} />,
+    <Catalog {...props} esFavorito={() => false} />,
     { initialEntries: ["/catalogo?q=pastillas%20de%20freno%20onix%202020"] }
   );
 
   expect(
     await screen.findByText("Pastillas de Freno Delanteras Bosch")
   ).toBeInTheDocument();
-  expect(buscarTexto).toHaveBeenCalledWith("pastillas de freno onix 2020");
+  expect(searchText).toHaveBeenCalledWith("pastillas de freno onix 2020");
   expect(await screen.findByText("Chevrolet Onix 2020")).toBeInTheDocument();
-  expect(obtenerRepuestos).not.toHaveBeenCalled();
+  expect(getParts).not.toHaveBeenCalled();
 });
 
 it("runs the server search from the catalog bar on Enter and hides the header search", async () => {
   const user = userEvent.setup();
   const props = navigationProps();
-  buscarTexto.mockResolvedValue({
+  searchText.mockResolvedValue({
     parts: [catalogProducts[0]],
     entities: { part: "pastillas de freno" },
   });
 
   render(
     <>
-      <Catalogo {...props} esFavorito={() => false} />
+      <Catalog {...props} esFavorito={() => false} />
       <RutaActual />
     </>
   );
@@ -1206,7 +1206,7 @@ it("runs the server search from the catalog bar on Enter and hides the header se
 
   await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastillas de frenos{Enter}");
 
-  await waitFor(() => expect(buscarTexto).toHaveBeenCalledWith("pastillas de frenos"));
+  await waitFor(() => expect(searchText).toHaveBeenCalledWith("pastillas de frenos"));
   expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastillas");
   expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
 });
@@ -1215,7 +1215,7 @@ it("opens with the manufacturer from the URL already checked", async () => {
   const props = navigationProps();
 
   render(
-    <Catalogo {...props} esFavorito={() => false} />,
+    <Catalog {...props} esFavorito={() => false} />,
     { initialEntries: ["/catalogo?fabricante=Brembo"] }
   );
 
@@ -1225,13 +1225,13 @@ it("opens with the manufacturer from the URL already checked", async () => {
 });
 
 it("opens with the car brand from the URL already checked", async () => {
-  obtenerRepuestos.mockResolvedValue([
+  getParts.mockResolvedValue([
     { ...catalogProducts[0], marcas: ["Chevrolet"] },
     { ...catalogProducts[1], marcas: ["Ford"] },
   ]);
 
   render(
-    <Catalogo {...navigationProps()} esFavorito={() => false} />,
+    <Catalog {...navigationProps()} esFavorito={() => false} />,
     { initialEntries: ["/catalogo?marca=Ford"] }
   );
 
@@ -1242,14 +1242,14 @@ it("opens with the car brand from the URL already checked", async () => {
 
 it("offers the server search for what was typed, also when nothing on screen matches", async () => {
   const user = userEvent.setup();
-  buscarTexto.mockResolvedValue({
+  searchText.mockResolvedValue({
     parts: [catalogProducts[0]],
     entities: { part: "pastillas de freno" },
   });
 
   render(
     <>
-      <Catalogo {...navigationProps()} esFavorito={() => false} />
+      <Catalog {...navigationProps()} esFavorito={() => false} />
       <RutaActual />
     </>
   );
@@ -1264,7 +1264,7 @@ it("offers the server search for what was typed, also when nothing on screen mat
 
   await user.click(ofertas[1]);
 
-  await waitFor(() => expect(buscarTexto).toHaveBeenCalledWith("pastilas"));
+  await waitFor(() => expect(searchText).toHaveBeenCalledWith("pastilas"));
   expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastilas");
   expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
   // Ya buscado: no se vuelve a ofrecer.
@@ -1274,13 +1274,13 @@ it("offers the server search for what was typed, also when nothing on screen mat
 it("shows the manual filter message when the search cannot be interpreted", async () => {
   const props = navigationProps();
 
-  buscarTexto.mockResolvedValue({
+  searchText.mockResolvedValue({
     parts: [],
     entities: { part: null, brand: null, model: null, year: null },
   });
 
   render(
-    <Catalogo {...props} esFavorito={() => false} />,
+    <Catalog {...props} esFavorito={() => false} />,
     { initialEntries: ["/catalogo?q=xyz%20qwerty"] }
   );
 
@@ -1294,12 +1294,12 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
 
   it("shows an API error and retries the catalog request", async () => {
     const user = userEvent.setup();
-    obtenerRepuestos
+    getParts
       .mockRejectedValueOnce(new Error("No pudimos cargar los repuestos."))
       .mockResolvedValueOnce(catalogProducts);
 
     render(
-      <Catalogo
+      <Catalog
         {...navigationProps()}
         categoriaInicial="Frenos"
         esFavorito={() => false}
@@ -1310,19 +1310,19 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
     await user.click(screen.getByRole("button", { name: "Reintentar" }));
 
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
-    expect(obtenerRepuestos).toHaveBeenCalledTimes(2);
+    expect(getParts).toHaveBeenCalledTimes(2);
   });
 });
 
 describe("ActiveVehicleBanner", () => {
   it("confirms a new vehicle and updates the catalog banner", async () => {
     const user = userEvent.setup();
-    obtenerMarcas.mockResolvedValue([
+    getBrands.mockResolvedValue([
       { brand: "Chevrolet" },
       { brand: "Volkswagen" },
     ]);
-    obtenerModelos.mockResolvedValue(["Onix"]);
-    obtenerAnios.mockResolvedValue([2020]);
+    getModels.mockResolvedValue(["Onix"]);
+    getYears.mockResolvedValue([2020]);
     render(
       <>
         <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
@@ -1342,7 +1342,7 @@ describe("ActiveVehicleBanner", () => {
 
   it("edits the catalog vehicle locally and keeps the previous vehicle on cancel", async () => {
     const user = userEvent.setup();
-    obtenerMarcas.mockResolvedValue([
+    getBrands.mockResolvedValue([
       { brand: "Chevrolet" },
       { brand: "Volkswagen" },
     ]);
@@ -1366,42 +1366,42 @@ describe("ActiveVehicleBanner", () => {
 describe("DetalleProducto", () => {
   it("shows the parts usually bought together and adds one to the cart", async () => {
     const user = userEvent.setup();
-    const sugerencia = mapearRepuesto({
+    const sugerencia = mapPart({
       id: 9, name: "Aceite de motor 5W30 4L Castrol", manufacturer: "Castrol", part_code: "LUB-0001",
       category: "Lubricantes", price: 3900, stock: 10, compatibilities: [],
     });
-    obtenerRepuesto.mockResolvedValue(mapearRepuesto({
+    getPart.mockResolvedValue(mapPart({
       id: 7, name: "Filtro compatible", manufacturer: "Bosch", part_code: "FIL-0007",
       category: "Filtros", price: 790, stock: 3, compatibilities: [],
     }));
-    obtenerRecomendaciones.mockResolvedValue([sugerencia]);
+    getRecommendations.mockResolvedValue([sugerencia]);
     startClientSession();
 
     render(
       <Routes>
-        <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+        <Route path="/producto/:id" element={<ProductDetail {...navigationProps()} />} />
       </Routes>,
       { initialEntries: ["/producto/filtro-compatible-7"] }
     );
 
     const seccion = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
-    expect(obtenerRecomendaciones).toHaveBeenCalledWith([7]);
+    expect(getRecommendations).toHaveBeenCalledWith([7]);
     expect(within(seccion).getByText("Aceite de motor 5W30 4L Castrol")).toBeInTheDocument();
 
     await user.click(within(seccion).getByRole("button", { name: /^agregar$/i }));
-    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith(9, 1));
+    await waitFor(() => expect(addCartItem).toHaveBeenCalledWith(9, 1));
   });
 
   it("con un vehículo activo, las sugerencias son solo las compatibles con ese auto", async () => {
-    const sugerida = (id, nombre, compatibilities) => mapearRepuesto({
+    const sugerida = (id, nombre, compatibilities) => mapPart({
       id, name: nombre, manufacturer: "Castrol", part_code: `LUB-${id}`,
       category: "Lubricantes", price: 3900, stock: 10, compatibilities,
     });
     const onix = { brand: "Chevrolet", model: "Onix", engine_code: "1.4 8V", year_from: 2013, year_to: 2019 };
     const gol = { brand: "Volkswagen", model: "Gol", engine_code: "1.6 MSI", year_from: 2013, year_to: 2019 };
     const onixNuevo = { ...onix, year_from: 2020, year_to: 2023 };
-    obtenerRepuesto.mockResolvedValue(repuestoCompatible());
-    obtenerRecomendaciones.mockResolvedValue([
+    getPart.mockResolvedValue(repuestoCompatible());
+    getRecommendations.mockResolvedValue([
       sugerida(21, "Aceite para Onix", [onix]),
       sugerida(22, "Aceite para Gol", [gol]),
       sugerida(23, "Aceite para Onix 2020 en adelante", [onixNuevo]),
@@ -1412,7 +1412,7 @@ describe("DetalleProducto", () => {
       <>
         <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: 2016 }} />
         <Routes>
-          <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+          <Route path="/producto/:id" element={<ProductDetail {...navigationProps()} />} />
         </Routes>
       </>,
       { initialEntries: ["/producto/filtro-compatible-7"] }
@@ -1426,9 +1426,9 @@ describe("DetalleProducto", () => {
   });
 
   it("oculta la sección si ninguna sugerencia es compatible con el vehículo activo", async () => {
-    obtenerRepuesto.mockResolvedValue(repuestoCompatible());
-    obtenerRecomendaciones.mockResolvedValue([
-      mapearRepuesto({
+    getPart.mockResolvedValue(repuestoCompatible());
+    getRecommendations.mockResolvedValue([
+      mapPart({
         id: 22, name: "Aceite para Gol", manufacturer: "Castrol", part_code: "LUB-22",
         category: "Lubricantes", price: 3900, stock: 10,
         compatibilities: [{ brand: "Volkswagen", model: "Gol", engine_code: "1.6", year_from: 2013, year_to: 2019 }],
@@ -1439,18 +1439,18 @@ describe("DetalleProducto", () => {
       <>
         <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: 2016 }} />
         <Routes>
-          <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+          <Route path="/producto/:id" element={<ProductDetail {...navigationProps()} />} />
         </Routes>
       </>,
       { initialEntries: ["/producto/filtro-compatible-7"] }
     );
 
-    await waitFor(() => expect(obtenerRecomendaciones).toHaveBeenCalledWith([7]));
+    await waitFor(() => expect(getRecommendations).toHaveBeenCalledWith([7]));
     await screen.findByRole("heading", { level: 1, name: "Filtro compatible" });
     expect(screen.queryByRole("region", { name: "Suelen comprarse juntos" })).not.toBeInTheDocument();
   });
 
-  const repuestoCompatible = () => mapearRepuesto({
+  const repuestoCompatible = () => mapPart({
     id: 7,
     name: "Filtro compatible",
     manufacturer: "Bosch",
@@ -1468,7 +1468,7 @@ describe("DetalleProducto", () => {
   it("loads the requested product from the URL and follows back/forward history", async () => {
     const user = userEvent.setup();
     const primerRepuesto = repuestoCompatible();
-    const segundoRepuesto = mapearRepuesto({
+    const segundoRepuesto = mapPart({
       id: 8,
       name: "Filtro de aire",
       manufacturer: "Mann-Filter",
@@ -1478,41 +1478,41 @@ describe("DetalleProducto", () => {
       stock: 2,
       compatibilities: [],
     });
-    obtenerRepuesto.mockImplementation(async (id) => id === "7" ? primerRepuesto : segundoRepuesto);
+    getPart.mockImplementation(async (id) => id === "7" ? primerRepuesto : segundoRepuesto);
     const props = navigationProps();
 
     render(
       <Routes>
-        <Route path="/producto/:id" element={<><DetalleProducto {...props} /><ControlesHistorialDetalle /></>} />
+        <Route path="/producto/:id" element={<><ProductDetail {...props} /><ControlesHistorialDetalle /></>} />
       </Routes>,
       { initialEntries: ["/producto/filtro-compatible-7"] }
     );
 
     expect(screen.getByText("Cargando")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { level: 1, name: "Filtro compatible" })).toBeInTheDocument();
-    expect(obtenerRepuesto).toHaveBeenCalledWith("7");
+    expect(getPart).toHaveBeenCalledWith("7");
 
     await user.click(screen.getByRole("button", { name: "Abrir otro repuesto" }));
     expect(await screen.findByRole("heading", { level: 1, name: "Filtro de aire" })).toBeInTheDocument();
-    expect(obtenerRepuesto).toHaveBeenLastCalledWith("8");
+    expect(getPart).toHaveBeenLastCalledWith("8");
 
     await user.click(screen.getByRole("button", { name: "Volver al repuesto anterior" }));
     expect(await screen.findByRole("heading", { level: 1, name: "Filtro compatible" })).toBeInTheDocument();
-    expect(obtenerRepuesto).toHaveBeenLastCalledWith("7");
+    expect(getPart).toHaveBeenLastCalledWith("7");
 
     await user.click(screen.getByRole("button", { name: "Avanzar al repuesto siguiente" }));
     expect(await screen.findByRole("heading", { level: 1, name: "Filtro de aire" })).toBeInTheDocument();
-    expect(obtenerRepuesto).toHaveBeenLastCalledWith("8");
+    expect(getPart).toHaveBeenLastCalledWith("8");
   });
 
   it("shows exactly Repuesto no encontrado for a missing URL product", async () => {
     const error = new Error("Repuesto no encontrado.");
     error.status = 404;
-    obtenerRepuesto.mockRejectedValue(error);
+    getPart.mockRejectedValue(error);
 
     render(
       <Routes>
-        <Route path="/producto/:id" element={<DetalleProducto {...navigationProps()} />} />
+        <Route path="/producto/:id" element={<ProductDetail {...navigationProps()} />} />
       </Routes>,
       { initialEntries: ["/producto/repuesto-inexistente-999999"] }
     );
@@ -1523,7 +1523,7 @@ describe("DetalleProducto", () => {
 
   it("opens the selector in the header when no vehicle is selected", async () => {
     const user = userEvent.setup();
-    render(<DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />);
+    render(<ProductDetail {...navigationProps()} producto={repuestoCompatible()} />);
     expect(within(screen.getByTestId("vehicle-selection")).getByRole("button", { name: "Seleccionar vehículo" }))
       .toBeInTheDocument();
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "sin-vehiculo");
@@ -1550,7 +1550,7 @@ describe("DetalleProducto", () => {
     render(
       <>
         <ActivarVehiculo vehiculo={{ brand: "  CHEVROLET ", model: " Onix  ", year: "2013" }} />
-        <DetalleProducto {...props} producto={repuesto} />
+        <ProductDetail {...props} producto={repuesto} />
       </>
     );
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
@@ -1562,7 +1562,7 @@ describe("DetalleProducto", () => {
     render(
       <>
         <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2019" }} />
-        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+        <ProductDetail {...navigationProps()} producto={repuestoCompatible()} />
       </>
     );
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
@@ -1572,7 +1572,7 @@ describe("DetalleProducto", () => {
     render(
       <>
         <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2020" }} />
-        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+        <ProductDetail {...navigationProps()} producto={repuestoCompatible()} />
       </>
     );
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "incompatible");
@@ -1583,7 +1583,7 @@ describe("DetalleProducto", () => {
     render(
       <>
         <ActivarVehiculo vehiculo={{ brand: "chevrolet", model: "", year: "" }} />
-        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+        <ProductDetail {...navigationProps()} producto={repuestoCompatible()} />
       </>
     );
     expect(screen.getByTestId("vehicle-selection")).toHaveAttribute("data-compatibilidad", "compatible");
@@ -1591,14 +1591,14 @@ describe("DetalleProducto", () => {
 
   it("shows the first compatible cars and the rest on demand", async () => {
     const user = userEvent.setup();
-    const aceite = mapearRepuesto({
+    const aceite = mapPart({
       id: 376,
       name: "Aceite de motor 5W30 4L Castrol",
       compatibilities: Array.from({ length: 10 }, (_, i) => ({
         brand: "Chevrolet", model: `Modelo ${i + 1}`, year_from: 2010, year_to: 2020,
       })),
     });
-    render(<DetalleProducto {...navigationProps()} producto={aceite} />);
+    render(<ProductDetail {...navigationProps()} producto={aceite} />);
 
     const tarjeta = within(screen.getByTestId("compatibility-card"));
     expect(tarjeta.getByText("Chevrolet Modelo 6")).toBeInTheDocument();
@@ -1612,7 +1612,7 @@ describe("DetalleProducto", () => {
   });
 
   it("shows unavailable when no compatibility records exist", () => {
-    const productWithoutCompatibility = mapearRepuesto({
+    const productWithoutCompatibility = mapPart({
       id: 18,
       name: "Filtro sin aplicaciones",
       compatible_brands: ["Chevrolet"],
@@ -1621,7 +1621,7 @@ describe("DetalleProducto", () => {
     render(
       <>
         <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
-        <DetalleProducto {...navigationProps()} producto={productWithoutCompatibility} />
+        <ProductDetail {...navigationProps()} producto={productWithoutCompatibility} />
       </>
     );
 
@@ -1632,7 +1632,7 @@ describe("DetalleProducto", () => {
   });
 
   it("does not claim incompatibility when a matching application lacks the selected vehicle year range", () => {
-    const productWithIncompleteRange = mapearRepuesto({
+    const productWithIncompleteRange = mapPart({
       id: 19,
       name: "Filtro con aplicación incompleta",
       compatible_brands: ["Chevrolet"],
@@ -1643,7 +1643,7 @@ describe("DetalleProducto", () => {
     render(
       <>
         <ActivarVehiculo vehiculo={{ brand: "Chevrolet", model: "Onix", year: "2018" }} />
-        <DetalleProducto {...navigationProps()} producto={productWithIncompleteRange} />
+        <ProductDetail {...navigationProps()} producto={productWithIncompleteRange} />
       </>
     );
 
@@ -1655,7 +1655,7 @@ describe("DetalleProducto", () => {
 
   it("keeps the compatibility card focused on applications and opens the existing header selector", async () => {
     const user = userEvent.setup();
-    render(<DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />);
+    render(<ProductDetail {...navigationProps()} producto={repuestoCompatible()} />);
 
     const card = within(screen.getByTestId("compatibility-card"));
     expect(card.getByText("Chevrolet Onix")).toBeInTheDocument();
@@ -1668,18 +1668,18 @@ describe("DetalleProducto", () => {
   it("opens the inline selector, confirms a new vehicle, and immediately updates compatibility", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    obtenerMarcas.mockResolvedValue([
+    getBrands.mockResolvedValue([
       { brand: "Chevrolet" },
       { brand: "Volkswagen" },
     ]);
-    obtenerModelos.mockImplementation((brand) =>
+    getModels.mockImplementation((brand) =>
       Promise.resolve(brand === "Chevrolet" ? ["Onix"] : ["Gol"])
     );
-    obtenerAnios.mockResolvedValue([2018, 2019, 2020]);
+    getYears.mockResolvedValue([2018, 2019, 2020]);
     render(
       <>
         <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
-        <DetalleProducto {...props} producto={repuestoCompatible()} />
+        <ProductDetail {...props} producto={repuestoCompatible()} />
       </>
     );
 
@@ -1721,14 +1721,14 @@ describe("DetalleProducto", () => {
 
   it("cancels vehicle changes without changing the active vehicle", async () => {
     const user = userEvent.setup();
-    obtenerMarcas.mockResolvedValue([
+    getBrands.mockResolvedValue([
       { brand: "Chevrolet" },
       { brand: "Volkswagen" },
     ]);
     render(
       <>
         <ActivarVehiculo vehiculo={{ brand: "Volkswagen", model: "Gol", year: "2021" }} />
-        <DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />
+        <ProductDetail {...navigationProps()} producto={repuestoCompatible()} />
       </>
     );
 
@@ -1747,7 +1747,7 @@ describe("DetalleProducto", () => {
   });
 
   it("lists all structured applications in the compatibility card", () => {
-    render(<DetalleProducto {...navigationProps()} producto={repuestoCompatible()} />);
+    render(<ProductDetail {...navigationProps()} producto={repuestoCompatible()} />);
 
     const card = within(screen.getByTestId("compatibility-card"));
     expect(card.getByText("Chevrolet Onix")).toBeInTheDocument();
@@ -1762,7 +1762,7 @@ describe("DetalleProducto", () => {
       compatibilidades: [],
       aplicaciones: ["Volkswagen Gol 2019 Highline 1.6 MSI"],
     };
-    render(<DetalleProducto {...navigationProps()} producto={productWithTextApplications} />);
+    render(<ProductDetail {...navigationProps()} producto={productWithTextApplications} />);
 
     const card = within(screen.getByTestId("compatibility-card"));
     expect(card.getByText("Volkswagen Gol")).toBeInTheDocument();
@@ -1774,7 +1774,7 @@ describe("DetalleProducto", () => {
     const props = navigationProps();
     props.onAlternarFavorito = jest.fn();
     props.esFavorito = jest.fn(() => false);
-    const repuesto = mapearRepuesto({
+    const repuesto = mapPart({
       id: 7,
       name: "Filtro de aceite Mann-Filter 1.4 8V",
       manufacturer: "Mann-Filter",
@@ -1793,7 +1793,7 @@ describe("DetalleProducto", () => {
       ],
     });
 
-    render(<DetalleProducto {...props} producto={repuesto} />);
+    render(<ProductDetail {...props} producto={repuesto} />);
 
     expect(screen.getByRole("heading", { level: 1, name: repuesto.nombre })).toBeInTheDocument();
     expect(screen.getByText("Mann-Filter", { selector: "p" })).toBeInTheDocument();
@@ -1818,7 +1818,7 @@ describe("DetalleProducto", () => {
   });
 
   it("does not invent warranty data when the product has no warranty fields", async () => {
-    const repuestoSinGarantia = mapearRepuesto({
+    const repuestoSinGarantia = mapPart({
       id: 8,
       name: "Filtro sin garantía informada",
       price: 500,
@@ -1826,7 +1826,7 @@ describe("DetalleProducto", () => {
       compatibilities: [],
     });
 
-    render(<DetalleProducto {...navigationProps()} producto={repuestoSinGarantia} />);
+    render(<ProductDetail {...navigationProps()} producto={repuestoSinGarantia} />);
     expect(within(screen.getByTestId("warranty-details")).getAllByText("No especificado")).toHaveLength(2);
     expect(within(screen.getByTestId("warranty-details")).getByText("Proveedor")).toBeInTheDocument();
     expect(within(screen.getByTestId("warranty-details")).queryByText("Condiciones")).not.toBeInTheDocument();
@@ -1842,7 +1842,7 @@ describe("DetalleProducto", () => {
       condicionesGarantia: "Presentar comprobante de compra.",
     };
 
-    render(<DetalleProducto {...navigationProps()} producto={repuesto} />);
+    render(<ProductDetail {...navigationProps()} producto={repuesto} />);
 
     const warranty = screen.getByTestId("warranty-details");
     expect(within(warranty).getByText("12 meses")).toBeInTheDocument();
@@ -1853,7 +1853,7 @@ describe("DetalleProducto", () => {
   it("shows the add notice with the chosen quantity and supports undo and cart navigation", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    buscarTexto.mockResolvedValue({
+    searchText.mockResolvedValue({
       parts: [],
       entities: { part: true },
     });
@@ -1861,18 +1861,18 @@ describe("DetalleProducto", () => {
     props.esFavorito = jest.fn(() => false);
 
     startClientSession();
-    render(<><DetalleProducto {...props} producto={product} /><RutaActual /></>);
+    render(<><ProductDetail {...props} producto={product} /><RutaActual /></>);
 
     await user.click(screen.getByRole("button", { name: "Aumentar cantidad" }));
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
 
-    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 2));
+    await waitFor(() => expect(addCartItem).toHaveBeenCalledWith("TEST-001", 2));
     const aviso = (await screen.findByText("Agregado al carrito")).closest("[aria-live]");
     expect(within(aviso).getByText("Pastillas de prueba")).toBeInTheDocument();
     expect(within(aviso).getByText(/×2/)).toBeInTheDocument();
 
     await user.click(within(aviso).getByRole("button", { name: "Deshacer" }));
-    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
+    await waitFor(() => expect(removeCartItem).toHaveBeenCalledWith("TEST-001"));
     expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /agregar al carrito|^agregado$/i }));
@@ -1890,7 +1890,7 @@ describe("Carrito", () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
-    render(<Carrito {...props} />);
+    render(<CartPage {...props} />);
     await user.click(screen.getByRole("button", { name: /ver repuestos/i }));
 
     expect(screen.getByText("Tu carrito está vacío")).toBeInTheDocument();
@@ -1904,12 +1904,12 @@ describe("Carrito", () => {
     const cartProduct = { ...product, cantidad: 2 };
 
     startClientSession();
-    obtenerCarrito.mockResolvedValue({ items: [cartProduct], total: 3000 });
-    actualizarItemCarrito.mockImplementation(async (_id, cantidad) => ({
+    getCart.mockResolvedValue({ items: [cartProduct], total: 3000 });
+    updateCartItem.mockImplementation(async (_id, cantidad) => ({
       items: [{ ...product, cantidad }],
       total: 1500 * cantidad,
     }));
-    render(<Carrito {...props} />);
+    render(<CartPage {...props} />);
     expect(await screen.findByText(product.nombre)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "+" }));
     expect(await screen.findAllByText("3", { exact: true })).toHaveLength(2);
@@ -1918,24 +1918,24 @@ describe("Carrito", () => {
     expect(screen.getAllByText("$3.000")).toHaveLength(3);
     await user.click(screen.getByRole("button", { name: /Quitar .* del carrito/ }));
 
-    expect(actualizarItemCarrito).toHaveBeenNthCalledWith(1, "TEST-001", 3);
-    expect(actualizarItemCarrito).toHaveBeenNthCalledWith(2, "TEST-001", 2);
-    expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001");
+    expect(updateCartItem).toHaveBeenNthCalledWith(1, "TEST-001", 3);
+    expect(updateCartItem).toHaveBeenNthCalledWith(2, "TEST-001", 2);
+    expect(removeCartItem).toHaveBeenCalledWith("TEST-001");
     expect(await screen.findByText("Tu carrito está vacío")).toBeInTheDocument();
   });
 
   it("clears a populated cart through the API", async () => {
     const user = userEvent.setup();
     startClientSession();
-    obtenerCarrito.mockResolvedValue({
+    getCart.mockResolvedValue({
       items: [{ ...product, cantidad: 1 }],
       total: product.precio,
     });
-    render(<Carrito {...navigationProps()} />);
+    render(<CartPage {...navigationProps()} />);
 
     await user.click(await screen.findByRole("button", { name: /vaciar carrito/i }));
 
-    expect(vaciarCarritoAPI).toHaveBeenCalled();
+    expect(clearCartApi).toHaveBeenCalled();
     expect(await screen.findByText("Tu carrito está vacío")).toBeInTheDocument();
   });
 });
@@ -1945,7 +1945,7 @@ describe("Favoritos", () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
-    render(<Favoritos {...props} favoritos={[]} />);
+    render(<Favorites {...props} favoritos={[]} />);
     await user.click(screen.getByRole("button", { name: /explorar repuestos/i }));
 
     expect(screen.getByText("Todavía no tenés favoritos")).toBeInTheDocument();
@@ -1956,7 +1956,7 @@ describe("Favoritos", () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
-    render(<Favoritos {...props} favoritos={[]} />);
+    render(<Favorites {...props} favoritos={[]} />);
 
     const migas = screen.getByRole("navigation", { name: "Estás en" });
     await user.click(within(migas).getByRole("button", { name: "Inicio" }));
@@ -1972,7 +1972,7 @@ describe("Favoritos", () => {
     props.onDetalle = jest.fn();
 
     startClientSession();
-    render(<Favoritos {...props} favoritos={[product]} />);
+    render(<Favorites {...props} favoritos={[product]} />);
     const favoriteButtons = screen.getAllByRole("button", { name: "Quitar de favoritos" });
     await user.click(favoriteButtons[favoriteButtons.length - 1]);
     await user.click(screen.getByRole("button", { name: product.nombre }));
@@ -1980,21 +1980,21 @@ describe("Favoritos", () => {
 
     expect(props.onAlternarFavorito).toHaveBeenCalledWith(product);
     expect(props.onDetalle).toHaveBeenCalledWith(product);
-    await waitFor(() => expect(agregarItemCarrito).toHaveBeenCalledWith("TEST-001", 1));
+    await waitFor(() => expect(addCartItem).toHaveBeenCalledWith("TEST-001", 1));
   });
 
   it("confirms the add to cart with a notice that can undo it", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
     startClientSession();
-    render(<Favoritos {...props} favoritos={[product]} />);
+    render(<Favorites {...props} favoritos={[product]} />);
 
     await user.click(screen.getByRole("button", { name: /agregar al carrito/i }));
 
     const aviso = (await screen.findByText("Agregado al carrito")).closest("[aria-live]");
     expect(within(aviso).getByText(product.nombre)).toBeInTheDocument();
     await user.click(within(aviso).getByRole("button", { name: "Deshacer" }));
-    await waitFor(() => expect(eliminarItemCarrito).toHaveBeenCalledWith("TEST-001"));
+    await waitFor(() => expect(removeCartItem).toHaveBeenCalledWith("TEST-001"));
     expect(screen.queryByText("Agregado al carrito")).not.toBeInTheDocument();
   });
 });
@@ -2006,7 +2006,7 @@ describe("ConfirmacionAgregarCarrito", () => {
     jest.useFakeTimers();
     const onCerrar = jest.fn();
     renderBase(
-      <ConfirmacionAgregarCarrito
+      <AddedToCartNotice
         aviso={{ tipo: "agregado", producto: product, cantidadAgregada: 1 }}
         cantidadCarrito={1}
         total={1500}
@@ -2018,11 +2018,11 @@ describe("ConfirmacionAgregarCarrito", () => {
     const tarjeta = screen.getByText("Agregado al carrito").closest("[aria-live] > div");
 
     fireEvent.mouseEnter(tarjeta);
-    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS + 1000));
+    act(() => jest.advanceTimersByTime(NOTICE_DURATION_MS + 1000));
     expect(onCerrar).not.toHaveBeenCalled();
 
     fireEvent.mouseLeave(tarjeta);
-    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS - 1));
+    act(() => jest.advanceTimersByTime(NOTICE_DURATION_MS - 1));
     expect(onCerrar).not.toHaveBeenCalled();
     act(() => jest.advanceTimersByTime(1));
     expect(onCerrar).toHaveBeenCalledTimes(1);
@@ -2033,14 +2033,14 @@ describe("ConfirmacionAgregarCarrito", () => {
     const onCerrar = jest.fn();
     const props = { cantidadCarrito: 1, total: 1500, onDeshacer: jest.fn(), onCerrar, onVerCarrito: jest.fn() };
     const aviso = () => ({ tipo: "agregado", producto: product, cantidadAgregada: 1 });
-    const { rerender } = renderBase(<ConfirmacionAgregarCarrito {...props} aviso={aviso()} />);
+    const { rerender } = renderBase(<AddedToCartNotice {...props} aviso={aviso()} />);
 
     // Se cierra con el mouse encima: el mouseLeave nunca llega.
     fireEvent.mouseEnter(screen.getByText("Agregado al carrito").closest("[aria-live] > div"));
-    rerender(<ConfirmacionAgregarCarrito {...props} aviso={null} />);
-    rerender(<ConfirmacionAgregarCarrito {...props} aviso={aviso()} />);
+    rerender(<AddedToCartNotice {...props} aviso={null} />);
+    rerender(<AddedToCartNotice {...props} aviso={aviso()} />);
 
-    act(() => jest.advanceTimersByTime(DURACION_AVISO_MS));
+    act(() => jest.advanceTimersByTime(NOTICE_DURATION_MS));
     expect(onCerrar).toHaveBeenCalledTimes(1);
   });
 });
@@ -2116,7 +2116,7 @@ describe("Login", () => {
 
   it("loads name and phone from the backend profile into the session", async () => {
     const props = await loginConPerfil(() =>
-      obtenerPerfil.mockResolvedValue({
+      getProfile.mockResolvedValue({
         nombre: "Lucia Gomez",
         apellido: "",
         email: "lucia@example.com",
@@ -2125,7 +2125,7 @@ describe("Login", () => {
     );
 
     await waitFor(() => expect(props.onIniciarSesion).toHaveBeenCalled());
-    expect(obtenerPerfil).toHaveBeenCalledWith(expect.stringMatching(/^h\./));
+    expect(getProfile).toHaveBeenCalledWith(expect.stringMatching(/^h\./));
     expect(props.onIniciarSesion).toHaveBeenCalledWith(
       expect.objectContaining({
         token: expect.any(String),
@@ -2140,7 +2140,7 @@ describe("Login", () => {
 
   it("still logs in when the profile cannot be loaded", async () => {
     const props = await loginConPerfil(() =>
-      obtenerPerfil.mockRejectedValue(new Error("No pudimos cargar tu perfil."))
+      getProfile.mockRejectedValue(new Error("No pudimos cargar tu perfil."))
     );
 
     await waitFor(() => expect(props.onIniciarSesion).toHaveBeenCalled());
@@ -2174,21 +2174,21 @@ describe("Authentication helpers", () => {
 
     expect(decodeToken(token)).toEqual({ sub: "1", exp: expect.any(Number) });
     expect(decodeToken("invalid")).toBeNull();
-    expect(sesionValida({ token })).toBe(true);
-    expect(sesionValida({ token: "header.invalid.signature" })).toBe(false);
-    expect(sesionValida({ token: `header.${btoa(JSON.stringify({ exp: 1 }))}.signature` })).toBe(false);
-    expect(sesionValida({ nombre: "Local User" })).toBe(true);
-    expect(sesionValida(null)).toBe(false);
+    expect(isSessionValid({ token })).toBe(true);
+    expect(isSessionValid({ token: "header.invalid.signature" })).toBe(false);
+    expect(isSessionValid({ token: `header.${btoa(JSON.stringify({ exp: 1 }))}.signature` })).toBe(false);
+    expect(isSessionValid({ nombre: "Local User" })).toBe(true);
+    expect(isSessionValid(null)).toBe(false);
   });
 
   it("reads sessions from localStorage before sessionStorage", () => {
     sessionStorage.setItem("autobought-sesion", JSON.stringify({ id: 2 }));
-    expect(obtenerSesion()).toEqual({ id: 2 });
-    expect(haySesionActiva()).toBe(true);
+    expect(getSession()).toEqual({ id: 2 });
+    expect(hasActiveSession()).toBe(true);
 
     localStorage.setItem("autobought-sesion", "not-json");
-    expect(obtenerSesion()).toBeNull();
-    expect(haySesionActiva()).toBe(false);
+    expect(getSession()).toBeNull();
+    expect(hasActiveSession()).toBe(false);
   });
 });
 
@@ -2197,7 +2197,7 @@ describe("Marcas", () => {
     const user = userEvent.setup();
     const props = navigationProps();
 
-    render(<Marcas {...props} />);
+    render(<Brands {...props} />);
     expect(await screen.findByText("1 marcas")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Logo Volkswagen" })).toBeInTheDocument();
 
@@ -2240,7 +2240,7 @@ describe("App", () => {
       "autobought-sesion",
       JSON.stringify({ id: 1, nombre: "Test User" })
     );
-    agregarItemCarrito.mockResolvedValue({
+    addCartItem.mockResolvedValue({
       items: [{ ...catalogProducts[0], cantidad: 1 }],
       total: catalogProducts[0].precio,
     });
@@ -2256,7 +2256,7 @@ describe("App", () => {
 
     expect(screen.getByText("Tu Carrito de Compras")).toBeInTheDocument();
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
-    expect(agregarItemCarrito).toHaveBeenCalledWith("BP1234", 1);
+    expect(addCartItem).toHaveBeenCalledWith("BP1234", 1);
   });
 });
 
@@ -2313,13 +2313,13 @@ describe("Accesos a Pit", () => {
     unmount();
 
     conSesion();
-    render(<><Navbar usuario={{ id: 1, nombre: "Ana" }} onLogin={onLogin} /><PanelPit /></>);
+    render(<><Navbar usuario={{ id: 1, nombre: "Ana" }} onLogin={onLogin} /><PitPanel /></>);
     await user.click(screen.getByRole("button", { name: /Pit IA/ }));
     expect(screen.getByRole("dialog", { name: "Pit, tu mecánico con IA" })).toBeInTheDocument();
   });
 
   it("does not show Pit in the menu to the seller", () => {
-    render(<Navbar usuario={{ id: 1, nombre: "Vendedor", userType: TIPO_VENDEDOR }} onLogin={jest.fn()} />);
+    render(<Navbar usuario={{ id: 1, nombre: "Vendedor", userType: SELLER_TYPE }} onLogin={jest.fn()} />);
 
     expect(screen.queryByRole("button", { name: /Pit IA/ })).not.toBeInTheDocument();
   });
@@ -2327,7 +2327,7 @@ describe("Accesos a Pit", () => {
   it("suggests Pit when a catalog search finds nothing, with the search already written", async () => {
     const user = userEvent.setup();
     conSesion();
-    render(<><InvitacionAsistente variante="sinResultados" termino="ruido al frenar" /><PanelPit /></>);
+    render(<><AssistantInvite variante="sinResultados" termino="ruido al frenar" /><PitPanel /></>);
 
     expect(screen.getByText("¿Buscabas por un problema del auto?")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Preguntarle a Pit" }));
@@ -2343,7 +2343,7 @@ describe("App avisos de stock", () => {
 
   const renderCatalogo = async () => {
     const user = userEvent.setup();
-    obtenerRepuestos.mockResolvedValue([catalogProducts[0], agotado]);
+    getParts.mockResolvedValue([catalogProducts[0], agotado]);
     renderBase(
       <MemoryRouter initialEntries={["/catalogo"]}>
         <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
@@ -2371,20 +2371,20 @@ describe("App avisos de stock", () => {
 
     await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
 
-    expect(agregarAvisoStock).toHaveBeenCalledWith(77);
+    expect(addStockAlert).toHaveBeenCalledWith(77);
     expect(toast.success).toHaveBeenCalled();
     const pedido = await screen.findByRole("button", { name: /Te vamos a avisar/ });
     expect(pedido).toHaveAttribute("aria-pressed", "true");
 
     await user.click(pedido);
 
-    expect(quitarAvisoStock).toHaveBeenCalledWith(77);
+    expect(removeStockAlert).toHaveBeenCalledWith(77);
     expect(await screen.findByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
   });
 
   it("muestra los avisos que ya había pedido", async () => {
     conSesion();
-    obtenerAvisosStock.mockResolvedValue([77]);
+    getStockAlerts.mockResolvedValue([77]);
     await renderCatalogo();
 
     expect(await screen.findByRole("button", { name: /Te vamos a avisar/ })).toBeInTheDocument();
@@ -2392,7 +2392,7 @@ describe("App avisos de stock", () => {
 
   it("si falla, vuelve atrás y muestra el error", async () => {
     conSesion();
-    agregarAvisoStock.mockRejectedValue(new Error("No pudimos actualizar el aviso."));
+    addStockAlert.mockRejectedValue(new Error("No pudimos actualizar el aviso."));
     const user = await renderCatalogo();
 
     await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
@@ -2406,7 +2406,7 @@ describe("App avisos de stock", () => {
 
     await user.click(screen.getByRole("button", { name: /Avisame cuando haya/ }));
 
-    expect(agregarAvisoStock).not.toHaveBeenCalled();
+    expect(addStockAlert).not.toHaveBeenCalled();
     expect(await screen.findByRole("heading", { name: "INICIAR SESIÓN" })).toBeInTheDocument();
   });
 });
@@ -2438,10 +2438,10 @@ describe("App favoritos", () => {
 
   it("loads the saved favorites from the backend when there is a session", async () => {
     const user = userEvent.setup();
-    obtenerFavoritos.mockResolvedValue([catalogProducts[1]]);
+    getFavorites.mockResolvedValue([catalogProducts[1]]);
     renderApp();
 
-    await waitFor(() => expect(obtenerFavoritos).toHaveBeenCalled());
+    await waitFor(() => expect(getFavorites).toHaveBeenCalled());
     await user.click(screen.getByTitle("Favoritos"));
 
     expect(await screen.findByText("Discos de Freno Delanteros")).toBeInTheDocument();
@@ -2450,8 +2450,8 @@ describe("App favoritos", () => {
   it("opens a saved favorite using its backend ID in the URL", async () => {
     const user = userEvent.setup();
     const favorite = { ...catalogProducts[1], id: "22", partId: 22 };
-    obtenerFavoritos.mockResolvedValue([favorite]);
-    obtenerRepuesto.mockResolvedValue(favorite);
+    getFavorites.mockResolvedValue([favorite]);
+    getPart.mockResolvedValue(favorite);
     renderApp();
 
     await user.click(screen.getByTitle("Favoritos"));
@@ -2459,30 +2459,30 @@ describe("App favoritos", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: favorite.nombre })).toBeInTheDocument();
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/discos-de-freno-delanteros-22");
-    expect(obtenerRepuesto).toHaveBeenCalledWith("22");
+    expect(getPart).toHaveBeenCalledWith("22");
   });
 
   it("opens a cart suggestion using its backend ID in the URL", async () => {
     const user = userEvent.setup();
     const itemCarrito = { ...catalogProducts[0], id: "21", partId: 21, cantidad: 1 };
     const suggestion = { ...catalogProducts[1], id: "22", partId: 22 };
-    obtenerCarrito.mockResolvedValue({ items: [itemCarrito], total: itemCarrito.precio });
-    obtenerRecomendaciones.mockResolvedValue([suggestion]);
-    obtenerRepuesto.mockResolvedValue(suggestion);
+    getCart.mockResolvedValue({ items: [itemCarrito], total: itemCarrito.precio });
+    getRecommendations.mockResolvedValue([suggestion]);
+    getPart.mockResolvedValue(suggestion);
     renderApp("/carrito");
 
     await user.click(await screen.findByRole("button", { name: suggestion.nombre }));
 
     expect(await screen.findByRole("heading", { level: 1, name: suggestion.nombre })).toBeInTheDocument();
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/discos-de-freno-delanteros-22");
-    expect(obtenerRepuesto).toHaveBeenCalledWith("22");
+    expect(getPart).toHaveBeenCalledWith("22");
   });
 
   it("does not ask the backend for favorites without a session", () => {
     localStorage.clear();
     renderApp();
 
-    expect(obtenerFavoritos).not.toHaveBeenCalled();
+    expect(getFavorites).not.toHaveBeenCalled();
   });
 
   it("marks and unmarks a favorite from the catalog through the API", async () => {
@@ -2493,18 +2493,18 @@ describe("App favoritos", () => {
     await user.click(screen.getByRole("button", { name: "Repuestos" }));
     await user.click(await corazon(nombre));
 
-    expect(agregarFavoritoAPI).toHaveBeenCalledWith("BP1234");
+    expect(addFavoriteApi).toHaveBeenCalledWith("BP1234");
     expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "true");
 
     await user.click(await corazon(nombre));
 
-    expect(quitarFavoritoAPI).toHaveBeenCalledWith("BP1234");
+    expect(removeFavoriteApi).toHaveBeenCalledWith("BP1234");
     expect(await corazon(nombre)).toHaveAttribute("aria-pressed", "false");
   });
 
   it("reverts the heart and shows the error when the API fails", async () => {
     const user = userEvent.setup();
-    agregarFavoritoAPI.mockRejectedValue(new Error("No pudimos actualizar tus favoritos."));
+    addFavoriteApi.mockRejectedValue(new Error("No pudimos actualizar tus favoritos."));
     renderApp();
 
     const nombre = "Pastillas de Freno Delanteras Bosch";
@@ -2525,9 +2525,9 @@ describe("App sesión", () => {
       "autobought-sesion",
       JSON.stringify({ id: 1, nombre: "Ana", email: "ana@example.com", token })
     );
-    obtenerPerfil.mockResolvedValue({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
+    getProfile.mockResolvedValue({ nombre: "Ana", apellido: "", email: "ana@example.com", telefono: "" });
     let responder;
-    actualizarPerfil.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+    updateProfile.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
 
     renderBase(
       <MemoryRouter initialEntries={["/perfil"]}>
@@ -2565,7 +2565,7 @@ describe("App verificación del correo", () => {
 
   it("al abrir el enlace del mail con la sesión iniciada, saca el aviso", async () => {
     localStorage.setItem("autobought-sesion", JSON.stringify(sesionSinVerificar));
-    verificarCorreo.mockResolvedValue();
+    verifyEmail.mockResolvedValue();
 
     renderBase(
       <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
@@ -2579,7 +2579,7 @@ describe("App verificación del correo", () => {
   });
 
   it("el enlace del mail también funciona sin sesión", async () => {
-    verificarCorreo.mockResolvedValue();
+    verifyEmail.mockResolvedValue();
 
     renderBase(
       <MemoryRouter initialEntries={["/verificar-correo?token=tok-mail"]}>
@@ -2603,15 +2603,15 @@ describe("App rutas", () => {
   it("opens the catalog product using its backend ID in the URL", async () => {
     const user = userEvent.setup();
     const catalogProduct = { ...catalogProducts[0], id: "21", partId: 21 };
-    obtenerRepuestos.mockResolvedValue([catalogProduct]);
-    obtenerRepuesto.mockResolvedValue(catalogProduct);
+    getParts.mockResolvedValue([catalogProduct]);
+    getPart.mockResolvedValue(catalogProduct);
 
     renderEn("/catalogo");
     await user.click(await screen.findByRole("button", { name: /^Ver detalle de / }));
 
     expect(await screen.findByRole("heading", { level: 1, name: catalogProduct.nombre })).toBeInTheDocument();
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/producto/pastillas-de-freno-delanteras-bosch-21");
-    expect(obtenerRepuesto).toHaveBeenCalledWith("21");
+    expect(getPart).toHaveBeenCalledWith("21");
   });
 
   it.each(["/favoritos", "/perfil", "/direcciones", "/historial", "/pago?pedido=1"])(
@@ -2641,7 +2641,7 @@ describe("App renovación de sesión", () => {
     userId: "1",
     nombre: "Ana",
     email: "ana@example.com",
-    token: crearToken(Date.now() + minutos * MIN),
+    token: createToken(Date.now() + minutos * MIN),
     tokenType: "bearer",
   });
 
@@ -2654,9 +2654,9 @@ describe("App renovación de sesión", () => {
 
   it("replaces the token of a remembered session before it expires, keeping the rest of the session", async () => {
     const sesion = sesionQueVenceEn(4);
-    const nuevo = crearToken(Date.now() + 60 * MIN);
+    const nuevo = createToken(Date.now() + 60 * MIN);
     localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
-    renovarToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+    renewToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
 
     renderApp();
 
@@ -2665,16 +2665,16 @@ describe("App renovación de sesión", () => {
     );
     expect(JSON.parse(localStorage.getItem("autobought-sesion"))).toEqual({ ...sesion, token: nuevo });
     expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
-    expect(renovarToken).toHaveBeenCalledTimes(1);
+    expect(renewToken).toHaveBeenCalledTimes(1);
     expect(toast.error).not.toHaveBeenCalled();
     // Los favoritos no se vuelven a pedir por cambiar el token.
-    expect(obtenerFavoritos).toHaveBeenCalledTimes(1);
+    expect(getFavorites).toHaveBeenCalledTimes(1);
   });
 
   it("keeps a non-remembered session in sessionStorage after renewing", async () => {
-    const nuevo = crearToken(Date.now() + 60 * MIN);
+    const nuevo = createToken(Date.now() + 60 * MIN);
     sessionStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
-    renovarToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
+    renewToken.mockResolvedValueOnce({ access_token: nuevo, token_type: "bearer" });
 
     renderApp();
 
@@ -2690,12 +2690,12 @@ describe("App renovación de sesión", () => {
     renderApp();
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    expect(renovarToken).not.toHaveBeenCalled();
+    expect(renewToken).not.toHaveBeenCalled();
   });
 
   it("closes the session and warns the client when the API answers 401", async () => {
     localStorage.setItem("autobought-sesion", JSON.stringify(sesionQueVenceEn(4)));
-    renovarToken.mockRejectedValueOnce(Object.assign(new Error("vencida"), { status: 401 }));
+    renewToken.mockRejectedValueOnce(Object.assign(new Error("vencida"), { status: 401 }));
 
     renderApp();
 
@@ -2711,14 +2711,14 @@ describe("App sesión inválida (401)", () => {
     userId: "1",
     nombre: "Ana",
     email: "ana@example.com",
-    token: crearToken(Date.now() + 60 * MIN),
+    token: createToken(Date.now() + 60 * MIN),
     tokenType: "bearer",
   };
 
   // Captura el manejador que App registra en api.js con alSesionInvalida.
   const renderApp = (ruta = "/favoritos") => {
     const desregistrar = jest.fn();
-    alSesionInvalida.mockReturnValue(desregistrar);
+    onInvalidSession.mockReturnValue(desregistrar);
 
     const vista = renderBase(
       <MemoryRouter initialEntries={[ruta]}>
@@ -2726,7 +2726,7 @@ describe("App sesión inválida (401)", () => {
       </MemoryRouter>
     );
 
-    return { ...vista, desregistrar, manejador: alSesionInvalida.mock.calls.at(-1)[0] };
+    return { ...vista, desregistrar, manejador: onInvalidSession.mock.calls.at(-1)[0] };
   };
 
   it("closes the session, warns once and goes to the login when the handler fires", async () => {
@@ -2767,7 +2767,7 @@ describe("App sesión inválida (401)", () => {
   it("rolls back a favorite without a second toast when the API answers 401", async () => {
     const user = userEvent.setup();
     localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
-    agregarFavoritoAPI.mockRejectedValueOnce(Object.assign(new Error("Tu sesión venció."), { status: 401 }));
+    addFavoriteApi.mockRejectedValueOnce(Object.assign(new Error("Tu sesión venció."), { status: 401 }));
     renderApp("/");
 
     const nombre = "Pastillas de Freno Delanteras Bosch";
@@ -2777,7 +2777,7 @@ describe("App sesión inválida (401)", () => {
     await user.click(await corazon());
 
     await waitFor(async () => expect(await corazon()).toHaveAttribute("aria-pressed", "false"));
-    expect(agregarFavoritoAPI).toHaveBeenCalled();
+    expect(addFavoriteApi).toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/catalogo");
   });
@@ -2794,20 +2794,20 @@ describe("App sesión inválida (401)", () => {
     localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
     renderApp("/");
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(renovarToken).not.toHaveBeenCalled();
+    expect(renewToken).not.toHaveBeenCalled();
 
     // Cambia la contraseña: CambiarPassword guarda el token nuevo. Si App no
     // lo siguiera, `usuario` conservaría el viejo (60 min de vida) y no se
     // programaría nada; con el nuevo (4 min) la renovación corre enseguida.
-    renovarToken.mockResolvedValue({
-      access_token: crearToken(Date.now() + 60 * MIN),
+    renewToken.mockResolvedValue({
+      access_token: createToken(Date.now() + 60 * MIN),
       token_type: "bearer",
     });
     act(() =>
-      guardarSesion({ ...obtenerSesion(), token: crearToken(Date.now() + 4 * MIN) })
+      saveSession({ ...getSession(), token: createToken(Date.now() + 4 * MIN) })
     );
 
-    await waitFor(() => expect(renovarToken).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(renewToken).toHaveBeenCalledTimes(1));
   });
 });
 
@@ -2828,12 +2828,12 @@ describe("Direcciones ante un 401", () => {
   };
 
   it.each([
-    ["deleting", eliminar, () => eliminarDireccionAPI],
-    ["marking as primary", usarComoPrincipal, () => marcarDireccionPrincipal],
+    ["deleting", eliminar, () => deleteAddressApi],
+    ["marking as primary", usarComoPrincipal, () => setPrimaryAddress],
   ])("%s does not show an error on 401", async (_caso, hacer, accion) => {
     const user = userEvent.setup();
-    obtenerDirecciones.mockResolvedValue([direccion]);
-    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+    getAddresses.mockResolvedValue([direccion]);
+    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
     accion().mockRejectedValueOnce(error401());
 
     await hacer(user);
@@ -2844,9 +2844,9 @@ describe("Direcciones ante un 401", () => {
 
   it("still shows other errors in the page", async () => {
     const user = userEvent.setup();
-    obtenerDirecciones.mockResolvedValue([direccion]);
-    eliminarDireccionAPI.mockRejectedValueOnce(new Error("No encontramos esa dirección."));
-    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+    getAddresses.mockResolvedValue([direccion]);
+    deleteAddressApi.mockRejectedValueOnce(new Error("No encontramos esa dirección."));
+    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
 
     await eliminar(user);
 
@@ -2869,14 +2869,14 @@ describe("Perfil", () => {
       email: "ana@example.com",
       telefono: "099123456",
     };
-    actualizarPerfil.mockResolvedValue({
+    updateProfile.mockResolvedValue({
       nombre: "Ana Maria Perez",
       apellido: "",
       email: "ana@example.com",
       telefono: "099 123 456",
     });
 
-    render(<Perfil {...props} usuario={usuario} />);
+    render(<Profile {...props} usuario={usuario} />);
     expect(screen.getByRole("heading", { name: "Mis datos" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Editar" }));
     expect(screen.queryByText("APELLIDO")).not.toBeInTheDocument();
@@ -2886,7 +2886,7 @@ describe("Perfil", () => {
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
     await user.click(screen.getByRole("button", { name: /cerrar sesión/i }));
 
-    expect(actualizarPerfil).toHaveBeenCalledWith(
+    expect(updateProfile).toHaveBeenCalledWith(
       expect.objectContaining({ nombre: "Ana Maria Perez", apellido: "" })
     );
     expect(props.onActualizarUsuario).toHaveBeenCalledWith(
@@ -2899,11 +2899,11 @@ describe("Perfil", () => {
     const user = userEvent.setup();
     const props = navigationProps();
     props.onActualizarUsuario = jest.fn();
-    actualizarPerfil.mockRejectedValue(
+    updateProfile.mockRejectedValue(
       new Error("Revisá el nombre y el teléfono (ej: 099 123 456).")
     );
 
-    render(<Perfil {...props} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
+    render(<Profile {...props} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
     await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
@@ -2916,14 +2916,14 @@ describe("Perfil", () => {
 
   it("does not let the user remove the phone, only change it", async () => {
     const user = userEvent.setup();
-    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
+    render(<Profile {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
 
     await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.clear(screen.getByDisplayValue("099 123 456"));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
     expect(screen.getByText("Ingresá tu teléfono.")).toBeInTheDocument();
-    expect(actualizarPerfil).not.toHaveBeenCalled();
+    expect(updateProfile).not.toHaveBeenCalled();
   });
 
   it("ignores a late profile response once the user started editing", async () => {
@@ -2931,22 +2931,22 @@ describe("Perfil", () => {
     const props = navigationProps();
     props.onActualizarUsuario = jest.fn();
     let responder;
-    obtenerPerfil.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+    getProfile.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
 
-    render(<Perfil {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Profile {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
     await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.type(screen.getByDisplayValue("Ana"), " Maria");
     responder({ nombre: "Ana vieja", apellido: "", email: "ana@example.com", telefono: "" });
-    await waitFor(() => expect(obtenerPerfil).toHaveBeenCalled());
+    await waitFor(() => expect(getProfile).toHaveBeenCalled());
 
     expect(props.onActualizarUsuario).not.toHaveBeenCalled();
     expect(screen.getByDisplayValue("Ana Maria")).toBeInTheDocument();
   });
 
   it("warns when the saved profile could not be loaded", async () => {
-    obtenerPerfil.mockRejectedValue(new Error("No pudimos cargar tu perfil."));
+    getProfile.mockRejectedValue(new Error("No pudimos cargar tu perfil."));
 
-    render(<Perfil {...navigationProps()} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Profile {...navigationProps()} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
 
     expect(
       await screen.findByText("No pudimos actualizar tus datos, puede que no estén al día.")
@@ -2955,8 +2955,8 @@ describe("Perfil", () => {
 
   it("clears the save error when the user edits the data again", async () => {
     const user = userEvent.setup();
-    actualizarPerfil.mockRejectedValue(new Error("Revisá el nombre y el teléfono (ej: 099 123 456)."));
-    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
+    updateProfile.mockRejectedValue(new Error("Revisá el nombre y el teléfono (ej: 099 123 456)."));
+    render(<Profile {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", telefono: "099 123 456" }} />);
 
     await user.click(screen.getByRole("button", { name: "Editar" }));
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
@@ -2970,25 +2970,25 @@ describe("Perfil", () => {
   it("refreshes the session with the profile from the backend", async () => {
     const props = navigationProps();
     props.onActualizarUsuario = jest.fn();
-    obtenerPerfil.mockResolvedValue({
+    getProfile.mockResolvedValue({
       nombre: "Ana desde otro dispositivo",
       apellido: "",
       email: "ana@example.com",
       telefono: "",
     });
 
-    render(<Perfil {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
+    render(<Profile {...props} usuario={{ token: "t", nombre: "Ana", email: "ana@example.com" }} />);
 
     await waitFor(() =>
       expect(props.onActualizarUsuario).toHaveBeenCalledWith(
         expect.objectContaining({ token: "t", nombre: "Ana desde otro dispositivo" })
       )
     );
-    expect(obtenerPerfil).toHaveBeenCalledWith("t");
+    expect(getProfile).toHaveBeenCalledWith("t");
   });
 
   it("shows whether the email is verified", () => {
-    render(<Perfil {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", emailVerificado: true }} />);
+    render(<Profile {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com", emailVerificado: true }} />);
 
     expect(screen.getByText("Verificado")).toBeInTheDocument();
   });
@@ -2997,7 +2997,7 @@ describe("Perfil", () => {
     const user = userEvent.setup();
     render(
       <>
-        <Perfil {...navigationProps()} usuario={{ nombre: "Ana", apellido: "Pérez", email: "ana@example.com" }} />
+        <Profile {...navigationProps()} usuario={{ nombre: "Ana", apellido: "Pérez", email: "ana@example.com" }} />
         <RutaActual />
       </>
     );
@@ -3020,12 +3020,12 @@ describe("Perfil", () => {
 
   it("the password and the mails have their own sections", () => {
     const usuario = { nombre: "Ana", email: "ana@example.com", recibeMarketing: true };
-    const { unmount } = render(<Seguridad {...navigationProps()} usuario={usuario} />);
+    const { unmount } = render(<Security {...navigationProps()} usuario={usuario} />);
     expect(screen.getByRole("heading", { name: "Seguridad" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cambiar contraseña" })).toBeInTheDocument();
     unmount();
 
-    render(<Notificaciones {...navigationProps()} usuario={usuario} />);
+    render(<Notifications {...navigationProps()} usuario={usuario} />);
     expect(screen.getByRole("heading", { name: "Notificaciones" })).toBeInTheDocument();
     expect(screen.getByText("Ofertas y recordatorios por mail")).toBeInTheDocument();
   });
@@ -3034,7 +3034,7 @@ describe("Perfil", () => {
     const user = userEvent.setup();
     render(
       <>
-        <InicioCuenta {...navigationProps()} usuario={{ nombre: "Ana Pérez", email: "ana@example.com" }} />
+        <AccountHome {...navigationProps()} usuario={{ nombre: "Ana Pérez", email: "ana@example.com" }} />
         <RutaActual />
       </>
     );
@@ -3047,7 +3047,7 @@ describe("Perfil", () => {
   it("cancels profile edits and restores the saved values", async () => {
     const user = userEvent.setup();
     const usuario = { nombre: "Ana", email: "ana@example.com" };
-    render(<Perfil {...navigationProps()} usuario={usuario} />);
+    render(<Profile {...navigationProps()} usuario={usuario} />);
     await user.click(screen.getByRole("button", { name: "Editar" }));
     const nameInput = screen.getByDisplayValue("Ana");
     await user.clear(nameInput);
@@ -3072,12 +3072,12 @@ describe("CambiarPassword", () => {
 
   it("changes the password and shows a confirmation", async () => {
     const user = userEvent.setup();
-    cambiarPassword.mockResolvedValue(respuesta);
-    render(<CambiarPassword />);
+    changePassword.mockResolvedValue(respuesta);
+    render(<ChangePassword />);
 
     await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
 
-    expect(cambiarPassword).toHaveBeenCalledWith("secreto123", "nueva-clave-1");
+    expect(changePassword).toHaveBeenCalledWith("secreto123", "nueva-clave-1");
     expect(await screen.findByText("Tu contraseña se actualizó correctamente.")).toBeInTheDocument();
     expect(screen.queryByLabelText("CONTRASEÑA ACTUAL")).not.toBeInTheDocument();
   });
@@ -3086,8 +3086,8 @@ describe("CambiarPassword", () => {
     const user = userEvent.setup();
     const sesion = { id: 1, nombre: "Ana", email: "ana@example.com", token: "jwt-viejo", tokenType: "bearer" };
     localStorage.setItem("autobought-sesion", JSON.stringify(sesion));
-    cambiarPassword.mockResolvedValue(respuesta);
-    render(<CambiarPassword />);
+    changePassword.mockResolvedValue(respuesta);
+    render(<ChangePassword />);
 
     await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
 
@@ -3103,8 +3103,8 @@ describe("CambiarPassword", () => {
   it("keeps a non-remembered session in sessionStorage when saving the new token", async () => {
     const user = userEvent.setup();
     sessionStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
-    cambiarPassword.mockResolvedValue(respuesta);
-    render(<CambiarPassword />);
+    changePassword.mockResolvedValue(respuesta);
+    render(<ChangePassword />);
 
     await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
 
@@ -3116,8 +3116,8 @@ describe("CambiarPassword", () => {
   it("warns that the session is no longer valid when the response has no new token", async () => {
     const user = userEvent.setup();
     localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
-    cambiarPassword.mockResolvedValue(null);
-    render(<CambiarPassword />);
+    changePassword.mockResolvedValue(null);
+    render(<ChangePassword />);
 
     await completar(user, { actual: "secreto123", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
 
@@ -3129,8 +3129,8 @@ describe("CambiarPassword", () => {
   it("does not touch the session when the password change fails", async () => {
     const user = userEvent.setup();
     localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, token: "jwt-viejo" }));
-    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
-    render(<CambiarPassword />);
+    changePassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<ChangePassword />);
 
     await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
 
@@ -3140,13 +3140,13 @@ describe("CambiarPassword", () => {
 
   it("shows an error under each empty field before calling the API", async () => {
     const user = userEvent.setup();
-    render(<CambiarPassword />);
+    render(<ChangePassword />);
 
     await completar(user, {});
 
     expect(screen.getByText("Ingresá tu contraseña actual.")).toBeInTheDocument();
     expect(screen.getByText("La contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
-    expect(cambiarPassword).not.toHaveBeenCalled();
+    expect(changePassword).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -3158,18 +3158,18 @@ describe("CambiarPassword", () => {
     ["not repeated", "nueva-clave-1", "otra-clave-1", "Las contraseñas no coinciden."],
   ])("rejects a new password %s", async (_caso, nueva, repetir, mensaje) => {
     const user = userEvent.setup();
-    render(<CambiarPassword email="lucia@example.com" />);
+    render(<ChangePassword email="lucia@example.com" />);
 
     await completar(user, { actual: "secreto123", nueva, repetir });
 
     expect(screen.getByText(mensaje)).toBeInTheDocument();
-    expect(cambiarPassword).not.toHaveBeenCalled();
+    expect(changePassword).not.toHaveBeenCalled();
   });
 
   it("shows the backend error and keeps the form open", async () => {
     const user = userEvent.setup();
-    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
-    render(<CambiarPassword />);
+    changePassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<ChangePassword />);
 
     await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
 
@@ -3179,8 +3179,8 @@ describe("CambiarPassword", () => {
 
   it("clears the error when the user edits a field", async () => {
     const user = userEvent.setup();
-    cambiarPassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
-    render(<CambiarPassword />);
+    changePassword.mockRejectedValue(new Error("La contraseña actual es incorrecta."));
+    render(<ChangePassword />);
 
     await completar(user, { actual: "mal", nueva: "nueva-clave-1", repetir: "nueva-clave-1" });
     expect(await screen.findByText("La contraseña actual es incorrecta.")).toBeInTheDocument();
@@ -3192,7 +3192,7 @@ describe("CambiarPassword", () => {
 
   it("clears the form when cancelling", async () => {
     const user = userEvent.setup();
-    render(<CambiarPassword />);
+    render(<ChangePassword />);
 
     await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
     await user.type(screen.getByLabelText("CONTRASEÑA ACTUAL"), "secreto123");
@@ -3214,7 +3214,7 @@ describe("Registro", () => {
     const user = userEvent.setup();
     const props = navigationProps();
     props.onRegistroExitoso = jest.fn();
-    render(<Registro {...props} />);
+    render(<Register {...props} />);
     return { user, props };
   };
 
@@ -3240,13 +3240,13 @@ describe("Registro", () => {
   };
 
   it("registers against the API and starts the session with the returned token", async () => {
-    registrar.mockResolvedValue({ access_token: fakeToken(), token_type: "bearer" });
+    register.mockResolvedValue({ access_token: fakeToken(), token_type: "bearer" });
     const { user, props } = renderRegistro();
 
     await completar(user);
 
     await waitFor(() => expect(props.onRegistroExitoso).toHaveBeenCalled());
-    expect(registrar).toHaveBeenCalledWith({
+    expect(register).toHaveBeenCalledWith({
       nombre: "Lucia",
       apellido: "Gomez",
       email: "Lucia@Example.com",
@@ -3269,7 +3269,7 @@ describe("Registro", () => {
   });
 
   it("shows the server message when the email is already in use", async () => {
-    registrar.mockRejectedValue(new Error("El correo ya está en uso."));
+    register.mockRejectedValue(new Error("El correo ya está en uso."));
     const { user, props } = renderRegistro();
 
     await completar(user, { email: "test@autobought.com" });
@@ -3290,7 +3290,7 @@ describe("Registro", () => {
     expect(screen.getByText("La contraseña tiene que tener al menos 8 caracteres.")).toBeInTheDocument();
     expect(screen.getByText("Repetí la contraseña.")).toBeInTheDocument();
     expect(screen.getByText("Tenés que aceptar los términos y condiciones.")).toBeInTheDocument();
-    expect(registrar).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
     expect(props.onRegistroExitoso).not.toHaveBeenCalled();
   });
 
@@ -3327,12 +3327,12 @@ describe("Registro", () => {
     await completar(user, datos);
 
     expect(screen.getByText(mensaje)).toBeInTheDocument();
-    expect(registrar).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
     expect(props.onRegistroExitoso).not.toHaveBeenCalled();
   });
 
   it("shows backend validation errors under their field", async () => {
-    registrar.mockRejectedValue(
+    register.mockRejectedValue(
       Object.assign(new Error("Revisá los datos ingresados."), {
         campos: { password: "Esa contraseña es muy común. Elegí otra." },
       })
@@ -3347,7 +3347,7 @@ describe("Registro", () => {
 
   it("disables the button while the request is in flight", async () => {
     let resolver;
-    registrar.mockReturnValue(new Promise((resolve) => (resolver = resolve)));
+    register.mockReturnValue(new Promise((resolve) => (resolver = resolve)));
     const { user } = renderRegistro();
 
     await completar(user);
@@ -3361,14 +3361,14 @@ describe("Direcciones", () => {
   it("saves a primary address and can delete it", async () => {
     const user = userEvent.setup();
     let savedAddresses = [];
-    obtenerDirecciones.mockImplementation(() => Promise.resolve(savedAddresses));
-    crearDireccion.mockImplementation(async (address) => {
+    getAddresses.mockImplementation(() => Promise.resolve(savedAddresses));
+    createAddress.mockImplementation(async (address) => {
       savedAddresses = [{ ...address, id: 1, principal: true }];
     });
-    eliminarDireccionAPI.mockImplementation(async (id) => {
+    deleteAddressApi.mockImplementation(async (id) => {
       savedAddresses = savedAddresses.filter((address) => address.id !== id);
     });
-    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
 
     await user.click(await screen.findByRole("button", { name: /agregar dirección/i }));
     await user.type(screen.getByLabelText("NOMBRE DE LA DIRECCIÓN *"), "Casa");
@@ -3382,14 +3382,14 @@ describe("Direcciones", () => {
     expect(await screen.findByText("Principal")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Eliminar la dirección Casa" }));
     // Pide confirmación antes de borrar.
-    expect(eliminarDireccionAPI).not.toHaveBeenCalled();
+    expect(deleteAddressApi).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Sí, eliminar" }));
     expect(await screen.findByText("Todavía no tenés direcciones guardadas.")).toBeInTheDocument();
-    expect(crearDireccion).toHaveBeenCalledWith(expect.objectContaining({
+    expect(createAddress).toHaveBeenCalledWith(expect.objectContaining({
       nombre: "Casa",
       departamento: "Montevideo",
     }));
-    expect(eliminarDireccionAPI).toHaveBeenCalledWith(1);
+    expect(deleteAddressApi).toHaveBeenCalledWith(1);
   });
 
   const completarDireccion = async (user, d = {}) => {
@@ -3406,7 +3406,7 @@ describe("Direcciones", () => {
 
   it("shows an error under each required field", async () => {
     const user = userEvent.setup();
-    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
 
     await completarDireccion(user, { nombre: "", ciudad: "", calle: "", numero: "", departamento: "" });
 
@@ -3415,7 +3415,7 @@ describe("Direcciones", () => {
     expect(screen.getByText("El número de puerta no puede estar vacío.")).toBeInTheDocument();
     expect(screen.getByText("La ciudad no puede estar vacía.")).toBeInTheDocument();
     expect(screen.getByText("Seleccioná un departamento.")).toBeInTheDocument();
-    expect(crearDireccion).not.toHaveBeenCalled();
+    expect(createAddress).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -3425,18 +3425,18 @@ describe("Direcciones", () => {
     ["a postal code that is not 5 digits", { codigoPostal: "113" }, "El código postal tiene que tener 5 dígitos."],
   ])("rejects %s", async (_caso, datos, mensaje) => {
     const user = userEvent.setup();
-    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
 
     await completarDireccion(user, datos);
 
     expect(screen.getByText(mensaje)).toBeInTheDocument();
-    expect(crearDireccion).not.toHaveBeenCalled();
+    expect(createAddress).not.toHaveBeenCalled();
   });
 
   it("shows a duplicated address error from the API", async () => {
     const user = userEvent.setup();
-    crearDireccion.mockRejectedValue(Object.assign(new Error("Ya tenés guardada esta dirección."), { campos: {} }));
-    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+    createAddress.mockRejectedValue(Object.assign(new Error("Ya tenés guardada esta dirección."), { campos: {} }));
+    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
 
     await completarDireccion(user);
 
@@ -3446,9 +3446,9 @@ describe("Direcciones", () => {
   it("shows the account menu with the current section marked and a log out", async () => {
     const user = userEvent.setup();
     const props = { ...navigationProps(), onCerrarSesion: jest.fn() };
-    obtenerDirecciones.mockResolvedValue([]);
+    getAddresses.mockResolvedValue([]);
 
-    render(<Direcciones {...props} usuario={{ nombre: "Ana Pérez" }} />);
+    render(<Addresses {...props} usuario={{ nombre: "Ana Pérez" }} />);
 
     const menu = screen.getByRole("navigation", { name: "Mi cuenta" });
     expect(within(menu).getByRole("button", { name: "Direcciones" })).toHaveAttribute("aria-current", "page");
@@ -3462,11 +3462,11 @@ describe("Direcciones", () => {
 
   it("opens the account menu from the navbar also inside the account pages", async () => {
     const user = userEvent.setup();
-    obtenerDirecciones.mockResolvedValue([]);
+    getAddresses.mockResolvedValue([]);
 
     render(
       <>
-        <Direcciones {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com" }} />
+        <Addresses {...navigationProps()} usuario={{ nombre: "Ana", email: "ana@example.com" }} />
         <RutaActual />
       </>
     );
@@ -3481,17 +3481,17 @@ describe("Direcciones", () => {
 
   it("can cancel deleting an address", async () => {
     const user = userEvent.setup();
-    obtenerDirecciones.mockResolvedValue([
+    getAddresses.mockResolvedValue([
       { id: 1, nombre: "Casa", calle: "A", numero: "1", ciudad: "MVD", departamento: "MVD", principal: true },
     ]);
-    render(<Direcciones {...navigationProps()} onPerfil={jest.fn()} />);
+    render(<Addresses {...navigationProps()} onPerfil={jest.fn()} />);
 
     await user.click(await screen.findByRole("button", { name: "Eliminar la dirección Casa" }));
     expect(screen.getByText("¿Eliminar esta dirección?")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
     expect(screen.queryByText("¿Eliminar esta dirección?")).not.toBeInTheDocument();
-    expect(eliminarDireccionAPI).not.toHaveBeenCalled();
+    expect(deleteAddressApi).not.toHaveBeenCalled();
   });
 
   it("changes the primary address and returns to the profile", async () => {
@@ -3501,8 +3501,8 @@ describe("Direcciones", () => {
       { id: 1, nombre: "Casa", calle: "A", numero: "1", ciudad: "MVD", departamento: "MVD", principal: true },
       { id: 2, nombre: "Oficina", calle: "B", numero: "2", ciudad: "MVD", departamento: "MVD", principal: false },
     ];
-    obtenerDirecciones.mockImplementation(() => Promise.resolve(savedAddresses));
-    marcarDireccionPrincipal.mockImplementation(async (id) => {
+    getAddresses.mockImplementation(() => Promise.resolve(savedAddresses));
+    setPrimaryAddress.mockImplementation(async (id) => {
       savedAddresses = savedAddresses.map((address) => ({
         ...address,
         principal: address.id === id,
@@ -3510,7 +3510,7 @@ describe("Direcciones", () => {
     });
     render(
       <>
-        <Direcciones {...navigationProps()} onPerfil={onPerfil} />
+        <Addresses {...navigationProps()} onPerfil={onPerfil} />
         <RutaActual />
       </>
     );
@@ -3525,19 +3525,19 @@ describe("Direcciones", () => {
     // El menú de la cuenta reemplaza al viejo "Volver a mi perfil".
     await user.click(within(screen.getByRole("navigation", { name: "Mi cuenta" })).getByRole("button", { name: "Mis datos" }));
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/perfil");
-    expect(marcarDireccionPrincipal).toHaveBeenCalledWith(2);
+    expect(setPrimaryAddress).toHaveBeenCalledWith(2);
   });
 });
 
 describe("HistorialCompras", () => {
   it("renders an empty state and API-provided purchase details", async () => {
     const props = navigationProps();
-    render(<HistorialCompras {...props} onPerfil={jest.fn()} />);
+    render(<PurchaseHistory {...props} onPerfil={jest.fn()} />);
     expect(
       await screen.findByText("Todavía no tenés compras terminadas.")
     ).toBeInTheDocument();
 
-    obtenerHistorialCompras.mockResolvedValue([
+    getPurchaseHistory.mockResolvedValue([
       {
         id: "ORD-1",
         fecha: "2026-01-15T00:00:00.000Z",
@@ -3546,7 +3546,7 @@ describe("HistorialCompras", () => {
         items: [],
       },
     ]);
-    render(<HistorialCompras {...props} onPerfil={jest.fn()} />);
+    render(<PurchaseHistory {...props} onPerfil={jest.fn()} />);
 
     expect(await screen.findByText("#ORD-1")).toBeInTheDocument();
   });
@@ -3598,7 +3598,7 @@ describe("SearchBar and search helpers", () => {
     expect(onSubmit).toHaveBeenLastCalledWith("");
 
     expect(
-      filtrarRepuestos(
+      filterParts(
         [{ name: "Filtro API", part_code: "API-1", category: "Filters", price: 300 }],
         { busqueda: "api" }
       )
@@ -3609,17 +3609,17 @@ describe("SearchBar and search helpers", () => {
       { nombre: "Bujía 1.4", fabricante: "Bosch" },
       { nombre: "Filtro 1.4", fabricante: "Mann-Filter" },
     ];
-    expect(filtrarRepuestos(repuestos, { fabricantes: ["NGK", "Mann-Filter"] }))
+    expect(filterParts(repuestos, { fabricantes: ["NGK", "Mann-Filter"] }))
       .toEqual([repuestos[0], repuestos[2]]);
-    expect(filtrarRepuestos(repuestos, { busqueda: "bosch" })).toEqual([repuestos[1]]);
+    expect(filterParts(repuestos, { busqueda: "bosch" })).toEqual([repuestos[1]]);
     // Por palabras, en cualquier orden y sin importar las tildes.
-    expect(filtrarRepuestos(repuestos, { busqueda: "ngk bujia" })).toEqual([repuestos[0]]);
+    expect(filterParts(repuestos, { busqueda: "ngk bujia" })).toEqual([repuestos[0]]);
     // El auto no está en el nombre: se encuentra por los modelos compatibles.
     const radiadores = [
       { nombre: "Radiador Valeo", marcas: ["Chevrolet"], modelos: ["Onix"] },
       { nombre: "Radiador Valeo", marcas: ["Fiat"], modelos: ["Cronos"] },
     ];
-    expect(filtrarRepuestos(radiadores, { busqueda: "radiador onix" })).toEqual([radiadores[0]]);
+    expect(filterParts(radiadores, { busqueda: "radiador onix" })).toEqual([radiadores[0]]);
 
     const conPrecio = [
       { nombre: "Faro", precio: 6900, stock: 0, marcas: ["Ford"] },
@@ -3627,17 +3627,17 @@ describe("SearchBar and search helpers", () => {
       { nombre: "Aceite", precio: 2600, stock: 9, marcas: ["Fiat"] },
     ];
     const nombres = (lista) => lista.map((p) => p.nombre);
-    expect(nombres(filtrarRepuestos(conPrecio, { precioMin: "600", precioMax: "3000" })))
+    expect(nombres(filterParts(conPrecio, { precioMin: "600", precioMax: "3000" })))
       .toEqual(["Bujía", "Aceite"]);
-    expect(nombres(filtrarRepuestos(conPrecio, { precioMax: "", soloConStock: true })))
+    expect(nombres(filterParts(conPrecio, { precioMax: "", soloConStock: true })))
       .toEqual(["Bujía", "Aceite"]);
-    expect(nombres(filtrarRepuestos(conPrecio, { marcasAuto: ["Ford"] }))).toEqual(["Faro", "Bujía"]);
-    expect(nombres(filtrarRepuestos(conPrecio, { orden: "Nombre A-Z" })))
+    expect(nombres(filterParts(conPrecio, { marcasAuto: ["Ford"] }))).toEqual(["Faro", "Bujía"]);
+    expect(nombres(filterParts(conPrecio, { orden: "Nombre A-Z" })))
       .toEqual(["Aceite", "Bujía", "Faro"]);
   });
 
   it("renders the no-results message", () => {
-    render(<SinResultadosBusqueda termino="bujía" />);
+    render(<NoSearchResults termino="bujía" />);
     expect(screen.getByRole("status")).toHaveTextContent("bujía");
   });
 });
@@ -3646,7 +3646,7 @@ describe("BusquedaCabecera", () => {
   it("muestra el foco (anillo naranja) al navegar con el teclado", async () => {
     const user = userEvent.setup();
 
-    render(<BusquedaCabecera />);
+    render(<HeaderSearch />);
     const input = screen.getByRole("textbox", { name: "Buscar repuestos" });
     const contenedor = input.parentElement;
 
@@ -3665,7 +3665,7 @@ describe("BusquedaCabecera", () => {
 
     render(
       <>
-        <BusquedaCabecera />
+        <HeaderSearch />
         <RutaActual />
       </>
     );
@@ -3675,7 +3675,7 @@ describe("BusquedaCabecera", () => {
     expect(screen.getByTestId("ruta-actual")).not.toHaveTextContent(
       "/catalogo"
     );
-    expect(buscarTexto).not.toHaveBeenCalled();
+    expect(searchText).not.toHaveBeenCalled();
   });
 
   it("navega al catálogo al presionar Enter", async () => {
@@ -3683,7 +3683,7 @@ describe("BusquedaCabecera", () => {
 
   render(
     <>
-      <BusquedaCabecera />
+      <HeaderSearch />
       <RutaActual />
     </>
   );
@@ -3698,7 +3698,7 @@ describe("BusquedaCabecera", () => {
   expect(screen.getByTestId("ruta-actual")).toHaveTextContent(
     "/catalogo?q=pastillas%20de%20freno%20onix%202020"
   );
-  expect(buscarTexto).not.toHaveBeenCalled();
+  expect(searchText).not.toHaveBeenCalled();
 });
 
 });

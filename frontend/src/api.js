@@ -1,6 +1,6 @@
-import { mapearCategoria, mapearItemCarrito, mapearRepuesto } from "./mapearRepuesto";
-import { obtenerSesion } from "./auth";
-import { formatearTelefonoUY } from "./telefono";
+import { mapCategory, mapCartItem, mapPart } from "./mapPart";
+import { getSession } from "./auth";
+import { formatUyPhone } from "./phone";
 
 // En Vercel el frontend y el backend comparten dominio: frontend/.env.production
 // deja VITE_API_URL vacía y los pedidos van a /api/v1/... del mismo sitio.
@@ -17,7 +17,7 @@ export const API_BASE_URL =
    único que cierra la sesión, avisa y lleva a /login.
 ====================================================== */
 
-const manejadoresSesionInvalida = new Set();
+const invalidSessionHandlers = new Set();
 
 /**
  * Registra `fn` para que se llame cuando un pedido que mandó
@@ -29,9 +29,9 @@ const manejadoresSesionInvalida = new Set();
  * `cambiarPassword`. `renovarToken` tampoco: su 401 ya llega a App.jsx por
  * `useRenovacionSesion`.
  */
-export function alSesionInvalida(fn) {
-  manejadoresSesionInvalida.add(fn);
-  return () => manejadoresSesionInvalida.delete(fn);
+export function onInvalidSession(fn) {
+  invalidSessionHandlers.add(fn);
+  return () => invalidSessionHandlers.delete(fn);
 }
 
 /**
@@ -41,9 +41,9 @@ export function alSesionInvalida(fn) {
  * pedido viejo, hecho con el token anterior al cambio de contraseña, no
  * tiene que cerrar la sesión nueva).
  */
-export function avisarSesionInvalida(tokenEnviado) {
-  if (!tokenEnviado || obtenerSesion()?.token !== tokenEnviado) return;
-  [...manejadoresSesionInvalida].forEach((fn) => fn());
+export function notifyInvalidSession(tokenEnviado) {
+  if (!tokenEnviado || getSession()?.token !== tokenEnviado) return;
+  [...invalidSessionHandlers].forEach((fn) => fn());
 }
 
 export async function login(email, password) {
@@ -58,17 +58,17 @@ export async function login(email, password) {
     throw new Error("No pudimos conectar con el servidor.");
   }
 
-  const data = await leerJson(response);
+  const data = await readJson(response);
 
   if (!response.ok) {
     const mensaje =
-      data !== SIN_JSON && typeof data?.detail === "string"
+      data !== NO_JSON && typeof data?.detail === "string"
         ? data.detail
         : "Correo electrónico o contraseña incorrectos.";
     throw new Error(mensaje);
   }
 
-  if (data === SIN_JSON) {
+  if (data === NO_JSON) {
     throw new Error("No pudimos leer la respuesta del servidor.");
   }
 
@@ -84,7 +84,7 @@ export async function login(email, password) {
  * 201 devuelve el mismo `{ access_token, token_type }` que el login,
  * para dejar la sesión iniciada. 409 = correo ya registrado.
  */
-export async function registrar({ nombre, apellido, email, telefono, password }) {
+export async function register({ nombre, apellido, email, telefono, password }) {
   let response;
 
   try {
@@ -119,7 +119,7 @@ export async function registrar({ nombre, apellido, email, telefono, password })
           ? "Revisá los datos ingresados."
           : "No pudimos crear tu cuenta. Intentá de nuevo.";
     const error = new Error(mensaje);
-    error.campos = camposConError(data?.detail);
+    error.campos = fieldsWithErrors(data?.detail);
     throw error;
   }
 
@@ -139,8 +139,8 @@ export async function registrar({ nombre, apellido, email, telefono, password })
  * quien llama distinga "la sesión terminó" (401) de un problema pasajero
  * de red o de servidor, que se puede reintentar.
  */
-export async function renovarToken() {
-  const sesion = obtenerSesion();
+export async function renewToken() {
+  const sesion = getSession();
   let response;
 
   try {
@@ -164,7 +164,7 @@ export async function renovarToken() {
   // es del token viejo, ya revocado. No se usa, ni siquiera su 401: pisaría
   // o cerraría la sesión nueva. Sin `status`, useRenovacionSesion lo toma
   // como pasajero y, si la sesión sigue, reprograma con el token vigente.
-  if (obtenerSesion()?.token !== sesion?.token) {
+  if (getSession()?.token !== sesion?.token) {
     throw new Error("La sesión cambió mientras se renovaba.");
   }
 
@@ -192,7 +192,7 @@ export async function renovarToken() {
  * `name` (nombre + apellido), por eso `apellido` queda vacío: Navbar y
  * Perfil muestran `nombre` + `apellido`, así que se ve igual.
  */
-export async function obtenerPerfil(token) {
+export async function getProfile(token) {
   let response;
 
   try {
@@ -210,28 +210,28 @@ export async function obtenerPerfil(token) {
     data = null;
   }
 
-  if (response.status === 401) avisarSesionInvalida(token);
+  if (response.status === 401) notifyInvalidSession(token);
 
   if (!response.ok || !data) {
     throw new Error("No pudimos cargar tu perfil.");
   }
 
-  return mapearPerfil(data);
+  return mapProfile(data);
 }
 
-function mapearPerfil(data) {
+function mapProfile(data) {
   return {
     nombre: data.name,
     apellido: "",
     email: data.email,
-    telefono: formatearTelefonoUY(data.phone),
+    telefono: formatUyPhone(data.phone),
     emailVerificado: data.email_verified,
     recibeOfertas: data.marketing_emails,
   };
 }
 
-export async function actualizarPerfil({ nombre, apellido, telefono }) {
-  const sesion = obtenerSesion();
+export async function updateProfile({ nombre, apellido, telefono }) {
+  const sesion = getSession();
   let response;
 
   try {
@@ -257,14 +257,14 @@ export async function actualizarPerfil({ nombre, apellido, telefono }) {
     data = null;
   }
 
-  if (response.status === 401) avisarSesionInvalida(sesion?.token);
+  if (response.status === 401) notifyInvalidSession(sesion?.token);
 
   if (!response.ok || !data) {
     const mensaje =
       response.status === 401
         ? "Tu sesión venció. Iniciá sesión de nuevo."
         : response.status === 422
-          ? Object.values(camposConError(data?.detail))[0] ||
+          ? Object.values(fieldsWithErrors(data?.detail))[0] ||
             "Revisá el nombre y el teléfono (ej: 099 123 456)."
           : "No pudimos guardar tus datos.";
     const error = new Error(mensaje);
@@ -272,7 +272,7 @@ export async function actualizarPerfil({ nombre, apellido, telefono }) {
     throw error;
   }
 
-  return mapearPerfil(data);
+  return mapProfile(data);
 }
 
 /**
@@ -283,8 +283,8 @@ export async function actualizarPerfil({ nombre, apellido, telefono }) {
  * token_type }`, el único válido: quien llama tiene que guardarlo para que
  * este dispositivo siga logueado (ver CambiarPassword.jsx).
  */
-export async function cambiarPassword(actual, nueva) {
-  const sesion = obtenerSesion();
+export async function changePassword(actual, nueva) {
+  const sesion = getSession();
   let response;
 
   try {
@@ -311,7 +311,7 @@ export async function cambiarPassword(actual, nueva) {
 
   // Solo el 401 (token inválido) es sesión inválida: el 400 de «contraseña
   // actual incorrecta» es un error del formulario.
-  if (response.status === 401) avisarSesionInvalida(sesion?.token);
+  if (response.status === 401) notifyInvalidSession(sesion?.token);
 
   const mensaje =
     response.status === 401
@@ -319,7 +319,7 @@ export async function cambiarPassword(actual, nueva) {
       : typeof data?.detail === "string"
         ? data.detail
         : response.status === 422
-          ? Object.values(camposConError(data?.detail))[0] ||
+          ? Object.values(fieldsWithErrors(data?.detail))[0] ||
             "Revisá la nueva contraseña."
           : "No pudimos cambiar tu contraseña.";
   const error = new Error(mensaje);
@@ -336,7 +336,7 @@ export async function cambiarPassword(actual, nueva) {
 
 // POST sin sesión que solo importa si salió bien: devuelve el JSON (o
 // null) y, si falla, tira un Error con el `detail` del backend.
-async function postCuenta(ruta, cuerpo, mensajePorDefecto, headers = {}) {
+async function postAccount(ruta, cuerpo, mensajePorDefecto, headers = {}) {
   let response;
 
   try {
@@ -361,7 +361,7 @@ async function postCuenta(ruta, cuerpo, mensajePorDefecto, headers = {}) {
       typeof data?.detail === "string"
         ? data.detail
         : response.status === 422
-          ? Object.values(camposConError(data?.detail))[0] || mensajePorDefecto
+          ? Object.values(fieldsWithErrors(data?.detail))[0] || mensajePorDefecto
           : mensajePorDefecto;
     const error = new Error(mensaje);
     error.status = response.status;
@@ -372,23 +372,23 @@ async function postCuenta(ruta, cuerpo, mensajePorDefecto, headers = {}) {
 }
 
 /** POST /api/v1/auth/verify-email — 204, o 400 si el enlace no sirve. */
-export async function verificarCorreo(token) {
-  await postCuenta("verify-email", { token }, "No pudimos verificar tu correo.");
+export async function verifyEmail(token) {
+  await postAccount("verify-email", { token }, "No pudimos verificar tu correo.");
 }
 
 /** POST /api/v1/auth/verify-email/resend — vuelve a mandar el mail. */
-export async function reenviarVerificacion() {
-  const sesion = obtenerSesion();
+export async function resendVerification() {
+  const sesion = getSession();
 
   try {
-    await postCuenta(
+    await postAccount(
       "verify-email/resend",
       undefined,
       "No pudimos reenviar el mail.",
       { Authorization: `Bearer ${sesion?.token}` }
     );
   } catch (error) {
-    if (error.status === 401) avisarSesionInvalida(sesion?.token);
+    if (error.status === 401) notifyInvalidSession(sesion?.token);
     throw error;
   }
 }
@@ -397,8 +397,8 @@ export async function reenviarVerificacion() {
  * POST /api/v1/auth/password/forgot — 202 siempre, exista o no el
  * correo. Devuelve el mensaje del backend para mostrarlo tal cual.
  */
-export async function pedirRecuperacion(email) {
-  const data = await postCuenta(
+export async function requestPasswordReset(email) {
+  const data = await postAccount(
     "password/forgot",
     { email },
     "No pudimos procesar el pedido."
@@ -407,8 +407,8 @@ export async function pedirRecuperacion(email) {
 }
 
 /** POST /api/v1/auth/password/reset — 204; 400 enlace inválido; 422 contraseña débil. */
-export async function restablecerPassword(token, nueva) {
-  await postCuenta(
+export async function resetPassword(token, nueva) {
+  await postAccount(
     "password/reset",
     { token, new_password: nueva },
     "No pudimos cambiar tu contraseña."
@@ -416,22 +416,22 @@ export async function restablecerPassword(token, nueva) {
 }
 
 /** POST /api/v1/auth/unsubscribe — enlace de baja de los mails comerciales. */
-export async function darseDeBaja(token) {
-  await postCuenta("unsubscribe", { token }, "No pudimos procesar la baja.");
+export async function unsubscribe(token) {
+  await postAccount("unsubscribe", { token }, "No pudimos procesar la baja.");
 }
 
 /**
  * PUT /api/v1/auth/me/preferences — interruptor «Ofertas y recordatorios
  * por mail» del perfil. Devuelve el perfil actualizado.
  */
-export async function guardarPreferenciasMails(recibeOfertas) {
-  const data = await pedirCuentaCliente(
+export async function saveMailPreferences(recibeOfertas) {
+  const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/auth/me/preferences`,
     { method: "PUT", body: JSON.stringify({ marketing_emails: recibeOfertas }) },
     { 401: "Tu sesión venció. Iniciá sesión de nuevo." },
     "No pudimos guardar tu preferencia."
   );
-  return mapearPerfil(data);
+  return mapProfile(data);
 }
 
 /* =====================================================
@@ -446,17 +446,17 @@ export async function guardarPreferenciasMails(recibeOfertas) {
 // un 200 con un cuerpo roto (ej: el HTML de un proxy) no es una lista
 // vacía, es un error, y tiene que llegar al estado de error de la
 // pantalla en vez de mostrarse como "No encontramos productos".
-const SIN_JSON = Symbol("sin-json");
+const NO_JSON = Symbol("sin-json");
 
-async function leerJson(response) {
+async function readJson(response) {
   try {
     return await response.json();
   } catch {
-    return SIN_JSON;
+    return NO_JSON;
   }
 }
 
-function errorDeRespuesta(data, mensajePorDefecto, statusCode) {
+function responseError(data, mensajePorDefecto, statusCode) {
   const mensaje =
     typeof data?.detail === "string" ? data.detail : mensajePorDefecto;
   const error = new Error(mensaje);
@@ -473,7 +473,7 @@ function errorDeRespuesta(data, mensajePorDefecto, statusCode) {
  * @param {string} mensajeError - copy por defecto de la pantalla.
  * @returns {Promise<object>} el JSON de la respuesta.
  */
-async function pedirJson(url, mensajeError) {
+async function fetchJson(url, mensajeError) {
   let response;
 
   try {
@@ -485,13 +485,13 @@ async function pedirJson(url, mensajeError) {
     throw new Error(mensajeError);
   }
 
-  const data = await leerJson(response);
+  const data = await readJson(response);
 
   if (!response.ok) {
-    throw errorDeRespuesta(data === SIN_JSON ? null : data, mensajeError, response.status);
+    throw responseError(data === NO_JSON ? null : data, mensajeError, response.status);
   }
 
-  if (data === SIN_JSON) {
+  if (data === NO_JSON) {
     throw new Error(mensajeError);
   }
 
@@ -512,7 +512,7 @@ async function pedirJson(url, mensajeError) {
  * @param {string} mensajeError - copy por defecto de la pantalla.
  * @returns {Array<object>}
  */
-function listaDe(data, clave, mensajeError) {
+function listFrom(data, clave, mensajeError) {
   const lista = data?.[clave];
 
   if (!Array.isArray(lista)) {
@@ -537,7 +537,7 @@ function listaDe(data, clave, mensajeError) {
  * @param {string|{categoria?: string, brand?: string, model?: string, year?: string|number}} [filtros]
  * @returns {Promise<Array<object>>} repuestos con el shape de la UI.
  */
-export async function obtenerRepuestos(filtros) {
+export async function getParts(filtros) {
   const { categoria, brand, model, year } =
     typeof filtros === "string" ? { categoria: filtros } : filtros || {};
 
@@ -552,15 +552,15 @@ export async function obtenerRepuestos(filtros) {
   }`;
 
   const mensajeError = "No pudimos cargar los repuestos.";
-  const data = await pedirJson(url, mensajeError);
+  const data = await fetchJson(url, mensajeError);
 
-  return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+  return listFrom(data, "parts", mensajeError).map(mapPart);
 }
 
 /** GET /api/v1/parts/{id}; devuelve un repuesto con el mismo mapeo que el catálogo. */
-export async function obtenerRepuesto(id) {
+export async function getPart(id) {
   const mensajeError = "No pudimos cargar el repuesto.";
-  const data = await pedirJson(
+  const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts/${encodeURIComponent(id)}`,
     mensajeError
   );
@@ -569,26 +569,26 @@ export async function obtenerRepuesto(id) {
     throw new Error(mensajeError);
   }
 
-  return mapearRepuesto(data);
+  return mapPart(data);
 }
 
 /**
  * Búsqueda libre en lenguaje natural.
  * Ejemplo: "pastillas de freno onix 2020"
  */
-export async function buscarTexto(texto) {
+export async function searchText(texto) {
   const mensajeError = "No pudimos realizar la búsqueda.";
 
   const params = new URLSearchParams();
   params.set("q", texto);
 
-  const data = await pedirJson(
+  const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts?${params.toString()}`,
     mensajeError
   );
 
   return {
-    parts: listaDe(data, "parts", mensajeError).map(mapearRepuesto),
+    parts: listFrom(data, "parts", mensajeError).map(mapPart),
     entities: data.entities || {
       part: null,
       brand: null,
@@ -608,28 +608,28 @@ export async function buscarTexto(texto) {
  *
  * @returns {Promise<Array<{nombre: string, cantidad: number}>>}
  */
-export async function obtenerCategorias() {
+export async function getCategories() {
   const mensajeError = "No pudimos cargar las categorías.";
-  const data = await pedirJson(
+  const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts/categories`,
     mensajeError
   );
 
-  return listaDe(data, "categories", mensajeError).map(mapearCategoria);
+  return listFrom(data, "categories", mensajeError).map(mapCategory);
 }
 
 /**
  * GET /api/v1/parts/manufacturers: los fabricantes con repuestos, del que
  * más tiene al que menos, con el mismo shape `{ nombre, cantidad }`.
  */
-export async function obtenerFabricantes() {
+export async function getManufacturers() {
   const mensajeError = "No pudimos cargar los fabricantes.";
-  const data = await pedirJson(
+  const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts/manufacturers`,
     mensajeError
   );
 
-  return listaDe(data, "manufacturers", mensajeError).map(mapearCategoria);
+  return listFrom(data, "manufacturers", mensajeError).map(mapCategory);
 }
 
 /**
@@ -641,7 +641,7 @@ export async function obtenerFabricantes() {
  *
  * @returns {Promise<Array<object>>} repuestos con el shape de la UI.
  */
-export async function obtenerMasVendidos({ limite = 4, dias = 90 } = {}) {
+export async function getBestSellers({ limite = 4, dias = 90 } = {}) {
   const params = new URLSearchParams({
     limit: limite,
     days: dias,
@@ -649,12 +649,12 @@ export async function obtenerMasVendidos({ limite = 4, dias = 90 } = {}) {
   });
 
   const mensajeError = "No pudimos cargar los más vendidos.";
-  const data = await pedirJson(
+  const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts/best-sellers?${params.toString()}`,
     mensajeError
   );
 
-  return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+  return listFrom(data, "parts", mensajeError).map(mapPart);
 }
 
 /* =====================================================
@@ -673,7 +673,7 @@ export async function obtenerMasVendidos({ limite = 4, dias = 90 } = {}) {
  * hacer (401 → lo maneja `alSesionInvalida`, 409 → avisar el stock disponible).
  * Se guarda en `error.status` en vez de parsear el mensaje.
  */
-const MENSAJES_POR_STATUS_CARRITO = {
+const CART_STATUS_MESSAGES = {
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "Esta acción requiere una cuenta de cliente.",
   404: "No encontramos ese repuesto.",
@@ -681,8 +681,8 @@ const MENSAJES_POR_STATUS_CARRITO = {
   422: "La cantidad no es válida.",
 };
 
-async function pedirCarrito(url, options = {}) {
-  const sesion = obtenerSesion();
+async function fetchCart(url, options = {}) {
+  const sesion = getSession();
 
   let response;
   try {
@@ -698,26 +698,26 @@ async function pedirCarrito(url, options = {}) {
     throw new Error("No pudimos conectar con el carrito.");
   }
 
-  const data = await leerJson(response);
+  const data = await readJson(response);
 
   if (!response.ok) {
-    if (response.status === 401) avisarSesionInvalida(sesion?.token);
+    if (response.status === 401) notifyInvalidSession(sesion?.token);
 
     const detalle =
-      data !== SIN_JSON && typeof data?.detail === "string"
+      data !== NO_JSON && typeof data?.detail === "string"
         ? data.detail
         : null;
 
     const error = new Error(
       detalle ||
-        MENSAJES_POR_STATUS_CARRITO[response.status] ||
+        CART_STATUS_MESSAGES[response.status] ||
         "No pudimos actualizar el carrito."
     );
     error.status = response.status;
     throw error;
   }
 
-  if (data === SIN_JSON) {
+  if (data === NO_JSON) {
     const error = new Error("No pudimos leer la respuesta del carrito.");
     error.status = response.status;
     throw error;
@@ -726,56 +726,56 @@ async function pedirCarrito(url, options = {}) {
   return data;
 }
 
-function mapearCarritoDetalle(data) {
+function mapCartDetail(data) {
   return {
-    items: (data.items || []).map(mapearItemCarrito),
+    items: (data.items || []).map(mapCartItem),
     total: data.total ?? 0,
   };
 }
 
 /** GET /api/v1/cart (si el cliente no tiene carrito, el backend lo crea) */
-export async function obtenerCarrito() {
-  const data = await pedirCarrito(`${API_BASE_URL}/api/v1/cart`);
-  return mapearCarritoDetalle(data);
+export async function getCart() {
+  const data = await fetchCart(`${API_BASE_URL}/api/v1/cart`);
+  return mapCartDetail(data);
 }
 
 /** POST /api/v1/cart/items — si el repuesto ya está, el backend suma. */
-export async function agregarItemCarrito(partId, amount) {
-  const data = await pedirCarrito(`${API_BASE_URL}/api/v1/cart/items`, {
+export async function addCartItem(partId, amount) {
+  const data = await fetchCart(`${API_BASE_URL}/api/v1/cart/items`, {
     method: "POST",
     body: JSON.stringify({ part_id: partId, amount }),
   });
-  return mapearCarritoDetalle(data);
+  return mapCartDetail(data);
 }
 
 /** PATCH /api/v1/cart/items/{part_id} — reemplaza la cantidad. */
-export async function actualizarItemCarrito(partId, amount) {
-  const data = await pedirCarrito(
+export async function updateCartItem(partId, amount) {
+  const data = await fetchCart(
     `${API_BASE_URL}/api/v1/cart/items/${partId}`,
     { method: "PATCH", body: JSON.stringify({ amount }) }
   );
-  return mapearCarritoDetalle(data);
+  return mapCartDetail(data);
 }
 
 /** DELETE /api/v1/cart/items/{part_id} */
-export async function eliminarItemCarrito(partId) {
-  const data = await pedirCarrito(
+export async function removeCartItem(partId) {
+  const data = await fetchCart(
     `${API_BASE_URL}/api/v1/cart/items/${partId}`,
     { method: "DELETE" }
   );
-  return mapearCarritoDetalle(data);
+  return mapCartDetail(data);
 }
 
 /** DELETE /api/v1/cart — vaciar. */
-export async function vaciarCarritoAPI() {
-  const data = await pedirCarrito(`${API_BASE_URL}/api/v1/cart`, {
+export async function clearCartApi() {
+  const data = await fetchCart(`${API_BASE_URL}/api/v1/cart`, {
     method: "DELETE",
   });
-  return mapearCarritoDetalle(data);
+  return mapCartDetail(data);
 }
 
-export async function obtenerMarcas() {
-  const data = await pedirJson(
+export async function getBrands() {
+  const data = await fetchJson(
     `${API_BASE_URL}/api/v1/brands`,
     "No pudimos cargar las marcas."
   );
@@ -783,8 +783,8 @@ export async function obtenerMarcas() {
   return data.brands || [];
 }
 
-export async function obtenerModelos(brand) {
-  const data = await pedirJson(
+export async function getModels(brand) {
+  const data = await fetchJson(
     `${API_BASE_URL}/api/v1/models?brand=${encodeURIComponent(brand)}`,
     "No pudimos cargar los modelos."
   );
@@ -792,8 +792,8 @@ export async function obtenerModelos(brand) {
   return data.models || [];
 }
 
-export async function obtenerAnios(brand, model) {
-  const data = await pedirJson(
+export async function getYears(brand, model) {
+  const data = await fetchJson(
     `${API_BASE_URL}/api/v1/years?brand=${encodeURIComponent(
       brand
     )}&model=${encodeURIComponent(model)}`,
@@ -808,7 +808,7 @@ export async function obtenerAnios(brand, model) {
    DIRECCIONES
 ====================================================== */
 
-const MENSAJES_POR_STATUS_DIRECCIONES = {
+const ADDRESS_STATUS_MESSAGES = {
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "Esta acción requiere una cuenta de cliente.",
   404: "No encontramos esa dirección.",
@@ -816,11 +816,11 @@ const MENSAJES_POR_STATUS_DIRECCIONES = {
   422: "Revisá los datos de la dirección.",
 };
 
-function pedirDirecciones(url, options = {}) {
-  return pedirCuentaCliente(
+function fetchAddresses(url, options = {}) {
+  return fetchCustomerAccount(
     url,
     options,
-    MENSAJES_POR_STATUS_DIRECCIONES,
+    ADDRESS_STATUS_MESSAGES,
     "No pudimos actualizar las direcciones."
   );
 }
@@ -830,7 +830,7 @@ function pedirDirecciones(url, options = {}) {
  * en `loc` (ej: ["body", "holder"]). Devuelve { holder: "mensaje" }, para
  * mostrar cada error debajo de su campo.
  */
-export function camposConError(detail) {
+export function fieldsWithErrors(detail) {
   if (!Array.isArray(detail)) return {};
   const campos = {};
   for (const item of detail) {
@@ -842,8 +842,8 @@ export function camposConError(detail) {
   return campos;
 }
 
-async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGenerico) {
-  const sesion = obtenerSesion();
+async function fetchCustomerAccount(url, options, mensajesPorStatus, mensajeGenerico) {
+  const sesion = getSession();
 
   let response;
   try {
@@ -859,13 +859,13 @@ async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGeneri
     throw new Error("No pudimos conectar con el servidor.");
   }
 
-  const data = response.status === 204 ? null : await leerJson(response);
+  const data = response.status === 204 ? null : await readJson(response);
 
   if (!response.ok) {
-    if (response.status === 401) avisarSesionInvalida(sesion?.token);
+    if (response.status === 401) notifyInvalidSession(sesion?.token);
 
     const detalle =
-      data !== SIN_JSON && typeof data?.detail === "string"
+      data !== NO_JSON && typeof data?.detail === "string"
         ? data.detail
         : null;
 
@@ -873,45 +873,45 @@ async function pedirCuentaCliente(url, options, mensajesPorStatus, mensajeGeneri
       detalle || mensajesPorStatus[response.status] || mensajeGenerico
     );
     error.status = response.status;
-    error.campos = data !== SIN_JSON ? camposConError(data?.detail) : {};
+    error.campos = data !== NO_JSON ? fieldsWithErrors(data?.detail) : {};
     throw error;
   }
 
-  if (data === SIN_JSON) {
+  if (data === NO_JSON) {
     throw new Error("No pudimos leer la respuesta del servidor.");
   }
 
   return data;
 }
 
-const MENSAJES_POR_STATUS_FAVORITOS = {
-  ...MENSAJES_POR_STATUS_DIRECCIONES,
+const FAVORITE_STATUS_MESSAGES = {
+  ...ADDRESS_STATUS_MESSAGES,
   404: "No encontramos ese repuesto.",
 };
 
-function pedirFavoritos(url, options = {}) {
-  return pedirCuentaCliente(
+function fetchFavorites(url, options = {}) {
+  return fetchCustomerAccount(
     url,
     options,
-    MENSAJES_POR_STATUS_FAVORITOS,
+    FAVORITE_STATUS_MESSAGES,
     "No pudimos actualizar tus favoritos."
   );
 }
 
-export async function obtenerFavoritos() {
+export async function getFavorites() {
   const mensajeError = "No pudimos cargar tus favoritos.";
-  const data = await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites`);
-  return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+  const data = await fetchFavorites(`${API_BASE_URL}/api/v1/favorites`);
+  return listFrom(data, "parts", mensajeError).map(mapPart);
 }
 
-export async function agregarFavoritoAPI(partId) {
-  await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+export async function addFavoriteApi(partId) {
+  await fetchFavorites(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
     method: "PUT",
   });
 }
 
-export async function quitarFavoritoAPI(partId) {
-  await pedirFavoritos(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+export async function removeFavoriteApi(partId) {
+  await fetchFavorites(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
     method: "DELETE",
   });
 }
@@ -921,39 +921,39 @@ export async function quitarFavoritoAPI(partId) {
    «Avisame cuando haya» en los repuestos agotados.
 ====================================================== */
 
-const MENSAJES_POR_STATUS_AVISOS = {
+const STOCK_ALERT_STATUS_MESSAGES = {
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   404: "No encontramos ese repuesto.",
 };
 
-function pedirAvisosStock(url, options = {}) {
-  return pedirCuentaCliente(
+function fetchStockAlerts(url, options = {}) {
+  return fetchCustomerAccount(
     url,
     options,
-    MENSAJES_POR_STATUS_AVISOS,
+    STOCK_ALERT_STATUS_MESSAGES,
     "No pudimos actualizar el aviso."
   );
 }
 
 /** GET /api/v1/stock-alerts — ids de los repuestos con aviso pedido. */
-export async function obtenerAvisosStock() {
-  const data = await pedirAvisosStock(`${API_BASE_URL}/api/v1/stock-alerts`);
+export async function getStockAlerts() {
+  const data = await fetchStockAlerts(`${API_BASE_URL}/api/v1/stock-alerts`);
   return Array.isArray(data?.part_ids) ? data.part_ids : [];
 }
 
-export async function agregarAvisoStock(partId) {
-  await pedirAvisosStock(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
+export async function addStockAlert(partId) {
+  await fetchStockAlerts(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
     method: "PUT",
   });
 }
 
-export async function quitarAvisoStock(partId) {
-  await pedirAvisosStock(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
+export async function removeStockAlert(partId) {
+  await fetchStockAlerts(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
     method: "DELETE",
   });
 }
 
-function mapearDireccion(d) {
+function mapAddress(d) {
   return {
     id: d.shipping_address_id,
     nombre: d.personal_name,
@@ -968,14 +968,14 @@ function mapearDireccion(d) {
 }
 
 /** GET /api/v1/addresses */
-export async function obtenerDirecciones() {
-  const data = await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses`);
-  return data.map(mapearDireccion);
+export async function getAddresses() {
+  const data = await fetchAddresses(`${API_BASE_URL}/api/v1/addresses`);
+  return data.map(mapAddress);
 }
 
 /** POST /api/v1/addresses */
-export async function crearDireccion(f) {
-  const data = await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses`, {
+export async function createAddress(f) {
+  const data = await fetchAddresses(`${API_BASE_URL}/api/v1/addresses`, {
     method: "POST",
     body: JSON.stringify({
       personal_name: f.nombre,
@@ -988,21 +988,21 @@ export async function crearDireccion(f) {
       is_primary: Boolean(f.principal),
     }),
   });
-  return mapearDireccion(data);
+  return mapAddress(data);
 }
 
 /** PATCH /api/v1/addresses/{id}/primary */
-export async function marcarDireccionPrincipal(id) {
-  const data = await pedirDirecciones(
+export async function setPrimaryAddress(id) {
+  const data = await fetchAddresses(
     `${API_BASE_URL}/api/v1/addresses/${id}/primary`,
     { method: "PATCH" }
   );
-  return mapearDireccion(data);
+  return mapAddress(data);
 }
 
 /** DELETE /api/v1/addresses/{id} */
-export async function eliminarDireccionAPI(id) {
-  await pedirDirecciones(`${API_BASE_URL}/api/v1/addresses/${id}`, {
+export async function deleteAddressApi(id) {
+  await fetchAddresses(`${API_BASE_URL}/api/v1/addresses/${id}`, {
     method: "DELETE",
   });
 }
@@ -1025,7 +1025,7 @@ export async function eliminarDireccionAPI(id) {
  * @param {Array<number>} partIds - ids de los repuestos del carrito.
  * @returns {Promise<Array<object>>}
  */
-export async function obtenerRecomendaciones(partIds) {
+export async function getRecommendations(partIds) {
   const ids = (partIds || []).filter((id) => id !== undefined && id !== null);
 
   if (ids.length === 0) return [];
@@ -1033,12 +1033,12 @@ export async function obtenerRecomendaciones(partIds) {
   const mensajeError = "No pudimos cargar las sugerencias.";
 
   try {
-    const data = await pedirJson(
+    const data = await fetchJson(
       `${API_BASE_URL}/api/v1/recommendations?part_ids=${ids.join(",")}`,
       mensajeError
     );
 
-    return listaDe(data, "parts", mensajeError).map(mapearRepuesto);
+    return listFrom(data, "parts", mensajeError).map(mapPart);
   } catch {
     return [];
   }
@@ -1048,7 +1048,7 @@ export async function obtenerRecomendaciones(partIds) {
 
 // Si el backend manda `detail` (ej. el 409 dice qué repuesto no alcanza),
 // pedirCuentaCliente usa ese mensaje; estos son solo el respaldo.
-const MENSAJES_POR_STATUS_ORDENES = {
+const ORDER_STATUS_MESSAGES = {
   400: "Tu carrito está vacío.",
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "Esta acción requiere una cuenta de cliente.",
@@ -1056,12 +1056,12 @@ const MENSAJES_POR_STATUS_ORDENES = {
   422: "Revisá la dirección elegida.",
 };
 
-function mapearPedido(p) {
+function mapOrder(p) {
   return {
     id: p.order_id,
     fecha: p.created_at,
     estado: p.status,
-    direccion: p.shipping_address ? mapearDireccion(p.shipping_address) : null,
+    direccion: p.shipping_address ? mapAddress(p.shipping_address) : null,
     metodoPago: p.payment_method ?? "",
     // "pending" | "approved" | "rejected"; null en los pedidos de antes de
     // Mercado Pago (ya cobrados).
@@ -1095,8 +1095,8 @@ function mapearPedido(p) {
  * dirección elegida (sin elegir, usa la principal). El pedido queda
  * pendiente de pago: se paga después en Mercado Pago (crearLinkPago).
  */
-export async function confirmarCompra({ direccionId } = {}) {
-  const data = await pedirCuentaCliente(
+export async function confirmPurchase({ direccionId } = {}) {
+  const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/orders`,
     {
       method: "POST",
@@ -1104,54 +1104,54 @@ export async function confirmarCompra({ direccionId } = {}) {
         shipping_address_id: direccionId ?? null,
       }),
     },
-    MENSAJES_POR_STATUS_ORDENES,
+    ORDER_STATUS_MESSAGES,
     "No pudimos confirmar la compra."
   );
-  return mapearPedido(data);
+  return mapOrder(data);
 }
 
 /** GET /api/v1/orders — lista el historial de compras del cliente. */
-export async function obtenerHistorialCompras() {
-  const data = await pedirCuentaCliente(
+export async function getPurchaseHistory() {
+  const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/orders`,
     {},
-    MENSAJES_POR_STATUS_ORDENES,
+    ORDER_STATUS_MESSAGES,
     "No pudimos cargar tu historial de compras."
   );
-  return listaDe(
+  return listFrom(
     data,
     "orders",
     "No pudimos cargar tu historial de compras."
-  ).map(mapearPedido);
+  ).map(mapOrder);
 }
 
 /** GET /api/v1/orders/{orderId} — trae el detalle de una compra. */
-export async function obtenerDetalleCompra(orderId) {
-  const data = await pedirCuentaCliente(
+export async function getPurchaseDetail(orderId) {
+  const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/orders/${orderId}`,
     {},
-    MENSAJES_POR_STATUS_ORDENES,
+    ORDER_STATUS_MESSAGES,
     "No pudimos cargar el detalle de la compra."
   );
-  return mapearPedido(data);
+  return mapOrder(data);
 }
 
 /**
  * POST /api/v1/orders/{orderId}/recibido — «Ya lo recibí»: el cliente
  * confirma que le llegó un pedido enviado. Devuelve el pedido entregado.
  */
-export async function confirmarRecepcion(orderId) {
-  const data = await pedirCuentaCliente(
+export async function confirmReceipt(orderId) {
+  const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/orders/${orderId}/recibido`,
     { method: "POST" },
     {
-      ...MENSAJES_POR_STATUS_ORDENES,
+      ...ORDER_STATUS_MESSAGES,
       404: "No encontramos ese pedido.",
       409: "Solo se puede confirmar la llegada de un pedido enviado.",
     },
     "No pudimos confirmar la llegada del pedido."
   );
-  return mapearPedido(data);
+  return mapOrder(data);
 }
 
 /* =====================================================
@@ -1159,7 +1159,7 @@ export async function confirmarRecepcion(orderId) {
    La tarjeta se carga en la página de Mercado Pago, nunca en la tienda.
 ====================================================== */
 
-const MENSAJES_POR_STATUS_PAGOS = {
+const PAYMENT_STATUS_MESSAGES = {
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "Esta acción requiere una cuenta de cliente.",
   404: "No encontramos ese pedido.",
@@ -1171,11 +1171,11 @@ const MENSAJES_POR_STATUS_PAGOS = {
  * POST /api/v1/pagos/{orderId} — link de Mercado Pago para pagar el pedido
  * (o reintentar un pago rechazado). Devuelve la dirección a la que ir.
  */
-export async function crearLinkPago(orderId) {
-  const data = await pedirCuentaCliente(
+export async function createPaymentLink(orderId) {
+  const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/pagos/${orderId}`,
     { method: "POST" },
-    MENSAJES_POR_STATUS_PAGOS,
+    PAYMENT_STATUS_MESSAGES,
     "No pudimos abrir Mercado Pago."
   );
   return data.url;
@@ -1186,11 +1186,11 @@ export async function crearLinkPago(orderId) {
  * pide al backend que confirme el pago (paymentId es el `payment_id` que
  * agrega Mercado Pago a la dirección). Devuelve el estado del pago.
  */
-export async function verificarPago(orderId, paymentId) {
-  const data = await pedirCuentaCliente(
+export async function verifyPayment(orderId, paymentId) {
+  const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/pagos/${orderId}/verificar`,
     { method: "POST", body: JSON.stringify({ payment_id: paymentId }) },
-    MENSAJES_POR_STATUS_PAGOS,
+    PAYMENT_STATUS_MESSAGES,
     "No pudimos confirmar el pago."
   );
   return data.estado;
@@ -1202,7 +1202,7 @@ export async function verificarPago(orderId, paymentId) {
    un diagnóstico y repuestos compatibles con su vehículo. Pide sesión.
 ====================================================== */
 
-const MENSAJES_POR_STATUS_ASISTENTE = {
+const ASSISTANT_STATUS_MESSAGES = {
   400: "No pudimos seguir esta conversación. Empezá una nueva.",
   401: "Tu sesión venció. Iniciá sesión de nuevo.",
   403: "El asistente es solo para clientes.",
@@ -1215,17 +1215,17 @@ const MENSAJES_POR_STATUS_ASISTENTE = {
  * la `firma` que devolvió la respuesta anterior, tal cual: el backend los
  * firmó y rechaza cualquier cambio (400).
  */
-export async function consultarAsistente({ texto, marca, modelo, anio, historial = [], firma = null }) {
+export async function askAssistant({ texto, marca, modelo, anio, historial = [], firma = null }) {
   const cuerpo = { texto, marca, modelo, anio: Number(anio) };
   if (historial.length > 0) {
     cuerpo.historial = historial;
     cuerpo.firma = firma;
   }
 
-  const data = await pedirCuentaCliente(
+  const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/asistente`,
     { method: "POST", body: JSON.stringify(cuerpo) },
-    MENSAJES_POR_STATUS_ASISTENTE,
+    ASSISTANT_STATUS_MESSAGES,
     "No pudimos consultar al asistente."
   );
 
@@ -1239,7 +1239,7 @@ export async function consultarAsistente({ texto, marca, modelo, anio, historial
     recomendaciones: (data.recomendaciones || []).map((recomendacion) => ({
       tipo: recomendacion.tipo,
       motivo: recomendacion.motivo,
-      repuestos: (recomendacion.repuestos || []).map(mapearRepuesto),
+      repuestos: (recomendacion.repuestos || []).map(mapPart),
     })),
     historial: data.historial ?? [],
     firma: data.firma ?? null,

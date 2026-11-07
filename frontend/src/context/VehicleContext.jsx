@@ -24,7 +24,7 @@ const VehicleContext = createContext(null);
  * Se exporta para que la pantalla que arma el borrador use la misma
  * regla que el contexto.
  */
-export function vehiculoCompleto(vehiculo) {
+export function isVehicleComplete(vehiculo) {
   return Boolean(vehiculo?.brand && vehiculo?.model && vehiculo?.year);
 }
 

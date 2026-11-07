@@ -4,14 +4,14 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-import ConfirmacionAgregarCarrito from "../ConfirmacionAgregarCarrito";
-import { esVendedor, obtenerSesion, sesionValida } from "../auth";
+import AddedToCartNotice from "../AddedToCartNotice";
+import { isSeller, getSession, isSessionValid } from "../auth";
 import {
-  obtenerCarrito,
-  agregarItemCarrito,
-  actualizarItemCarrito,
-  eliminarItemCarrito,
-  vaciarCarritoAPI,
+  getCart,
+  addCartItem,
+  updateCartItem,
+  removeCartItem,
+  clearCartApi,
 } from "../api";
 
 const CartContext = createContext(null);
@@ -47,15 +47,15 @@ export function CartProvider({ children }) {
   // el usuario inició sesión.
   const cargarCarrito = useCallback(async () => {
     // Un vendedor no tiene carrito (la API le responde 403): no se pide.
-    const sesion = obtenerSesion();
-    if (!sesionValida(sesion) || esVendedor(sesion)) {
+    const sesion = getSession();
+    if (!isSessionValid(sesion) || isSeller(sesion)) {
       setCart([]);
       setTotal(0);
       return;
     }
 
     try {
-      const carrito = await obtenerCarrito();
+      const carrito = await getCart();
       aplicarRespuesta(carrito);
     } catch (error) {
       if (error.status !== 401) {
@@ -114,12 +114,12 @@ export function CartProvider({ children }) {
   // sugerencias): ahí el ítem aparece en la lista y no hace falta
   // avisar nada.
   const addToCart = async (producto, cantidad = 1, { aviso: mostrarAviso = true } = {}) => {
-    if (!sesionValida(obtenerSesion())) {
+    if (!isSessionValid(getSession())) {
       setAviso({ tipo: "login" });
       return false;
     }
 
-    if (esVendedor(obtenerSesion())) {
+    if (isSeller(getSession())) {
       toast.error("Los vendedores no pueden comprar.");
       return false;
     }
@@ -130,7 +130,7 @@ export function CartProvider({ children }) {
     const partId = producto.partId ?? producto.id;
 
     try {
-      const carrito = await agregarItemCarrito(partId, cantidadPedida);
+      const carrito = await addCartItem(partId, cantidadPedida);
       aplicarRespuesta(carrito);
       if (mostrarAviso) {
         // Un solo aviso a la vez: si se vuelve a agregar el mismo
@@ -159,7 +159,7 @@ export function CartProvider({ children }) {
     const partId = item?.partId ?? productoId;
 
     try {
-      const carrito = await actualizarItemCarrito(partId, nuevaCantidad);
+      const carrito = await updateCartItem(partId, nuevaCantidad);
       aplicarRespuesta(carrito);
     } catch (error) {
       manejarError(error);
@@ -171,7 +171,7 @@ export function CartProvider({ children }) {
     const partId = item?.partId ?? productoId;
 
     try {
-      const carrito = await eliminarItemCarrito(partId);
+      const carrito = await removeCartItem(partId);
       aplicarRespuesta(carrito);
     } catch (error) {
       manejarError(error);
@@ -191,7 +191,7 @@ export function CartProvider({ children }) {
 
   const clearCart = async () => {
     try {
-      const carrito = await vaciarCarritoAPI();
+      const carrito = await clearCartApi();
       aplicarRespuesta(carrito);
     } catch (error) {
       manejarError(error);
@@ -219,7 +219,7 @@ export function CartProvider({ children }) {
   return (
     <CartContext.Provider value={value}>
       {children}
-      <ConfirmacionAgregarCarrito
+      <AddedToCartNotice
         aviso={aviso}
         cantidadCarrito={cantidadCarrito}
         total={total}

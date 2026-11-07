@@ -3,61 +3,61 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { alGuardarSesion, esVendedor, guardarSesion, obtenerSesion, sesionValida } from "./auth";
-import { useRenovacionSesion } from "./useRenovacionSesion";
+import { onSessionSaved, isSeller, saveSession, getSession, isSessionValid } from "./auth";
+import { useSessionRenewal } from "./useSessionRenewal";
 import {
-  alSesionInvalida,
-  agregarAvisoStock,
-  agregarFavoritoAPI,
-  obtenerAvisosStock,
-  obtenerFavoritos,
-  quitarAvisoStock,
-  quitarFavoritoAPI,
+  onInvalidSession,
+  addStockAlert,
+  addFavoriteApi,
+  getStockAlerts,
+  getFavorites,
+  removeStockAlert,
+  removeFavoriteApi,
 } from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
-import { slugificarProducto } from "./slugProducto";
+import { slugifyProduct } from "./productSlug";
 
 import Home from "./Home";
 import Login from "./Login";
-import Registro from "./Registro";
-import Perfil from "./Perfil";
-import Direcciones from "./Direcciones";
-import HistorialCompras from "./HistorialCompras";
-import MisPedidos from "./MisPedidos";
-import InicioCuenta from "./InicioCuenta";
-import Notificaciones from "./Notificaciones";
-import Seguridad from "./Seguridad";
-import ResultadoPago from "./ResultadoPago";
-import Catalogo from "./Catalogo";
-import DetalleProducto from "./DetalleProducto";
-import Marcas from "./Marcas";
-import Carrito from "./Carrito";
-import Favoritos from "./Favoritos";
-import PanelPit from "./PanelPit";
+import Register from "./Register";
+import Profile from "./Profile";
+import Addresses from "./Addresses";
+import PurchaseHistory from "./PurchaseHistory";
+import MyOrders from "./MyOrders";
+import AccountHome from "./AccountHome";
+import Notifications from "./Notifications";
+import Security from "./Security";
+import PaymentResult from "./PaymentResult";
+import Catalog from "./Catalog";
+import ProductDetail from "./ProductDetail";
+import Brands from "./Brands";
+import CartPage from "./CartPage";
+import Favorites from "./Favorites";
+import PitPanel from "./PitPanel";
 import { usePit } from "./context/PitContext";
-import { usePedidos } from "./context/PedidosContext";
+import { useOrders } from "./context/OrdersContext";
 import ProtectedRoute from "./ProtectedRoute";
 import Footer from "./Footer";
 import EmployeeRoute from "./EmployeeRoute";
-import PaginaNoEncontrada from "./PaginaNoEncontrada";
-import RecuperarPassword from "./RecuperarPassword";
-import RestablecerPassword from "./RestablecerPassword";
-import VerificarCorreo from "./VerificarCorreo";
-import AvisoVerificarCorreo from "./AvisoVerificarCorreo";
-import DarseDeBaja from "./DarseDeBaja";
+import NotFoundPage from "./NotFoundPage";
+import ForgotPassword from "./ForgotPassword";
+import ResetPassword from "./ResetPassword";
+import VerifyEmail from "./VerifyEmail";
+import VerifyEmailNotice from "./VerifyEmailNotice";
+import Unsubscribe from "./Unsubscribe";
 
 // El dashboard (con Recharts y Base UI) se descarga recién cuando entra un
 // vendedor: un cliente nunca baja ese código.
 const Dashboard = lazy(() => import("./dashboard/Dashboard"));
-const DetalleRepuestoVendedor = lazy(() => import("./dashboard/DetalleRepuestoVendedor"));
-const DetallePedidoVendedor = lazy(() => import("./dashboard/DetallePedidoVendedor"));
+const SellerPartDetail = lazy(() => import("./dashboard/SellerPartDetail"));
+const SellerOrderDetail = lazy(() => import("./dashboard/SellerOrderDetail"));
 
-const cargandoDashboard = (
+const dashboardLoading = (
   <p className="pt-[140px] text-center text-sm text-gray-400">Cargando dashboard…</p>
 );
 
-const RUTAS_SIN_FOOTER = [
+const ROUTES_WITHOUT_FOOTER = [
   "/login",
   "/registro",
   "/recuperar-password",
@@ -79,7 +79,7 @@ function App() {
   const { cargarCarrito, limpiarCarritoLocal } = useCart();
   const { activarVehiculo } = useVehicle();
   const { olvidar: olvidarCharlaPit } = usePit();
-  const { recargar: recargarPedidos, limpiar: limpiarPedidos } = usePedidos();
+  const { recargar: recargarPedidos, clean: limpiarPedidos } = useOrders();
 
   // Al volver al inicio se actualizan los pedidos en curso (el aviso del
   // banner y el número de la barra): un pedido pudo cambiar de estado.
@@ -99,8 +99,8 @@ function App() {
   ====================================================== */
 
   const [usuario, setUsuario] = useState(() => {
-    const sesion = obtenerSesion();
-    return sesionValida(sesion) ? sesion : null;
+    const sesion = getSession();
+    return isSessionValid(sesion) ? sesion : null;
   });
 
   /* =====================================================
@@ -114,14 +114,14 @@ function App() {
   // pedir (y pisar) los favoritos.
   const userId = usuario?.userId;
   const haySesionConToken = Boolean(usuario?.token);
-  const vendedor = esVendedor(usuario);
+  const vendedor = isSeller(usuario);
 
   useEffect(() => {
     // Un vendedor no tiene favoritos (la API le responde 403).
     if (!haySesionConToken || vendedor) return;
 
     let cancelado = false;
-    obtenerFavoritos()
+    getFavorites()
       .then((lista) => {
         if (!cancelado) setFavoritos(lista);
       })
@@ -147,7 +147,7 @@ function App() {
     if (!haySesionConToken || vendedor) return;
 
     let cancelado = false;
-    obtenerAvisosStock()
+    getStockAlerts()
       .then((ids) => {
         if (!cancelado) setAvisosStock(ids);
       })
@@ -193,7 +193,7 @@ function App() {
 
   const irAlDetalle = (producto) => {
     const partId = producto?.partId ?? producto?.id;
-    const slug = slugificarProducto(producto?.nombre, partId);
+    const slug = slugifyProduct(producto?.nombre, partId);
     if (!slug) return;
     navigate(`/producto/${encodeURIComponent(slug)}`);
   };
@@ -246,7 +246,7 @@ function App() {
     }
 
     // Un vendedor no tiene carrito: va directo a su portal.
-    if (esVendedor(usuarioLogueado)) {
+    if (isSeller(usuarioLogueado)) {
       navigate("/dashboard");
       return;
     }
@@ -277,14 +277,14 @@ function App() {
   ====================================================== */
 
   const actualizarUsuario = (usuarioActualizado) => {
-    const sesionActual = obtenerSesion();
+    const sesionActual = getSession();
 
     if (!sesionActual || sesionActual.token !== usuarioActualizado.token) {
       return;
     }
 
     setUsuario(usuarioActualizado);
-    guardarSesion(usuarioActualizado);
+    saveSession(usuarioActualizado);
   };
 
   /* =====================================================
@@ -294,11 +294,11 @@ function App() {
   ====================================================== */
 
   const marcarCorreoVerificado = useCallback(() => {
-    const sesionActual = obtenerSesion();
+    const sesionActual = getSession();
     if (!sesionActual) return;
 
     const verificada = { ...sesionActual, emailVerificado: true };
-    guardarSesion(verificada);
+    saveSession(verificada);
     setUsuario((actual) => (actual ? { ...actual, emailVerificado: true } : actual));
   }, []);
 
@@ -329,18 +329,18 @@ function App() {
   const reemplazarToken = ({ access_token, token_type }) => {
     // Si no hay sesión guardada, el cliente cerró sesión en otra pestaña:
     // no se la resucita, se cierra también acá.
-    if (!obtenerSesion()) {
+    if (!getSession()) {
       cerrarSesion();
       return;
     }
 
     const renovada = {
-      ...obtenerSesion(),
+      ...getSession(),
       token: access_token,
       ...(token_type ? { tokenType: token_type } : {}),
     };
 
-    guardarSesion(renovada);
+    saveSession(renovada);
     setUsuario((actual) => (actual ? { ...actual, ...renovada } : actual));
   };
 
@@ -365,8 +365,8 @@ function App() {
   // demás la encuentran ya cerrada: un solo toast y una sola navegación.
   useEffect(
     () =>
-      alSesionInvalida(() => {
-        if (!obtenerSesion()) return;
+      onInvalidSession(() => {
+        if (!getSession()) return;
         sesionVencidaRef.current();
       }),
     []
@@ -377,15 +377,15 @@ function App() {
   // renovación automática no intente renovar el token viejo.
   useEffect(
     () =>
-      alGuardarSesion(() => {
-        const guardada = obtenerSesion();
+      onSessionSaved(() => {
+        const guardada = getSession();
         if (!guardada) return;
         setUsuario((actual) => (actual ? { ...actual, ...guardada } : actual));
       }),
     []
   );
 
-  useRenovacionSesion(usuario?.token, {
+  useSessionRenewal(usuario?.token, {
     onRenovada: reemplazarToken,
     onVencida: sesionVencida,
   });
@@ -417,9 +417,9 @@ function App() {
 
     try {
       if (existe) {
-        await quitarFavoritoAPI(producto.partId ?? producto.id);
+        await removeFavoriteApi(producto.partId ?? producto.id);
       } else {
-        await agregarFavoritoAPI(producto.partId ?? producto.id);
+        await addFavoriteApi(producto.partId ?? producto.id);
       }
     } catch (error) {
       setFavoritos((actual) =>
@@ -456,9 +456,9 @@ function App() {
 
     try {
       if (tenia) {
-        await quitarAvisoStock(partId);
+        await removeStockAlert(partId);
       } else {
-        await agregarAvisoStock(partId);
+        await addStockAlert(partId);
         toast.success("Listo: te mandamos un mail cuando vuelva a haber stock.");
       }
     } catch (error) {
@@ -543,7 +543,7 @@ function App() {
   // juntos llenen la pantalla.
   // El portal del vendedor (/dashboard y el detalle de un repuesto) tiene
   // su propio marco, sin el footer de la tienda.
-  const conFooter = !RUTAS_SIN_FOOTER.includes(pathname) && !pathname.startsWith("/dashboard");
+  const conFooter = !ROUTES_WITHOUT_FOOTER.includes(pathname) && !pathname.startsWith("/dashboard");
 
   // Pit (el asistente con IA) flota en las páginas de la tienda para los
   // clientes con sesión: no en las pantallas de cuenta sin footer (login,
@@ -553,7 +553,7 @@ function App() {
 
   return (
     <>
-    <AvisoVerificarCorreo usuario={usuario} onVerificado={marcarCorreoVerificado} />
+    <VerifyEmailNotice usuario={usuario} onVerificado={marcarCorreoVerificado} />
     <div className={conFooter ? "min-h-screen flex flex-col" : undefined}>
     <div className={conFooter ? "flex-1 flex flex-col *:flex-1 *:min-h-0!" : undefined}>
     <Routes>
@@ -574,7 +574,7 @@ function App() {
 
       <Route
         path="/marcas"
-        element={<Marcas {...propsNavbar} />}
+        element={<Brands {...propsNavbar} />}
       />
 
       {/* =================================================
@@ -601,7 +601,7 @@ function App() {
       <Route
         path="/recuperar-password"
         element={
-          <RecuperarPassword
+          <ForgotPassword
             {...propsNavbar}
             onVolverAlLogin={() => navigate("/login")}
           />
@@ -611,7 +611,7 @@ function App() {
       <Route
         path="/restablecer-password"
         element={
-          <RestablecerPassword
+          <ResetPassword
             {...propsNavbar}
             onIniciarSesion={() => navigate("/login")}
             onPedirOtroEnlace={() => navigate("/recuperar-password")}
@@ -622,7 +622,7 @@ function App() {
       <Route
         path="/baja-mails"
         element={
-          <DarseDeBaja
+          <Unsubscribe
             {...propsNavbar}
             onIrALaTienda={() => navigate("/")}
           />
@@ -632,7 +632,7 @@ function App() {
       <Route
         path="/verificar-correo"
         element={
-          <VerificarCorreo
+          <VerifyEmail
             {...propsNavbar}
             onVerificado={marcarCorreoVerificado}
             onIrALaTienda={() => navigate("/")}
@@ -647,7 +647,7 @@ function App() {
       <Route
         path="/registro"
         element={
-          <Registro
+          <Register
             {...propsNavbar}
             onRegistroExitoso={registroExitoso}
           />
@@ -666,7 +666,7 @@ function App() {
       <Route
         path="/catalogo"
         element={
-          <Catalogo
+          <Catalog
             {...propsNavbar}
             onDetalle={irAlDetalle}
             categoriaInicial={categoriaCatalogo}
@@ -683,7 +683,7 @@ function App() {
       <Route
         path="/producto/:id"
         element={
-          <DetalleProducto
+          <ProductDetail
             {...propsNavbar}
             onDetalle={irAlDetalle}
             onCatalogo={irAlCatalogo}
@@ -704,7 +704,7 @@ function App() {
         <Route
           path="/carrito"
           element={
-            <Carrito
+            <CartPage
               {...propsNavbar}
               onDetalle={irAlDetalle}
               onDirecciones={() => navigate("/direcciones")}
@@ -717,7 +717,7 @@ function App() {
         <Route
           path="/favoritos"
           element={
-            <Favoritos
+            <Favorites
               {...propsNavbar}
               favoritos={favoritos}
               onAlternarFavorito={alternarFavorito}
@@ -736,7 +736,7 @@ function App() {
           path="/perfil"
           element={
             usuario ? (
-              <Perfil
+              <Profile
                 {...propsNavbar}
                 usuario={usuario}
                 onActualizarUsuario={actualizarUsuario}
@@ -750,18 +750,18 @@ function App() {
         {/* MI CUENTA: el menú (en celular, su propia página), la
             contraseña y los mails. */}
 
-        <Route path="/cuenta" element={<InicioCuenta {...propsNavbar} />} />
+        <Route path="/cuenta" element={<AccountHome {...propsNavbar} />} />
 
         <Route
           path="/seguridad"
-          element={usuario ? <Seguridad {...propsNavbar} /> : <Navigate to="/login" replace />}
+          element={usuario ? <Security {...propsNavbar} /> : <Navigate to="/login" replace />}
         />
 
         <Route
           path="/notificaciones"
           element={
             usuario ? (
-              <Notificaciones {...propsNavbar} onActualizarUsuario={actualizarUsuario} />
+              <Notifications {...propsNavbar} onActualizarUsuario={actualizarUsuario} />
             ) : (
               <Navigate to="/login" replace />
             )
@@ -773,7 +773,7 @@ function App() {
         <Route
           path="/direcciones"
           element={
-            <Direcciones
+            <Addresses
               {...propsNavbar}
             />
           }
@@ -786,22 +786,22 @@ function App() {
         <Route
           path="/pago"
           element={
-            <ResultadoPago {...propsNavbar} />
+            <PaymentResult {...propsNavbar} />
           }
         />
 
         {/* MIS COMPRAS: las que están en curso (el ícono de la barra) y
             el detalle de cada una; las anteriores, en /historial. */}
 
-        <Route path="/pedidos" element={<MisPedidos {...propsNavbar} />} />
-        <Route path="/pedidos/:id" element={<MisPedidos {...propsNavbar} />} />
+        <Route path="/pedidos" element={<MyOrders {...propsNavbar} />} />
+        <Route path="/pedidos/:id" element={<MyOrders {...propsNavbar} />} />
 
         {/* MIS COMPRAS › ANTERIORES (las que ya terminaron) */}
 
         <Route
           path="/historial"
           element={
-            <HistorialCompras
+            <PurchaseHistory
               {...propsNavbar}
             />
           }
@@ -817,7 +817,7 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <Suspense fallback={cargandoDashboard}>
+            <Suspense fallback={dashboardLoading}>
               <Dashboard {...propsNavbar} usuario={usuario} />
             </Suspense>
           }
@@ -825,16 +825,16 @@ function App() {
         <Route
           path="/dashboard/repuestos/:id"
           element={
-            <Suspense fallback={cargandoDashboard}>
-              <DetalleRepuestoVendedor {...propsNavbar} usuario={usuario} />
+            <Suspense fallback={dashboardLoading}>
+              <SellerPartDetail {...propsNavbar} usuario={usuario} />
             </Suspense>
           }
         />
         <Route
           path="/dashboard/pedidos/:id"
           element={
-            <Suspense fallback={cargandoDashboard}>
-              <DetallePedidoVendedor {...propsNavbar} usuario={usuario} />
+            <Suspense fallback={dashboardLoading}>
+              <SellerOrderDetail {...propsNavbar} usuario={usuario} />
             </Suspense>
           }
         />
@@ -847,7 +847,7 @@ function App() {
 
       <Route
         path="*"
-        element={<PaginaNoEncontrada {...propsNavbar} />}
+        element={<NotFoundPage {...propsNavbar} />}
       />
     </Routes>
     </div>
@@ -855,7 +855,7 @@ function App() {
     {conFooter && <Footer {...propsNavbar} />}
     </div>
     {mostrarPit && (
-      <PanelPit
+      <PitPanel
         onDetalle={irAlDetalle}
         onBuscarEnCatalogo={(consulta) => navigate(`/catalogo?q=${encodeURIComponent(consulta)}`)}
       />

@@ -4,33 +4,33 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronRightIcon, DollarSignIcon, PackageCheckIcon, PackageXIcon, PlusIcon, ShoppingCartIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { obtenerCategorias } from "../api";
-import AlertasReposicion from "./AlertasReposicion";
-import BarraFiltros from "./BarraFiltros";
-import DialogoAjustarStock from "./DialogoAjustarStock";
-import EvolucionVentas from "./EvolucionVentas";
-import FormularioRepuesto from "./FormularioRepuesto";
-import Equipo from "./Equipo";
-import LayoutVendedor, { nombreDelVendedor } from "./LayoutVendedor";
-import { vistasDe } from "./secciones";
-import MasVendidos from "./MasVendidos";
-import PedidosParaPreparar from "./PedidosParaPreparar";
-import PedidosVendedor from "./PedidosVendedor";
-import PreguntarDashboard from "./PreguntarDashboard";
-import ProyeccionDemanda from "./ProyeccionDemanda";
-import ResumenIA from "./ResumenIA";
-import RiesgoAgotamiento from "./RiesgoAgotamiento";
-import StockActual from "./StockActual";
-import { obtenerEvolucionVentas, obtenerPedidos, obtenerRiesgoAgotamiento, obtenerStock } from "./apiDashboard";
-import { PERIODOS, PERIODO_POR_DEFECTO, formatearMes, formatearNumero, formatearPesos, variacion } from "./formato";
-import { Cambio, Indicador, Panel } from "./piezas";
-import { useConsulta } from "./useConsulta";
+import { getCategories } from "../api";
+import RestockAlerts from "./RestockAlerts";
+import FilterBar from "./FilterBar";
+import AdjustStockDialog from "./AdjustStockDialog";
+import SalesTrend from "./SalesTrend";
+import PartForm from "./PartForm";
+import Team from "./Team";
+import SellerLayout, { sellerName } from "./SellerLayout";
+import { viewsFor } from "./sections";
+import BestSellers from "./BestSellers";
+import OrdersToPrepare from "./OrdersToPrepare";
+import SellerOrders from "./SellerOrders";
+import AskDashboard from "./AskDashboard";
+import DemandForecast from "./DemandForecast";
+import AISummary from "./AISummary";
+import StockoutRisk from "./StockoutRisk";
+import CurrentStock from "./CurrentStock";
+import { getSalesTrend, getOrders, getStockoutRisk, getStock } from "./dashboardApi";
+import { PERIODS, DEFAULT_PERIOD, formatMonth, formatNumber, formatPesos, change } from "./format";
+import { Change, Metric, Panel } from "./pieces";
+import { useQuery } from "./useQuery";
 
 // Pasar a true cuando el backend tenga POST /analytics/preguntar (HU 6.4).
-const PREGUNTAR_DISPONIBLE = false;
+const ASK_AVAILABLE = false;
 
 // Qué cuenta cada sección, debajo del título.
-const DESCRIPCIONES = {
+const DESCRIPTIONS = {
   pedidos:
     "Avanzá cada pedido pagado: Confirmado → Empaquetando → Enviado → Entregado. Tocá uno para ver el detalle; cada cambio le llega al cliente por mail.",
   ventas: "Unidades y facturación de cada mes, y lo que se espera vender el mes que viene.",
@@ -43,10 +43,10 @@ const DESCRIPCIONES = {
 };
 
 // Secciones sin los filtros ni "Nuevo repuesto".
-const SIN_FILTROS = ["preguntar", "equipo", "pedidos"];
+const WITHOUT_FILTERS = ["preguntar", "equipo", "pedidos"];
 
 // Secciones que usan el período (las de stock muestran el presente).
-const CON_PERIODO = ["resumen", "ventas", "mas-vendidos"];
+const WITH_PERIOD = ["resumen", "ventas", "mas-vendidos"];
 
 // Dashboard del vendedor (HU 5.1 a 5.10, y el lugar de la HU 6.3 y 6.4).
 // Los filtros y la sección van en la URL: al volver del detalle de un
@@ -65,26 +65,26 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
   const filtros = {
     categoria: parametros.get("categoria") || "",
     busqueda: parametros.get("q") || "",
-    meses: PERIODOS.includes(periodo) ? periodo : PERIODO_POR_DEFECTO,
+    meses: PERIODS.includes(periodo) ? periodo : DEFAULT_PERIOD,
   };
   // Una sección que no existe (o "Equipo" para quien no es administrador)
   // lleva al resumen.
-  const vistas = vistasDe(usuario);
+  const vistas = viewsFor(usuario);
   const vista = vistas.some(({ valor }) => valor === parametros.get("vista")) ? parametros.get("vista") : "resumen";
   const claveStock = `${filtros.categoria}|${filtros.busqueda}|${version}`;
 
   // Lo que usan varias secciones (y el menú) se pide una sola vez acá.
-  const stock = useConsulta(() => obtenerStock(filtros), claveStock);
-  const alertas = useConsulta(() => obtenerRiesgoAgotamiento({ ...filtros, soloEnRiesgo: true }), claveStock);
-  const ventas = useConsulta(
-    () => obtenerEvolucionVentas(filtros),
+  const stock = useQuery(() => getStock(filtros), claveStock);
+  const alertas = useQuery(() => getStockoutRisk({ ...filtros, soloEnRiesgo: true }), claveStock);
+  const ventas = useQuery(
+    () => getSalesTrend(filtros),
     `${filtros.categoria}|${filtros.busqueda}|${filtros.meses}`
   );
   // Solo para el número del menú (pedidos pagados sin empezar a preparar).
-  const pedidos = useConsulta(() => obtenerPedidos({ limite: 1 }), `pedidos|${version}`);
+  const pedidos = useQuery(() => getOrders({ limite: 1 }), `pedidos|${version}`);
 
   useEffect(() => {
-    obtenerCategorias()
+    getCategories()
       .then((lista) => setCategorias(lista.map((c) => c.nombre)))
       .catch(() => setCategorias([]));
   }, []);
@@ -107,7 +107,7 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
       ...("categoria" in cambios ? { categoria: cambios.categoria } : {}),
       ...("busqueda" in cambios ? { q: cambios.busqueda } : {}),
       ...("meses" in cambios
-        ? { periodo: cambios.meses === PERIODO_POR_DEFECTO ? "" : String(cambios.meses) }
+        ? { periodo: cambios.meses === DEFAULT_PERIOD ? "" : String(cambios.meses) }
         : {}),
     });
 
@@ -129,16 +129,16 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
   };
 
   // Saluda con el primer nombre ("Hola, Ana").
-  const nombre = nombreDelVendedor(usuario).split(/\s+/)[0];
+  const nombre = sellerName(usuario).split(/\s+/)[0];
   const titulo = vistas.find((v) => v.valor === vista).texto;
   const descripcion =
-    vista === "resumen" ? `Hola${nombre ? `, ${nombre}` : ""}. Esto es lo más importante de hoy.` : DESCRIPCIONES[vista];
+    vista === "resumen" ? `Hola${nombre ? `, ${nombre}` : ""}. Esto es lo más importante de hoy.` : DESCRIPTIONS[vista];
 
   // Lo mismo que cuenta "Para reponer" (riesgo alto y medio).
   const paraReponer = alertas.datos?.repuestos.length ?? 0;
 
   return (
-    <LayoutVendedor
+    <SellerLayout
       usuario={usuario}
       vista={vista}
       onVista={cambiarVista}
@@ -158,11 +158,11 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
       barra={
         // Preguntarle al dashboard no usa los filtros (la pregunta los dice),
         // el equipo tampoco, y los pedidos tienen su propio filtro (por estado).
-        !SIN_FILTROS.includes(vista) && (
-          <BarraFiltros
+        !WITHOUT_FILTERS.includes(vista) && (
+          <FilterBar
             filtros={filtros}
             categorias={categorias}
-            conPeriodo={CON_PERIODO.includes(vista)}
+            conPeriodo={WITH_PERIOD.includes(vista)}
             onCambiar={cambiarFiltros}
             onQuitar={quitarFiltros}
           />
@@ -170,7 +170,7 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
       }
     >
       {vista === "resumen" && (
-        <Resumen
+        <Overview
           filtros={filtros}
           stock={stock}
           alertas={alertas}
@@ -184,7 +184,7 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
       )}
 
       {vista === "pedidos" && (
-        <PedidosVendedor
+        <SellerOrders
           key={parametros.get("estado") || "todos"}
           estadoInicial={parametros.get("estado") || "todos"}
           onCambio={() => setVersion((v) => v + 1)}
@@ -193,7 +193,7 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
       )}
       {vista === "ventas" && (
         <Panel titulo={`Evolución de ventas · últimos ${filtros.meses} meses`} id="titulo-evolucion">
-          <EvolucionVentas filtros={filtros} consulta={ventas} />
+          <SalesTrend filtros={filtros} consulta={ventas} />
         </Panel>
       )}
       {vista === "mas-vendidos" && (
@@ -202,12 +202,12 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
           id="titulo-mas-vendidos"
           detalle="Ordenados por unidades vendidas. No cuentan los pedidos cancelados; sí los repuestos que hoy están agotados."
         >
-          <MasVendidos key={version} filtros={filtros} onDetalle={irAlDetalle} />
+          <BestSellers key={version} filtros={filtros} onDetalle={irAlDetalle} />
         </Panel>
       )}
-      {vista === "proyeccion" && <ProyeccionDemanda key={version} filtros={filtros} onDetalle={irAlDetalle} />}
+      {vista === "proyeccion" && <DemandForecast key={version} filtros={filtros} onDetalle={irAlDetalle} />}
       {vista === "stock" && (
-        <StockActual
+        <CurrentStock
           key={parametros.get("estado") || "todos"}
           consulta={stock}
           onDetalle={irAlDetalle}
@@ -216,18 +216,18 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
         />
       )}
       {vista === "riesgo" && (
-        <RiesgoAgotamiento key={version} filtros={filtros} onDetalle={irAlDetalle} onReponer={setAReponer} />
+        <StockoutRisk key={version} filtros={filtros} onDetalle={irAlDetalle} onReponer={setAReponer} />
       )}
-      {vista === "preguntar" && <PreguntarDashboard disponible={PREGUNTAR_DISPONIBLE} />}
-      {vista === "equipo" && <Equipo usuario={usuario} />}
+      {vista === "preguntar" && <AskDashboard disponible={ASK_AVAILABLE} />}
+      {vista === "equipo" && <Team usuario={usuario} />}
 
-      <DialogoAjustarStock
+      <AdjustStockDialog
         abierto={aReponer !== null}
         onCambiar={(abierto) => !abierto && setAReponer(null)}
         repuesto={aReponer}
         onGuardado={alReponer}
       />
-      <FormularioRepuesto
+      <PartForm
         abierto={formularioAbierto}
         onCambiar={setFormularioAbierto}
         categorias={categorias}
@@ -236,29 +236,29 @@ export default function Dashboard({ usuario, onHome, onCerrarSesion }) {
           irAlDetalle(repuesto.id);
         }}
       />
-    </LayoutVendedor>
+    </SellerLayout>
   );
 }
 
 // El último mes cerrado y el anterior, para comparar sin el mes en curso
 // (que va hasta hoy y siempre parecería una caída).
-function mesesParaComparar(meses = []) {
+function monthsToCompare(meses = []) {
   const cerrados = meses.filter((mes) => !mes.enCurso);
   return { ultimo: cerrados.at(-1), anterior: cerrados.at(-2) };
 }
 
-function porcentaje(actual, anterior) {
-  return actual !== undefined && anterior ? variacion(actual, anterior).porcentaje : null;
+function percentage(actual, anterior) {
+  return actual !== undefined && anterior ? change(actual, anterior).percentage : null;
 }
 
 // "octubre de 2026" -> "octubre"
-const soloMes = (mes) => formatearMes(mes, { largo: true }).replace(/ de \d+$/, "");
+const monthOnly = (mes) => formatMonth(mes, { largo: true }).replace(/ de \d+$/, "");
 
 // Pantalla de entrada: los números del momento, qué reponer, cómo vienen
 // las ventas y qué se vende más.
-function Resumen({ filtros, stock, alertas, ventas, version, onVista, onDetalle, onPedido, onReponer }) {
-  const { ultimo, anterior } = mesesParaComparar(ventas.datos?.meses);
-  const textoAnterior = anterior ? `vs. ${soloMes(anterior.mes)}` : "";
+function Overview({ filtros, stock, alertas, ventas, version, onVista, onDetalle, onPedido, onReponer }) {
+  const { ultimo, anterior } = monthsToCompare(ventas.datos?.meses);
+  const textoAnterior = anterior ? `vs. ${monthOnly(anterior.mes)}` : "";
 
   const repuestos = stock.datos?.repuestos ?? [];
   const sinStock = repuestos.filter((r) => r.stock <= 0).length;
@@ -268,38 +268,38 @@ function Resumen({ filtros, stock, alertas, ventas, version, onVista, onDetalle,
   return (
     <div className="flex flex-col gap-6">
       {/* HU 6.3: el resumen escrito va arriba de todo. */}
-      <ResumenIA />
+      <AISummary />
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-        <Indicador
-          titulo={ultimo ? `Unidades vendidas en ${soloMes(ultimo.mes)}` : "Unidades vendidas"}
-          valor={ultimo ? formatearNumero(ultimo.unidades) : "—"}
-          cambio={<Cambio porcentaje={porcentaje(ultimo?.unidades, anterior?.unidades)} texto={textoAnterior} />}
-          Icono={ShoppingCartIcon}
+        <Metric
+          titulo={ultimo ? `Unidades vendidas en ${monthOnly(ultimo.mes)}` : "Unidades vendidas"}
+          valor={ultimo ? formatNumber(ultimo.unidades) : "—"}
+          cambio={<Change percentage={percentage(ultimo?.unidades, anterior?.unidades)} texto={textoAnterior} />}
+          Icon={ShoppingCartIcon}
         />
-        <Indicador
-          titulo={ultimo ? `Facturación de ${soloMes(ultimo.mes)}` : "Facturación"}
-          valor={ultimo ? formatearPesos(ultimo.facturacion) : "—"}
-          cambio={<Cambio porcentaje={porcentaje(ultimo?.facturacion, anterior?.facturacion)} texto={textoAnterior} />}
-          Icono={DollarSignIcon}
+        <Metric
+          titulo={ultimo ? `Facturación de ${monthOnly(ultimo.mes)}` : "Facturación"}
+          valor={ultimo ? formatPesos(ultimo.facturacion) : "—"}
+          cambio={<Change percentage={percentage(ultimo?.facturacion, anterior?.facturacion)} texto={textoAnterior} />}
+          Icon={DollarSignIcon}
         />
-        <Indicador
+        <Metric
           titulo="Para reponer"
-          valor={alertas.datos ? formatearNumero(aReponer.length) : "—"}
-          detalle={alertas.datos ? `${formatearNumero(altos)} con riesgo alto` : null}
-          Icono={PackageCheckIcon}
+          valor={alertas.datos ? formatNumber(aReponer.length) : "—"}
+          detalle={alertas.datos ? `${formatNumber(altos)} con riesgo alto` : null}
+          Icon={PackageCheckIcon}
           onClick={() => onVista("riesgo")}
           accion="Ver reposición"
         />
-        <Indicador
+        <Metric
           titulo="Sin stock"
-          valor={stock.datos ? formatearNumero(sinStock) : "—"}
+          valor={stock.datos ? formatNumber(sinStock) : "—"}
           detalle={
             stock.datos && repuestos.length > 0
-              ? `${formatearNumero((sinStock / repuestos.length) * 100)} % del catálogo`
+              ? `${formatNumber((sinStock / repuestos.length) * 100)} % del catálogo`
               : null
           }
-          Icono={PackageXIcon}
+          Icon={PackageXIcon}
           onClick={() => onVista("stock", { estado: "agotados" })}
           accion="Ver cuáles"
         />
@@ -310,7 +310,7 @@ function Resumen({ filtros, stock, alertas, ventas, version, onVista, onDetalle,
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_400px] gap-6 items-start">
         <div className="flex min-w-0 flex-col gap-6">
           <Panel titulo={`Ventas · últimos ${filtros.meses} meses`} id="titulo-ventas-resumen" className="min-w-0">
-            <EvolucionVentas filtros={filtros} consulta={ventas} compacto />
+            <SalesTrend filtros={filtros} consulta={ventas} compacto />
           </Panel>
           <Panel
             titulo="Lo que más se vende"
@@ -328,17 +328,17 @@ function Resumen({ filtros, stock, alertas, ventas, version, onVista, onDetalle,
               </Button>
             }
           >
-            <MasVendidos key={version} filtros={filtros} onDetalle={onDetalle} limite={5} />
+            <BestSellers key={version} filtros={filtros} onDetalle={onDetalle} limite={5} />
           </Panel>
         </div>
         {/* En celular va primero: es lo que hay que hacer. */}
         <div className="order-first xl:order-none flex flex-col gap-6">
-          <PedidosParaPreparar
+          <OrdersToPrepare
             version={version}
             onDetalle={onPedido}
             onVerTodos={() => onVista("pedidos", { estado: "confirmed" })}
           />
-          <AlertasReposicion
+          <RestockAlerts
             consulta={alertas}
             limite={5}
             onDetalle={onDetalle}

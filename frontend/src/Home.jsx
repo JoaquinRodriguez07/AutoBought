@@ -1,35 +1,35 @@
 // La página de inicio de la tienda.
 
 import { useEffect, useRef, useState } from "react";
-import { usarImagenGenerica } from "./mapearRepuesto";
+import { useGenericImage } from "./mapPart";
 
 import Navbar from "./Navbar";
-import InvitacionAsistente from "./InvitacionAsistente";
+import AssistantInvite from "./AssistantInvite";
 import VehicleSelector from "./VehicleSelector";
-import { obtenerCategorias, obtenerFabricantes, obtenerMasVendidos } from "./api";
-import BotonAgregarCarrito from "./BotonAgregarCarrito";
+import { getCategories, getManufacturers, getBestSellers } from "./api";
+import AddToCartButton from "./AddToCartButton";
 import { useVehicle } from "./context/VehicleContext";
 import repuestos from "./assets/repuestos.jpg";
 import {
-  IconoAuto,
-  IconoCaja,
-  IconoCambios,
-  IconoCamion,
-  IconoCarrito,
-  IconoChispa,
-  IconoCopoNieve,
-  IconoDisco,
-  IconoEngranaje,
-  IconoEscape,
-  IconoEscobilla,
-  IconoFiltro,
-  IconoFlecha,
-  IconoGota,
-  IconoRayo,
-  IconoResorte,
-  IconoTermometro,
-  IconoVolante,
-} from "./Iconos";
+  CarIcon,
+  BoxIcon,
+  GearboxIcon,
+  TruckIcon,
+  CartIcon,
+  SparkIcon,
+  SnowflakeIcon,
+  DiscIcon,
+  GearIcon,
+  ExhaustIcon,
+  WiperIcon,
+  FilterIcon,
+  ArrowIcon,
+  DropIcon,
+  BoltIcon,
+  SpringIcon,
+  ThermometerIcon,
+  SteeringWheelIcon,
+} from "./Icons";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
 import BMWLogo from "./assets/Logos Vehiculos/BMW.png";
@@ -45,40 +45,40 @@ import PeugeotLogo from "./assets/Logos Vehiculos/Peugeot.webp";
 import RenaultLogo from "./assets/Logos Vehiculos/Renault.png";
 import SuzukiLogo from "./assets/Logos Vehiculos/Suzuki.png";
 import VolkswagenLogo from "./assets/Logos Vehiculos/Volkswagen.webp";
-import PedidosEnCursoInicio from "./PedidosEnCursoInicio";
+import HomeActiveOrders from "./HomeActiveOrders";
 
 // Cuántos fabricantes muestra la cinta: los que más repuestos tienen.
-const CANTIDAD_FABRICANTES = 8;
+const MANUFACTURER_COUNT = 8;
 
 // Ícono de cada categoría. Las categorías vienen del servidor: una que no
 // esté acá (nueva) se muestra con el ícono genérico, sin romper nada.
-const ICONOS_CATEGORIA = {
-  Accesorios: IconoEscobilla,
-  Carrocería: IconoAuto,
-  Climatización: IconoCopoNieve,
-  Dirección: IconoVolante,
-  Eléctrico: IconoRayo,
-  Encendido: IconoChispa,
-  Escape: IconoEscape,
-  Filtros: IconoFiltro,
-  Frenos: IconoDisco,
-  Lubricantes: IconoGota,
-  Motor: IconoEngranaje,
-  Refrigeración: IconoTermometro,
-  Suspensión: IconoResorte,
-  Transmisión: IconoCambios,
+const CATEGORY_ICONS = {
+  Accesorios: WiperIcon,
+  Carrocería: CarIcon,
+  Climatización: SnowflakeIcon,
+  Dirección: SteeringWheelIcon,
+  Eléctrico: BoltIcon,
+  Encendido: SparkIcon,
+  Escape: ExhaustIcon,
+  Filtros: FilterIcon,
+  Frenos: DiscIcon,
+  Lubricantes: DropIcon,
+  Motor: GearIcon,
+  Refrigeración: ThermometerIcon,
+  Suspensión: SpringIcon,
+  Transmisión: GearboxIcon,
 };
 
 // Las que más se buscan van destacadas, más grandes, en una fila; el resto, de a 5 por fila
 // (con las 14 categorías de hoy, 4 + 5 + 5: todas las filas completas).
 // Las categorías grandes del mosaico: las que más repuestos tienen.
-const CANTIDAD_DESTACADAS = 4;
+const FEATURED_COUNT = 4;
 
 // Los pasos de "Cómo comprar".
-const PASOS_COMPRA = [
-  [IconoAuto, "Elegí tu auto", "Marca, modelo y año: te mostramos solo los repuestos que le sirven."],
-  [IconoCarrito, "Agregá tus repuestos", "Compará fabricantes y precios, y sumalos al carrito."],
-  [IconoCamion, "Pagá y recibilo", "Pagás de forma segura y te lo enviamos a todo el país."],
+const PURCHASE_STEPS = [
+  [CarIcon, "Elegí tu auto", "Marca, modelo y año: te mostramos solo los repuestos que le sirven."],
+  [CartIcon, "Agregá tus repuestos", "Compará fabricantes y precios, y sumalos al carrito."],
+  [TruckIcon, "Pagá y recibilo", "Pagás de forma segura y te lo enviamos a todo el país."],
 ];
 
 export default function Home({
@@ -138,7 +138,7 @@ export default function Home({
   useEffect(() => {
     let activo = true;
 
-    obtenerCategorias()
+    getCategories()
       .then((lista) => {
         if (!activo) return;
         setCategorias(lista);
@@ -149,9 +149,9 @@ export default function Home({
       });
 
     // Si falla, la cinta de fabricantes queda vacía.
-    obtenerFabricantes()
+    getManufacturers()
       .then((lista) => {
-        if (activo) setFabricantes(lista.slice(0, CANTIDAD_FABRICANTES).map((f) => f.nombre));
+        if (activo) setFabricantes(lista.slice(0, MANUFACTURER_COUNT).map((f) => f.nombre));
       })
       .catch(() => {});
 
@@ -169,7 +169,7 @@ export default function Home({
   const simpleIcon = (slug) => `https://cdn.simpleicons.org/${slug}/000000`;
   const destacadas = [...(categorias || [])]
     .sort((a, b) => b.cantidad - a.cantidad)
-    .slice(0, CANTIDAD_DESTACADAS);
+    .slice(0, FEATURED_COUNT);
 
   const marcas = [
     { nombre: "Volkswagen", logo: VolkswagenLogo },
@@ -209,7 +209,7 @@ export default function Home({
   useEffect(() => {
     let activo = true;
 
-    obtenerMasVendidos({ limite: 8 })
+    getBestSellers({ limite: 8 })
       .then((lista) => {
         if (!activo) return;
         setMasVendidos(lista);
@@ -315,11 +315,11 @@ export default function Home({
           </div>
 
           {/* PEDIDOS EN CURSO: solo con sesión y pedidos en curso */}
-          <PedidosEnCursoInicio />
+          <HomeActiveOrders />
 
         </div>
 
-        <AvisoBajar hero={hero} />
+        <ScrollHint hero={hero} />
 
       </section>
 
@@ -327,7 +327,7 @@ export default function Home({
           ASISTENTE DE COMPRA (IA)
       ====================================================== */}
 
-      <InvitacionAsistente />
+      <AssistantInvite />
 
       {/* =====================================================
           MARCAS Y FABRICANTES
@@ -362,7 +362,7 @@ export default function Home({
             Repuestos para tu auto
           </p>
 
-          <Cinta>
+          <Ribbon>
             {(copia) =>
               marcas.map((marca) => (
                 <button
@@ -388,13 +388,13 @@ export default function Home({
                 </button>
               ))
             }
-          </Cinta>
+          </Ribbon>
 
           <p className="text-xs text-gray-400 font-bold uppercase tracking-wide mt-6 mb-3">
             Fabricantes de repuestos
           </p>
 
-          <Cinta reversa>
+          <Ribbon reversa>
             {(copia) =>
               fabricantes.map((fabricante) => (
                 <button
@@ -408,7 +408,7 @@ export default function Home({
                 </button>
               ))
             }
-          </Cinta>
+          </Ribbon>
 
         </div>
       </section>
@@ -417,7 +417,7 @@ export default function Home({
           CATEGORÍAS
       ====================================================== */}
 
-      <Seccion
+      <Section
         etiqueta="TODO PARA TU AUTO"
         titulo="Categorías"
         accion="Ver todas"
@@ -435,7 +435,7 @@ export default function Home({
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {destacadas
             .map((categoria) => (
-              <TarjetaCategoria
+              <CategoryCard
                 key={categoria.nombre}
                 nombre={categoria.nombre}
                 cantidad={categoria.cantidad}
@@ -449,7 +449,7 @@ export default function Home({
           {(categorias || [])
             .filter((c) => !destacadas.includes(c))
             .map((categoria) => (
-              <TarjetaCategoria
+              <CategoryCard
                 key={categoria.nombre}
                 nombre={categoria.nombre}
                 cantidad={categoria.cantidad}
@@ -458,13 +458,13 @@ export default function Home({
             ))}
         </div>
 
-      </Seccion>
+      </Section>
 
       {/* =====================================================
           CÓMO COMPRAR
       ====================================================== */}
 
-      <Seccion
+      <Section
         gris
         etiqueta="ASÍ DE FÁCIL"
         titulo="Cómo comprar"
@@ -472,13 +472,13 @@ export default function Home({
         onAccion={() => onCatalogo()}
       >
         <ol className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {PASOS_COMPRA.map(([Icono, titulo, texto], i) => (
+          {PURCHASE_STEPS.map(([Icon, titulo, texto], i) => (
             <li
               key={titulo}
               className="relative flex items-start gap-4 bg-white border border-gray-100 rounded-xl p-6 shadow-xs"
             >
               <span className="shrink-0 w-12 h-12 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
-                <Icono className="w-6 h-6" />
+                <Icon className="w-6 h-6" />
               </span>
               <div>
                 <p className="text-xs font-black text-orange-500 tracking-[3px]">PASO {i + 1}</p>
@@ -488,7 +488,7 @@ export default function Home({
             </li>
           ))}
         </ol>
-      </Seccion>
+      </Section>
 
       {/* =====================================================
           MÁS VENDIDOS
@@ -497,7 +497,7 @@ export default function Home({
 
       {masVendidos?.length !== 0 && (
 
-        <Seccion
+        <Section
           etiqueta="LO MÁS ELEGIDO"
           titulo="Más vendidos"
           accion="Ver más"
@@ -524,7 +524,7 @@ export default function Home({
               >
 
                 <div className="h-44 bg-white">
-                  <img onError={usarImagenGenerica}
+                  <img onError={useGenericImage}
                     src={producto.imagen}
                     alt=""
                     className="w-full h-full object-contain p-3 group-hover:scale-105 transition duration-300"
@@ -553,13 +553,13 @@ export default function Home({
                     {precio(producto.precio)}
                   </p>
 
-                  <BotonAgregarCarrito
+                  <AddToCartButton
                     producto={producto}
                     className="relative z-10 w-full mt-3 flex items-center justify-center gap-2 h-10 rounded-md text-xs font-bold"
                   >
-                    <IconoCarrito />
+                    <CartIcon />
                     Agregar
-                  </BotonAgregarCarrito>
+                  </AddToCartButton>
 
                 </div>
 
@@ -569,7 +569,7 @@ export default function Home({
 
           </div>
 
-        </Seccion>
+        </Section>
 
       )}
 
@@ -580,7 +580,7 @@ export default function Home({
 // Flechita al pie del banner, centrada, que avisa que la página sigue; al
 // tocarla baja hasta lo que viene después. Va en el margen de abajo del
 // banner, así no tapa nada. Sin animaciones.
-function AvisoBajar({ hero }) {
+function ScrollHint({ hero }) {
   const bajar = () => {
     const alto = hero.current?.offsetHeight ?? window.innerHeight;
     window.scrollTo({ top: alto - 88, behavior: "smooth" });
@@ -593,15 +593,15 @@ function AvisoBajar({ hero }) {
       aria-label="Ver más del inicio"
       className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 w-9 h-9 rounded-full bg-white/10 border border-white/25 text-white flex items-center justify-center hover:bg-orange-500 hover:border-orange-500 transition"
     >
-      <IconoFlecha className="w-5 h-5" />
+      <ArrowIcon className="w-5 h-5" />
     </button>
   );
 }
 
 // Tarjeta oscura de una categoría, con el ícono grande y transparente
 // de fondo. `grande` para las destacadas.
-function TarjetaCategoria({ nombre, cantidad, grande = false, onClick }) {
-  const Icono = ICONOS_CATEGORIA[nombre] || IconoCaja;
+function CategoryCard({ nombre, cantidad, grande = false, onClick }) {
+  const Icon = CATEGORY_ICONS[nombre] || BoxIcon;
 
   return (
     <button
@@ -611,7 +611,7 @@ function TarjetaCategoria({ nombre, cantidad, grande = false, onClick }) {
         grande ? "h-44 p-6" : "h-32 p-4"
       }`}
     >
-      <Icono
+      <Icon
         className={`absolute text-white/5 group-hover:text-orange-500/15 transition duration-300 ${
           grande ? "-right-6 -bottom-6 w-40 h-40" : "-right-4 -bottom-4 w-24 h-24"
         }`}
@@ -622,7 +622,7 @@ function TarjetaCategoria({ nombre, cantidad, grande = false, onClick }) {
           grande ? "w-12 h-12" : "w-10 h-10"
         }`}
       >
-        <Icono className={grande ? "w-6 h-6" : "w-5 h-5"} />
+        <Icon className={grande ? "w-6 h-6" : "w-5 h-5"} />
       </span>
 
       <span className="relative">
@@ -648,7 +648,7 @@ function TarjetaCategoria({ nombre, cantidad, grande = false, onClick }) {
 // Cinta que se mueve sola. `children` es una función que arma los
 // elementos: se llama dos veces (la segunda, copia oculta para lectores
 // de pantalla y teclado) para que el bucle no tenga cortes.
-function Cinta({ reversa = false, children }) {
+function Ribbon({ reversa = false, children }) {
   return (
     <div className="cinta-contenedor overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
       <div className={`cinta flex w-max ${reversa ? "cinta-reversa" : ""}`}>
@@ -662,7 +662,7 @@ function Cinta({ reversa = false, children }) {
 // Todas las secciones del inicio tienen el mismo armado: mismo ancho y
 // separación, etiqueta naranja, título y un enlace a la derecha. `gris`
 // alterna el fondo para que se note dónde termina cada una.
-function Seccion({ etiqueta, titulo, accion, onAccion, gris = false, children }) {
+function Section({ etiqueta, titulo, accion, onAccion, gris = false, children }) {
   return (
     <section className={gris ? "bg-[#f5f5f5]" : "bg-white"}>
       <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-14">

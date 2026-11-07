@@ -218,7 +218,7 @@ Correrlo dos veces, o dos a la vez, no duplica nada. Los repuestos se insertan c
 
 ### Imágenes de los repuestos
 
-Los 3990 repuestos salen de 47 tipos de pieza (bujía, discos de freno, radiador...) y de 2 a 4 fabricantes por tipo. Cada repuesto muestra la imagen de su tipo en la versión de su fabricante: la del fabricante principal es la imagen base, y la de cada uno de los demás se genera a partir de ella cambiando el color o el diseño (107 imágenes en total). La tabla de tipos está en `frontend/src/imagenesRepuestos.js` (el tipo se reconoce por cómo empieza el nombre, y cada tipo tiene la descripción técnica que se le pide al modelo) y las imágenes en `frontend/public/repuestos/`. Son ilustrativas y genéricas, sin marcas, y se generan con Nano Banana Pro (`gemini-3-pro-image`), la API de imágenes de Gemini. Requiere una clave con facturación activa (unos USD 0,13 por imagen).
+Los 3990 repuestos salen de 47 tipos de pieza (bujía, discos de freno, radiador...) y de 2 a 4 fabricantes por tipo. Cada repuesto muestra la imagen de su tipo en la versión de su fabricante: la del fabricante principal es la imagen base, y la de cada uno de los demás se genera a partir de ella cambiando el color o el diseño (107 imágenes en total). La tabla de tipos está en `frontend/src/partImages.js` (el tipo se reconoce por cómo empieza el nombre, y cada tipo tiene la descripción técnica que se le pide al modelo) y las imágenes en `frontend/public/repuestos/`. Son ilustrativas y genéricas, sin marcas, y se generan con Nano Banana Pro (`gemini-3-pro-image`), la API de imágenes de Gemini. Requiere una clave con facturación activa (unos USD 0,13 por imagen).
 
 ```bash
 cd frontend

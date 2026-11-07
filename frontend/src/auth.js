@@ -1,10 +1,10 @@
 // La sesión guardada en el navegador y lo que dice su token.
 
-const SESION_KEY = "autobought-sesion";
+const SESSION_KEY = "autobought-sesion";
 
 // Cuánto antes de que venza el token se pide uno nuevo. Con tokens de 60
 // minutos, la renovación cae al minuto 55 de sesión.
-export const MARGEN_RENOVACION_MS = 5 * 60 * 1000;
+export const RENEWAL_MARGIN_MS = 5 * 60 * 1000;
 
 export function decodeToken(token) {
   try {
@@ -18,18 +18,18 @@ export function decodeToken(token) {
   }
 }
 
-export function obtenerSesion() {
+export function getSession() {
   try {
     const raw =
-      localStorage.getItem(SESION_KEY) ||
-      sessionStorage.getItem(SESION_KEY);
+      localStorage.getItem(SESSION_KEY) ||
+      sessionStorage.getItem(SESSION_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
 
-export function sesionValida(sesion) {
+export function isSessionValid(sesion) {
   if (!sesion) return false;
 
   // Sesiones sin JWT (ej. flujo de registro local, todavía no
@@ -44,28 +44,28 @@ export function sesionValida(sesion) {
 
 // El JWT del login trae `user_type`: "client" (comprador) o "employee"
 // (vendedor). Login.jsx lo guarda en `sesion.userType`.
-export const TIPO_VENDEDOR = "employee";
+export const SELLER_TYPE = "employee";
 
 /**
  * true si la sesión es de un vendedor. Los vendedores no tienen perfil de
  * cliente, carrito ni favoritos: esos endpoints les responden 403, así que
  * la UI no tiene que pedirlos.
  */
-export function esVendedor(sesion) {
-  return sesion?.userType === TIPO_VENDEDOR;
+export function isSeller(sesion) {
+  return sesion?.userType === SELLER_TYPE;
 }
 
 /**
  * true si el vendedor es administrador (el token trae `admin`): ve la
  * sección "Equipo". La API lo vuelve a verificar en cada pedido.
  */
-export function esAdmin(sesion) {
-  if (!esVendedor(sesion) || !sesion?.token) return false;
+export function isAdmin(sesion) {
+  if (!isSeller(sesion) || !sesion?.token) return false;
   return decodeToken(sesion.token)?.admin === true;
 }
 
-export function haySesionActiva() {
-  return sesionValida(obtenerSesion());
+export function hasActiveSession() {
+  return isSessionValid(getSession());
 }
 
 /**
@@ -73,24 +73,24 @@ export function haySesionActiva() {
  * "Recordarme", sessionStorage si no. Así renovar el token no cambia la
  * persistencia que el cliente eligió al iniciar sesión.
  */
-export function guardarSesion(sesion) {
-  const storage = localStorage.getItem(SESION_KEY)
+export function saveSession(sesion) {
+  const storage = localStorage.getItem(SESSION_KEY)
     ? localStorage
     : sessionStorage;
 
-  storage.setItem(SESION_KEY, JSON.stringify(sesion));
-  window.dispatchEvent(new Event(EVENTO_SESION_GUARDADA));
+  storage.setItem(SESSION_KEY, JSON.stringify(sesion));
+  window.dispatchEvent(new Event(SESSION_SAVED_EVENT));
 }
 
 // Aviso dentro de la pestaña de que la sesión guardada cambió. App.jsx lo
 // usa para que su estado `usuario` siga a lo que guardó cualquier pantalla
 // (ej: CambiarPassword guarda el token nuevo sin tener acceso a App).
-const EVENTO_SESION_GUARDADA = "autobought-sesion-guardada";
+const SESSION_SAVED_EVENT = "autobought-sesion-guardada";
 
 /** Llama a `fn` cada vez que `guardarSesion` guarda. Devuelve cómo desregistrar. */
-export function alGuardarSesion(fn) {
-  window.addEventListener(EVENTO_SESION_GUARDADA, fn);
-  return () => window.removeEventListener(EVENTO_SESION_GUARDADA, fn);
+export function onSessionSaved(fn) {
+  window.addEventListener(SESSION_SAVED_EVENT, fn);
+  return () => window.removeEventListener(SESSION_SAVED_EVENT, fn);
 }
 
 /**
@@ -99,9 +99,9 @@ export function alGuardarSesion(fn) {
  * ese momento ya pasó (hay que renovar ya) y null si el token no tiene
  * `exp` legible (no hay nada que programar).
  */
-export function msHastaRenovacion(token, ahora = Date.now()) {
+export function msUntilRenewal(token, ahora = Date.now()) {
   const payload = token ? decodeToken(token) : null;
   if (!payload?.exp) return null;
 
-  return Math.max(0, payload.exp * 1000 - MARGEN_RENOVACION_MS - ahora);
+  return Math.max(0, payload.exp * 1000 - RENEWAL_MARGIN_MS - ahora);
 }

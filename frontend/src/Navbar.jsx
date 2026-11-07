@@ -3,19 +3,19 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "./context/CartContext";
-import { usePedidos } from "./context/PedidosContext";
-import { usePitOpcional } from "./context/PitContext";
-import { esVendedor } from "./auth";
-import BusquedaCabecera from "./BusquedaCabecera";
-import { ID_BUSCADOR_CATALOGO } from "./SearchBar";
-import { IconoCamion, IconoCerrar, IconoCorazon, IconoLupa, IconoMenu } from "./Iconos";
+import { useOrders } from "./context/OrdersContext";
+import { useOptionalPit } from "./context/PitContext";
+import { isSeller } from "./auth";
+import HeaderSearch from "./HeaderSearch";
+import { CATALOG_SEARCH_ID } from "./SearchBar";
+import { TruckIcon, CloseIcon, HeartIcon, SearchIcon, MenuIcon } from "./Icons";
 import logo from "./assets/logo.png";
 
 // Los contadores (carrito y favoritos) rebotan cuando SUBEN (se agregó
 // algo). Se compara con el valor anterior durante el render en vez de
 // en un efecto; el pulso se usa como key para que la animación se
 // repita en cada agregado.
-function usePulsoAlSubir(valor) {
+function usePulseOnIncrease(valor) {
   const [valorPrevio, setValorPrevio] = useState(valor);
   const [pulso, setPulso] = useState(0);
   if (valor !== valorPrevio) {
@@ -25,7 +25,7 @@ function usePulsoAlSubir(valor) {
   return pulso;
 }
 
-const claseRebote = (pulso) => (pulso > 0 ? "motion-safe:animate-rebote" : "");
+const bounceClass = (pulso) => (pulso > 0 ? "motion-safe:animate-rebote" : "");
 
 export default function Navbar({
   paginaActual,
@@ -40,18 +40,18 @@ export default function Navbar({
   usuario,
 }) {
   const { cantidadCarrito } = useCart();
-  const { enCurso } = usePedidos();
+  const { enCurso } = useOrders();
   const cantidadPedidosEnCurso = enCurso.length;
   const navigate = useNavigate();
-  const vendedor = esVendedor(usuario);
-  const pit = usePitOpcional();
+  const vendedor = isSeller(usuario);
+  const pit = useOptionalPit();
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [busquedaAbierta, setBusquedaAbierta] = useState(false);
   // En celular, los links (Home, Marcas...) van en un menú desplegable.
   const [menuAbierto, setMenuAbierto] = useState(false);
 
-  const pulsoCarrito = usePulsoAlSubir(cantidadCarrito);
-  const pulsoFavoritos = usePulsoAlSubir(cantidadFavoritos);
+  const pulsoCarrito = usePulseOnIncrease(cantidadCarrito);
+  const pulsoFavoritos = usePulseOnIncrease(cantidadFavoritos);
 
   // Pit (el asistente con IA) se abre al costado; sin sesión, primero el
   // login. El vendedor no lo ve.
@@ -116,7 +116,7 @@ export default function Navbar({
 
     // Si la página ya tiene su buscador (el catálogo), la lupa lleva a ese
     // en vez de abrir otro encima.
-    const buscadorDePagina = document.getElementById(ID_BUSCADOR_CATALOGO);
+    const buscadorDePagina = document.getElementById(CATALOG_SEARCH_ID);
     if (buscadorDePagina) {
       setBusquedaAbierta(false);
       buscadorDePagina.scrollIntoView?.({ behavior: "smooth", block: "center" });
@@ -292,7 +292,7 @@ export default function Navbar({
             onClick={alternarBusqueda}
             className={`transition ${busquedaAbierta ? "text-orange-500" : "hover:text-orange-500"}`}
           >
-            <IconoLupa className="h-5 w-5" />
+            <SearchIcon className="h-5 w-5" />
           </button>
 
           {busquedaAbierta && (
@@ -310,7 +310,7 @@ export default function Navbar({
                   style={{ left: posicionBusqueda.flechita }}
                 />
               )}
-              <BusquedaCabecera
+              <HeaderSearch
                 inputRef={inputBusquedaRef}
                 onSearch={() => cerrarBusqueda()}
                 onEscape={() => cerrarBusqueda({ devolverFoco: true })}
@@ -338,7 +338,7 @@ export default function Navbar({
           }`}
           title="Favoritos"
         >
-          <IconoCorazon
+          <HeartIcon
             lleno={paginaActual === "favoritos"}
             className="w-5 h-5"
           />
@@ -346,7 +346,7 @@ export default function Navbar({
           {cantidadFavoritos > 0 && (
             <span
               key={pulsoFavoritos}
-              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${claseRebote(pulsoFavoritos)}`}
+              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${bounceClass(pulsoFavoritos)}`}
             >
               {cantidadFavoritos}
             </span>
@@ -377,7 +377,7 @@ export default function Navbar({
               : "Mis compras"
           }
         >
-          <IconoCamion className="w-5 h-5" />
+          <TruckIcon className="w-5 h-5" />
 
           {cantidadPedidosEnCurso > 0 && (
             <span
@@ -619,7 +619,7 @@ export default function Navbar({
           {cantidadCarrito > 0 && (
             <span
               key={pulsoCarrito}
-              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${claseRebote(pulsoCarrito)}`}
+              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${bounceClass(pulsoCarrito)}`}
             >
               {cantidadCarrito}
             </span>
@@ -639,7 +639,7 @@ export default function Navbar({
           onClick={alternarMenu}
           className={`relative md:hidden transition ${menuAbierto ? "text-orange-500" : "hover:text-orange-500"}`}
         >
-          {menuAbierto ? <IconoCerrar className="h-5 w-5" /> : <IconoMenu className="h-5 w-5" />}
+          {menuAbierto ? <CloseIcon className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
           {/* Hay pedidos en curso (están adentro del menú). */}
           {!menuAbierto && cantidadPedidosEnCurso > 0 && (
             <span aria-hidden="true" className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-500 ring-2 ring-white" />

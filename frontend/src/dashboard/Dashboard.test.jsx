@@ -4,23 +4,23 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 
-jest.mock("./apiDashboard");
-jest.mock("../api", () => ({ obtenerCategorias: jest.fn() }));
+jest.mock("./dashboardApi");
+jest.mock("../api", () => ({ getCategories: jest.fn() }));
 
 import Dashboard from "./Dashboard";
-import { obtenerCategorias } from "../api";
+import { getCategories } from "../api";
 import {
-  ajustarStock,
-  funcionSinPublicar,
-  obtenerEvolucionVentas,
-  obtenerMasVendidos,
-  obtenerPedidos,
-  obtenerProyeccionDemanda,
-  obtenerResumenIA,
-  obtenerRiesgoAgotamiento,
-  obtenerStock,
-} from "./apiDashboard";
-import { simularTamanioDelGrafico } from "./testGrafico";
+  adjustStock,
+  unpublishedFeature,
+  getSalesTrend,
+  getBestSellers,
+  getOrders,
+  getDemandForecast,
+  getAISummary,
+  getStockoutRisk,
+  getStock,
+} from "./dashboardApi";
+import { mockChartSize } from "./chartTestUtils";
 
 const repuesto = (id, extra = {}) => ({
   id,
@@ -54,16 +54,16 @@ const alertas = {
 let restaurarGrafico;
 
 beforeEach(() => {
-  restaurarGrafico = simularTamanioDelGrafico();
+  restaurarGrafico = mockChartSize();
   // El resumen con IA (HU 6.3) tiene sus propios tests (IA.test.jsx): acá
   // el backend todavía no lo tiene.
-  funcionSinPublicar.mockImplementation(jest.requireActual("./apiDashboard").funcionSinPublicar);
-  obtenerResumenIA.mockRejectedValue(Object.assign(new Error("No encontrado"), { status: 404 }));
-  obtenerCategorias.mockResolvedValue([
+  unpublishedFeature.mockImplementation(jest.requireActual("./dashboardApi").unpublishedFeature);
+  getAISummary.mockRejectedValue(Object.assign(new Error("No encontrado"), { status: 404 }));
+  getCategories.mockResolvedValue([
     { nombre: "Filtros", cantidad: 2 },
     { nombre: "Frenos", cantidad: 3 },
   ]);
-  obtenerStock.mockResolvedValue({
+  getStock.mockResolvedValue({
     umbralStockBajo: 5,
     repuestos: [
       { ...repuesto(1, { nombre: "Pastillas Bosch", stock: 0 }), stockBajo: true },
@@ -71,7 +71,7 @@ beforeEach(() => {
       { ...repuesto(3, { nombre: "Filtro de aire", stock: 40, categoria: "Filtros" }), stockBajo: false },
     ],
   });
-  obtenerRiesgoAgotamiento.mockImplementation(({ soloEnRiesgo }) =>
+  getStockoutRisk.mockImplementation(({ soloEnRiesgo }) =>
     Promise.resolve(
       soloEnRiesgo
         ? alertas
@@ -84,14 +84,14 @@ beforeEach(() => {
           }
     )
   );
-  obtenerEvolucionVentas.mockResolvedValue(evolucion);
+  getSalesTrend.mockResolvedValue(evolucion);
   // La sección de pedidos tiene sus propios tests (PedidosVendedor.test.jsx).
-  obtenerPedidos.mockResolvedValue({ pedidos: [], total: 0, porEstado: {}, paraPreparar: 3 });
-  obtenerMasVendidos.mockResolvedValue([
+  getOrders.mockResolvedValue({ pedidos: [], total: 0, porEstado: {}, paraPreparar: 3 });
+  getBestSellers.mockResolvedValue([
     { ...repuesto(2, { nombre: "Discos Fremax" }), unidadesVendidas: 120 },
     { ...repuesto(1, { nombre: "Pastillas Bosch" }), unidadesVendidas: 80 },
   ]);
-  obtenerProyeccionDemanda.mockResolvedValue({
+  getDemandForecast.mockResolvedValue({
     mes: "2026-11",
     repuestos: [{ ...repuesto(1, { nombre: "Pastillas Bosch" }), unidadesUltimoAnio: 400, demandaProyectada: 60 }],
   });
@@ -175,7 +175,7 @@ describe("acceso y datos del sistema (HU 5.1)", () => {
 
   it("lists on Resumen the paid orders waiting to be prepared, and opens one's detail", async () => {
     const user = userEvent.setup();
-    obtenerPedidos.mockResolvedValue({
+    getOrders.mockResolvedValue({
       pedidos: [
         {
           id: 77,
@@ -202,7 +202,7 @@ describe("acceso y datos del sistema (HU 5.1)", () => {
     expect(lista).toHaveTextContent("#77 · Ana Pérez");
     expect(lista).toHaveTextContent("Pastillas Bosch · 2 u.");
     expect(screen.getByText("Y 3 más esperando.")).toBeInTheDocument();
-    expect(obtenerPedidos).toHaveBeenCalledWith({ estado: "confirmed", soloPagados: true, limite: 5 });
+    expect(getOrders).toHaveBeenCalledWith({ estado: "confirmed", soloPagados: true, limite: 5 });
 
     await user.click(within(lista).getByRole("button", { name: "Ver el detalle del pedido #77 de Ana Pérez" }));
     expect(screen.getByText("Detalle del pedido 77")).toBeInTheDocument();
@@ -234,11 +234,11 @@ describe("evolución de ventas (HU 5.4) y proyección (HU 5.5)", () => {
     expect(filas).toHaveLength(13); // 12 meses + la proyección
     expect(filas[0]).toHaveTextContent("noviembre de 2025");
     expect(filas[11]).toHaveTextContent("octubre de 2026 (en curso)");
-    expect(ultimaLlamada(obtenerEvolucionVentas)).toEqual(expect.objectContaining({ meses: 12 }));
+    expect(ultimaLlamada(getSalesTrend)).toEqual(expect.objectContaining({ meses: 12 }));
   });
 
   it("shows the increase between a month and the previous one", async () => {
-    obtenerEvolucionVentas.mockResolvedValue({
+    getSalesTrend.mockResolvedValue({
       ...evolucion,
       meses: evolucion.meses.map((mes, i) => ({ ...mes, unidades: i === 11 ? 25 : 10 })),
     });
@@ -290,9 +290,9 @@ describe("filtros (HU 5.9)", () => {
     await user.click(screen.getByRole("combobox", { name: "Categoría" }));
     await user.click(await screen.findByRole("option", { name: "Frenos" }));
 
-    await waitFor(() => expect(ultimaLlamada(obtenerEvolucionVentas)).toEqual(expect.objectContaining({ categoria: "Frenos" })));
-    expect(ultimaLlamada(obtenerStock)).toEqual(expect.objectContaining({ categoria: "Frenos" }));
-    expect(ultimaLlamada(obtenerRiesgoAgotamiento)).toEqual(expect.objectContaining({ categoria: "Frenos", soloEnRiesgo: true }));
+    await waitFor(() => expect(ultimaLlamada(getSalesTrend)).toEqual(expect.objectContaining({ categoria: "Frenos" })));
+    expect(ultimaLlamada(getStock)).toEqual(expect.objectContaining({ categoria: "Frenos" }));
+    expect(ultimaLlamada(getStockoutRisk)).toEqual(expect.objectContaining({ categoria: "Frenos", soloEnRiesgo: true }));
   });
 
   it("filters the sales by the last 3 months", async () => {
@@ -302,7 +302,7 @@ describe("filtros (HU 5.9)", () => {
 
     await user.click(screen.getByRole("button", { name: "Últimos 3 meses" }));
 
-    await waitFor(() => expect(ultimaLlamada(obtenerEvolucionVentas)).toEqual(expect.objectContaining({ meses: 3 })));
+    await waitFor(() => expect(ultimaLlamada(getSalesTrend)).toEqual(expect.objectContaining({ meses: 3 })));
     expect(screen.getByRole("heading", { name: "Ventas · últimos 3 meses" })).toBeInTheDocument();
   });
 
@@ -312,23 +312,23 @@ describe("filtros (HU 5.9)", () => {
     await screen.findByRole("figure", { name: /Evolución de ventas/ });
 
     await user.type(screen.getByLabelText("Repuesto"), "FRE-001");
-    expect(ultimaLlamada(obtenerEvolucionVentas)).toEqual(expect.objectContaining({ busqueda: "" }));
+    expect(ultimaLlamada(getSalesTrend)).toEqual(expect.objectContaining({ busqueda: "" }));
     await user.click(screen.getByRole("button", { name: "Buscar" }));
 
-    await waitFor(() => expect(ultimaLlamada(obtenerEvolucionVentas)).toEqual(expect.objectContaining({ busqueda: "FRE-001" })));
-    expect(ultimaLlamada(obtenerStock)).toEqual(expect.objectContaining({ busqueda: "FRE-001" }));
+    await waitFor(() => expect(ultimaLlamada(getSalesTrend)).toEqual(expect.objectContaining({ busqueda: "FRE-001" })));
+    expect(ultimaLlamada(getStock)).toEqual(expect.objectContaining({ busqueda: "FRE-001" }));
   });
 
   it("removes every filter with Quitar filtros", async () => {
     const user = userEvent.setup();
     renderDashboard("/dashboard?categoria=Frenos&q=disco&periodo=3");
     await screen.findByRole("figure", { name: /Evolución de ventas/ });
-    expect(ultimaLlamada(obtenerEvolucionVentas)).toEqual({ categoria: "Frenos", busqueda: "disco", meses: 3 });
+    expect(ultimaLlamada(getSalesTrend)).toEqual({ categoria: "Frenos", busqueda: "disco", meses: 3 });
     expect(screen.getByLabelText("Repuesto")).toHaveValue("disco");
 
     await user.click(screen.getByRole("button", { name: "Quitar filtros" }));
 
-    await waitFor(() => expect(ultimaLlamada(obtenerEvolucionVentas)).toEqual({ categoria: "", busqueda: "", meses: 12 }));
+    await waitFor(() => expect(ultimaLlamada(getSalesTrend)).toEqual({ categoria: "", busqueda: "", meses: 12 }));
     expect(screen.getByLabelText("Repuesto")).toHaveValue("");
     expect(screen.queryByRole("button", { name: "Quitar filtros" })).not.toBeInTheDocument();
   });
@@ -348,7 +348,7 @@ describe("alertas de reposición (HU 5.7)", () => {
   });
 
   it("says so when no part needs restocking", async () => {
-    obtenerRiesgoAgotamiento.mockResolvedValue({ ...alertas, repuestos: [] });
+    getStockoutRisk.mockResolvedValue({ ...alertas, repuestos: [] });
     renderDashboard();
 
     expect(await screen.findByText("No hay repuestos que requieran reposición")).toBeInTheDocument();
@@ -378,7 +378,7 @@ describe("alertas de reposición (HU 5.7)", () => {
 
   it("restocks a part from its alert and reloads the data", async () => {
     const user = userEvent.setup();
-    ajustarStock.mockResolvedValue({ ...repuesto(1, { nombre: "Pastillas Bosch", stock: 50 }) });
+    adjustStock.mockResolvedValue({ ...repuesto(1, { nombre: "Pastillas Bosch", stock: 50 }) });
     renderDashboard();
 
     await user.click(await screen.findByRole("button", { name: "Reponer Pastillas Bosch (FRE-001)" }));
@@ -386,12 +386,12 @@ describe("alertas de reposición (HU 5.7)", () => {
     const campo = within(dialogo).getByLabelText("Unidades disponibles");
     await user.clear(campo);
     await user.type(campo, "50");
-    const pedidosAntes = obtenerRiesgoAgotamiento.mock.calls.length;
+    const pedidosAntes = getStockoutRisk.mock.calls.length;
     await user.click(within(dialogo).getByRole("button", { name: "Guardar stock" }));
 
-    expect(ajustarStock).toHaveBeenCalledWith(1, "50");
+    expect(adjustStock).toHaveBeenCalledWith(1, "50");
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(obtenerRiesgoAgotamiento.mock.calls.length).toBeGreaterThan(pedidosAntes);
+    expect(getStockoutRisk.mock.calls.length).toBeGreaterThan(pedidosAntes);
   });
 });
 
@@ -431,7 +431,7 @@ describe("secciones del menú", () => {
   });
 
   it("opens every alert from Ver todas", async () => {
-    obtenerRiesgoAgotamiento.mockImplementation(() =>
+    getStockoutRisk.mockImplementation(() =>
       Promise.resolve({
         ...alertas,
         repuestos: [1, 2, 3, 4, 5, 6].map((id) => ({ ...alertas.repuestos[0], id, codigo: `FRE-00${id}` })),
@@ -477,7 +477,7 @@ describe("secciones del menú", () => {
       expect.stringMatching(/^1Discos Fremax.*120 u\.$/),
       expect.stringMatching(/^2Pastillas Bosch.*80 u\.$/),
     ]);
-    expect(ultimaLlamada(obtenerMasVendidos)).toEqual(expect.objectContaining({ meses: 12 }));
+    expect(ultimaLlamada(getBestSellers)).toEqual(expect.objectContaining({ meses: 12 }));
   });
 
   it("lists the projected demand per part (HU 5.5)", async () => {
@@ -507,7 +507,7 @@ describe("secciones del menú", () => {
 
 it("shows the error and retries", async () => {
   const user = userEvent.setup();
-  obtenerEvolucionVentas.mockRejectedValueOnce(new Error("No pudimos cargar la evolución de ventas."));
+  getSalesTrend.mockRejectedValueOnce(new Error("No pudimos cargar la evolución de ventas."));
   renderDashboard();
 
   expect(await screen.findByText("No pudimos cargar la evolución de ventas.")).toBeInTheDocument();

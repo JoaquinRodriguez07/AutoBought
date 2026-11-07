@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useState } from "react";
 
-import { useConversacionPit } from "../useConversacionPit";
+import { usePitConversation } from "../usePitConversation";
 import { useVehicle } from "./VehicleContext";
 
 /**
@@ -21,7 +21,7 @@ const PitContext = createContext(null);
 
 export function PitProvider({ children }) {
   const { vehiculoActivo } = useVehicle();
-  const conversacion = useConversacionPit(vehiculoActivo);
+  const conversacion = usePitConversation(vehiculoActivo);
   const [abierto, setAbierto] = useState(false);
   const [borrador, setBorrador] = useState("");
 
@@ -47,7 +47,7 @@ export function PitProvider({ children }) {
 
 /** Como usePit, pero sin Pit (fuera del proveedor) devuelve null en vez de
  * fallar: para componentes que se usan en muchas pantallas, como el menú. */
-export function usePitOpcional() {
+export function useOptionalPit() {
   return useContext(PitContext);
 }
 

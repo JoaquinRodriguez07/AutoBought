@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Navbar from "./Navbar";
-import { login, obtenerPerfil } from "./api";
-import { decodeToken, esVendedor } from "./auth";
+import { login, getProfile } from "./api";
+import { decodeToken, isSeller } from "./auth";
 import repuestos from "./assets/repuestos.jpg";
-import { CampoPassword } from "./PantallaAcceso";
+import { PasswordField } from "./AccessScreen";
 
 export default function Login({
   onHome,
@@ -56,9 +56,9 @@ export default function Login({
       // login igual es válido: la sesión queda sin esos datos.
       // Un vendedor no tiene perfil de cliente (/auth/me le responde 403):
       // no se pide.
-      if (!esVendedor(sesion)) {
+      if (!isSeller(sesion)) {
         try {
-          sesion = { ...sesion, ...(await obtenerPerfil(data.access_token)) };
+          sesion = { ...sesion, ...(await getProfile(data.access_token)) };
         } catch {
           // se sigue con la sesión mínima
         }
@@ -180,7 +180,7 @@ export default function Login({
               </div>
 
               <div className="mt-2">
-                <CampoPassword
+                <PasswordField
                   id="login-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

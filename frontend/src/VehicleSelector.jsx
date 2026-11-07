@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 
 import BrandDropdown from "./BrandDropdown";
 import ModelDropdown from "./ModelDropdown";
-import { obtenerAnios } from "./api";
-import { IconoFlecha } from "./Iconos";
+import { getYears } from "./api";
+import { ArrowIcon } from "./Icons";
 
 /** Selector de vehículo compartido por Home y el detalle del repuesto. */
 export default function VehicleSelector({
@@ -42,7 +42,7 @@ export default function VehicleSelector({
     const loadYears = async () => {
       try {
         setLoadingYears(true);
-        const availableYears = await obtenerAnios(selectedBrand, selectedModel);
+        const availableYears = await getYears(selectedBrand, selectedModel);
         if (active) setYears(availableYears);
       } catch (error) {
         console.error("Error cargando años:", error);
@@ -76,7 +76,7 @@ export default function VehicleSelector({
     dark ? select : (
       <span className="relative block">
         {select}
-        <IconoFlecha className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <ArrowIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
       </span>
     );
   const fields = (
