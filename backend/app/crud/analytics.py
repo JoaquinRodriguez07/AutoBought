@@ -122,3 +122,21 @@ def forecasts(
             )
         )
     return forecast_month, result
+
+
+def urgency_key(row: Forecast) -> tuple:
+    """Orden de las alertas de reposición, del más urgente al menos urgente.
+
+    Primero por nivel. Dentro de cada nivel, los que dejarían más unidades
+    sin cubrir el mes que viene; si no, un agotado que vende 0,3 por mes
+    taparía a uno que vende 50 y le quedan 6 días. Después, los que se
+    agotan antes; sin demanda, al final.
+    """
+    return (
+        analytics_math.RISK_ORDER[row.risk],
+        -max(row.projected_units - row.part.stock, 0),
+        row.coverage_days is None,
+        row.coverage_days or 0,
+        row.part.part_code,
+        row.part.id,
+    )

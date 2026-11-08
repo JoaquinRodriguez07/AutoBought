@@ -66,12 +66,25 @@ def month_start(period: Month) -> datetime:
     return datetime(period[0], period[1], 1, tzinfo=URUGUAY)
 
 
-def month_of(when: datetime) -> Month:
+def local_date(when: datetime) -> date:
+    """El día de Uruguay de un instante."""
     # SQLite devuelve las fechas sin zona horaria: se toman como UTC.
     if when.tzinfo is None:
         when = when.replace(tzinfo=timezone.utc)
-    local = when.astimezone(URUGUAY)
+    return when.astimezone(URUGUAY).date()
+
+
+def month_of(when: datetime) -> Month:
+    local = local_date(when)
     return local.year, local.month
+
+
+def percent_change(before: float, after: float) -> float | None:
+    """Variación de `before` a `after` en %, con un decimal. None si antes
+    era 0: no hay base para comparar."""
+    if before == 0:
+        return None
+    return round((after - before) / before * 100, 1)
 
 
 def group_by_month(

@@ -418,6 +418,7 @@ def test_vercel_cron_runs_the_tasks_with_the_secret(client, db_session, sent_mai
         "Recordatorios de mantenimiento": 0,
         "Pedidos vencidos cancelados": 0,
         "Devoluciones hechas": 0,
+        "Resúmenes viejos borrados": 0,
     }
     assert len(sent_mails) == 1
 

@@ -56,14 +56,17 @@ def recent_queries(db: Session, user_id: int, current_time: datetime | None = No
     ) or 0
 
 
-def check_limit(db: Session, user_id: int, limit_value: int | None = None) -> None:
-    """429 si el usuario ya hizo el máximo de consultas de las últimas 24 h."""
+LIMIT_REACHED = "Llegaste al límite de consultas al asistente por hoy. Probá de nuevo mañana."
+
+
+def check_limit(
+    db: Session, user_id: int, limit_value: int | None = None, detail: str = LIMIT_REACHED
+) -> None:
+    """429 si el usuario ya hizo el máximo de consultas de las últimas 24 h.
+    `detail` es el mensaje: cada funcionalidad nombra la suya."""
     limit_value = AI_DAILY_LIMIT if limit_value is None else limit_value
     if recent_queries(db, user_id) >= limit_value:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Llegaste al límite de consultas al asistente por hoy. Probá de nuevo mañana.",
-        )
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
 
 
 def record_usage(db: Session, user_id: int, funcionalidad: str, tokens: int, ok: bool) -> None:
