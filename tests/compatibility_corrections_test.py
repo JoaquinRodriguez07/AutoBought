@@ -13,7 +13,7 @@ from scripts.seed import seed_catalog
 import app.models
 
 
-def test_ningun_diesel_tiene_encendido_a_chispa():
+def test_no_diesel_has_ignition_a_spark():
     models = build_car_models()
     parts = build_parts(models)
     for part in parts:
@@ -24,7 +24,7 @@ def test_ningun_diesel_tiene_encendido_a_chispa():
     assert not toro
 
 
-def test_aceite_manual_lamparas_y_cilindros():
+def test_oil_manual_bulbs_and_cylinders():
     models = build_car_models()
     parts = build_parts(models)
     index = {(m["brand"], m["model"], m["engine_code"]): m for m in models}
@@ -48,7 +48,7 @@ def test_aceite_manual_lamparas_y_cilindros():
             assert [v for k, v in p["specifications"] if k == "Unidades por motor"] == [str(n.pop())]
 
 
-def test_seed_borra_asociacion_obsoleta_sin_cambiar_referencias():
+def test_seed_deletes_association_obsolete_without_change_references():
     engine = create_engine("sqlite:///:memory:", poolclass=StaticPool,
                            connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)

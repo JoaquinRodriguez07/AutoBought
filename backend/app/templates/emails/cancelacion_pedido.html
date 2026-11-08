@@ -2,6 +2,7 @@
 {% set titulo = "Cancelamos tu pedido #" ~ pedido %}
 {% block contenido %}
 <p>Hola {{ nombre }}, tu pedido <strong>#{{ pedido }}</strong> quedó cancelado.</p>
+{% if motivo %}<p><strong>Motivo:</strong> {{ motivo }}</p>{% endif %}
 <p>Si pagaste con tarjeta, el reintegro puede tardar unos días en verse en tu estado de cuenta.</p>
 {% include "_detalle_pedido.html" %}
 {% with texto_boton = "Ver mis compras" %}{% include "_boton.html" %}{% endwith %}

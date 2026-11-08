@@ -8,25 +8,29 @@
  * Recibe los mismos on* de navegación que la Navbar (propsNavbar).
  */
 
-import { IconoCaja, IconoCamion, IconoSobre } from "./Iconos";
+import { BoxIcon, TruckIcon, EnvelopeIcon } from "./Icons";
 
-const ANIO = new Date().getFullYear();
+const YEAR = new Date().getFullYear();
 
 // Las marcas más buscadas: llevan al catálogo filtrado por esa marca (el
 // nombre es el mismo que en el backend). Cuatro, como los accesos de
 // "Mi cuenta", para que las columnas queden parejas.
-const MARCAS_POPULARES = ["Volkswagen", "Chevrolet", "Fiat", "Renault"];
+// El mail de contacto se puede cambiar con VITE_EMAIL_CONTACTO sin tocar el código.
+const CONTACT_EMAIL =
+  import.meta.env.VITE_EMAIL_CONTACTO || "autobought.notificaciones@gmail.com";
 
-function Columna({ titulo, children }) {
+const POPULAR_BRANDS = ["Volkswagen", "Chevrolet", "Fiat", "Renault"];
+
+function Column({ title, children }) {
   return (
     <div>
-      <p className="text-white text-sm font-black">{titulo}</p>
+      <p className="text-white text-sm font-black">{title}</p>
       <ul className="mt-3 space-y-1.5 text-sm text-gray-400">{children}</ul>
     </div>
   );
 }
 
-function Enlace({ children, onClick }) {
+function FooterLink({ children, onClick }) {
   return (
     <li>
       <button
@@ -41,14 +45,14 @@ function Enlace({ children, onClick }) {
 }
 
 export default function Footer({
-  usuario,
+  sessionUser,
   onCatalogo,
-  onMarcas,
+  onBrands,
   onLogin,
-  onCuenta,
-  onPedidos,
-  onFavoritos,
-  onCarrito,
+  onAccount,
+  onOrders,
+  onFavorites,
+  onCart,
 }) {
   return (
     <footer className="bg-[#151719] text-white">
@@ -62,52 +66,52 @@ export default function Footer({
             Repuestos para tu auto, de las mejores marcas, con envío a todo Uruguay.
           </p>
           <p className="text-xs text-gray-500 mt-4">
-            © {ANIO} AutoBought · Hecho en Uruguay
+            © {YEAR} AutoBought · Hecho en Uruguay
           </p>
         </div>
 
-        <Columna titulo="Comprar">
-          <Enlace onClick={() => onCatalogo?.()}>Catálogo de repuestos</Enlace>
-          <Enlace onClick={onMarcas}>Todas las marcas</Enlace>
-        </Columna>
+        <Column title="Comprar">
+          <FooterLink onClick={() => onCatalogo?.()}>Catálogo de repuestos</FooterLink>
+          <FooterLink onClick={onBrands}>Todas las marcas</FooterLink>
+        </Column>
 
-        <Columna titulo="Marcas populares">
-          {MARCAS_POPULARES.map((marca) => (
-            <Enlace key={marca} onClick={() => onCatalogo?.(null, null, { marca })}>
+        <Column title="Marcas populares">
+          {POPULAR_BRANDS.map((marca) => (
+            <FooterLink key={marca} onClick={() => onCatalogo?.(null, null, { marca })}>
               {marca}
-            </Enlace>
+            </FooterLink>
           ))}
-        </Columna>
+        </Column>
 
-        <Columna titulo="Mi cuenta">
+        <Column title="Mi cuenta">
           {/* Sin sesión, la cuenta y las compras llevan a iniciar sesión. */}
-          <Enlace onClick={usuario ? onCuenta : onLogin}>Mi cuenta</Enlace>
-          <Enlace onClick={usuario ? onPedidos : onLogin}>Mis compras</Enlace>
-          <Enlace onClick={onFavoritos}>Mis favoritos</Enlace>
-          <Enlace onClick={onCarrito}>Mi carrito</Enlace>
-        </Columna>
+          <FooterLink onClick={sessionUser ? onAccount : onLogin}>Mi cuenta</FooterLink>
+          <FooterLink onClick={sessionUser ? onOrders : onLogin}>Mis compras</FooterLink>
+          <FooterLink onClick={onFavorites}>Mis favoritos</FooterLink>
+          <FooterLink onClick={onCart}>Mi carrito</FooterLink>
+        </Column>
 
         {/* El mail es un link; lo demás son datos (con ícono, para que
             no parezcan links). */}
-        <Columna titulo="Ayuda">
+        <Column title="Ayuda">
           <li>
             <a
-              href="mailto:autobought.notificaciones@gmail.com"
+              href={`mailto:${CONTACT_EMAIL}`}
               className="flex items-center gap-2 hover:text-orange-400 transition"
             >
-              <IconoSobre className="w-4 h-4 shrink-0 text-orange-500" />
+              <EnvelopeIcon className="w-4 h-4 shrink-0 text-orange-500" />
               Escribinos por mail
             </a>
           </li>
           <li className="flex items-center gap-2 text-gray-500">
-            <IconoCamion className="w-4 h-4 shrink-0" />
+            <TruckIcon className="w-4 h-4 shrink-0" />
             Envíos a todo el país
           </li>
           <li className="flex items-center gap-2 text-gray-500">
-            <IconoCaja className="w-4 h-4 shrink-0" />
+            <BoxIcon className="w-4 h-4 shrink-0" />
             Despachamos de lunes a viernes
           </li>
-        </Columna>
+        </Column>
 
       </div>
     </footer>

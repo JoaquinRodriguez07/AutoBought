@@ -1,3 +1,5 @@
+"""Contraseñas (bcrypt) y tokens JWT: de sesión y de los enlaces que van por mail."""
+
 import hashlib
 from datetime import datetime, timedelta, timezone
 
@@ -33,16 +35,16 @@ def create_access_token(subject: str, extra_claims: dict | None = None) -> str:
 # Tokens de los enlaces que van por mail (verificar el correo, recuperar la
 # contraseña). Se firman con una clave derivada del propósito: así no sirven
 # como token de sesión ni uno sirve en lugar del otro.
-VERIFICAR_CORREO = "verify_email"
-RECUPERAR_PASSWORD = "reset_password"
-DARSE_DE_BAJA = "unsubscribe"
+VERIFY_EMAIL = "verify_email"
+RESET_PASSWORD = "reset_password"
+UNSUBSCRIBE_PURPOSE = "unsubscribe"
 
 
-def _clave_de(proposito: str) -> str:
-    return f"{SECRET_KEY}:{proposito}"
+def _key_for(purpose: str) -> str:
+    return f"{SECRET_KEY}:{purpose}"
 
 
-def huella_password(password_hash: str) -> str:
+def password_fingerprint(password_hash: str) -> str:
     """Resumen corto del hash de la contraseña. Va dentro del token de
     recuperación: cuando la contraseña cambia, la huella deja de coincidir
     y el enlace ya no sirve, así que se puede usar una sola vez."""
@@ -50,22 +52,22 @@ def huella_password(password_hash: str) -> str:
 
 
 def create_purpose_token(
-    subject: str, proposito: str, minutos: int, extra_claims: dict | None = None
+    subject: str, purpose: str, minutes_count: int, extra_claims: dict | None = None
 ) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=minutos)
-    payload = {"sub": subject, "exp": expire, "purpose": proposito}
+    expire = datetime.now(timezone.utc) + timedelta(minutes=minutes_count)
+    payload = {"sub": subject, "exp": expire, "purpose": purpose}
     if extra_claims:
         payload.update(extra_claims)
-    return jwt.encode(payload, _clave_de(proposito), algorithm=JWT_ALGORITHM)
+    return jwt.encode(payload, _key_for(purpose), algorithm=JWT_ALGORITHM)
 
 
-def decode_purpose_token(token: str, proposito: str) -> dict | None:
+def decode_purpose_token(token: str, purpose: str) -> dict | None:
     """Devuelve los datos del token, o None si es inválido, venció o es de
     otro propósito."""
     try:
-        payload = jwt.decode(token, _clave_de(proposito), algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _key_for(purpose), algorithms=[JWT_ALGORITHM])
     except jwt.PyJWTError:
         return None
-    if payload.get("purpose") != proposito:
+    if payload.get("purpose") != purpose:
         return None
     return payload

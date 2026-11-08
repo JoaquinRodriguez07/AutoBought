@@ -1,3 +1,5 @@
+"""Consultas de los autos del catálogo: marcas, modelos y años."""
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

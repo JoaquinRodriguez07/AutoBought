@@ -1,3 +1,5 @@
+"""Consultas y altas de usuarios (clientes y vendedores)."""
+
 import re
 import secrets
 
@@ -17,15 +19,15 @@ def get_user_by_email(db: Session, email: str) -> User | None:
     return db.scalars(query).first()
 
 
-def _username_disponible(db: Session, email: str) -> str:
+def _available_username(db: Session, email: str) -> str:
     """`user.username` es obligatorio y único, pero el formulario no lo
     pide: se deriva de la parte local del correo, con sufijo aleatorio si
     ya está tomado."""
     base = re.sub(r"[^a-z0-9._-]", "", email.split("@")[0].lower())[:50] or "cliente"
-    candidato = base
-    while db.scalars(select(User).where(User.username == candidato)).first():
-        candidato = f"{base}_{secrets.token_hex(3)}"
-    return candidato
+    candidate = base
+    while db.scalars(select(User).where(User.username == candidate)).first():
+        candidate = f"{base}_{secrets.token_hex(3)}"
+    return candidate
 
 
 def create_client(
@@ -40,7 +42,7 @@ def create_client(
     registros con el mismo correo compiten; el caller hace el rollback."""
     email = email.strip().lower()
     client = Client(
-        username=_username_disponible(db, email),
+        username=_available_username(db, email),
         password=password_hash,
         name=name,
         email=email,
@@ -65,7 +67,7 @@ def create_employee(
     rollback."""
     email = email.strip().lower()
     employee = Employee(
-        username=_username_disponible(db, email),
+        username=_available_username(db, email),
         password=password_hash,
         name=name,
         email=email,

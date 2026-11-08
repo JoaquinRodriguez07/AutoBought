@@ -1,21 +1,22 @@
-"""Generates the catalog data files.
+"""Genera los archivos de datos del catálogo.
 
-Usage: python -m scripts.generate_dataset
+Uso: python -m scripts.generate_dataset
 
-Writes data/car_models.json and data/parts.json. The catalogs below are the
-source of truth: to add a car or a part, edit them here and rerun.
+Escribe data/car_models.json y data/parts.json. Los catálogos de abajo son
+la fuente de verdad: para agregar un auto o un repuesto, se editan acá y se
+vuelve a correr.
 
-Compatibility rules:
-- Engine parts (filters, spark plugs, timing belt, water pump) fit every
-  model that shares the same engine code.
-- Model-specific parts (brakes, suspension, body) are per model, because
-  sharing an engine doesn't mean sharing brake pads.
-- Universal parts (oil, coolant, wipers) fit the whole catalog.
+Reglas de compatibilidad:
+- Los repuestos de motor (filtros, bujías, correa de distribución, bomba de
+  agua) le sirven a todo modelo con el mismo código de motor.
+- Los repuestos propios de cada modelo (frenos, suspensión, carrocería) van
+  por modelo: compartir el motor no significa compartir las pastillas.
+- Los universales (aceite, refrigerante, escobillas) le sirven a todo el catálogo.
 
-Manufacturers: each part comes from several manufacturers, like in a real
-store, and each one is a different product (own code, price and stock).
-The main manufacturer makes it for every car; the others only for some
-(see covers), so for a given car there may be one option or several.
+Fabricantes: cada repuesto lo hacen varios fabricantes, como en una tienda
+real, y cada uno es un producto distinto (con su código, precio y stock).
+El fabricante principal lo hace para todos los autos; los demás solo para
+algunos (ver covers), así que para un auto puede haber una opción o varias.
 """
 
 import json
@@ -1117,12 +1118,12 @@ def build_parts(car_models):
     # solo para todos los autos: van con el catálogo original.
     nuevas = {(brand, model) for brand, model, *_ in NEW_BRAND_MODELS}
     originales = [m for m in car_models if (m["brand"], m["model"]) not in nuevas]
-    agregados = [m for m in car_models if (m["brand"], m["model"]) in nuevas]
-    repetidos = {m["engine_code"] for m in agregados} & {m["engine_code"] for m in originales}
-    if repetidos:
-        raise ValueError(f"Motores de las marcas nuevas que ya estaban: {', '.join(sorted(repetidos))}")
+    added = [m for m in car_models if (m["brand"], m["model"]) in nuevas]
+    repeated_items = {m["engine_code"] for m in added} & {m["engine_code"] for m in originales}
+    if repeated_items:
+        raise ValueError(f"Motores de las marcas nuevas que ya estaban: {', '.join(sorted(repeated_items))}")
 
-    def por_motor_y_modelo(models):
+    def by_engine_and_model(models):
         for engine_code, group in group_by_engine(models).items():
             for name, category, base_price, color in ENGINE_PARTS:
                 base(name, f" {engine_code}", category, base_price, color, group, engine_code)
@@ -1132,7 +1133,7 @@ def build_parts(car_models):
                 group = f"{car_model['brand']} {car_model['model']}"
                 base(name, "", category, base_price, color, [car_model], group)
 
-    def agregados_despues(models):
+    def added_later(models):
         for engine_code, group in group_by_engine(models).items():
             for name, category, base_price, color in EXTRA_ENGINE_PARTS:
                 base(name, f" {engine_code}", category, base_price, color, group, engine_code)
@@ -1146,13 +1147,13 @@ def build_parts(car_models):
             for name, category, base_price, color in BODY_PARTS:
                 base(name, "", category, base_price, color, group, f"{brand} {model}")
 
-    por_motor_y_modelo(originales)
+    by_engine_and_model(originales)
 
     for name, category, base_price, color in UNIVERSAL_PARTS:
         base(name, "", category, base_price, color, car_models, None)
 
     # --- Agregados después: siempre al final (ver EXTRA_ENGINE_PARTS).
-    agregados_despues(originales)
+    added_later(originales)
 
     for name, price, fits in BATTERIES:
         base(name, "", "Eléctrico", price, None, [m for m in car_models if fits(m)], None, by_segment=False)
@@ -1188,7 +1189,7 @@ def build_parts(car_models):
 
     # Primero el fabricante principal de cada repuesto, en el orden de
     # siempre, y al final los demás fabricantes.
-    def con_fabricantes(lote):
+    def with_manufacturers(lote):
         for part in lote:
             manufacturer, factor = manufacturers_of(part[0])[0]
             add(part, manufacturer, factor)
@@ -1198,21 +1199,21 @@ def build_parts(car_models):
                 if covers(manufacturer, part[6]):
                     add(part, manufacturer, factor)
 
-    con_fabricantes(base_parts)
+    with_manufacturers(base_parts)
 
     # --- Marcas nuevas: todos sus repuestos después de los que ya existían.
     base_parts.clear()
-    por_motor_y_modelo(agregados)
-    agregados_despues(agregados)
-    con_fabricantes(base_parts)
+    by_engine_and_model(added)
+    added_later(added)
+    with_manufacturers(base_parts)
 
     # --- Tipos de repuesto nuevos (ver NEW_ENGINE_PARTS), para todos los
     # autos, después de todo lo anterior.
     base_parts.clear()
     en_plataforma = {model for _, models in PLATFORMS.values() for model in models}
-    sin_plataforma = {(m["brand"], m["model"]) for m in car_models} - en_plataforma
-    if sin_plataforma:
-        raise ValueError(f"Modelos sin plataforma: {sorted(sin_plataforma)}")
+    without_platform = {(m["brand"], m["model"]) for m in car_models} - en_plataforma
+    if without_platform:
+        raise ValueError(f"Modelos sin plataforma: {sorted(without_platform)}")
 
     for engine_code, group in group_by_engine(car_models).items():
         for name, category, base_price, color in NEW_ENGINE_PARTS:
@@ -1229,7 +1230,7 @@ def build_parts(car_models):
     for name, category, price, color, fits in NEW_UNIVERSAL_PARTS:
         base(name, "", category, price, color, [m for m in car_models if fits(m)], None, by_segment=False)
 
-    con_fabricantes(base_parts)
+    with_manufacturers(base_parts)
 
     return parts
 

@@ -1,8 +1,12 @@
+"""Pagos de Mercado Pago: aplicar el estado que informa, y devolver los pagos."""
+
 import logging
+from datetime import datetime, timezone
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.core.mercadopago import MercadoPagoClient, MercadoPagoUnavailable
 from app.crud.order import reactivate_paid_order
 from app.models.order import Order, OrderStatus
 from app.models.payment import Payment, PaymentStatus
@@ -14,9 +18,9 @@ MP_REJECTED_STATUSES = {"rejected", "cancelled"}
 logger = logging.getLogger(__name__)
 
 
-def _monto_correcto(monto: float | None, total: int) -> bool:
+def _amount_matches(charged_amount: float | None, total: int) -> bool:
     # Mercado Pago manda el monto con decimales (3000.0); los precios son enteros.
-    return monto is not None and round(monto, 2) == total
+    return charged_amount is not None and round(charged_amount, 2) == total
 
 
 def get_payment_for_client(db: Session, order_id: int, client_id: int) -> Payment | None:
@@ -65,7 +69,7 @@ def apply_mp_status(
     if payment is None or payment.status == PaymentStatus.APPROVED:
         return payment, False
 
-    if mp_status == "approved" and not _monto_correcto(mp_amount, payment.order.total):
+    if mp_status == "approved" and not _amount_matches(mp_amount, payment.order.total):
         logger.warning(
             "El pago %s del pedido %s se aprobó por %s, pero el pedido cuesta %s: queda rechazado.",
             mp_payment_id,
@@ -82,9 +86,74 @@ def apply_mp_status(
         return payment, False
 
     payment.mp_payment_id = mp_payment_id
-    recien_aprobado = payment.status == PaymentStatus.APPROVED
-    if recien_aprobado and payment.order.status == OrderStatus.CANCELLED:
+    just_approved = payment.status == PaymentStatus.APPROVED
+    if just_approved and payment.order.status == OrderStatus.CANCELLED:
         reactivate_paid_order(db, payment.order)
     db.commit()
     db.refresh(payment)
-    return payment, recien_aprobado
+    return payment, just_approved
+
+
+def refund_key(order_id: int) -> str:
+    """La clave de idempotencia de la devolución de un pedido. Es la misma
+    venga de donde venga (cancelación del vendedor, pago tardío sin stock o
+    reintento del cron): Mercado Pago nunca devuelve dos veces el mismo pedido."""
+    return f"autobought-devolucion-pedido-{order_id}"
+
+
+def refund(db: Session, payment: Payment, mp_client: MercadoPagoClient) -> bool:
+    """Devuelve el pago en Mercado Pago y anota cuándo.
+
+    Args:
+        db: la sesión de la base.
+        payment: el pago aprobado que se devuelve.
+        mp_client: el cliente de Mercado Pago (en los tests, uno falso).
+
+    Returns:
+        Si la devolución salió. Si Mercado Pago falla, queda en el log y el
+        cron la reintenta.
+    """
+    if payment.refunded_at is not None:
+        return True
+    if not payment.mp_payment_id:
+        # Sin número de pago no hay qué devolver en Mercado Pago: va a mano.
+        logger.warning("El pago del pedido %s no tiene número de Mercado Pago: devolver el dinero a mano.", payment.order_id)
+        return False
+    try:
+        mp_client.refund_payment(payment.mp_payment_id, refund_key(payment.order_id))
+    except MercadoPagoUnavailable as error:
+        logger.warning("No se pudo devolver el pago del pedido %s: %s", payment.order_id, error)
+        return False
+    mark_refunded(db, payment)
+    db.commit()
+    return True
+
+
+def mark_refunded(db: Session, payment: Payment) -> None:
+    """Anota que el pago ya se devolvió. No hace commit: lo hace quien llama."""
+    payment.refunded_at = datetime.now(timezone.utc)
+
+
+def payments_to_refund(db: Session) -> list[Payment]:
+    """Pagos aprobados de pedidos que se cancelaron por vencidos (se pagaron
+    tarde y no había stock) y que todavía no se devolvieron. Los que cancela
+    el vendedor no entran: esos se devuelven antes de cancelar."""
+    return list(
+        db.scalars(
+            select(Payment)
+            .join(Order)
+            .where(
+                Payment.status == PaymentStatus.APPROVED,
+                Payment.refunded_at.is_(None),
+                Payment.mp_payment_id.is_not(None),
+                Order.status == OrderStatus.CANCELLED,
+                Order.cancellation_reason.is_(None),
+            )
+            .order_by(Payment.payment_id)
+        )
+    )
+
+
+def refund_pending(db: Session, mp_client: MercadoPagoClient) -> int:
+    """Tarea diaria: reintenta las devoluciones que fallaron. Devuelve cuántas salieron."""
+    return sum(refund(db, payment, mp_client) for payment in payments_to_refund(db))

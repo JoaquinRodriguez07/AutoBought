@@ -1,3 +1,5 @@
+"""ModelT de un repuesto dentro de un pedido, con el precio de la compra."""
+
 from sqlalchemy import Column, DateTime, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 

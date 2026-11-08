@@ -1,3 +1,5 @@
+"""ModelT del vendedor (un usuario del portal de la tienda)."""
+
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, false, true
 
 from app.models.user import User

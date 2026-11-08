@@ -1,3 +1,5 @@
+"""ModelT del cliente (un usuario que compra)."""
+
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, true
 from sqlalchemy.orm import relationship
 

@@ -1,3 +1,5 @@
+"""ModelT del historial de estados de un pedido."""
+
 import enum
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
@@ -17,7 +19,7 @@ class CancelReason(str, enum.Enum):
 class OrderStatusHistory(Base):
     """Cada cambio de estado de un pedido, con su fecha: de acá sale la
     línea de tiempo que ve el cliente. Los cambios se registran con
-    `crud.order.cambiar_estado`; no cambiar `order.status` a mano."""
+    `crud.order.change_status`; no cambiar `order.status` a mano."""
 
     __tablename__ = "order_status_history"
 

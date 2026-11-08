@@ -1,3 +1,5 @@
+"""La conexión a la base y la fábrica de sesiones."""
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 

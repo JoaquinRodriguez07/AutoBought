@@ -1,3 +1,5 @@
+"""Búsqueda en lenguaje natural: detecta pieza, marca, modelo y año en el texto."""
+
 import difflib
 import re
 import unicodedata
@@ -426,7 +428,7 @@ def extract_entities(db: Session, text: str) -> dict:
     vocabulary = _load_searchable(db) + [f"{brand} {model}" for brand, model in car_models]
     rest = " ".join(_correct_typos(rest.split(), vocabulary))
 
-    # 1) Modelo. Va antes que el año porque hay modelos como "2008".
+    # 1) ModelT. Va antes que el año porque hay modelos como "2008".
     #    Los más largos primero, para no quedarse con un pedazo.
     for brand, model in sorted(car_models, key=lambda row: len(row[1]), reverse=True):
         found, rest = _take(rest, normalize(model))

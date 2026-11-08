@@ -1,20 +1,22 @@
+// Pantalla de inicio de sesión.
+
 import { useState } from "react";
 import Navbar from "./Navbar";
-import { login, obtenerPerfil } from "./api";
-import { decodeToken, esVendedor } from "./auth";
+import { login, getProfile } from "./api";
+import { decodeToken, isSeller } from "./auth";
 import repuestos from "./assets/repuestos.jpg";
-import { CampoPassword } from "./PantallaAcceso";
+import { PasswordField } from "./AccessScreen";
 
 export default function Login({
   onHome,
   onCatalogo,
   onLogin,
-  onMarcas,
-  onCarrito,
-  onFavoritos,
-  cantidadCarrito,
-  cantidadFavoritos,
-  onIniciarSesion,
+  onBrands,
+  onCart,
+  onFavorites,
+  cartQuantity,
+  favoritesQuantity,
+  onStartSession,
   onRegistro,
   onOlvidePassword,
 }) {
@@ -24,9 +26,9 @@ export default function Login({
   const [remember, setRemember] = useState(false);
 
   const [error, setError] = useState("");
-  const [cargando, setCargando] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const iniciarSesion = async (e) => {
+  const startSession = async (e) => {
     e.preventDefault();
 
     setError("");
@@ -36,13 +38,13 @@ export default function Login({
       return;
     }
 
-    setCargando(true);
+    setLoading(true);
 
     try {
       const data = await login(email.trim(), password);
       const payload = decodeToken(data.access_token);
 
-      let sesion = {
+      let session = {
         token: data.access_token,
         tokenType: data.token_type,
         userId: payload?.sub ?? null,
@@ -54,19 +56,19 @@ export default function Login({
       // login igual es válido: la sesión queda sin esos datos.
       // Un vendedor no tiene perfil de cliente (/auth/me le responde 403):
       // no se pide.
-      if (!esVendedor(sesion)) {
+      if (!isSeller(session)) {
         try {
-          sesion = { ...sesion, ...(await obtenerPerfil(data.access_token)) };
+          session = { ...session, ...(await getProfile(data.access_token)) };
         } catch {
           // se sigue con la sesión mínima
         }
       }
 
-      onIniciarSesion(sesion, remember);
+      onStartSession(session, remember);
     } catch (err) {
       setError(err.message || "No se pudo iniciar sesión.");
     } finally {
-      setCargando(false);
+      setLoading(false);
     }
   };
 
@@ -83,15 +85,15 @@ export default function Login({
       ====================================================== */}
 
       <Navbar
-        paginaActual="login"
+        currentPage="login"
         onHome={onHome}
         onCatalogo={onCatalogo}
         onLogin={onLogin}
-        onMarcas={onMarcas}
-        onCarrito={onCarrito}
-        onFavoritos={onFavoritos}
-        cantidadCarrito={cantidadCarrito}
-        cantidadFavoritos={cantidadFavoritos}
+        onBrands={onBrands}
+        onCart={onCart}
+        onFavorites={onFavorites}
+        cartQuantity={cartQuantity}
+        favoritesQuantity={favoritesQuantity}
       />
 
       {/* =====================================================
@@ -107,7 +109,7 @@ export default function Login({
           ================================================== */}
 
           <form
-            onSubmit={iniciarSesion}
+            onSubmit={startSession}
             className="p-8 md:p-12 flex flex-col justify-center"
           >
 
@@ -178,7 +180,7 @@ export default function Login({
               </div>
 
               <div className="mt-2">
-                <CampoPassword
+                <PasswordField
                   id="login-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -217,10 +219,10 @@ export default function Login({
 
             <button
               type="submit"
-              disabled={cargando}
+              disabled={loading}
               className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-sm font-black mt-6 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
+              {loading ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
 
             {/* =================================================

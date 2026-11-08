@@ -1,5 +1,7 @@
+// Desplegable de marcas de autos del selector de vehículo.
+
 import { useEffect, useState } from "react";
-import { obtenerMarcas } from "./api";
+import { getBrands } from "./api";
 
 function BrandDropdown({
   value,
@@ -9,7 +11,7 @@ function BrandDropdown({
   const [brands, setBrands] = useState([]);
 
   useEffect(() => {
-    obtenerMarcas()
+    getBrands()
       .then((data) => {
         setBrands(data);
       })

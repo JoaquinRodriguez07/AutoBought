@@ -1,3 +1,5 @@
+"""Tests de la búsqueda en lenguaje natural."""
+
 from app.models.car_model import CarModel
 from app.models.compatibility import Compatibility
 from app.models.part import Part
@@ -23,7 +25,7 @@ def make_catalog(db_session):
     db_session.commit()
 
 
-def test_extrae_pieza_modelo_y_anio(client, db_session):
+def test_extracts_piece_modelo_and_year(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "Pastillas de FRENO onix 2020!"})
@@ -38,10 +40,10 @@ def test_extrae_pieza_modelo_y_anio(client, db_session):
     }
 
 
-def test_mismos_resultados_que_los_filtros_en_cascada(client, db_session):
+def test_same_results_that_the_filters_in_cascade(client, db_session):
     make_catalog(db_session)
 
-    cascada = client.get(
+    cascade = client.get(
         "/api/v1/parts",
         params={"brand": "Chevrolet", "model": "Onix", "year": 2020, "categoria": "Frenos"},
     ).json()["parts"]
@@ -49,11 +51,11 @@ def test_mismos_resultados_que_los_filtros_en_cascada(client, db_session):
         "/api/v1/parts", params={"q": "pastillas de freno onix 2020"}
     ).json()["parts"]
 
-    assert len(cascada) > 0
-    assert [p["id"] for p in texto] == [p["id"] for p in cascada]
+    assert len(cascade) > 0
+    assert [p["id"] for p in texto] == [p["id"] for p in cascade]
 
 
-def test_busqueda_sin_entidades_reconocibles(client, db_session):
+def test_search_without_entities_recognizable(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "xyz qwerty"})
@@ -69,7 +71,7 @@ def test_busqueda_sin_entidades_reconocibles(client, db_session):
     assert response.json()["parts"] == []
 
 
-def test_respeta_los_filtros_explicitos(client, db_session):
+def test_respects_the_filters_explicit(client, db_session):
     make_catalog(db_session)
 
     response = client.get(
@@ -80,7 +82,7 @@ def test_respeta_los_filtros_explicitos(client, db_session):
     assert codes == ["BRK-0002"]
 
 
-def test_ignora_palabras_de_mas(client, db_session):
+def test_ignores_words_of_more(client, db_session):
     make_catalog(db_session)
 
     response = client.get(
@@ -91,7 +93,7 @@ def test_ignora_palabras_de_mas(client, db_session):
     codes = [p["part_code"] for p in response.json()["parts"]]
     assert codes == ["BRK-0001"]
 
-def test_rechaza_busquedas_demasiado_largas(client, db_session):
+def test_rejects_searches_too_long(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "a" * 101})
@@ -99,7 +101,7 @@ def test_rechaza_busquedas_demasiado_largas(client, db_session):
     assert response.status_code == 422
 
 
-def test_encuentra_la_pieza_en_busquedas_largas(client, db_session):
+def test_finds_the_piece_in_searches_long(client, db_session):
     make_catalog(db_session)
 
     response = client.get(
@@ -125,22 +127,22 @@ ENTIDADES_FRENOS_ONIX = {
 }
 
 
-def test_error_de_tipeo(client, db_session):
+def test_error_of_typing(client, db_session):
     make_catalog(db_session)
 
     normal = client.get(
         "/api/v1/parts", params={"q": "pastillas de freno onix 2020"}
     ).json()
-    con_error = client.get(
+    with_error = client.get(
         "/api/v1/parts", params={"q": "pastiyas de freno onix 2020"}
     ).json()
 
-    assert con_error["entities"] == ENTIDADES_FRENOS_ONIX
-    assert [p["id"] for p in con_error["parts"]] == [p["id"] for p in normal["parts"]]
-    assert [p["part_code"] for p in con_error["parts"]] == ["BRK-0001"]
+    assert with_error["entities"] == ENTIDADES_FRENOS_ONIX
+    assert [p["id"] for p in with_error["parts"]] == [p["id"] for p in normal["parts"]]
+    assert [p["part_code"] for p in with_error["parts"]] == ["BRK-0001"]
 
 
-def test_error_de_tipeo_en_el_modelo_y_la_marca(client, db_session):
+def test_error_of_typing_in_the_modelo_and_the_brand(client, db_session):
     # El auto no está en el nombre del repuesto (está en las
     # compatibilidades): el corrector igual tiene que reconocerlo.
     make_catalog(db_session)
@@ -154,7 +156,7 @@ def test_error_de_tipeo_en_el_modelo_y_la_marca(client, db_session):
     assert [p["part_code"] for p in response["parts"]] == ["BRK-0001"]
 
 
-def test_sinonimo(client, db_session):
+def test_synonym(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "balatas onix 2020"})
@@ -163,7 +165,7 @@ def test_sinonimo(client, db_session):
     assert [p["part_code"] for p in response.json()["parts"]] == ["BRK-0001"]
 
 
-def test_otro_orden(client, db_session):
+def test_another_order(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "freno pastillas onix 2020"})
@@ -172,7 +174,7 @@ def test_otro_orden(client, db_session):
     assert [p["part_code"] for p in response.json()["parts"]] == ["BRK-0001"]
 
 
-def test_sinonimo_con_error_de_tipeo_y_otro_orden(client, db_session):
+def test_synonym_with_error_of_typing_and_another_order(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "frenno pastilas onix 2020"})
@@ -180,7 +182,7 @@ def test_sinonimo_con_error_de_tipeo_y_otro_orden(client, db_session):
     assert response.json()["entities"] == ENTIDADES_FRENOS_ONIX
 
 
-def test_una_sola_palabra_no_se_confunde_con_otra_pieza(client, db_session):
+def test_a_single_word_no_confuses_with_another_piece(client, db_session):
     make_catalog(db_session)
 
     response = client.get("/api/v1/parts", params={"q": "filtro onix 2020"})
@@ -195,67 +197,67 @@ def make_catalog_combustible(db_session):
     hilux = CarModel(brand="Toyota", model="Hilux", engine_code="2.8 1GD")
     onix = CarModel(brand="Chevrolet", model="Onix", engine_code="1.0 Turbo")
 
-    filtro_diesel = Part(part_code="FIL-D", name="Filtro de combustible Hilux",
+    diesel_filter = Part(part_code="FIL-D", name="Filtro de combustible Hilux",
                          manufacturer="Bosch", category="Filtros", price=900, stock=5)
-    filtro_nafta = Part(part_code="FIL-N", name="Filtro de combustible Onix",
+    petrol_filter = Part(part_code="FIL-N", name="Filtro de combustible Onix",
                         manufacturer="Bosch", category="Filtros", price=900, stock=5)
     bateria = Part(part_code="BAT-1", name="Batería 60Ah",
                    manufacturer="Bosch", category="Eléctrico", price=5000, stock=5)
-    filtro_diesel.compatibilities = [Compatibility(car_model=hilux, year_from=2016, year_to=2024)]
-    filtro_nafta.compatibilities = [Compatibility(car_model=onix, year_from=2020, year_to=2024)]
+    diesel_filter.compatibilities = [Compatibility(car_model=hilux, year_from=2016, year_to=2024)]
+    petrol_filter.compatibilities = [Compatibility(car_model=onix, year_from=2020, year_to=2024)]
     bateria.compatibilities = [
         Compatibility(car_model=hilux, year_from=2016, year_to=2024),
         Compatibility(car_model=onix, year_from=2020, year_to=2024),
     ]
-    db_session.add_all([filtro_diesel, filtro_nafta, bateria])
+    db_session.add_all([diesel_filter, petrol_filter, bateria])
     db_session.commit()
 
 
-def codigos(client, q):
+def code_list(client, q):
     response = client.get("/api/v1/parts", params={"q": q})
     return response.json()["entities"], [p["part_code"] for p in response.json()["parts"]]
 
 
-def test_gasolero_trae_solo_autos_diesel(client, db_session):
+def test_diesel_brings_only_cars_diesel(client, db_session):
     make_catalog_combustible(db_session)
 
-    entities, parts = codigos(client, "batería gasolero")
+    entities, parts = code_list(client, "batería gasolero")
 
     assert entities["fuel"] == "diesel"
     assert entities["part"] == "batería"
     assert parts == ["BAT-1"]
-    assert codigos(client, "filtro de combustible gasolero")[1] == ["FIL-D"]
+    assert code_list(client, "filtro de combustible gasolero")[1] == ["FIL-D"]
 
 
-def test_naftero_trae_solo_autos_nafta(client, db_session):
+def test_petrol_brings_only_cars_petrol(client, db_session):
     make_catalog_combustible(db_session)
 
-    entities, parts = codigos(client, "filtro de combustible naftero")
+    entities, parts = code_list(client, "filtro de combustible naftero")
 
     assert entities["fuel"] == "nafta"
     assert parts == ["FIL-N"]
 
 
-def test_combustible_con_sinonimos_y_errores(client, db_session):
+def test_fuel_with_synonyms_and_errors(client, db_session):
     make_catalog_combustible(db_session)
 
     # "gasoil", "diésel" y un tipeo ("gasolro") son lo mismo que "gasolero".
     for texto in ("filtro de gasoil", "filtro diésel", "filtro combustible gasolro"):
-        assert codigos(client, texto)[1] == ["FIL-D"], texto
+        assert code_list(client, texto)[1] == ["FIL-D"], texto
     # "nafta"/"gasolina" también filtran por motor.
-    assert codigos(client, "filtro combustible gasolina")[1] == ["FIL-N"]
+    assert code_list(client, "filtro combustible gasolina")[1] == ["FIL-N"]
 
 
-def test_combustible_solo_filtra_por_motor(client, db_session):
+def test_fuel_only_filters_by_engine(client, db_session):
     make_catalog_combustible(db_session)
 
-    entities, parts = codigos(client, "gasolero")
+    entities, parts = code_list(client, "gasolero")
 
     assert entities == {"part": None, "brand": None, "model": None, "year": None, "fuel": "diesel"}
     assert sorted(parts) == ["BAT-1", "FIL-D"]
 
 
-def test_sinonimos_del_rubro(client, db_session):
+def test_synonyms_of_the_trade(client, db_session):
     make_catalog_combustible(db_session)
 
     casos = {
@@ -264,11 +266,11 @@ def test_sinonimos_del_rubro(client, db_session):
         "acumulador gasolero": "batería",
         "filtro de nafta": "filtro de combustible",
     }
-    for texto, pieza in casos.items():
-        assert codigos(client, texto)[0]["part"] == pieza, texto
+    for texto, piece in casos.items():
+        assert code_list(client, texto)[0]["part"] == piece, texto
 
 
-def test_diccionario_sin_claves_repetidas_ni_ciclos():
+def test_dictionary_without_keys_repeated_nor_cycles():
     from app.crud.text_search import FUEL_WORDS, SYNONYMS, _fold
 
     claves = [_fold(k) for k in SYNONYMS]
