@@ -23,6 +23,7 @@ export default function VehicleSelector({
   const [selectedYear, setSelectedYear] = useState(vehicle?.year || "");
   const [years, setYears] = useState([]);
   const [loadingYears, setLoadingYears] = useState(false);
+  const [yearsError, setYearsError] = useState(false);
   const compact = variant === "compact";
   const dark = compact || variant === "detail";
 
@@ -35,6 +36,7 @@ export default function VehicleSelector({
   useEffect(() => {
     if (!selectedBrand || !selectedModel) {
       setYears([]);
+      setYearsError(false);
       return undefined;
     }
 
@@ -42,17 +44,21 @@ export default function VehicleSelector({
     const loadYears = async () => {
       try {
         setLoadingYears(true);
+        setYearsError(false);
         const availableYears = await getYears(selectedBrand, selectedModel);
         if (active) setYears(availableYears);
       } catch (error) {
         console.error("Error cargando años:", error);
-        if (active) setYears([]);
+        if (active) {
+          setYears([]);
+          setYearsError(true);
+        }
       } finally {
         if (active) setLoadingYears(false);
       }
     };
 
-    loadYears();
+    void loadYears();
     return () => {
       active = false;
     };
@@ -122,7 +128,9 @@ export default function VehicleSelector({
               ? "Seleccioná un modelo"
               : loadingYears
                 ? "Cargando años..."
-                : "Seleccioná un año"}
+                : yearsError
+                  ? "No pudimos cargar los años"
+                  : "Seleccioná un año"}
           </option>
           {years.map((year) => (
             <option key={year} value={year}>{year}</option>
