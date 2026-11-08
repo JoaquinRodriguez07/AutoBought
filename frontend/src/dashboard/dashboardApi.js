@@ -363,9 +363,9 @@ export async function updateOrder(id, { shipping, internalNote } = {}) {
 
 /* =====================================================
    DASHBOARD CON IA (HU 6.3 y 6.4)
-   El backend todavía no tiene estas rutas: las pantallas ya
-   están listas y, mientras tanto, dicen "En desarrollo".
-   El contrato propuesto está en cada función.
+   El resumen (HU 6.3) ya está en el backend. Preguntarle al
+   dashboard (HU 6.4) todavía no: mientras tanto, esa pantalla
+   dice "En desarrollo". El contrato está en cada función.
 ====================================================== */
 
 /** true si la ruta todavía no existe en el backend. */
@@ -389,6 +389,19 @@ export async function refreshAISummary() {
     errorMessage: "No pudimos generar el resumen.",
   });
   return mapSummary(data);
+}
+
+/**
+ * GET /analytics/summary/history (HU 6.3): los resúmenes de los últimos días,
+ * del más nuevo al más viejo. No llama a la IA: anda aunque esté caída.
+ * Respuesta: { days: número, summaries: [{ points, generated_at }] }
+ * @returns {Promise<{days: number, summaries: {puntos: string[], generated: string}[]}>}
+ */
+export async function getAISummaryHistory() {
+  const data = await request("/analytics/summary/history", {
+    errorMessage: "No pudimos cargar los resúmenes anteriores.",
+  });
+  return { days: data.days, summaries: data.summaries.map(mapSummary) };
 }
 
 /**

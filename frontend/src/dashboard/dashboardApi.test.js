@@ -9,6 +9,7 @@ import {
   adjustStock,
   createPart,
   removeSeller,
+  getAISummaryHistory,
   getSalesTrend,
   getStock,
   getSellers,
@@ -139,3 +140,18 @@ describe("equipo (SCRUM-175)", () => {
   });
 });
 
+
+it("maps the summary history from the API", async () => {
+  global.fetch = responder(200, {
+    days: 7,
+    summaries: [{ points: ["Uno.", "Dos.", "Tres."], generated_at: "2026-11-07T13:00:00Z" }],
+  });
+
+  const history = await getAISummaryHistory();
+
+  expect(global.fetch.mock.calls[0][0]).toBe("http://api/api/v1/analytics/summary/history");
+  expect(history).toEqual({
+    days: 7,
+    summaries: [{ puntos: ["Uno.", "Dos.", "Tres."], generated: "2026-11-07T13:00:00Z" }],
+  });
+});

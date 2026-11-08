@@ -1,18 +1,99 @@
-// Resumen del dashboard hecho con IA.
+// Resumen del dashboard hecho con IA, con el historial de los anteriores.
 
 import { useEffect, useState } from "react";
-import { RefreshCwIcon, SparklesIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, RefreshCwIcon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { InDevelopment } from "./pieces";
-import { refreshAISummary, unpublishedFeature, getAISummary } from "./dashboardApi";
+import { getAISummary, getAISummaryHistory, refreshAISummary } from "./dashboardApi";
 
 const dateTime = new Intl.DateTimeFormat("es-UY", { dateStyle: "long", timeStyle: "short" });
 
+function Points({ puntos }) {
+  return (
+    <ul className="flex flex-col gap-2 text-sm leading-relaxed">
+      {puntos.map((punto) => (
+        <li key={punto} className="flex gap-2.5">
+          <span className="mt-2 size-1.5 shrink-0 rounded-full bg-orange-500" aria-hidden="true" />
+          {punto}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Los resúmenes de los últimos días. Se piden recién al abrir la sección y
+// no repiten el que ya se muestra arriba.
+function SummaryHistory({ current }) {
+  const [open, setOpen] = useState(false);
+  const [history, setHistory] = useState({ data: null, loading: false, error: null });
+
+  const toggle = async () => {
+    const opening = !open;
+    setOpen(opening);
+    if (!opening || history.data) return;
+    setHistory({ data: null, loading: true, error: null });
+    try {
+      setHistory({ data: await getAISummaryHistory(), loading: false, error: null });
+    } catch (error) {
+      setHistory({ data: null, loading: false, error });
+    }
+  };
+
+  const previous = history.data?.summaries.filter((summary) => summary.generated !== current?.generated) ?? [];
+
+  return (
+    <div className="mt-4 border-t border-orange-100 pt-3">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-2 text-muted-foreground"
+        onClick={toggle}
+        aria-expanded={open}
+        aria-controls="resumenes-anteriores"
+      >
+        {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
+        {open ? "Ocultar resúmenes anteriores" : "Ver resúmenes anteriores"}
+      </Button>
+
+      {open && (
+        <div id="resumenes-anteriores" className="mt-2">
+          {history.loading && <Skeleton className="h-4 w-2/3" aria-label="Cargando…" />}
+          {history.error && (
+            <p role="status" className="text-sm text-muted-foreground">
+              No pudimos cargar los resúmenes anteriores.
+            </p>
+          )}
+          {history.data && (
+            <>
+              <p className="text-xs text-muted-foreground">Últimos {history.data.days} días</p>
+              {previous.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Todavía no hay resúmenes anteriores en los últimos {history.data.days} días.
+                </p>
+              ) : (
+                <ol aria-label="Resúmenes anteriores" className="mt-2 flex flex-col gap-4">
+                  {previous.map((summary) => (
+                    <li key={summary.generated}>
+                      <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                        {dateTime.format(new Date(summary.generated))}
+                      </p>
+                      <Points puntos={summary.puntos} />
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Resumen escrito del dashboard hecho con IA (HU 6.3): de 3 a 5 puntos, con
-// la fecha en que se generó y "Actualizar". Mientras el backend no tenga la
-// ruta, el panel dice que está en desarrollo; si la IA no responde, avisa y
-// el resto del dashboard sigue igual.
+// la fecha en que se generó y "Actualizar". Si no se puede generar, dice que
+// no está disponible y el resto del dashboard sigue igual; los anteriores se
+// pueden ver igual, porque el historial no depende de la IA.
 export default function AISummary() {
   const [estado, setStatus] = useState({ summary: null, loading: true, error: null });
   const [updating, setUpdating] = useState(false);
@@ -39,7 +120,7 @@ export default function AISummary() {
     }
   };
 
-  const inDesarrollo = unpublishedFeature(estado.error);
+  const shown = estado.error ? null : estado.summary;
 
   return (
     <section
@@ -52,16 +133,15 @@ export default function AISummary() {
             <SparklesIcon className="size-4" aria-hidden="true" />
           </span>
           <div>
-            <h2 id="titulo-resumen-ia" className="text-[15px] font-semibold flex flex-wrap items-center gap-2">
+            <h2 id="titulo-resumen-ia" className="text-[15px] font-semibold">
               Resumen del día
-              {inDesarrollo && <InDevelopment />}
             </h2>
-            {estado.summary && (
-              <p className="text-xs text-muted-foreground">Generado el {dateTime.format(new Date(estado.summary.generated))}</p>
+            {shown && (
+              <p className="text-xs text-muted-foreground">Generado el {dateTime.format(new Date(shown.generated))}</p>
             )}
           </div>
         </div>
-        {!estado.loading && !inDesarrollo && (
+        {!estado.loading && (
           <Button variant="outline" size="sm" onClick={update} disabled={updating}>
             <RefreshCwIcon className={updating ? "animate-spin" : undefined} />
             Actualizar
@@ -77,29 +157,19 @@ export default function AISummary() {
         </div>
       )}
 
-      {inDesarrollo && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          Estamos desarrollando un resumen escrito con IA de cómo vienen las ventas y qué conviene reponer. Va a
-          aparecer acá.
-        </p>
-      )}
-
-      {estado.error && !inDesarrollo && (
+      {estado.error && (
         <p role="status" className="mt-3 text-sm text-muted-foreground">
-          El resumen no está disponible en este momento. El resto del dashboard funciona igual.
+          Resumen no disponible. El resto del dashboard funciona igual.
         </p>
       )}
 
-      {estado.summary && !estado.error && (
-        <ul className="mt-4 flex flex-col gap-2 text-sm leading-relaxed">
-          {estado.summary.puntos.map((punto) => (
-            <li key={punto} className="flex gap-2.5">
-              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-orange-500" aria-hidden="true" />
-              {punto}
-            </li>
-          ))}
-        </ul>
+      {shown && (
+        <div className="mt-4">
+          <Points puntos={shown.puntos} />
+        </div>
       )}
+
+      {!estado.loading && <SummaryHistory current={shown} />}
     </section>
   );
 }

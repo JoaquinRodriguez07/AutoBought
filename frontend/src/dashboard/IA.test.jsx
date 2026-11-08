@@ -7,7 +7,7 @@ jest.mock("./dashboardApi");
 
 import AskDashboard from "./AskDashboard";
 import AISummary from "./AISummary";
-import { refreshAISummary, unpublishedFeature, getAISummary, askDashboard } from "./dashboardApi";
+import { refreshAISummary, unpublishedFeature, getAISummary, getAISummaryHistory, askDashboard } from "./dashboardApi";
 
 const withStatus = (status) => Object.assign(new Error("falló"), { status });
 
@@ -51,20 +51,99 @@ describe("resumen con IA (HU 6.3)", () => {
     expect(refreshAISummary).toHaveBeenCalledTimes(1);
   });
 
-  it("warns when the AI does not answer", async () => {
+  it("says it is not available when it cannot be generated, and keeps Actualizar to retry", async () => {
     getAISummary.mockRejectedValue(withStatus(503));
     render(<AISummary />);
 
-    expect(await screen.findByText(/El resumen no está disponible en este momento/)).toBeInTheDocument();
+    expect(await screen.findByText(/Resumen no disponible/)).toBeInTheDocument();
+    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Actualizar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ver resúmenes anteriores" })).toBeInTheDocument();
   });
 
-  it("says it is in development while the backend does not have it", async () => {
-    getAISummary.mockRejectedValue(withStatus(404));
+  it("hides the old summary if Actualizar fails", async () => {
+    const user = userEvent.setup();
+    getAISummary.mockResolvedValue(summary);
+    refreshAISummary.mockRejectedValue(withStatus(429));
     render(<AISummary />);
 
-    expect(await screen.findByText("En desarrollo")).toBeInTheDocument();
-    expect(screen.getByText(/Estamos desarrollando un resumen escrito/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Actualizar" })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Actualizar" }));
+
+    expect(await screen.findByText(/Resumen no disponible/)).toBeInTheDocument();
+    expect(screen.queryByText(summary.puntos[0])).not.toBeInTheDocument();
+  });
+});
+
+describe("historial de resúmenes (HU 6.3)", () => {
+  const anterior = {
+    puntos: ["Ayer las ventas vinieron flojas.", "Frenos cayó.", "Reponé los filtros."],
+    generated: "2026-10-28T09:30:00-03:00",
+  };
+
+  it("does not ask for the history until it is opened", async () => {
+    getAISummary.mockResolvedValue(summary);
+    render(<AISummary />);
+
+    await screen.findByText(summary.puntos[0]);
+    expect(getAISummaryHistory).not.toHaveBeenCalled();
+  });
+
+  it("opens and closes the previous summaries, without repeating the current one", async () => {
+    const user = userEvent.setup();
+    getAISummary.mockResolvedValue(summary);
+    getAISummaryHistory.mockResolvedValue({ days: 7, summaries: [summary, anterior] });
+    render(<AISummary />);
+
+    const toggle = await screen.findByRole("button", { name: "Ver resúmenes anteriores" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+
+    const list = await screen.findByRole("list", { name: "Resúmenes anteriores" });
+    expect(screen.getByText("Últimos 7 días")).toBeInTheDocument();
+    expect(within(list).getByText(/28 de octubre de 2026/)).toBeInTheDocument();
+    expect(within(list).getByText(anterior.puntos[0])).toBeInTheDocument();
+    expect(within(list).queryByText(summary.puntos[0])).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Ocultar resúmenes anteriores" }));
+    expect(screen.queryByRole("list", { name: "Resúmenes anteriores" })).not.toBeInTheDocument();
+
+    // Al volver a abrirlo no se pide de nuevo.
+    await user.click(screen.getByRole("button", { name: "Ver resúmenes anteriores" }));
+    expect(await screen.findByRole("list", { name: "Resúmenes anteriores" })).toBeInTheDocument();
+    expect(getAISummaryHistory).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the previous summaries even when today's is not available", async () => {
+    const user = userEvent.setup();
+    getAISummary.mockRejectedValue(withStatus(503));
+    getAISummaryHistory.mockResolvedValue({ days: 7, summaries: [anterior] });
+    render(<AISummary />);
+
+    await user.click(await screen.findByRole("button", { name: "Ver resúmenes anteriores" }));
+
+    expect(await screen.findByText(anterior.puntos[0])).toBeInTheDocument();
+  });
+
+  it("says so when there are no previous summaries, with the days from the API", async () => {
+    const user = userEvent.setup();
+    getAISummary.mockResolvedValue(summary);
+    getAISummaryHistory.mockResolvedValue({ days: 5, summaries: [summary] });
+    render(<AISummary />);
+
+    await user.click(await screen.findByRole("button", { name: "Ver resúmenes anteriores" }));
+
+    expect(await screen.findByText("Todavía no hay resúmenes anteriores en los últimos 5 días.")).toBeInTheDocument();
+  });
+
+  it("warns if the history cannot be loaded", async () => {
+    const user = userEvent.setup();
+    getAISummary.mockResolvedValue(summary);
+    getAISummaryHistory.mockRejectedValue(withStatus(500));
+    render(<AISummary />);
+
+    await user.click(await screen.findByRole("button", { name: "Ver resúmenes anteriores" }));
+
+    expect(await screen.findByText("No pudimos cargar los resúmenes anteriores.")).toBeInTheDocument();
   });
 });
 
