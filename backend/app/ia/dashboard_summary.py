@@ -91,7 +91,8 @@ def build_metrics(db: Session, today_date: date) -> dict:
     # la misma cuenta del gráfico de evolución (HU 5.5).
     total_series = [sum(row.units_by_month[i] for row in rows) for i in range(len(periods))]
     completed = analytics_math.complete_current_month(total_series, today_date)
-    projected_current = round(float(completed[-1]), 1)
+    # Sin redondear para el %: redondear antes corre la variación.
+    projected_current = float(completed[-1])
 
     # Por categoría: mes anterior contra el actual proyectado a mes completo.
     by_category: dict[str, list[float]] = defaultdict(lambda: [0, 0])
@@ -139,7 +140,7 @@ def build_metrics(db: Session, today_date: date) -> dict:
             "dias_del_mes": days_in_current,
             "unidades_hasta_hoy": cur_month["units"],
             "facturacion_hasta_hoy": cur_month["revenue"],
-            "unidades_proyectadas_mes_completo": projected_current,
+            "unidades_proyectadas_mes_completo": round(projected_current, 1),
             "variacion_pct_contra_mes_anterior": analytics_math.percent_change(
                 prev_month["units"], projected_current
             ),
