@@ -107,6 +107,9 @@ def legacy_schema(engine):
         if engine.dialect.name == "postgresql":
             connection.execute(text("ALTER TABLE part DROP CONSTRAINT uq_part_part_code"))
             connection.execute(text('ALTER TABLE "order" ALTER COLUMN status DROP DEFAULT'))
+                        # Antes de la 0009 los datos de envío eran obligatorios.
+            for columna in ("ship_personal_name", "ship_street", "ship_number", "ship_city", "ship_department"):
+                connection.execute(text(f'ALTER TABLE "order" ALTER COLUMN {columna} SET NOT NULL'))
             connection.execute(text("ALTER TYPE order_status RENAME TO order_status_nuevo"))
             connection.execute(text(
                 "CREATE TYPE order_status AS ENUM ('confirmed', 'shipped', 'delivered', 'cancelled')"
@@ -648,7 +651,9 @@ def order_status_values(engine):
 @postgres
 def test_pg_0003_adds_packing_in_order_and_the_downgrade_it_removes(pg_engine):
     migrate(pg_engine)
-    assert order_status_values(pg_engine) == ["confirmed", "packing", "shipped", "delivered", "cancelled"]
+    assert order_status_values(pg_engine) == [
+        "confirmed", "packing", "shipped", "ready_for_pickup", "delivered", "cancelled",
+    ]
     add_data(pg_engine)
     set_order_status(pg_engine, "packing")
 

@@ -21,12 +21,14 @@ def upgrade():
         for table in ("order", "order_status_history"):
             with op.batch_alter_table(table) as batch:
                 batch.alter_column("status", existing_type=sa.String(length=9), type_=new_status, existing_nullable=False)
-    if connection.dialect.name == "postgresql":
-        with op.get_context().autocommit_block():
-            op.execute("ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'ready_for_pickup'")
-        delivery_enum = sa.Enum("shipping", "pickup", name="delivery_method")
-        delivery_enum.create(connection, checkfirst=True)
+        if connection.dialect.name == "postgresql":
+        # Desde Postgres 12 se puede dentro de la transacción; el valor nuevo
+        # no se usa hasta el commit, y acá no hace falta (igual que la 0003).
+            op.execute("ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'ready_for_pickup' AFTER 'shipped'")
+            delivery_enum = sa.Enum("shipping", "pickup", name="delivery_method")
+            delivery_enum.create(connection, checkfirst=True)
     else:
+        delivery_enum = sa.Enum("shipping", "pickup", name="delivery_method")
         delivery_enum = sa.Enum("shipping", "pickup", name="delivery_method")
     op.add_column("order", sa.Column("delivery_method", delivery_enum, nullable=False, server_default="shipping"))
     with op.batch_alter_table("order") as batch:
