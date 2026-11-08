@@ -7,9 +7,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.core.config import CRON_SECRET
+from app.core.config import AI_SUMMARY_HISTORY_DAYS, CRON_SECRET
 from app.core.mercadopago import MercadoPagoClient, get_mp_client
 from app.core.notifications import DAILY_TASKS
+from app.crud import dashboard_summary as crud_summary
 from app.crud import payment as crud_payment
 from app.crud.order import cancel_expired_orders
 
@@ -38,8 +39,10 @@ def run_daily_tasks(
     Devuelve cuántos mails mandó cada tarea, cuántos pedidos sin pagar
     canceló la limpieza (de respaldo: también se cancelan al comprar y al
     ver el historial) y cuántas devoluciones pendientes salieron (las de
-    pagos tardíos sin stock que Mercado Pago no devolvió en el momento)."""
+    pagos tardíos sin stock que Mercado Pago no devolvió en el momento).
+    También borra los resúmenes del dashboard que ya salieron del historial."""
     result = {name_value: task(db, None) for name_value, task in DAILY_TASKS.items()}
     result["Pedidos vencidos cancelados"] = cancel_expired_orders(db)
     result["Devoluciones hechas"] = crud_payment.refund_pending(db, mp_client)
+    result["Resúmenes viejos borrados"] = crud_summary.delete_older_than(db, AI_SUMMARY_HISTORY_DAYS)
     return result
