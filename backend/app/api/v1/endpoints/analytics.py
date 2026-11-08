@@ -1,5 +1,6 @@
 """Endpoints del dashboard del vendedor: stock, más vendidos, ventas por mes, proyección de demanda y riesgo de agotamiento."""
 
+import logging
 from datetime import date
 from typing import Optional
 
@@ -8,13 +9,22 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_employee, get_db
 from app.core import analytics_math
+from app.core.config import AI_SUMMARY_HISTORY_DAYS
 from app.crud import analytics as crud_analytics
 from app.crud import car_model as crud_car_model
+from app.crud import dashboard_summary as crud_summary
 from app.crud import part as crud_part
 from app.crud.order import cancel_expired_orders
+from app.ia import dashboard_summary as ai_summary
+from app.ia.client import AIClient, AIUnavailable, get_ai_client
+from app.ia.service import check_limit, record_usage
+from app.models.dashboard_summary import DashboardSummary
+from app.models.employee import Employee
 from app.schemas.analytics import (
     AnalyticsBestSellersResponse,
     CarModelsResponse,
+    DashboardSummaryHistoryOut,
+    DashboardSummaryOut,
     DemandForecastResponse,
     PartAnalyticsOut,
     SalesByMonthResponse,
@@ -29,6 +39,8 @@ router = APIRouter(
     tags=["analytics"],
     dependencies=[Depends(get_current_employee)],
 )
+
+logger = logging.getLogger(__name__)
 
 # Con 5 unidades o menos un repuesto se marca como stock bajo. Es el mismo
 # corte que usa scripts.seed_order_history para los repuestos en riesgo.
@@ -287,4 +299,66 @@ def car_models(db: Session = Depends(get_db)):
             {"id": m.id, "brand": m.brand, "model": m.model, "engine_code": m.engine_code}
             for m in crud_car_model.list_car_models(db)
         ]
+    }
+
+
+# --- Resumen con IA (HU 6.3) ---
+
+# Cómo queda anotado en uso_ia.funcionalidad (el asistente es "asistente").
+SUMMARY_FEATURE = "resumen_dashboard"
+SUMMARY_UNAVAILABLE = "El resumen no está disponible en este momento. El resto del dashboard funciona igual."
+SUMMARY_LIMIT_REACHED = "Llegaste al límite de resúmenes por hoy. Probá de nuevo mañana."
+
+
+def _generate_summary(
+    db: Session, ai_client: AIClient, employee: Employee, today_date: date
+) -> DashboardSummary:
+    # Cada resumen nuevo cuenta para el límite diario del vendedor (429) y
+    # queda en uso_ia, salga bien o mal, igual que las consultas a Pit.
+    check_limit(db, employee.user_id, detail=SUMMARY_LIMIT_REACHED)
+    cancel_expired_orders(db)
+    try:
+        points, tokens = ai_summary.generate(db, ai_client, today_date)
+    except AIUnavailable as error:
+        # Al vendedor le llega un mensaje genérico; el motivo queda en el log.
+        logger.warning("Resumen del dashboard no disponible: %s", error)
+        record_usage(db, employee.user_id, SUMMARY_FEATURE, tokens=0, ok=False)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=SUMMARY_UNAVAILABLE)
+    record_usage(db, employee.user_id, SUMMARY_FEATURE, tokens=tokens, ok=True)
+    return crud_summary.save(db, points, tokens, employee.user_id)
+
+
+@router.get("/summary", response_model=DashboardSummaryOut)
+def get_summary(
+    today_date: date = Depends(today),
+    db: Session = Depends(get_db),
+    employee: Employee = Depends(get_current_employee),
+    ai_client: AIClient = Depends(get_ai_client),
+):
+    # El resumen del día: si ya se generó hoy (en hora de Uruguay) se
+    # devuelve el guardado, sin llamar a la IA. Si no, se genera uno.
+    saved = crud_summary.latest(db)
+    if saved is not None and analytics_math.local_date(saved.generated_at) == today_date:
+        return saved
+    return _generate_summary(db, ai_client, employee, today_date)
+
+
+@router.post("/summary", response_model=DashboardSummaryOut)
+def refresh_summary(
+    today_date: date = Depends(today),
+    db: Session = Depends(get_db),
+    employee: Employee = Depends(get_current_employee),
+    ai_client: AIClient = Depends(get_ai_client),
+):
+    # "Actualizar": siempre uno nuevo, con los datos del momento.
+    return _generate_summary(db, ai_client, employee, today_date)
+
+
+@router.get("/summary/history", response_model=DashboardSummaryHistoryOut)
+def summary_history(db: Session = Depends(get_db)):
+    # Los resúmenes de los últimos días, del más nuevo al más viejo. No
+    # llama a la IA: se puede ver aunque esté caída.
+    return {
+        "days": AI_SUMMARY_HISTORY_DAYS,
+        "summaries": crud_summary.recent(db, AI_SUMMARY_HISTORY_DAYS),
     }
