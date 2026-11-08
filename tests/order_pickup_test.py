@@ -41,3 +41,13 @@ def test_pickup_status_flow_and_email(client, db_session, seller, customer, brak
     messages = [m.get_body(preferencelist=("plain",)).get_content() for m in sent_mails]
     assert any("Av. Ejemplo 123" in m and "Lunes a viernes" in m and "listo para retirar" in m for m in messages)
     assert change_order_status(client, seller, oid, "delivered").status_code == 200
+
+def test_packing_email_for_pickup_does_not_mention_address(client, db_session, seller, customer, brake_pads, sent_mails, mp):
+    oid = make_order_for(db_session, customer, brake_pads, payment_data=PaymentStatus.APPROVED)
+    order = db_session.get(Order, oid)
+    order.delivery_method = DeliveryMethod.PICKUP
+    db_session.commit()
+    assert change_order_status(client, seller, oid, "packing").status_code == 200
+    messages = [m.get_body(preferencelist=("plain",)).get_content() for m in sent_mails]
+    assert any("listo para retirar" in m for m in messages)
+    assert not any("para tu dirección" in m for m in messages)

@@ -172,6 +172,8 @@ def notify_status_change(order: Order, background_tasks: BackgroundTasks | None 
         return
 
     state, detail = _ESTADOS[order.status]
+    if order.status == OrderStatus.PACKING and order.delivery_method == DeliveryMethod.PICKUP:
+        detail = "Lo estamos empaquetando. Te avisamos cuando esté listo para retirar."
     _schedule(
         background_tasks,
         order.client.email,

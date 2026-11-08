@@ -15,6 +15,12 @@ ORDER_STATUS = ("confirmed", "packing", "shipped", "ready_for_pickup", "delivere
 
 def upgrade():
     connection = op.get_bind()
+    if connection.dialect.name != "postgresql":
+        # En SQLite el enum es un VARCHAR(9): se ensancha para que entre 'ready_for_pickup'.
+        new_status = sa.Enum(*ORDER_STATUS, name="order_status")
+        for table in ("order", "order_status_history"):
+            with op.batch_alter_table(table) as batch:
+                batch.alter_column("status", existing_type=sa.String(length=9), type_=new_status, existing_nullable=False)
     if connection.dialect.name == "postgresql":
         with op.get_context().autocommit_block():
             op.execute("ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'ready_for_pickup'")

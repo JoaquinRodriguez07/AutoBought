@@ -87,6 +87,7 @@ COLUMNAS_POSTERIORES = {
     ("employee", "active"),
     ("order", "cancellation_reason"),
     ("order", "internal_note"),
+    ("order", "delivery_method"),   # <- nueva
     ("payment", "refunded_at"),
 }
 
@@ -732,3 +733,16 @@ def test_pg_undo_the_0003_removes_packing_of_the_enum(pg_engine):
     migrate(pg_engine)
     assert revision_of(pg_engine) == head_revision()
     assert model_diff(pg_engine) == []
+
+def test_0009_downgrade_vuelve_los_retiros_a_empaquetando(sqlite_engine):
+    migrate(sqlite_engine)
+    add_data(sqlite_engine)
+    set_order_status(sqlite_engine, "ready_for_pickup")
+    with sqlite_engine.begin() as connection:
+        connection.execute(text("UPDATE \"order\" SET delivery_method = 'pickup'"))
+
+    downgrade(sqlite_engine, "0008")
+
+    assert order_statuses(sqlite_engine) == ["packing"]
+    assert "delivery_method" not in order_columns(sqlite_engine)
+    assert revision_of(sqlite_engine) == "0008"
