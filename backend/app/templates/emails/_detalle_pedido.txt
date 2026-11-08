@@ -1,5 +1,6 @@
 {% for item in items %}- {{ item.cantidad }} x {{ item.nombre }}: {{ item.subtotal }}
 {% endfor %}Total: {{ total }}
 
-Envío a: {{ direccion }}
+{{ "Retiro en el local:" if retiro else "Envío a:" }} {{ direccion }}
+{% if retiro %}Horario: {{ horario_local }}{% endif %}
 Pago: {{ pago }}

@@ -13,6 +13,7 @@ from app.core.mercadopago import (
     mercadopago_configurado,
 )
 from app.core.notifications import notify_status_change, notify_back_in_stock
+from app.core.config import LOCAL_ADDRESS, LOCAL_HOURS
 from app.crud import order as crud_order
 from app.crud import part as crud_part
 from app.crud import payment as crud_payment
@@ -45,6 +46,12 @@ def _out_of_stock_detail(db: Session, error: crud_order.OutOfStock) -> str:
     )
 
 
+@router.get("/pickup-info")
+def pickup_info():
+    """Datos del comercio para mostrar en checkout y en el seguimiento."""
+    return {"address": LOCAL_ADDRESS, "hours": LOCAL_HOURS}
+
+
 @router.post("", response_model=OrderDetailOut, status_code=status.HTTP_201_CREATED)
 def confirm_order(
     body: OrderConfirm | None = None,
@@ -67,6 +74,11 @@ def confirm_order(
 
     client_id = client.user_id
     body = body or OrderConfirm()
+    if body.delivery_method.value == "pickup" and (not LOCAL_ADDRESS or not LOCAL_HOURS):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El retiro en el local aún no está configurado. Elegí envío a domicilio.",
+        )
 
     # Antes de mirar el stock, que vuelva el de los pedidos que no se pagaron a tiempo.
     crud_order.cancel_expired_orders(db)
@@ -81,6 +93,7 @@ def confirm_order(
             db,
             client_id,
             shipping_address_id=body.shipping_address_id,
+            delivery_method=body.delivery_method,
         )
     except crud_order.OutOfStock as error:
         raise HTTPException(

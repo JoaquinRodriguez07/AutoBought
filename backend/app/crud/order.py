@@ -14,7 +14,7 @@ from app.models.cart_item import CartItem
 from app.models.client import Client
 from app.models.compatibility import Compatibility
 from app.models.employee import Employee
-from app.models.order import Order, OrderStatus
+from app.models.order import DeliveryMethod, Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.order_status_history import CancelReason, OrderStatusHistory
 from app.models.part import Part
@@ -80,6 +80,7 @@ def place_order(
     db: Session,
     client_id: int,
     shipping_address_id: int | None = None,
+    delivery_method: DeliveryMethod = DeliveryMethod.SHIPPING,
 ) -> Order:
     """Arma el pedido con el carrito del cliente, todo en una transacción.
 
@@ -105,14 +106,16 @@ def place_order(
         if not cart.items:
             raise EmptyCart("Cannot place an order from an empty cart")
 
-        address = _get_owned_or_primary(
-            db, ShippingAddress, ShippingAddress.shipping_address_id,
-            client_id, shipping_address_id,
-        )
-        if address is None:
-            if shipping_address_id is None:
-                raise NoShippingAddress("Client has no shipping address")
-            raise ShippingAddressNotFound("Shipping address not found")
+        address = None
+        if delivery_method == DeliveryMethod.SHIPPING:
+            address = _get_owned_or_primary(
+                db, ShippingAddress, ShippingAddress.shipping_address_id,
+                client_id, shipping_address_id,
+            )
+            if address is None:
+                if shipping_address_id is None:
+                    raise NoShippingAddress("Client has no shipping address")
+                raise ShippingAddressNotFound("Shipping address not found")
 
         part_ids = [item.part_id for item in cart.items]
         parts = db.scalars(
@@ -133,14 +136,15 @@ def place_order(
 
         order = Order(
             client_id=client_id,
-            shipping_address_id=address.shipping_address_id,
-            ship_personal_name=address.personal_name,
-            ship_street=address.street,
-            ship_number=address.number,
-            ship_apartment=address.apartment,
-            ship_city=address.city,
-            ship_department=address.department,
-            ship_postal_code=address.postal_code,
+            delivery_method=delivery_method,
+            shipping_address_id=address.shipping_address_id if address else None,
+            ship_personal_name=address.personal_name if address else None,
+            ship_street=address.street if address else None,
+            ship_number=address.number if address else None,
+            ship_apartment=address.apartment if address else None,
+            ship_city=address.city if address else None,
+            ship_department=address.department if address else None,
+            ship_postal_code=address.postal_code if address else None,
             payment_method_label=PAYMENT_LABEL,
             payment=Payment(status=PaymentStatus.PENDING),
         )
@@ -241,7 +245,7 @@ def reactivate_paid_order(db: Session, order: Order) -> bool:
 def confirm_received(db: Session, order: Order) -> bool:
     """El cliente avisa que le llegó el pedido: de «Enviado» pasa a
     «Entregado». Devuelve False (y no cambia nada) si no estaba enviado."""
-    if order.status != OrderStatus.SHIPPED:
+    if order.delivery_method != DeliveryMethod.SHIPPING or order.status != OrderStatus.SHIPPED:
         return False
     change_status(order, OrderStatus.DELIVERED)
     db.commit()
@@ -257,9 +261,22 @@ NEXT_STATUS = {
     OrderStatus.CONFIRMED: OrderStatus.PACKING,
     OrderStatus.PACKING: OrderStatus.SHIPPED,
     OrderStatus.SHIPPED: OrderStatus.DELIVERED,
+    OrderStatus.READY_FOR_PICKUP: OrderStatus.DELIVERED,
 }
 # ...volver un paso atrás, para corregir un error (sin mail al cliente)...
 PREVIOUS_STATUS = {next_value: current for current, next_value in NEXT_STATUS.items()}
+
+def _next_for(order: Order) -> OrderStatus | None:
+    if order.status == OrderStatus.PACKING:
+        return OrderStatus.READY_FOR_PICKUP if order.delivery_method == DeliveryMethod.PICKUP else OrderStatus.SHIPPED
+    return NEXT_STATUS.get(order.status)
+
+def _previous_for(order: Order) -> OrderStatus | None:
+    if order.status == OrderStatus.DELIVERED:
+        return OrderStatus.READY_FOR_PICKUP if order.delivery_method == DeliveryMethod.PICKUP else OrderStatus.SHIPPED
+    if order.status in (OrderStatus.READY_FOR_PICKUP, OrderStatus.SHIPPED):
+        return OrderStatus.PACKING if (order.status == OrderStatus.READY_FOR_PICKUP) == (order.delivery_method == DeliveryMethod.PICKUP) else None
+    return PREVIOUS_STATUS.get(order.status)
 # ...o cancelar, si todavía no se entregó. Es algo excepcional: pide motivo
 # y devuelve el pago (ver el endpoint).
 CANCELLABLE = set(NEXT_STATUS)
@@ -270,6 +287,7 @@ _NOMBRES = {
     OrderStatus.CONFIRMED: "confirmado",
     OrderStatus.PACKING: "empaquetando",
     OrderStatus.SHIPPED: "enviado",
+    OrderStatus.READY_FOR_PICKUP: "listo para retirar",
     OrderStatus.DELIVERED: "entregado",
     OrderStatus.CANCELLED: "cancelado",
 }
@@ -282,13 +300,13 @@ class InvalidStatusChange(ValueError):
 def next_status(order: Order) -> OrderStatus | None:
     """A qué estado lo puede pasar el vendedor ahora; None si no hay (no se
     pagó, ya se entregó o se canceló)."""
-    return NEXT_STATUS.get(order.status) if order.is_paid else None
+    return _next_for(order) if order.is_paid else None
 
 
 def previous_status(order: Order) -> OrderStatus | None:
     """A qué estado lo puede devolver el vendedor si se equivocó; None si no
     hay (no se pagó, está confirmado o se canceló)."""
-    return PREVIOUS_STATUS.get(order.status) if order.is_paid else None
+    return _previous_for(order) if order.is_paid else None
 
 
 def is_step_back(order: Order, new_status: OrderStatus) -> bool:
@@ -300,7 +318,7 @@ def can_cancel(order: Order) -> bool:
 
 
 def can_edit_shipping(order: Order) -> bool:
-    return order.status in SHIPPING_EDITABLE
+    return order.delivery_method == DeliveryMethod.SHIPPING and order.status in SHIPPING_EDITABLE
 
 
 def check_status_change(order: Order, new_status: OrderStatus) -> None:
@@ -325,7 +343,7 @@ def check_status_change(order: Order, new_status: OrderStatus) -> None:
         )
     if new_status == OrderStatus.CANCELLED:
         return
-    next_value = NEXT_STATUS[order.status]
+    next_value = _next_for(order)
     if new_status != next_value:
         previous = previous_status(order)
         volver = f", volver a {_NOMBRES[previous]}" if previous else ""

@@ -17,8 +17,14 @@ class OrderStatus(str, enum.Enum):
     CONFIRMED = "confirmed"
     PACKING = "packing"
     SHIPPED = "shipped"
+    READY_FOR_PICKUP = "ready_for_pickup"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
+
+
+class DeliveryMethod(str, enum.Enum):
+    SHIPPING = "shipping"
+    PICKUP = "pickup"
 
 
 class Order(Base):
@@ -38,6 +44,11 @@ class Order(Base):
         server_default=OrderStatus.CONFIRMED.value,
     )
 
+    delivery_method = Column(
+        Enum(DeliveryMethod, name="delivery_method", values_callable=lambda values: [v.value for v in values]),
+        nullable=False, default=DeliveryMethod.SHIPPING, server_default=DeliveryMethod.SHIPPING.value,
+    )
+
     # Referencia a lo guardado en el perfil; queda en NULL si el cliente lo borra.
     shipping_address_id = Column(
         Integer,
@@ -47,12 +58,12 @@ class Order(Base):
     # Copia al momento de la compra (como frozen_price): el historial no cambia
     # aunque el cliente edite o borre su dirección. Los pedidos de antes de
     # Mercado Pago guardan acá la tarjeta que se usó.
-    ship_personal_name = Column(String(50), nullable=False)
-    ship_street = Column(String(50), nullable=False)
-    ship_number = Column(String(10), nullable=False)
+    ship_personal_name = Column(String(50), nullable=True)
+    ship_street = Column(String(50), nullable=True)
+    ship_number = Column(String(10), nullable=True)
     ship_apartment = Column(String(10))
-    ship_city = Column(String(50), nullable=False)
-    ship_department = Column(String(50), nullable=False)
+    ship_city = Column(String(50), nullable=True)
+    ship_department = Column(String(50), nullable=True)
     ship_postal_code = Column(String(10))
     payment_method_label = Column(String(60), nullable=False)
 

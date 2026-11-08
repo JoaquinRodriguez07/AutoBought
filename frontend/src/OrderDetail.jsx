@@ -22,6 +22,7 @@ const STATUS_CLASSES = {
   confirmed: "bg-blue-50 text-blue-700 ring-blue-200",
   packing: "bg-violet-50 text-violet-700 ring-violet-200",
   shipped: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  ready_for_pickup: "bg-orange-50 text-orange-700 ring-orange-200",
   delivered: "bg-green-50 text-green-700 ring-green-200",
   cancelled: "bg-gray-50 text-gray-500 ring-gray-200",
 };
@@ -181,6 +182,13 @@ export default function OrderDetail({ purchase, onGoBack, textGoBack, onUpdated 
         </div>
       )}
 
+      {purchase.estado === "ready_for_pickup" && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 mb-6">
+          <p className="text-sm font-black">Tu pedido está listo para retirar</p>
+          <p className="text-sm text-gray-600 mt-1">Pasá por el local en el horario indicado en el correo de aviso.</p>
+        </div>
+      )}
+
       {purchase.estado === "shipped" && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -247,6 +255,10 @@ export default function OrderDetail({ purchase, onGoBack, textGoBack, onUpdated 
         </div>
 
         <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit space-y-5">
+          {purchase.deliveryMethod === "pickup" && (
+            <div><p className="text-xs font-black uppercase text-gray-500">Entrega</p>
+              <p className="text-sm text-gray-700 mt-1">Retiro en el local. Revisá el mail para ver dirección y horario.</p></div>
+          )}
           {purchase.shippingAddress && (
             <div>
               <p className="text-xs font-black uppercase text-gray-500">Envío</p>

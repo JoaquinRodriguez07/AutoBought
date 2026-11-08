@@ -16,6 +16,10 @@ if not SECRET_KEY:
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
+# Configurar antes de ofrecer retiro en producción: se utiliza en checkout y mails.
+LOCAL_ADDRESS = os.getenv("LOCAL_ADDRESS", "").strip()
+LOCAL_HOURS = os.getenv("LOCAL_HOURS", "").strip()
+
 # Mails. En local apuntan a Mailpit (docker compose); en producción, al SMTP
 # de Gmail con una contraseña de aplicación (ver .env.example).
 SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
