@@ -234,7 +234,7 @@ def sqlite_engine():
 def test_db_empty_stays_with_all_the_tables(sqlite_engine):
     migrate(sqlite_engine)
 
-    assert revision_of(sqlite_engine) == head_revision() == "0008"
+    assert revision_of(sqlite_engine) == head_revision() == "0009"
     tables = set(inspect(sqlite_engine).get_table_names())
     assert tables == set(Base.metadata.tables) | {"alembic_version"}
     assert part_unique_constraints(sqlite_engine) == {"uq_part_part_code": ["part_code"]}
