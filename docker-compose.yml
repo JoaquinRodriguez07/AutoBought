@@ -52,7 +52,6 @@ services:
       LOCAL_ADDRESS: ${LOCAL_ADDRESS:-}
       LOCAL_HOURS: ${LOCAL_HOURS:-}
       MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
-      MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
       CRON_SECRET: ${CRON_SECRET:-}
 
     ports:
@@ -96,7 +95,6 @@ services:
       # Retiro en el local: sin estas variables el retiro queda deshabilitado.
       LOCAL_ADDRESS: ${LOCAL_ADDRESS:-}
       LOCAL_HOURS: ${LOCAL_HOURS:-}
-      MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
       MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
       CRON_SECRET: ${CRON_SECRET:-}
 
