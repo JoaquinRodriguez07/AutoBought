@@ -184,6 +184,8 @@ def test_the_first_get_of_the_day_generates_and_saves_the_summary(client, db_ses
 
     assert reply.status_code == 200
     assert reply.json()["points"] == POINTS
+    # Siempre con zona horaria, para que el navegador muestre la hora de acá.
+    assert datetime.fromisoformat(reply.json()["generated_at"]).tzinfo is not None
     assert db_session.query(DashboardSummary).count() == 1
     usage = db_session.query(AIUsage).one()
     assert (usage.funcionalidad, usage.tokens, usage.ok) == ("resumen_dashboard", 900, True)

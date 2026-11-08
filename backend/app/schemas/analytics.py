@@ -1,9 +1,9 @@
 """Schemas de las respuestas del dashboard del vendedor."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class StockPartOut(BaseModel):
@@ -155,6 +155,14 @@ class DashboardSummaryOut(BaseModel):
 
     points: list[str]
     generated_at: datetime
+
+    @field_validator("generated_at")
+    @classmethod
+    def _with_timezone(cls, value: datetime) -> datetime:
+        # Postgres devuelve la fecha con zona; SQLite (tests y pruebas
+        # locales), sin ella, y el navegador la leería como hora local. La
+        # base la guarda en UTC: se marca así para que siempre viaje con zona.
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
 
 class DashboardSummaryHistoryOut(BaseModel):
