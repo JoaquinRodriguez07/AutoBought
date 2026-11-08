@@ -24,6 +24,7 @@ jest.mock("./api", () => ({
   updateCartItem: jest.fn(),
   removeCartItem: jest.fn(),
   clearCartApi: jest.fn(),
+  deleteAccount: jest.fn(),
   getBrands: jest.fn(),
   getModels: jest.fn(),
   getYears: jest.fn(),
@@ -120,6 +121,7 @@ import {
   removeFavoriteApi,
   register,
   clearCartApi,
+  deleteAccount,
   renewToken,
   onInvalidSession,
   verifyEmail,
@@ -390,6 +392,25 @@ describe("Navbar", () => {
     expect(screen.getByRole("button", { name: "Abrir menú" })).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("shows account deletion beneath log out in the mobile menu", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    props.sessionUser = { displayName: "Ana" };
+    props.onCloseSession = jest.fn();
+    props.onDeleteAccount = jest.fn();
+    render(<Navbar currentPage="home" {...props} />);
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    const menu = document.getElementById("navbar-menu-celular");
+    const logout = within(menu).getByRole("button", { name: "Cerrar sesión" });
+    const deletion = within(menu).getByRole("button", { name: "Borrar mi cuenta" });
+    expect(logout.compareDocumentPosition(deletion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await user.click(deletion);
+    expect(props.onDeleteAccount).toHaveBeenCalledTimes(1);
+    expect(document.getElementById("navbar-menu-celular")).toBeNull();
+  });
+
   it("the mobile menu also has the orders, favorites and the account", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
@@ -472,6 +493,7 @@ describe("Navbar", () => {
     const user = userEvent.setup();
     const props = navigationProps();
     props.onCloseSession = jest.fn();
+    props.onDeleteAccount = jest.fn();
 
     render(
       <>
@@ -487,6 +509,11 @@ describe("Navbar", () => {
     await user.click(screen.getByTitle("Mi cuenta"));
     expect(screen.getByText("Ana Perez")).toBeInTheDocument();
 
+    expect(screen.getByRole("button", { name: "Borrar mi cuenta" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Borrar mi cuenta" }));
+    expect(props.onDeleteAccount).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByTitle("Mi cuenta"));
     await user.click(screen.getByRole("button", { name: "Mis datos" }));
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/perfil");
     expect(screen.queryByRole("button", { name: "Mis datos" })).not.toBeInTheDocument();
@@ -2517,6 +2544,32 @@ describe("App favoritos", () => {
 });
 
 describe("App sesión", () => {
+  it.each(["/", "/marcas", "/catalogo", "/producto/test-1", "/carrito", "/favoritos"])(
+    "shows the account deletion action in the navbar on %s",
+    async (route) => {
+      const user = userEvent.setup();
+      const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
+      localStorage.setItem(
+        "autobought-sesion",
+        JSON.stringify({
+          userId: 1,
+          displayName: "Ana",
+          email: "ana@example.com",
+          token: `x.${payload}.y`,
+        })
+      );
+
+      renderBase(
+        <MemoryRouter initialEntries={[route]}>
+          <CartProvider><VehicleProvider><PitProvider><App /></PitProvider></VehicleProvider></CartProvider>
+        </MemoryRouter>
+      );
+
+      await user.click(screen.getByTitle("Mi cuenta"));
+      expect(screen.getByRole("button", { name: "Borrar mi cuenta" })).toBeInTheDocument();
+    }
+  );
+
   it("does not restore the session when a save finishes after logging out", async () => {
     const user = userEvent.setup();
     const payload = btoa(JSON.stringify({ sub: "1", user_type: "client", exp: 4102444800 }));
@@ -3032,9 +3085,12 @@ describe("Perfil", () => {
 
   it("/cuenta lists every section of the account", async () => {
     const user = userEvent.setup();
+    const props = navigationProps();
+    props.onCloseSession = jest.fn();
+    props.onDeleteAccount = jest.fn();
     render(
       <>
-        <AccountHome {...navigationProps()} sessionUser={{ displayName: "Ana Pérez", email: "ana@example.com" }} />
+        <AccountHome {...props} sessionUser={{ displayName: "Ana Pérez", email: "ana@example.com" }} />
         <CurrentRoute />
       </>
     );
@@ -3042,6 +3098,40 @@ describe("Perfil", () => {
     expect(screen.getByRole("heading", { name: "Hola, Ana" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Seguridad.*Cambiá la contraseña/ }));
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/seguridad");
+    const logout = screen.getByRole("button", { name: "Cerrar sesión" });
+    const deletion = screen.getByRole("button", { name: "Borrar mi cuenta" });
+    expect(logout.compareDocumentPosition(deletion) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(deletion.querySelector("svg")).toBeInTheDocument();
+    await user.click(deletion);
+    expect(props.onDeleteAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes the account from Mi cuenta and clears the saved session", async () => {
+    const user = userEvent.setup();
+    deleteAccount.mockResolvedValue();
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({
+        userId: 1,
+        displayName: "Ana",
+        email: "ana@example.com",
+        token: createToken(Date.now() + 60 * 60 * 1000),
+      })
+    );
+    renderBase(
+      <MemoryRouter initialEntries={["/cuenta"]}>
+        <CartProvider><VehicleProvider><PitProvider><App /><CurrentRoute /></PitProvider></VehicleProvider></CartProvider>
+      </MemoryRouter>
+    );
+
+    await user.click(screen.getByRole("button", { name: "Borrar mi cuenta" }));
+    await user.type(screen.getByLabelText("CONTRASEÑA"), "secreto123");
+    await user.click(screen.getByRole("button", { name: "Borrar Cuenta" }));
+
+    await waitFor(() => expect(localStorage.getItem("autobought-sesion")).toBeNull());
+    expect(sessionStorage.getItem("autobought-sesion")).toBeNull();
+    expect(await screen.findByTitle("Iniciar sesión")).toBeInTheDocument();
+    expect(deleteAccount).toHaveBeenCalledWith("secreto123");
   });
 
   it("cancels profile edits and restores the saved values", async () => {

@@ -95,6 +95,7 @@ export default function Home({
   onAddresses,
   onHistory,
   onCloseSession,
+  onDeleteAccount,
 
   cartQuantity,
   favoritesQuantity,
@@ -248,6 +249,7 @@ export default function Home({
         onAddresses={onAddresses}
         onHistory={onHistory}
         onCloseSession={onCloseSession}
+        onDeleteAccount={onDeleteAccount}
         cartQuantity={cartQuantity}
         favoritesQuantity={favoritesQuantity}
       />

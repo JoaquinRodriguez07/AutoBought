@@ -60,6 +60,7 @@ export default function Brands({
   onAddresses,
   onHistory,
   onCloseSession,
+  onDeleteAccount,
 }) {
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +97,7 @@ export default function Brands({
         onAddresses={onAddresses}
         onHistory={onHistory}
         onCloseSession={onCloseSession}
+        onDeleteAccount={onDeleteAccount}
         cartQuantity={cartQuantity}
         favoritesQuantity={favoritesQuantity}
       />
