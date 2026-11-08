@@ -1,32 +1,35 @@
-import { useEffect, useState } from "react";
-import { usarImagenGenerica } from "./mapearRepuesto";
+// La página de inicio de la tienda.
+
+import { useEffect, useRef, useState } from "react";
+import { useGenericImage } from "./mapPart";
 
 import Navbar from "./Navbar";
-import InvitacionAsistente from "./InvitacionAsistente";
+import AssistantInvite from "./AssistantInvite";
 import VehicleSelector from "./VehicleSelector";
-import { obtenerCategorias, obtenerMasVendidos } from "./api";
-import BotonAgregarCarrito from "./BotonAgregarCarrito";
+import { getCategories, getManufacturers, getBestSellers } from "./api";
+import AddToCartButton from "./AddToCartButton";
 import { useVehicle } from "./context/VehicleContext";
 import repuestos from "./assets/repuestos.jpg";
 import {
-  IconoAuto,
-  IconoCaja,
-  IconoCambios,
-  IconoCamion,
-  IconoCarrito,
-  IconoChispa,
-  IconoCopoNieve,
-  IconoDisco,
-  IconoEngranaje,
-  IconoEscape,
-  IconoEscobilla,
-  IconoFiltro,
-  IconoGota,
-  IconoRayo,
-  IconoResorte,
-  IconoTermometro,
-  IconoVolante,
-} from "./Iconos";
+  CarIcon,
+  BoxIcon,
+  GearboxIcon,
+  TruckIcon,
+  CartIcon,
+  SparkIcon,
+  SnowflakeIcon,
+  DiscIcon,
+  GearIcon,
+  ExhaustIcon,
+  WiperIcon,
+  FilterIcon,
+  ArrowIcon,
+  DropIcon,
+  BoltIcon,
+  SpringIcon,
+  ThermometerIcon,
+  SteeringWheelIcon,
+} from "./Icons";
 
 import AudiLogo from "./assets/Logos Vehiculos/Audi.svg";
 import BMWLogo from "./assets/Logos Vehiculos/BMW.png";
@@ -42,58 +45,59 @@ import PeugeotLogo from "./assets/Logos Vehiculos/Peugeot.webp";
 import RenaultLogo from "./assets/Logos Vehiculos/Renault.png";
 import SuzukiLogo from "./assets/Logos Vehiculos/Suzuki.png";
 import VolkswagenLogo from "./assets/Logos Vehiculos/Volkswagen.webp";
+import HomeActiveOrders from "./HomeActiveOrders";
 
-// Los fabricantes principales del catálogo (ver MANUFACTURERS en
-// backend/scripts/generate_dataset.py).
-const FABRICANTES = ["Bosch", "Brembo", "NGK", "Mann-Filter", "Monroe", "Valeo", "Castrol", "Moura"];
+// Cuántos fabricantes muestra la cinta: los que más repuestos tienen.
+const MANUFACTURER_COUNT = 8;
 
 // Ícono de cada categoría. Las categorías vienen del servidor: una que no
 // esté acá (nueva) se muestra con el ícono genérico, sin romper nada.
-const ICONOS_CATEGORIA = {
-  Accesorios: IconoEscobilla,
-  Carrocería: IconoAuto,
-  Climatización: IconoCopoNieve,
-  Dirección: IconoVolante,
-  Eléctrico: IconoRayo,
-  Encendido: IconoChispa,
-  Escape: IconoEscape,
-  Filtros: IconoFiltro,
-  Frenos: IconoDisco,
-  Lubricantes: IconoGota,
-  Motor: IconoEngranaje,
-  Refrigeración: IconoTermometro,
-  Suspensión: IconoResorte,
-  Transmisión: IconoCambios,
+const CATEGORY_ICONS = {
+  Accesorios: WiperIcon,
+  Carrocería: CarIcon,
+  Climatización: SnowflakeIcon,
+  Dirección: SteeringWheelIcon,
+  Eléctrico: BoltIcon,
+  Encendido: SparkIcon,
+  Escape: ExhaustIcon,
+  Filtros: FilterIcon,
+  Frenos: DiscIcon,
+  Lubricantes: DropIcon,
+  Motor: GearIcon,
+  Refrigeración: ThermometerIcon,
+  Suspensión: SpringIcon,
+  Transmisión: GearboxIcon,
 };
 
 // Las que más se buscan van destacadas, más grandes, en una fila; el resto, de a 5 por fila
 // (con las 14 categorías de hoy, 4 + 5 + 5: todas las filas completas).
-const CATEGORIAS_DESTACADAS = ["Frenos", "Filtros", "Motor", "Suspensión"];
+// Las categorías grandes del mosaico: las que más repuestos tienen.
+const FEATURED_COUNT = 4;
 
 // Los pasos de "Cómo comprar".
-const PASOS_COMPRA = [
-  [IconoAuto, "Elegí tu auto", "Marca, modelo y año: te mostramos solo los repuestos que le sirven."],
-  [IconoCarrito, "Agregá tus repuestos", "Compará fabricantes y precios, y sumalos al carrito."],
-  [IconoCamion, "Pagá y recibilo", "Pagás de forma segura y te lo enviamos a todo el país."],
+const PURCHASE_STEPS = [
+  [CarIcon, "Elegí tu auto", "Marca, modelo y año: te mostramos solo los repuestos que le sirven."],
+  [CartIcon, "Agregá tus repuestos", "Compará fabricantes y precios, y sumalos al carrito."],
+  [TruckIcon, "Pagá y recibilo", "Pagás de forma segura y te lo enviamos a todo el país."],
 ];
 
 export default function Home({
-  usuario,
+  sessionUser,
   onHome,
   onLogin,
   onCatalogo,
-  onDetalle,
-  onMarcas,
-  onCarrito,
-  onFavoritos,
+  onDetail,
+  onBrands,
+  onCart,
+  onFavorites,
 
-  onPerfil,
-  onDirecciones,
-  onHistorial,
-  onCerrarSesion,
+  onProfile,
+  onAddresses,
+  onHistory,
+  onCloseSession,
 
-  cantidadCarrito,
-  cantidadFavoritos,
+  cartQuantity,
+  favoritesQuantity,
 }) {
   // ==========================================
   // VEHICLE SELECTION
@@ -102,16 +106,17 @@ export default function Home({
   // hacer clic en "Buscar Repuestos" pasa a ser el Vehículo Activo
   // (VehicleContext) y el catálogo consulta la API.
 
-  const { vehiculoActivo, activarVehiculo, limpiarVehiculo } =
+  const { activeVehicle, activateVehicle, clearVehicle } =
     useVehicle();
 
-  const buscarRepuestos = (vehiculo) => {
-    activarVehiculo(vehiculo);
-    onCatalogo(null, vehiculo);
+
+  const searchParts = (vehicle) => {
+    activateVehicle(vehicle);
+    onCatalogo(null, vehicle);
   };
 
-  const borrarFiltros = () => {
-    limpiarVehiculo();
+  const clearFilters = () => {
+    clearVehicle();
   };
 
   // ==========================================
@@ -127,23 +132,31 @@ export default function Home({
   // el resto de la página sigue funcionando; no se muestra un cartel
   // de error.
 
-  const [categorias, setCategorias] = useState(null);
+  const [categories, setCategories] = useState(null);
+  const [manufacturers, setManufacturers] = useState([]);
 
   useEffect(() => {
-    let activo = true;
+    let active = true;
 
-    obtenerCategorias()
-      .then((lista) => {
-        if (!activo) return;
-        setCategorias(lista);
+    getCategories()
+      .then((list) => {
+        if (!active) return;
+        setCategories(list);
       })
       .catch(() => {
-        if (!activo) return;
-        setCategorias([]);
+        if (!active) return;
+        setCategories([]);
       });
 
+    // Si falla, la cinta de fabricantes queda vacía.
+    getManufacturers()
+      .then((list) => {
+        if (active) setManufacturers(list.slice(0, MANUFACTURER_COUNT).map((f) => f.displayName));
+      })
+      .catch(() => {});
+
     return () => {
-      activo = false;
+      active = false;
     };
   }, []);
 
@@ -154,29 +167,33 @@ export default function Home({
   // Las marcas del catálogo (los nombres, iguales que en el backend,
   // filtran el catálogo). Geely y JAC todavía no tienen logo.
   const simpleIcon = (slug) => `https://cdn.simpleicons.org/${slug}/000000`;
-  const marcas = [
-    { nombre: "Volkswagen", logo: VolkswagenLogo },
-    { nombre: "Chevrolet", logo: ChevroletLogo },
-    { nombre: "Fiat", logo: FiatLogo },
-    { nombre: "Renault", logo: RenaultLogo },
-    { nombre: "Ford", logo: simpleIcon("ford") },
-    { nombre: "Toyota", logo: simpleIcon("toyota") },
-    { nombre: "Peugeot", logo: PeugeotLogo },
-    { nombre: "Nissan", logo: simpleIcon("nissan") },
-    { nombre: "Suzuki", logo: SuzukiLogo },
-    { nombre: "Hyundai", logo: HyundaiLogo },
-    { nombre: "Kia", logo: simpleIcon("kia") },
-    { nombre: "Citroen", logo: CitroenLogo },
-    { nombre: "Chery", logo: CheryLogo },
-    { nombre: "BYD", logo: BydLogo },
-    { nombre: "Honda", logo: simpleIcon("honda") },
-    { nombre: "Mitsubishi", logo: simpleIcon("mitsubishi") },
-    { nombre: "Jeep", logo: simpleIcon("jeep") },
-    { nombre: "Mazda", logo: simpleIcon("mazda") },
-    { nombre: "GAC", logo: GacLogo },
-    { nombre: "Mercedes-Benz", logo: MercedesLogo },
-    { nombre: "BMW", logo: BMWLogo },
-    { nombre: "Audi", logo: AudiLogo },
+  const featured = [...(categories || [])]
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, FEATURED_COUNT);
+
+  const brands = [
+    { displayName: "Volkswagen", logo: VolkswagenLogo },
+    { displayName: "Chevrolet", logo: ChevroletLogo },
+    { displayName: "Fiat", logo: FiatLogo },
+    { displayName: "Renault", logo: RenaultLogo },
+    { displayName: "Ford", logo: simpleIcon("ford") },
+    { displayName: "Toyota", logo: simpleIcon("toyota") },
+    { displayName: "Peugeot", logo: PeugeotLogo },
+    { displayName: "Nissan", logo: simpleIcon("nissan") },
+    { displayName: "Suzuki", logo: SuzukiLogo },
+    { displayName: "Hyundai", logo: HyundaiLogo },
+    { displayName: "Kia", logo: simpleIcon("kia") },
+    { displayName: "Citroen", logo: CitroenLogo },
+    { displayName: "Chery", logo: CheryLogo },
+    { displayName: "BYD", logo: BydLogo },
+    { displayName: "Honda", logo: simpleIcon("honda") },
+    { displayName: "Mitsubishi", logo: simpleIcon("mitsubishi") },
+    { displayName: "Jeep", logo: simpleIcon("jeep") },
+    { displayName: "Mazda", logo: simpleIcon("mazda") },
+    { displayName: "GAC", logo: GacLogo },
+    { displayName: "Mercedes-Benz", logo: MercedesLogo },
+    { displayName: "BMW", logo: BMWLogo },
+    { displayName: "Audi", logo: AudiLogo },
   ];
 
   // ==========================================
@@ -187,27 +204,29 @@ export default function Home({
   // Igual que las categorías: si no hay ventas o el pedido falla, la
   // sección se oculta y el resto de la página sigue funcionando.
 
-  const [masVendidos, setMasVendidos] = useState(null);
+  const [moreVendidos, setMoreVendidos] = useState(null);
 
   useEffect(() => {
-    let activo = true;
+    let active = true;
 
-    obtenerMasVendidos({ limite: 8 })
-      .then((lista) => {
-        if (!activo) return;
-        setMasVendidos(lista);
+    getBestSellers({ limit: 8 })
+      .then((list) => {
+        if (!active) return;
+        setMoreVendidos(list);
       })
       .catch(() => {
-        if (!activo) return;
-        setMasVendidos([]);
+        if (!active) return;
+        setMoreVendidos([]);
       });
 
     return () => {
-      activo = false;
+      active = false;
     };
   }, []);
 
-  const precio = (valor) => `$${valor.toLocaleString("es-UY")}`;
+  const price = (rawValue) => `$${rawValue.toLocaleString("es-UY")}`;
+
+  const hero = useRef(null);
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
@@ -217,20 +236,20 @@ export default function Home({
       ====================================================== */}
 
       <Navbar
-        paginaActual="home"
-        usuario={usuario}
+        currentPage="home"
+        sessionUser={sessionUser}
         onHome={onHome}
         onCatalogo={onCatalogo}
         onLogin={onLogin}
-        onMarcas={onMarcas}
-        onCarrito={onCarrito}
-        onFavoritos={onFavoritos}
-        onPerfil={onPerfil}
-        onDirecciones={onDirecciones}
-        onHistorial={onHistorial}
-        onCerrarSesion={onCerrarSesion}
-        cantidadCarrito={cantidadCarrito}
-        cantidadFavoritos={cantidadFavoritos}
+        onBrands={onBrands}
+        onCart={onCart}
+        onFavorites={onFavorites}
+        onProfile={onProfile}
+        onAddresses={onAddresses}
+        onHistory={onHistory}
+        onCloseSession={onCloseSession}
+        cartQuantity={cartQuantity}
+        favoritesQuantity={favoritesQuantity}
       />
 
       {/* =====================================================
@@ -240,50 +259,67 @@ export default function Home({
           va adentro del hero. Lo elegido es un borrador hasta tocar
           "Buscar repuestos" (ver arriba). */}
 
-      <section className="relative overflow-hidden bg-black">
+      <section ref={hero} className="relative overflow-hidden bg-black">
 
         {/* Oscurecida y corrida hacia abajo para que no se vean las
-            partes blancas de la foto. */}
+            partes blancas de la foto. Se acerca muy despacio al entrar. */}
         <img
           src={repuestos}
           alt="Repuestos para vehículos"
           className="absolute inset-0 w-full h-full object-cover object-bottom"
         />
 
-        <div className="absolute inset-0 bg-black/60" />
-        <div className="absolute inset-0 bg-linear-to-r from-black/85 via-black/60 to-black/50" />
+        <div className="absolute inset-0 bg-black/55" />
+        <div className="absolute inset-0 bg-linear-to-r from-black/90 via-black/65 to-black/35" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-linear-to-t from-black/70 to-transparent" />
 
-        <div className="relative z-10 max-w-[1100px] mx-auto px-6 md:px-10 pt-36 pb-12">
+        <div className="relative z-10 max-w-[1100px] mx-auto px-6 md:px-10 pt-28 md:pt-32 pb-16">
 
-          <p className="text-orange-500 text-xs font-black tracking-[4px]">
-            REPUESTOS PARA TU AUTO
-          </p>
+          {/* TÍTULO. Envíos, pago seguro y marcas ya los cuenta "Cómo
+              comprar": acá no se repiten, así el banner entra en la
+              pantalla también con los pedidos en curso. */}
+          <div>
+            <p className="text-orange-500 text-xs font-black tracking-[4px]">
+              REPUESTOS PARA TU AUTO
+            </p>
 
-          <h1 className="text-white text-4xl md:text-6xl font-black italic uppercase leading-none mt-4 max-w-[680px]">
-            REPUESTOS QUE TE MANTIENEN EN MOVIMIENTO
-          </h1>
+            {/* En celular las líneas se acomodan solas (parejas, sin
+                palabras sueltas); desde tablet, una por renglón. */}
+            <h1 className="text-white text-[2.5rem] sm:text-5xl md:text-6xl font-black italic uppercase leading-[0.95] mt-4 max-w-[640px] text-balance">
+              {["Repuestos que te", "mantienen en", "movimiento"].map((line, indice) => (
+                <span key={line} className={`sm:block ${indice === 2 ? "text-orange-500" : ""}`}>
+                  {line}{" "}
+                </span>
+              ))}
+            </h1>
 
-          <p className="text-gray-300 text-base mt-5 max-w-[520px] leading-relaxed">
-            Elegí tu auto y te mostramos los repuestos que le sirven,
-            de las mejores marcas.
-          </p>
+            <p className="text-gray-300 text-base md:text-lg mt-5 max-w-[520px] leading-relaxed">
+              Elegí tu auto y te mostramos los repuestos que le sirven,
+              de las mejores marcas.
+            </p>
+          </div>
 
           {/* SELECTOR DE VEHÍCULO */}
 
-          <div className="mt-10 bg-[#151719]/95 border border-white/10 rounded-xl shadow-2xl p-5 md:p-6">
+          <div className="mt-8 bg-[#151719]/95 border border-white/10 rounded-xl shadow-2xl p-5 md:p-6">
 
             <p className="text-white text-sm font-black">¿Qué auto tenés?</p>
             <VehicleSelector
-              vehicle={vehiculoActivo}
-              onConfirm={buscarRepuestos}
-              onClear={borrarFiltros}
+              vehicle={activeVehicle}
+              onConfirm={searchParts}
+              onClear={clearFilters}
               showClear
               variant="home"
             />
 
           </div>
 
+          {/* PEDIDOS EN CURSO: solo con sesión y pedidos en curso */}
+          <HomeActiveOrders />
+
         </div>
+
+        <ScrollHint hero={hero} />
 
       </section>
 
@@ -291,7 +327,7 @@ export default function Home({
           ASISTENTE DE COMPRA (IA)
       ====================================================== */}
 
-      <InvitacionAsistente />
+      <AssistantInvite />
 
       {/* =====================================================
           MARCAS Y FABRICANTES
@@ -315,7 +351,7 @@ export default function Home({
             </div>
             <button
               type="button"
-              onClick={onMarcas}
+              onClick={onBrands}
               className="text-orange-500 text-sm font-bold hover:underline whitespace-nowrap"
             >
               Ver todas →
@@ -326,41 +362,41 @@ export default function Home({
             Repuestos para tu auto
           </p>
 
-          <Cinta>
+          <Ribbon>
             {(copia) =>
-              marcas.map((marca) => (
+              brands.map((marca) => (
                 <button
-                  key={marca.nombre}
+                  key={marca.displayName}
                   type="button"
                   tabIndex={copia ? -1 : undefined}
-                  onClick={() => onCatalogo(null, null, { marca: marca.nombre })}
-                  title={marca.nombre}
-                  aria-label={`Ver repuestos de ${marca.nombre}`}
+                  onClick={() => onCatalogo(null, null, { marca: marca.displayName })}
+                  title={marca.displayName}
+                  aria-label={`Ver repuestos de ${marca.displayName}`}
                   className="group shrink-0 w-36 h-14 flex items-center justify-center"
                 >
                   {marca.logo ? (
                     <img
                       src={marca.logo}
-                      alt={`Logo ${marca.nombre}`}
+                      alt={`Logo ${marca.displayName}`}
                       className="max-h-10 max-w-[72px] object-contain grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition duration-300"
                     />
                   ) : (
                     <span className="text-sm font-black text-gray-400 group-hover:text-gray-900">
-                      {marca.nombre}
+                      {marca.displayName}
                     </span>
                   )}
                 </button>
               ))
             }
-          </Cinta>
+          </Ribbon>
 
           <p className="text-xs text-gray-400 font-bold uppercase tracking-wide mt-6 mb-3">
             Fabricantes de repuestos
           </p>
 
-          <Cinta reversa>
+          <Ribbon reversa>
             {(copia) =>
-              FABRICANTES.map((fabricante) => (
+              manufacturers.map((fabricante) => (
                 <button
                   key={fabricante}
                   type="button"
@@ -372,7 +408,7 @@ export default function Home({
                 </button>
               ))
             }
-          </Cinta>
+          </Ribbon>
 
         </div>
       </section>
@@ -381,14 +417,14 @@ export default function Home({
           CATEGORÍAS
       ====================================================== */}
 
-      <Seccion
-        etiqueta="TODO PARA TU AUTO"
-        titulo="Categorías"
-        accion="Ver todas"
-        onAccion={() => onCatalogo()}
+      <Section
+        label="TODO PARA TU AUTO"
+        title="Categorías"
+        action="Ver todas"
+        onAction={() => onCatalogo()}
       >
 
-        {categorias === null && (
+        {categories === null && (
           <p className="text-sm text-gray-400">
             Cargando categorías…
           </p>
@@ -397,80 +433,78 @@ export default function Home({
         {/* Mosaico: las destacadas grandes arriba y el resto debajo. */}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {(categorias || [])
-            .filter((c) => CATEGORIAS_DESTACADAS.includes(c.nombre))
-            .sort((a, b) => CATEGORIAS_DESTACADAS.indexOf(a.nombre) - CATEGORIAS_DESTACADAS.indexOf(b.nombre))
+          {featured
             .map((categoria) => (
-              <TarjetaCategoria
-                key={categoria.nombre}
-                nombre={categoria.nombre}
-                cantidad={categoria.cantidad}
-                grande
-                onClick={() => onCatalogo(categoria.nombre)}
+              <CategoryCard
+                key={categoria.displayName}
+                displayName={categoria.displayName}
+                quantity={categoria.quantity}
+                large
+                onClick={() => onCatalogo(categoria.displayName)}
               />
             ))}
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-3">
-          {(categorias || [])
-            .filter((c) => !CATEGORIAS_DESTACADAS.includes(c.nombre))
+          {(categories || [])
+            .filter((c) => !featured.includes(c))
             .map((categoria) => (
-              <TarjetaCategoria
-                key={categoria.nombre}
-                nombre={categoria.nombre}
-                cantidad={categoria.cantidad}
-                onClick={() => onCatalogo(categoria.nombre)}
+              <CategoryCard
+                key={categoria.displayName}
+                displayName={categoria.displayName}
+                quantity={categoria.quantity}
+                onClick={() => onCatalogo(categoria.displayName)}
               />
             ))}
         </div>
 
-      </Seccion>
+      </Section>
 
       {/* =====================================================
           CÓMO COMPRAR
       ====================================================== */}
 
-      <Seccion
+      <Section
         gris
-        etiqueta="ASÍ DE FÁCIL"
-        titulo="Cómo comprar"
-        accion="Empezar"
-        onAccion={() => onCatalogo()}
+        label="ASÍ DE FÁCIL"
+        title="Cómo comprar"
+        action="Empezar"
+        onAction={() => onCatalogo()}
       >
         <ol className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {PASOS_COMPRA.map(([Icono, titulo, texto], i) => (
+          {PURCHASE_STEPS.map(([Icon, title, texto], i) => (
             <li
-              key={titulo}
+              key={title}
               className="relative flex items-start gap-4 bg-white border border-gray-100 rounded-xl p-6 shadow-xs"
             >
               <span className="shrink-0 w-12 h-12 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
-                <Icono className="w-6 h-6" />
+                <Icon className="w-6 h-6" />
               </span>
               <div>
                 <p className="text-xs font-black text-orange-500 tracking-[3px]">PASO {i + 1}</p>
-                <h3 className="text-base font-black mt-1">{titulo}</h3>
+                <h3 className="text-base font-black mt-1">{title}</h3>
                 <p className="text-sm text-gray-500 mt-1">{texto}</p>
               </div>
             </li>
           ))}
         </ol>
-      </Seccion>
+      </Section>
 
       {/* =====================================================
           MÁS VENDIDOS
       ====================================================== */}
       {/* Si no hay ventas o el pedido falla, la sección no se muestra. */}
 
-      {masVendidos?.length !== 0 && (
+      {moreVendidos?.length !== 0 && (
 
-        <Seccion
-          etiqueta="LO MÁS ELEGIDO"
-          titulo="Más vendidos"
-          accion="Ver más"
-          onAccion={() => onCatalogo()}
+        <Section
+          label="LO MÁS ELEGIDO"
+          title="Más vendidos"
+          action="Ver más"
+          onAction={() => onCatalogo()}
         >
 
-          {masVendidos === null && (
+          {moreVendidos === null && (
             <p className="text-sm text-gray-400">
               Cargando más vendidos…
             </p>
@@ -480,57 +514,52 @@ export default function Home({
               tablet, una grilla (dos filas de 4 en pantallas grandes). */}
           <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-5">
 
-            {(masVendidos ?? []).map((producto) => (
+            {(moreVendidos ?? []).map((product) => (
 
+              /* Toda la tarjeta lleva al repuesto: el nombre es el botón y
+                 su ::after la cubre entera. "Agregar" queda por encima. */
               <article
-                key={producto.id}
-                className="shrink-0 w-[75%] snap-start sm:w-auto flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg transition"
+                key={product.id}
+                className="group relative shrink-0 w-[75%] snap-start sm:w-auto flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden shadow-xs hover:shadow-lg hover:border-gray-200 transition"
               >
 
-                <button
-                  type="button"
-                  onClick={() => onDetalle(producto)}
-                  aria-label={`Ver ${producto.nombre}`}
-                  className="relative h-44 bg-white"
-                >
-                  <img onError={usarImagenGenerica}
-                    src={producto.imagen}
-                    alt={producto.nombre}
-                    className="w-full h-full object-contain p-3"
+                <div className="h-44 bg-white">
+                  <img onError={useGenericImage}
+                    src={product.image}
+                    alt=""
+                    className="w-full h-full object-contain p-3 group-hover:scale-105 transition duration-300"
                   />
-                </button>
+                </div>
 
                 {/* flex + mt-auto: el botón queda abajo aunque el
                     nombre ocupe una o dos líneas. */}
                 <div className="flex flex-col flex-1 p-4">
 
-                  <p className="text-[11px] uppercase tracking-wide text-orange-500 font-black">
-                    {producto.fabricante}
+                  <p className="text-xs uppercase tracking-wide text-orange-500 font-black">
+                    {product.fabricante}
                   </p>
 
                   <h3 className="text-sm font-bold mt-1 leading-snug">
-                    {producto.nombre}
+                    <button
+                      type="button"
+                      onClick={() => onDetail(product)}
+                      className="text-left group-hover:text-orange-500 transition after:absolute after:inset-0 after:content-['']"
+                    >
+                      {product.displayName}
+                    </button>
                   </h3>
 
                   <p className="text-xl font-black mt-auto pt-4">
-                    {precio(producto.precio)}
+                    {price(product.price)}
                   </p>
 
-                  <BotonAgregarCarrito
-                    producto={producto}
-                    className="w-full mt-3 flex items-center justify-center gap-2 h-9 rounded-md text-xs font-bold"
+                  <AddToCartButton
+                    product={product}
+                    className="relative z-10 w-full mt-3 flex items-center justify-center gap-2 h-10 rounded-md text-xs font-bold"
                   >
-                    <IconoCarrito />
+                    <CartIcon />
                     Agregar
-                  </BotonAgregarCarrito>
-
-                  <button
-                    type="button"
-                    onClick={() => onDetalle(producto)}
-                    className="w-full h-9 mt-2 border border-gray-200 hover:border-orange-500 hover:text-orange-500 rounded-md text-xs font-bold transition"
-                  >
-                    VER REPUESTO
-                  </button>
+                  </AddToCartButton>
 
                 </div>
 
@@ -540,51 +569,71 @@ export default function Home({
 
           </div>
 
-        </Seccion>
+        </Section>
 
       )}
-
 
     </div>
   );
 }
 
+// Flechita al pie del banner, centrada, que avisa que la página sigue; al
+// tocarla baja hasta lo que viene después. Va en el margen de abajo del
+// banner, así no tapa nada. Sin animaciones.
+function ScrollHint({ hero }) {
+  const bajar = () => {
+    const high = hero.current?.offsetHeight ?? window.innerHeight;
+    window.scrollTo({ top: high - 88, behavior: "smooth" });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={bajar}
+      aria-label="Ver más del inicio"
+      className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 w-9 h-9 rounded-full bg-white/10 border border-white/25 text-white flex items-center justify-center hover:bg-orange-500 hover:border-orange-500 transition"
+    >
+      <ArrowIcon className="w-5 h-5" />
+    </button>
+  );
+}
+
 // Tarjeta oscura de una categoría, con el ícono grande y transparente
 // de fondo. `grande` para las destacadas.
-function TarjetaCategoria({ nombre, cantidad, grande = false, onClick }) {
-  const Icono = ICONOS_CATEGORIA[nombre] || IconoCaja;
+function CategoryCard({ displayName, quantity, large = false, onClick }) {
+  const Icon = CATEGORY_ICONS[displayName] || BoxIcon;
 
   return (
     <button
       type="button"
       onClick={onClick}
       className={`group relative overflow-hidden rounded-xl bg-linear-to-br from-[#23272e] to-[#121417] border border-white/5 hover:border-orange-500/60 hover:-translate-y-0.5 hover:shadow-xl text-left flex flex-col justify-between transition duration-300 ${
-        grande ? "h-44 p-6" : "h-32 p-4"
+        large ? "h-44 p-6" : "h-32 p-4"
       }`}
     >
-      <Icono
+      <Icon
         className={`absolute text-white/5 group-hover:text-orange-500/15 transition duration-300 ${
-          grande ? "-right-6 -bottom-6 w-40 h-40" : "-right-4 -bottom-4 w-24 h-24"
+          large ? "-right-6 -bottom-6 w-40 h-40" : "-right-4 -bottom-4 w-24 h-24"
         }`}
       />
 
       <span
         className={`relative rounded-full bg-orange-500/15 text-orange-500 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition duration-300 ${
-          grande ? "w-12 h-12" : "w-10 h-10"
+          large ? "w-12 h-12" : "w-10 h-10"
         }`}
       >
-        <Icono className={grande ? "w-6 h-6" : "w-5 h-5"} />
+        <Icon className={large ? "w-6 h-6" : "w-5 h-5"} />
       </span>
 
       <span className="relative">
-        <span className={`block text-white font-black ${grande ? "text-xl" : "text-sm"}`}>
-          {nombre}
+        <span className={`block text-white font-black ${large ? "text-xl" : "text-sm"}`}>
+          {displayName}
         </span>
         {/* La cantidad y, al pasar el mouse, "Ver repuestos" en su lugar. */}
         <span className="relative block h-4 mt-1 text-xs font-bold">
-          {cantidad > 0 && (
+          {quantity > 0 && (
             <span className="absolute inset-0 text-gray-400 group-hover:opacity-0 transition duration-300">
-              {cantidad.toLocaleString("es-UY")} repuestos
+              {quantity.toLocaleString("es-UY")} repuestos
             </span>
           )}
           <span className="absolute inset-0 text-orange-400 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition duration-300">
@@ -599,7 +648,7 @@ function TarjetaCategoria({ nombre, cantidad, grande = false, onClick }) {
 // Cinta que se mueve sola. `children` es una función que arma los
 // elementos: se llama dos veces (la segunda, copia oculta para lectores
 // de pantalla y teclado) para que el bucle no tenga cortes.
-function Cinta({ reversa = false, children }) {
+function Ribbon({ reversa = false, children }) {
   return (
     <div className="cinta-contenedor overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
       <div className={`cinta flex w-max ${reversa ? "cinta-reversa" : ""}`}>
@@ -613,7 +662,7 @@ function Cinta({ reversa = false, children }) {
 // Todas las secciones del inicio tienen el mismo armado: mismo ancho y
 // separación, etiqueta naranja, título y un enlace a la derecha. `gris`
 // alterna el fondo para que se note dónde termina cada una.
-function Seccion({ etiqueta, titulo, accion, onAccion, gris = false, children }) {
+function Section({ label, title, action, onAction, gris = false, children }) {
   return (
     <section className={gris ? "bg-[#f5f5f5]" : "bg-white"}>
       <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-14">
@@ -621,20 +670,20 @@ function Seccion({ etiqueta, titulo, accion, onAccion, gris = false, children })
         <div className="flex items-end justify-between gap-4 mb-7">
           <div>
             <p className="text-orange-500 text-xs font-black tracking-[4px]">
-              {etiqueta}
+              {label}
             </p>
             <h2 className="text-2xl md:text-3xl font-black italic uppercase mt-1">
-              {titulo}
+              {title}
             </h2>
           </div>
 
-          {accion && (
+          {action && (
             <button
               type="button"
-              onClick={onAccion}
+              onClick={onAction}
               className="text-orange-500 text-sm font-bold hover:underline whitespace-nowrap"
             >
-              {accion} →
+              {action} →
             </button>
           )}
         </div>

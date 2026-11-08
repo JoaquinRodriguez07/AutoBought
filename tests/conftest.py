@@ -1,3 +1,5 @@
+"""Fixtures comunes: base SQLite en memoria, cliente HTTP y mails falsos."""
+
 import sys
 from pathlib import Path
 
@@ -17,10 +19,10 @@ from app import models
 from app.db.base import Base
 from app.api.deps import get_db
 
-# In-memory SQLite for testing. Each test will have an isolated database instance.
+# SQLite en memoria para los tests: cada test tiene su propia base.
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
-# StaticPool is required for in-memory SQLite to share the same connection across threads
+# StaticPool hace falta para que la SQLite en memoria comparta la conexión entre hilos.
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
@@ -30,46 +32,43 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 @pytest.fixture(scope="function")
 def db_session():
-    """Creates a fresh database on each test case."""
-    # Create all tables before the test runs
+    """Una base nueva para cada test."""
+    # Se crean las tablas antes del test
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        # Drop all tables after the test finishes
+        # y se borran al terminar.
         Base.metadata.drop_all(bind=engine)
 
 @pytest.fixture(scope="function")
 def client(db_session):
-    """
-    Create a TestClient that uses the `db_session` fixture 
-    to override the `get_db` dependency.
-    """
+    """Un TestClient que usa la base de `db_session` en lugar de `get_db`."""
     def override_get_db():
         yield db_session
 
-    # Swap out the real get_db for our test database
+    # Se cambia el get_db real por la base del test.
     app.dependency_overrides[get_db] = override_get_db
     
     with TestClient(app) as test_client:
         yield test_client
         
-    # Clear the overrides to ensure tests remain isolated
+    # Se sacan los reemplazos para que los tests no se afecten entre sí.
     app.dependency_overrides.clear()
 
 @pytest.fixture(autouse=True)
-def mercadopago_configurado(monkeypatch):
+def mercadopago_configured(monkeypatch):
     """Los tests compran con un token falso: sin token, POST /orders da 503.
     Igual nadie llama a Mercado Pago (ver el cliente falso de pago_test.py)."""
     monkeypatch.setattr("app.core.config.MERCADOPAGO_ACCESS_TOKEN", "TEST-token-de-los-tests")
 
 
 @pytest.fixture(autouse=True)
-def mails(monkeypatch):
+def sent_mails(monkeypatch):
     """Ningún test manda mails reales: el envío SMTP se reemplaza por una
     lista con los mensajes que se habrían mandado."""
-    enviados = []
-    monkeypatch.setattr("app.core.email._enviar_smtp", enviados.append)
-    return enviados
+    sent = []
+    monkeypatch.setattr("app.core.email._send_smtp", sent.append)
+    return sent

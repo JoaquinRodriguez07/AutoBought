@@ -60,17 +60,17 @@ from app.schemas.shipping_address import ShippingAddressCreate
 import app.models
 
 SEMILLA = 2026
-MESES = 12
-CANTIDAD_CLIENTES = 300
+MONTHS = 12
+CLIENT_COUNT = 300
 DOMINIO_CLIENTES = "historico.autobought.com"
 
 # Pedidos por mes al principio y al final del año (tendencia creciente).
-PEDIDOS_PRIMER_MES = 350
-PEDIDOS_ULTIMO_MES = 650
+FIRST_MONTH_ORDERS = 350
+LAST_MONTH_ORDERS = 650
 
 # Cuánto se vende cada tipo de repuesto: los consumibles (aceite,
 # escobillas, filtros, pastillas, bujías) mucho más que un faro.
-DEMANDA_CATEGORIA = {
+CATEGORY_DEMAND = {
     "Lubricantes": 15, "Accesorios": 8, "Filtros": 4, "Frenos": 3, "Encendido": 3,
     "Eléctrico": 2, "Suspensión": 1.2, "Motor": 1, "Refrigeración": 1, "Carrocería": 0.6,
     "Dirección": 1, "Transmisión": 0.8, "Escape": 0.6, "Climatización": 0.5,
@@ -80,18 +80,18 @@ DEMANDA_CATEGORIA = {
 EXPONENTE_ZIPF = 0.7
 
 # Cuántos repuestos distintos lleva un pedido, y cuántas unidades de cada uno.
-ITEMS_POR_PEDIDO = ([1, 2, 3], [60, 30, 10])
+ITEMS_PER_ORDER = ([1, 2, 3], [60, 30, 10])
 CANTIDADES = ([1, 2, 3], [80, 17, 3])
-PROB_JUEGO_DE_BUJIAS = 0.6
+SPARK_PLUG_SET_PROBABILITY = 0.6
 
 # Repuestos en riesgo: se eligen de estas categorías los de menos stock, y
 # se ajusta su demanda para que el último mes vendan ~3 veces su stock
 # (con 2, el azar a veces los dejaba vendiendo menos que su stock).
-CATEGORIAS_EN_RIESGO = ["Encendido", "Frenos", "Motor", "Refrigeración"]
-EN_RIESGO_POR_CATEGORIA = 2
-VENTAS_SOBRE_STOCK = 3
+AT_RISK_CATEGORIES = ["Encendido", "Frenos", "Motor", "Refrigeración"]
+AT_RISK_BY_CATEGORY = 2
+SALES_OVER_STOCK = 3
 # Con menos stock, "vende el triple" son pocas unidades: no luce como alerta.
-STOCK_MINIMO_EN_RIESGO = 5
+MIN_AT_RISK_STOCK = 5
 
 URUGUAY = timezone(timedelta(hours=-3))
 
@@ -102,7 +102,7 @@ ESTACIONALIDAD_GENERAL = {
 }
 
 # Multiplicador de una categoría según el mes (el resto de los meses, 1).
-ESTACIONALIDAD_CATEGORIA = {
+CATEGORY_SEASONALITY = {
     "Refrigeración": {11: 1.4, 12: 2.2, 1: 2.5, 2: 2.0, 3: 1.3, 6: 0.6, 7: 0.6, 8: 0.6},
     "Encendido": {5: 1.3, 6: 2.0, 7: 2.3, 8: 1.8, 9: 1.2, 12: 0.7, 1: 0.6, 2: 0.7},
     "Accesorios": {4: 1.5, 5: 1.8, 6: 2.0, 7: 2.0, 8: 1.6, 12: 0.6, 1: 0.5, 2: 0.6},
@@ -115,7 +115,7 @@ ESTACIONALIDAD_CATEGORIA = {
 # Igual, pero para repuestos sueltos (por cómo empieza el nombre), cuando
 # no es toda la categoría: el de habitáculo se cambia antes del verano,
 # para usar el aire acondicionado.
-ESTACIONALIDAD_REPUESTO = {
+PART_SEASONALITY = {
     "Filtro de habitáculo": {9: 1.4, 10: 1.8, 11: 2.0, 12: 1.8, 1: 1.3, 5: 0.6, 6: 0.5, 7: 0.5},
 }
 
@@ -144,146 +144,148 @@ LOCALIDADES = [
 
 @dataclass
 class Resumen:
-    clientes: int
-    pedidos: int
-    unidades: int
-    en_riesgo: list[str]
-    salteado: bool = False
+    customers: int
+    orders_list: int
+    units: int
+    at_risk: list[str]
+    skipped: bool = False
 
 
-def _ya_generado(db: Session) -> bool:
+def _already_generated(db: Session) -> bool:
     return db.scalar(
         select(Client.user_id).where(Client.email.like(f"%@{DOMINIO_CLIENTES}")).limit(1)
     ) is not None
 
 
-def _meses(hasta: date) -> list[tuple[date, date]]:
+def _months(until: date) -> list[tuple[date, date]]:
     """Primer y último día de cada uno de los últimos 12 meses (el actual,
     hasta `hasta`), del más viejo al más nuevo."""
-    meses = []
-    anio, mes = hasta.year, hasta.month
-    for _ in range(MESES):
-        inicio = date(anio, mes, 1)
-        siguiente = date(anio + mes // 12, mes % 12 + 1, 1)
-        meses.append((inicio, min(siguiente - timedelta(days=1), hasta)))
-        anio, mes = (anio, mes - 1) if mes > 1 else (anio - 1, 12)
-    return list(reversed(meses))
+    periods = []
+    anio, period = until.year, until.month
+    for _ in range(MONTHS):
+        start_at = date(anio, period, 1)
+        next_value = date(anio + period // 12, period % 12 + 1, 1)
+        periods.append((start_at, min(next_value - timedelta(days=1), until)))
+        anio, period = (anio, period - 1) if period > 1 else (anio - 1, 12)
+    return list(reversed(periods))
 
 
-def _crear_clientes(db: Session, rng: random.Random) -> list[dict]:
+def _create_clients(db: Session, rng: random.Random) -> list[dict]:
     # Un solo hash (bcrypt es lento a propósito) de una contraseña que no se guarda.
     password_hash = hash_password(secrets.token_urlsafe(32))
-    clientes = []
+    customers = []
 
-    for n in range(1, CANTIDAD_CLIENTES + 1):
-        nombre = f"{rng.choice(NOMBRES)} {rng.choice(APELLIDOS)}"
+    for n in range(1, CLIENT_COUNT + 1):
+        name_value = f"{rng.choice(NOMBRES)} {rng.choice(APELLIDOS)}"
         client = crud_user.create_client(
             db,
-            name=nombre,
+            name=name_value,
             email=f"cliente{n:03d}@{DOMINIO_CLIENTES}",
             password_hash=password_hash,
             phone=f"+59899{rng.randrange(100000, 1000000)}",
         )
         # Son ficticios: que las tareas diarias no les manden recordatorios.
         crud_user.set_marketing_emails(db, client, False)
-        ciudad, departamento, calles = rng.choice(LOCALIDADES)
-        direccion = crud_address.create_address(db, client.user_id, ShippingAddressCreate(
+        city_name, department_name, calles = rng.choice(LOCALIDADES)
+        address = crud_address.create_address(db, client.user_id, ShippingAddressCreate(
             personal_name="Casa",
             street=rng.choice(calles),
             number=str(rng.randrange(100, 4000)),
-            city=ciudad,
-            department=departamento,
+            city=city_name,
+            department=department_name,
         ))
         # Copia de lo que necesitan los pedidos: así, después de cada commit,
         # no hay que volver a leer la dirección de la base.
-        clientes.append({"id": client.user_id, "direccion": {
-            "id": direccion.shipping_address_id,
-            "personal_name": direccion.personal_name,
-            "street": direccion.street,
-            "number": direccion.number,
-            "apartment": direccion.apartment,
-            "city": direccion.city,
-            "department": direccion.department,
-            "postal_code": direccion.postal_code,
+        customers.append({"id": client.user_id, "direccion": {
+            "id": address.shipping_address_id,
+            "personal_name": address.personal_name,
+            "street": address.street,
+            "number": address.number,
+            "apartment": address.apartment,
+            "city": address.city,
+            "department": address.department,
+            "postal_code": address.postal_code,
         }})
 
-    return clientes
+    return customers
 
 
 def _popularidad(parts: list[Part], rng: random.Random) -> tuple[dict[int, float], list[Part]]:
     """Peso base de cada repuesto (cuánto se elige al armar un pedido)."""
     peso = {}
     for categoria in sorted({p.category for p in parts}):
-        de_la_categoria = [p for p in parts if p.category == categoria]
-        rng.shuffle(de_la_categoria)
-        for puesto, p in enumerate(de_la_categoria, start=1):
-            peso[p.id] = DEMANDA_CATEGORIA.get(categoria, 1) / puesto ** EXPONENTE_ZIPF
+        of_category = [p for p in parts if p.category == categoria]
+        rng.shuffle(of_category)
+        for puesto, p in enumerate(of_category, start=1):
+            peso[p.id] = CATEGORY_DEMAND.get(categoria, 1) / puesto ** EXPONENTE_ZIPF
 
-    en_riesgo = []
-    for categoria in CATEGORIAS_EN_RIESGO:
-        con_stock = sorted(
-            (p for p in parts if p.category == categoria and p.stock >= STOCK_MINIMO_EN_RIESGO),
+    at_risk = []
+    for categoria in AT_RISK_CATEGORIES:
+        with_stock = sorted(
+            (p for p in parts if p.category == categoria and p.stock >= MIN_AT_RISK_STOCK),
             key=lambda p: (p.stock, p.part_code),
         )
-        en_riesgo += con_stock[:EN_RIESGO_POR_CATEGORIA]
+        at_risk += with_stock[:AT_RISK_BY_CATEGORY]
 
-    # Peso que hace falta para que el último mes vendan VENTAS_SOBRE_STOCK
+    # Peso que hace falta para que el último mes vendan SALES_OVER_STOCK
     # veces su stock: participación objetivo sobre el total de elecciones.
-    items_promedio = sum(n * p for n, p in zip(*ITEMS_POR_PEDIDO)) / sum(ITEMS_POR_PEDIDO[1])
-    elecciones_ultimo_mes = PEDIDOS_ULTIMO_MES * items_promedio
-    resto = sum(w for pid, w in peso.items() if pid not in {p.id for p in en_riesgo})
-    participaciones = {
-        p.id: VENTAS_SOBRE_STOCK * p.stock / (elecciones_ultimo_mes * _unidades_promedio(p))
-        for p in en_riesgo
+    average_items = sum(n * p for n, p in zip(*ITEMS_PER_ORDER)) / sum(ITEMS_PER_ORDER[1])
+    last_month_choices = LAST_MONTH_ORDERS * average_items
+    resto = sum(w for pid, w in peso.items() if pid not in {p.id for p in at_risk})
+    shares = {
+        p.id: SALES_OVER_STOCK * p.stock / (last_month_choices * _average_units(p))
+        for p in at_risk
     }
-    for p in en_riesgo:
-        peso[p.id] = participaciones[p.id] * resto / (1 - sum(participaciones.values()))
+    for p in at_risk:
+        peso[p.id] = shares[p.id] * resto / (1 - sum(shares.values()))
 
-    return peso, en_riesgo
+    return peso, at_risk
 
 
-def _estacionalidad(part: Part, mes: int) -> float:
-    factor = ESTACIONALIDAD_CATEGORIA.get(part.category, {}).get(mes, 1.0)
-    for prefijo, por_mes in ESTACIONALIDAD_REPUESTO.items():
+def _estacionalidad(part: Part, period: int) -> float:
+    factor = CATEGORY_SEASONALITY.get(part.category, {}).get(period, 1.0)
+    for prefijo, by_month in PART_SEASONALITY.items():
         if part.name.startswith(prefijo):
-            factor *= por_mes.get(mes, 1.0)
+            factor *= by_month.get(period, 1.0)
     return factor
 
 
-def _estado(creado: date, hasta: date, rng: random.Random) -> OrderStatus:
+def _status(created: date, until: date, rng: random.Random) -> OrderStatus:
     if rng.random() < 0.03:
         return OrderStatus.CANCELLED
-    dias = (hasta - creado).days
-    if dias <= 3:
+    day_count = (until - created).days
+    if day_count <= 1:
         return OrderStatus.CONFIRMED
-    if dias <= 10:
+    if day_count <= 3:
+        return OrderStatus.PACKING
+    if day_count <= 10:
         return OrderStatus.SHIPPED
     return OrderStatus.DELIVERED
 
 
-def _es_bujia(part: Part) -> bool:
+def _is_spark_plug(part: Part) -> bool:
     return part.name.startswith("Bujía")
 
 
-def _unidades_promedio(part: Part) -> float:
+def _average_units(part: Part) -> float:
     comun = sum(c * p for c, p in zip(*CANTIDADES)) / sum(CANTIDADES[1])
-    if _es_bujia(part):
-        return PROB_JUEGO_DE_BUJIAS * 4 + (1 - PROB_JUEGO_DE_BUJIAS) * comun
+    if _is_spark_plug(part):
+        return SPARK_PLUG_SET_PROBABILITY * 4 + (1 - SPARK_PLUG_SET_PROBABILITY) * comun
     return comun
 
 
-def _cantidad(part: Part, rng: random.Random) -> int:
+def _quantity(part: Part, rng: random.Random) -> int:
     # Las bujías se cambian de a juegos de 4.
-    if _es_bujia(part) and rng.random() < PROB_JUEGO_DE_BUJIAS:
+    if _is_spark_plug(part) and rng.random() < SPARK_PLUG_SET_PROBABILITY:
         return 4
     return rng.choices(*CANTIDADES)[0]
 
 
-def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = None) -> Resumen:
-    hasta = hasta or date.today()
+def generate_history(db: Session, semilla: int = SEMILLA, until: date | None = None) -> Resumen:
+    until = until or date.today()
 
-    if _ya_generado(db):
-        return Resumen(clientes=0, pedidos=0, unidades=0, en_riesgo=[], salteado=True)
+    if _already_generated(db):
+        return Resumen(customers=0, orders_list=0, units=0, at_risk=[], skipped=True)
 
     # Ordenados por código, no por id: el orden no depende de la base.
     parts = list(db.scalars(select(Part).order_by(Part.part_code)))
@@ -291,73 +293,74 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
         raise RuntimeError("No hay repuestos cargados: correr antes scripts.seed.")
 
     rng = random.Random(semilla)
-    clientes = _crear_clientes(db, rng)
+    customers = _create_clients(db, rng)
     # Crear los clientes hace commits, que vencen los repuestos cargados. Se
     # vuelven a leer y se separan de la sesión: así los commits de cada mes
     # no obligan a releer los 4000 repuestos uno por uno.
     parts = list(db.scalars(select(Part).order_by(Part.part_code)))
     db.expunge_all()
-    peso_base, en_riesgo = _popularidad(parts, rng)
+    base_weight, at_risk = _popularidad(parts, rng)
 
-    total_pedidos = total_unidades = 0
-    meses = _meses(hasta)
+    orders_total = units_total = 0
+    periods = _months(until)
 
-    for numero, (inicio, fin) in enumerate(meses):
+    for number_value, (start_at, end) in enumerate(periods):
         # Tendencia lineal + estacionalidad + un poco de ruido.
-        tendencia = PEDIDOS_PRIMER_MES + (PEDIDOS_ULTIMO_MES - PEDIDOS_PRIMER_MES) * numero / (MESES - 1)
-        dias_del_mes = (date(inicio.year + inicio.month // 12, inicio.month % 12 + 1, 1) - inicio).days
-        fraccion = ((fin - inicio).days + 1) / dias_del_mes  # el mes actual va incompleto
-        cantidad = round(
-            tendencia * ESTACIONALIDAD_GENERAL[inicio.month] * rng.uniform(0.9, 1.1) * fraccion
+        tendencia = FIRST_MONTH_ORDERS + (LAST_MONTH_ORDERS - FIRST_MONTH_ORDERS) * number_value / (MONTHS - 1)
+        days_in_month = (date(start_at.year + start_at.month // 12, start_at.month % 12 + 1, 1) - start_at).days
+        fraction = ((end - start_at).days + 1) / days_in_month  # el mes actual va incompleto
+        qty = round(
+            tendencia * ESTACIONALIDAD_GENERAL[start_at.month] * rng.uniform(0.9, 1.1) * fraction
         )
 
-        pesos_acumulados = list(accumulate(
-            peso_base[p.id] * _estacionalidad(p, inicio.month) for p in parts
+        cumulative_weights = list(accumulate(
+            base_weight[p.id] * _estacionalidad(p, start_at.month) for p in parts
         ))
 
         # Se insertan directo, sin place_order (no tienen que descontar stock),
         # y en tandas: un INSERT de muchas filas por tabla y por mes. De a
         # un pedido son decenas de miles de viajes a la base, y contra una
         # base remota el script tarda horas.
-        pedidos_del_mes = []
-        items_del_mes = []
-        for _ in range(cantidad):
-            dia = inicio + timedelta(days=rng.randrange((fin - inicio).days + 1))
+        month_orders = []
+        month_items = []
+        for _ in range(qty):
+            day_number = start_at + timedelta(days=rng.randrange((end - start_at).days + 1))
             hora = time(rng.randrange(8, 23), rng.randrange(60), rng.randrange(60))
-            cliente = rng.choice(clientes)
-            direccion = cliente["direccion"]
+            # NOSONAR en estas líneas: son datos de prueba y el azar con semilla es a propósito.
+            customer = rng.choice(customers)  # NOSONAR
+            address = customer["direccion"]
 
-            elegidos: list[Part] = []
-            for _ in range(rng.choices(*ITEMS_POR_PEDIDO)[0]):
-                part = rng.choices(parts, cum_weights=pesos_acumulados)[0]
-                if part not in elegidos:
-                    elegidos.append(part)
+            chosen_parts: list[Part] = []
+            for _ in range(rng.choices(*ITEMS_PER_ORDER)[0]):  # NOSONAR
+                part = rng.choices(parts, cum_weights=cumulative_weights)[0]  # NOSONAR
+                if part not in chosen_parts:
+                    chosen_parts.append(part)
 
-            pedidos_del_mes.append({
-                "client_id": cliente["id"],
-                "created_at": datetime.combine(dia, hora, tzinfo=URUGUAY),
-                "status": _estado(dia, hasta, rng),
-                "shipping_address_id": direccion["id"],
-                "ship_personal_name": direccion["personal_name"],
-                "ship_street": direccion["street"],
-                "ship_number": direccion["number"],
-                "ship_apartment": direccion["apartment"],
-                "ship_city": direccion["city"],
-                "ship_department": direccion["department"],
-                "ship_postal_code": direccion["postal_code"],
+            month_orders.append({
+                "client_id": customer["id"],
+                "created_at": datetime.combine(day_number, hora, tzinfo=URUGUAY),
+                "status": _status(day_number, until, rng),
+                "shipping_address_id": address["id"],
+                "ship_personal_name": address["personal_name"],
+                "ship_street": address["street"],
+                "ship_number": address["number"],
+                "ship_apartment": address["apartment"],
+                "ship_city": address["city"],
+                "ship_department": address["department"],
+                "ship_postal_code": address["postal_code"],
                 "payment_method_label": crud_order.PAYMENT_LABEL,
             })
             items = []
-            for part in elegidos:
-                unidades = _cantidad(part, rng)
-                items.append({"part_id": part.id, "quantity": unidades, "frozen_price": part.price})
-                total_unidades += unidades
-            items_del_mes.append(items)
+            for part in chosen_parts:
+                units = _quantity(part, rng)
+                items.append({"part_id": part.id, "quantity": units, "frozen_price": part.price})
+                units_total += units
+            month_items.append(items)
 
-        if pedidos_del_mes:
+        if month_orders:
             ids = db.scalars(
                 insert(Order).returning(Order.order_id, sort_by_parameter_order=True),
-                pedidos_del_mes,
+                month_orders,
             ).all()
             db.execute(
                 insert(Payment),
@@ -367,18 +370,18 @@ def generar_historial(db: Session, semilla: int = SEMILLA, hasta: date | None = 
                 insert(OrderItem),
                 [
                     {**item, "order_id": order_id}
-                    for order_id, items in zip(ids, items_del_mes)
+                    for order_id, items in zip(ids, month_items)
                     for item in items
                 ],
             )
         db.commit()
-        total_pedidos += len(pedidos_del_mes)
+        orders_total += len(month_orders)
 
     return Resumen(
-        clientes=len(clientes),
-        pedidos=total_pedidos,
-        unidades=total_unidades,
-        en_riesgo=[p.part_code for p in en_riesgo],
+        customers=len(customers),
+        orders_list=orders_total,
+        units=units_total,
+        at_risk=[p.part_code for p in at_risk],
     )
 
 
@@ -392,18 +395,18 @@ def main():
     require_head(engine)
     db = SessionLocal()
     try:
-        resumen = generar_historial(db, semilla=args.semilla, hasta=args.hasta)
+        resumen = generate_history(db, semilla=args.semilla, until=args.hasta)
     finally:
         db.close()
 
-    if resumen.salteado:
+    if resumen.skipped:
         print("Ya hay pedidos históricos, no se generan de nuevo.")
         return
     print(
-        f"{resumen.pedidos} pedidos ({resumen.unidades} unidades) de "
-        f"{resumen.clientes} clientes ficticios en los últimos {MESES} meses."
+        f"{resumen.orders_list} pedidos ({resumen.units} unidades) de "
+        f"{resumen.customers} clientes ficticios en los últimos {MONTHS} meses."
     )
-    print(f"Repuestos en riesgo (stock bajo y ventas altas): {', '.join(resumen.en_riesgo)}")
+    print(f"Repuestos en riesgo (stock bajo y ventas altas): {', '.join(resumen.at_risk)}")
 
 
 if __name__ == "__main__":

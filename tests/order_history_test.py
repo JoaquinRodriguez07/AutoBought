@@ -1,3 +1,5 @@
+"""Tests del historial de compras del cliente."""
+
 from datetime import datetime, timezone
 
 from app.core.security import create_access_token
@@ -44,7 +46,7 @@ def make_part(db_session, part_code, name, price):
 
 
 def make_order(db_session, client, created_at, items, status=OrderStatus.CONFIRMED):
-    """Create a past order from (part, quantity, frozen unit price) tuples."""
+    """Crea un pedido viejo con tuplas (repuesto, cantidad, precio unitario congelado)."""
     order = Order(
         client_id=client.user_id,
         created_at=created_at,
@@ -67,11 +69,11 @@ def make_order(db_session, client, created_at, items, status=OrderStatus.CONFIRM
 
 
 def test_history_in_order(client, db_session):
-    """Scenario: See purchases in order
-    Given that I started my session and made 3 purchases on different dates
-    When I open "Historial de compras"
-    Then I see the three purchases from the most recent to the least recent
-    And each one displays its date, id and total price
+    """Escenario: ver las compras en orden
+    Dado que inicié sesión e hice 3 compras en fechas distintas
+    Cuando abro "Historial de compras"
+    Entonces veo las tres compras de la más reciente a la más vieja
+    Y cada una muestra su fecha, número y precio total
     """
     customer = make_client(db_session, "gary", "gary@example.com")
     part = make_part(db_session, "BRK-001", "Brake pads", 1000)
@@ -112,11 +114,11 @@ def test_history_in_order(client, db_session):
 
 
 def test_history_full_details(client, db_session):
-    """Scenario: See full details of a purchase
-    Given I have made a purchase
-    And I check my history
-    When I select a purchase order
-    Then I see the parts with their quantities and unitary prices
+    """Escenario: ver el detalle completo de una compra
+    Dado que hice una compra
+    Y miro mi historial
+    Cuando elijo un pedido
+    Entonces veo los repuestos con sus cantidades y precios unitarios
     """
     customer = make_client(db_session, "ana", "ana@example.com")
     pads = make_part(db_session, "BRK-001", "Brake pads", 1000)
@@ -148,12 +150,12 @@ def test_history_full_details(client, db_session):
 
 
 def test_history_only_returns_the_authenticated_users_purchases(client, db_session):
-    """Scenario: Just my purchases
-    Given I have made purchases
-    And other user has made purchases
-    When I check my history
-    Then I see my own purchases
-    But I do not see the other user's purchases
+    """Escenario: solo mis compras
+    Dado que hice compras
+    Y otro usuario también hizo compras
+    Cuando miro mi historial
+    Entonces veo mis compras
+    Pero no veo las del otro usuario
     """
     gary = make_client(db_session, "gary", "gary@example.com")
     other_customer = make_client(db_session, "ana", "ana@example.com")
@@ -180,7 +182,7 @@ def test_history_only_returns_the_authenticated_users_purchases(client, db_sessi
 
 
 def test_order_detail_returns_404_for_another_clients_order(client, db_session):
-    """An order belonging to another client is indistinguishable from a missing order."""
+    """Un pedido de otro cliente no se distingue de uno que no existe."""
     customer = make_client(db_session, "gary", "gary@example.com")
     other_customer = make_client(db_session, "ana", "ana@example.com")
     part = make_part(db_session, "BRK-001", "Brake pads", 1000)
@@ -200,10 +202,10 @@ def test_order_detail_returns_404_for_another_clients_order(client, db_session):
 
 
 def test_history_for_customer_without_purchases_is_empty(client, db_session):
-    """Scenario: Purchaseless? :(
-    Given I never made a purchase
-    When I open "Historial de compras"
-    Then I see a message letting me know I have not made any purchases yet
+    """Escenario: sin compras
+    Dado que nunca hice una compra
+    Cuando abro "Historial de compras"
+    Entonces veo un mensaje que me dice que todavía no compré nada
     """
     customer = make_client(db_session, "luis", "luis@example.com")
 
@@ -213,9 +215,9 @@ def test_history_for_customer_without_purchases_is_empty(client, db_session):
     assert response.json()["orders"] == []
 
 def test_history_shows_the_status_of_each_order(client, db_session):
-    """Scenario: Status in the history
-    When I check my purchase history
-    Then I see the status of each order
+    """Escenario: el estado en el historial
+    Cuando miro mi historial de compras
+    Entonces veo el estado de cada pedido
     """
     customer = make_client(db_session, "ana", "ana@example.com")
     pads = make_part(db_session, "BRK-001", "Brake pads", 1000)

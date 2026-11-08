@@ -1,3 +1,5 @@
+"""Schemas de los repuestos: lo que muestra el catálogo y lo que carga el vendedor."""
+
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -66,6 +68,10 @@ class CategoriesResponse(BaseModel):
     categories: list[CategoryOut]
 
 
+class ManufacturersResponse(BaseModel):
+    manufacturers: list[CategoryOut]
+
+
 def build_part_out(part: Part) -> PartOut:
     brands = []
     models = []
@@ -126,7 +132,7 @@ class CompatibilityIn(BaseModel):
     year_to: int = Field(ge=1950, le=2100)
 
     @model_validator(mode="after")
-    def anios_en_orden(self):
+    def years_in_order(self):
         if self.year_to < self.year_from:
             raise ValueError("El año hasta no puede ser anterior al año desde.")
         return self
@@ -149,7 +155,7 @@ class PartData(BaseModel):
 
     @field_validator("compatibilities")
     @classmethod
-    def sin_vehiculos_repetidos(cls, value: list[CompatibilityIn]) -> list[CompatibilityIn]:
+    def without_repeated_vehicles(cls, value: list[CompatibilityIn]) -> list[CompatibilityIn]:
         ids = [c.car_model_id for c in value]
         if len(ids) != len(set(ids)):
             raise ValueError("Un vehículo figura más de una vez.")

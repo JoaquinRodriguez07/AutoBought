@@ -1,3 +1,5 @@
+"""Schemas de los avisos de vuelta de stock."""
+
 from pydantic import BaseModel
 
 

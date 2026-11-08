@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { IconoCerrar, IconoLupa } from "./Iconos";
+import { CloseIcon, SearchIcon } from "./Icons";
 
 /**
  * SearchBar
@@ -24,7 +24,7 @@ import { IconoCerrar, IconoLupa } from "./Iconos";
  */
 // El buscador del catálogo: la lupa de la barra lo enfoca en vez de abrir
 // otro buscador encima.
-export const ID_BUSCADOR_CATALOGO = "buscador-catalogo";
+export const CATALOG_SEARCH_ID = "buscador-catalogo";
 
 export default function SearchBar({
   value,
@@ -44,24 +44,24 @@ export default function SearchBar({
     }
   }, [value]);
 
-  const actualizar = (nuevoValor) => {
-    setInterno(nuevoValor);
-    onChange?.(nuevoValor);
+  const update = (newValue) => {
+    setInterno(newValue);
+    onChange?.(newValue);
   };
 
-  const buscar = () => {
+  const runSearch = () => {
     onSubmit?.(interno);
   };
 
-  const manejarTecla = (e) => {
+  const handleTecla = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      buscar();
+      runSearch();
     }
   };
 
-  const limpiar = () => {
-    actualizar("");
+  const clean = () => {
+    update("");
     onSubmit?.("");
   };
 
@@ -73,8 +73,8 @@ export default function SearchBar({
       <input
         id={inputId}
         value={interno}
-        onChange={(e) => actualizar(e.target.value)}
-        onKeyDown={manejarTecla}
+        onChange={(e) => update(e.target.value)}
+        onKeyDown={handleTecla}
         type="search"
         autoFocus={autoFocus}
         aria-label="Buscar repuesto por nombre o código"
@@ -85,21 +85,21 @@ export default function SearchBar({
       {interno && (
         <button
           type="button"
-          onClick={limpiar}
+          onClick={clean}
           aria-label="Limpiar búsqueda"
           className="px-3 text-gray-400 hover:text-gray-600"
         >
-          <IconoCerrar />
+          <CloseIcon />
         </button>
       )}
 
       <button
         type="button"
-        onClick={buscar}
+        onClick={runSearch}
         aria-label="Buscar"
         className="bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition"
       >
-        <IconoLupa className="w-5 h-5" />
+        <SearchIcon className="w-5 h-5" />
       </button>
     </div>
   );

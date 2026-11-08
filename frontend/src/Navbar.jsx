@@ -1,144 +1,146 @@
+// La barra de navegación de la tienda.
+
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "./context/CartContext";
-import { usePitOpcional } from "./context/PitContext";
-import { esVendedor } from "./auth";
-import BusquedaCabecera from "./BusquedaCabecera";
-import { ID_BUSCADOR_CATALOGO } from "./SearchBar";
-import { IconoCerrar, IconoCorazon, IconoLupa, IconoMenu } from "./Iconos";
+import { useOrders } from "./context/OrdersContext";
+import { useOptionalPit } from "./context/PitContext";
+import { isSeller } from "./auth";
+import HeaderSearch from "./HeaderSearch";
+import { CATALOG_SEARCH_ID } from "./SearchBar";
+import { TruckIcon, CloseIcon, HeartIcon, SearchIcon, MenuIcon } from "./Icons";
 import logo from "./assets/logo.png";
 
 // Los contadores (carrito y favoritos) rebotan cuando SUBEN (se agregó
 // algo). Se compara con el valor anterior durante el render en vez de
 // en un efecto; el pulso se usa como key para que la animación se
 // repita en cada agregado.
-function usePulsoAlSubir(valor) {
-  const [valorPrevio, setValorPrevio] = useState(valor);
-  const [pulso, setPulso] = useState(0);
-  if (valor !== valorPrevio) {
-    if (valor > valorPrevio) setPulso((p) => p + 1);
-    setValorPrevio(valor);
+function usePulseOnIncrease(rawValue) {
+  const [previousValue, setPreviousValue] = useState(rawValue);
+  const [pulse, setPulse] = useState(0);
+  if (rawValue !== previousValue) {
+    if (rawValue > previousValue) setPulse((p) => p + 1);
+    setPreviousValue(rawValue);
   }
-  return pulso;
+  return pulse;
 }
 
-const claseRebote = (pulso) => (pulso > 0 ? "motion-safe:animate-rebote" : "");
+const bounceClass = (pulse) => (pulse > 0 ? "motion-safe:animate-rebote" : "");
 
 export default function Navbar({
-  paginaActual,
+  currentPage,
   onHome,
   onCatalogo,
   onLogin,
-  onMarcas,
-  onCarrito,
-  onFavoritos,
-  onPerfil,
-  onDirecciones,
-  onHistorial,
-  onCerrarSesion,
-  cantidadFavoritos = 0,
-  usuario,
+  onBrands,
+  onCart,
+  onFavorites,
+  onCloseSession,
+  favoritesQuantity = 0,
+  sessionUser,
 }) {
-  const { cantidadCarrito } = useCart();
+  const { cartQuantity } = useCart();
+  const { inProgress } = useOrders();
+  const quantityOrdersInCurso = inProgress.length;
   const navigate = useNavigate();
-  const vendedor = esVendedor(usuario);
-  const pit = usePitOpcional();
-  const [menuUsuario, setMenuUsuario] = useState(false);
-  const [busquedaAbierta, setBusquedaAbierta] = useState(false);
+  const seller = isSeller(sessionUser);
+  const pit = useOptionalPit();
+  const [userMenu, setUserMenu] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   // En celular, los links (Home, Marcas...) van en un menú desplegable.
-  const [menuAbierto, setMenuAbierto] = useState(false);
+  const [openMenu, setOpenMenu] = useState(false);
 
-  const pulsoCarrito = usePulsoAlSubir(cantidadCarrito);
-  const pulsoFavoritos = usePulsoAlSubir(cantidadFavoritos);
+  const pulseCart = usePulseOnIncrease(cartQuantity);
+  const pulseFavorites = usePulseOnIncrease(favoritesQuantity);
 
   // Pit (el asistente con IA) se abre al costado; sin sesión, primero el
   // login. El vendedor no lo ve.
-  const abrirPit = () => (usuario ? pit.abrir() : onLogin());
+  const openPit = () => (sessionUser ? pit.open() : onLogin());
 
   const menuRef = useRef(null);
   const navbarRef = useRef(null);
-  const botonBusquedaRef = useRef(null);
-  const inputBusquedaRef = useRef(null);
+  const buttonSearchRef = useRef(null);
+  const inputSearchRef = useRef(null);
   const linksRef = useRef(null);
   // Dónde va el buscador desplegado en pantallas medianas y grandes: desde
   // donde empieza el último link (Pit IA) hasta el borde derecho de la
   // barra, con la flechita debajo de la lupa. En celular (sin links
   // visibles) ocupa toda la barra.
-  const [posicionBusqueda, setPosicionBusqueda] = useState(null);
+  const [positionSearch, setPositionSearch] = useState(null);
 
   useLayoutEffect(() => {
-    if (!busquedaAbierta) return undefined;
+    if (!searchOpen) return undefined;
 
     const medir = () => {
       const nav = navbarRef.current?.getBoundingClientRect();
-      const ultimoLink = linksRef.current?.lastElementChild?.getBoundingClientRect();
-      const lupa = botonBusquedaRef.current?.getBoundingClientRect();
-      if (!nav || !ultimoLink?.width || !lupa) {
-        setPosicionBusqueda(null);
+      const lastLink = linksRef.current?.lastElementChild?.getBoundingClientRect();
+      const lupa = buttonSearchRef.current?.getBoundingClientRect();
+      if (!nav || !lastLink?.width || !lupa) {
+        setPositionSearch(null);
         return;
       }
-      const left = ultimoLink.left - nav.left;
-      setPosicionBusqueda({
+      const left = lastLink.left - nav.left;
+      setPositionSearch({
         left,
-        flechita: lupa.left + lupa.width / 2 - nav.left - left - 6,
+        smallArrow: lupa.left + lupa.width / 2 - nav.left - left - 6,
       });
     };
 
     medir();
     window.addEventListener("resize", medir);
     return () => window.removeEventListener("resize", medir);
-  }, [busquedaAbierta]);
+  }, [searchOpen]);
 
   useEffect(() => {
-    if (busquedaAbierta) inputBusquedaRef.current?.focus();
-  }, [busquedaAbierta]);
+    if (searchOpen) inputSearchRef.current?.focus();
+  }, [searchOpen]);
 
   // El buscador y el menú de celular se despliegan dentro de la barra: un
   // click fuera de ella los cierra.
   useEffect(() => {
-    if (!busquedaAbierta && !menuAbierto) return undefined;
+    if (!searchOpen && !openMenu) return undefined;
 
-    const manejarClickAfuera = (event) => {
+    const handleClickAfuera = (event) => {
       if (!navbarRef.current?.contains(event.target)) {
-        setBusquedaAbierta(false);
-        setMenuAbierto(false);
+        setSearchOpen(false);
+        setOpenMenu(false);
       }
     };
 
-    document.addEventListener("mousedown", manejarClickAfuera);
-    return () => document.removeEventListener("mousedown", manejarClickAfuera);
-  }, [busquedaAbierta, menuAbierto]);
+    document.addEventListener("mousedown", handleClickAfuera);
+    return () => document.removeEventListener("mousedown", handleClickAfuera);
+  }, [searchOpen, openMenu]);
 
-  const alternarBusqueda = () => {
-    setMenuAbierto(false);
+  const toggleSearch = () => {
+    setOpenMenu(false);
 
     // Si la página ya tiene su buscador (el catálogo), la lupa lleva a ese
     // en vez de abrir otro encima.
-    const buscadorDePagina = document.getElementById(ID_BUSCADOR_CATALOGO);
-    if (buscadorDePagina) {
-      setBusquedaAbierta(false);
-      buscadorDePagina.scrollIntoView?.({ behavior: "smooth", block: "center" });
-      buscadorDePagina.focus({ preventScroll: true });
+    const pageSearcher = document.getElementById(CATALOG_SEARCH_ID);
+    if (pageSearcher) {
+      setSearchOpen(false);
+      pageSearcher.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      pageSearcher.focus({ preventScroll: true });
       return;
     }
 
-    setBusquedaAbierta((abierta) => !abierta);
+    setSearchOpen((isShown) => !isShown);
   };
 
-  const alternarMenu = () => {
-    setBusquedaAbierta(false);
-    setMenuAbierto((abierto) => !abierto);
+  const toggleMenu = () => {
+    setSearchOpen(false);
+    setOpenMenu((isOpen) => !isOpen);
   };
 
   // Una opción del menú de celular: navega y cierra el menú.
-  const irDesdeMenu = (accion) => {
-    setMenuAbierto(false);
-    accion();
+  const goToFromMenu = (action) => {
+    setOpenMenu(false);
+    action();
   };
 
-  const cerrarBusqueda = ({ devolverFoco = false } = {}) => {
-    setBusquedaAbierta(false);
-    if (devolverFoco) botonBusquedaRef.current?.focus();
+  const closeSearch = ({ devolverFoco = false } = {}) => {
+    setSearchOpen(false);
+    if (devolverFoco) buttonSearchRef.current?.focus();
   };
 
   /* =====================================================
@@ -146,24 +148,24 @@ export default function Navbar({
   ====================================================== */
 
   useEffect(() => {
-    const manejarClickAfuera = (event) => {
+    const handleClickAfuera = (event) => {
       if (
         menuRef.current &&
         !menuRef.current.contains(event.target)
       ) {
-        setMenuUsuario(false);
+        setUserMenu(false);
       }
     };
 
     document.addEventListener(
       "mousedown",
-      manejarClickAfuera
+      handleClickAfuera
     );
 
     return () => {
       document.removeEventListener(
         "mousedown",
-        manejarClickAfuera
+        handleClickAfuera
       );
     };
   }, []);
@@ -172,28 +174,28 @@ export default function Navbar({
      CLICK EN BOTÓN DE USUARIO
   ====================================================== */
 
-  const manejarUsuario = () => {
+  const handleUser = () => {
     // Si no hay sesión iniciada
-    if (!usuario) {
-      setMenuUsuario(false);
+    if (!sessionUser) {
+      setUserMenu(false);
       onLogin();
       return;
     }
 
     // Con sesión, abre/cierra el menú de la cuenta (en todas las
     // páginas, también en las de la cuenta).
-    setMenuUsuario((actual) => !actual);
+    setUserMenu((current) => !current);
   };
 
   /* =====================================================
      ACCIÓN DEL MENÚ
   ====================================================== */
 
-  const ejecutarAccion = (accion) => {
-    setMenuUsuario(false);
+  const runAction = (action) => {
+    setUserMenu(false);
 
-    if (accion) {
-      accion();
+    if (action) {
+      action();
     }
   };
 
@@ -227,19 +229,19 @@ export default function Navbar({
           type="button"
           onClick={onHome}
           className={`text-sm font-semibold transition ${
-            paginaActual === "home"
+            currentPage === "home"
               ? "text-orange-500"
               : "text-gray-800 hover:text-orange-500"
           }`}
         >
-          Home
+          Inicio
         </button>
 
         <button
           type="button"
-          onClick={onMarcas}
+          onClick={onBrands}
           className={`text-sm font-semibold transition ${
-            paginaActual === "marcas"
+            currentPage === "brands"
               ? "text-orange-500"
               : "text-gray-800 hover:text-orange-500"
           }`}
@@ -251,8 +253,8 @@ export default function Navbar({
           type="button"
           onClick={() => onCatalogo()}
           className={`text-sm font-semibold transition ${
-            paginaActual === "catalogo" ||
-            paginaActual === "detalle"
+            currentPage === "catalogo" ||
+            currentPage === "detalle"
               ? "text-orange-500"
               : "text-gray-800 hover:text-orange-500"
           }`}
@@ -260,10 +262,10 @@ export default function Navbar({
           Repuestos
         </button>
 
-        {pit && !vendedor && (
+        {pit && !seller && (
           <button
             type="button"
-            onClick={abrirPit}
+            onClick={openPit}
             className="flex items-center gap-1.5 text-sm font-semibold text-gray-800 hover:text-orange-500 transition"
           >
             Pit IA
@@ -282,40 +284,111 @@ export default function Navbar({
         {/* El buscador se despliega debajo de la barra (ver posicionBusqueda). */}
         <div className="flex">
           <button
-            ref={botonBusquedaRef}
+            ref={buttonSearchRef}
             type="button"
-            aria-label={busquedaAbierta ? "Cerrar búsqueda" : "Abrir búsqueda"}
-            aria-expanded={busquedaAbierta}
+            aria-label={searchOpen ? "Cerrar búsqueda" : "Abrir búsqueda"}
+            aria-expanded={searchOpen}
             aria-controls="navbar-search-panel"
-            onClick={alternarBusqueda}
-            className={`transition ${busquedaAbierta ? "text-orange-500" : "hover:text-orange-500"}`}
+            onClick={toggleSearch}
+            className={`transition ${searchOpen ? "text-orange-500" : "hover:text-orange-500"}`}
           >
-            <IconoLupa className="h-5 w-5" />
+            <SearchIcon className="h-5 w-5" />
           </button>
 
-          {busquedaAbierta && (
+          {searchOpen && (
             <div
               id="navbar-search-panel"
               role="search"
               className="absolute left-0 right-0 top-[calc(100%+8px)] rounded-lg shadow-2xl"
-              style={posicionBusqueda ? { left: posicionBusqueda.left } : undefined}
+              style={positionSearch ? { left: positionSearch.left } : undefined}
             >
               {/* Flechita que apunta a la lupa. */}
-              {posicionBusqueda && (
+              {positionSearch && (
                 <span
                   aria-hidden="true"
                   className="absolute -top-1.5 w-3 h-3 rotate-45 bg-white border-l border-t border-gray-100"
-                  style={{ left: posicionBusqueda.flechita }}
+                  style={{ left: positionSearch.smallArrow }}
                 />
               )}
-              <BusquedaCabecera
-                inputRef={inputBusquedaRef}
-                onSearch={() => cerrarBusqueda()}
-                onEscape={() => cerrarBusqueda({ devolverFoco: true })}
+              <HeaderSearch
+                inputRef={inputSearchRef}
+                onSearch={() => closeSearch()}
+                onEscape={() => closeSearch({ devolverFoco: true })}
               />
             </div>
           )}
         </div>
+
+        {/* Orden: buscar, favoritos, pedidos, cuenta y carrito. En
+            celular solo quedan buscar, carrito y el menú: favoritos,
+            pedidos y la cuenta van adentro del menú (ver abajo). */}
+
+        {/* =================================================
+            FAVORITOS
+        ================================================== */}
+
+        {!seller && (
+        <button
+          type="button"
+          onClick={onFavorites}
+          className={`relative hidden md:block transition ${
+            currentPage === "favorites"
+              ? "text-orange-500"
+              : "hover:text-orange-500"
+          }`}
+          title="Favoritos"
+        >
+          <HeartIcon
+            full={currentPage === "favorites"}
+            className="w-5 h-5"
+          />
+
+          {favoritesQuantity > 0 && (
+            <span
+              key={pulseFavorites}
+              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${bounceClass(pulseFavorites)}`}
+            >
+              {favoritesQuantity}
+            </span>
+          )}
+        </button>
+        )}
+
+        {/* =================================================
+            MIS PEDIDOS
+            A la vista (no solo en el menú de la cuenta): un clic
+            para ver cómo viene lo que compraste. Como favoritos y el
+            carrito, se ve también sin sesión (lleva al login).
+        ================================================== */}
+
+        {!seller && (
+        <button
+          type="button"
+          onClick={sessionUser ? () => navigate("/pedidos") : onLogin}
+          className={`relative hidden md:block transition ${
+            currentPage === "orders"
+              ? "text-orange-500"
+              : "hover:text-orange-500"
+          }`}
+          title="Mis compras"
+          aria-label={
+            quantityOrdersInCurso > 0
+              ? `Mis compras (${quantityOrdersInCurso} en curso)`
+              : "Mis compras"
+          }
+        >
+          <TruckIcon className="w-5 h-5" />
+
+          {quantityOrdersInCurso > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold"
+            >
+              {quantityOrdersInCurso}
+            </span>
+          )}
+        </button>
+        )}
 
         {/* =================================================
             USUARIO
@@ -323,24 +396,24 @@ export default function Navbar({
 
         <div
           ref={menuRef}
-          className="relative"
+          className="relative hidden md:flex"
         >
 
           <button
             type="button"
-            onClick={manejarUsuario}
-            className={`transition ${
-              paginaActual === "login" ||
-              paginaActual === "perfil" ||
-              paginaActual === "direcciones" ||
-              paginaActual === "metodosPago" ||
-              paginaActual === "historialCompras" ||
-              paginaActual === "dashboard"
+            onClick={handleUser}
+            className={`flex items-center transition ${
+              currentPage === "login" ||
+              currentPage === "profile" ||
+              currentPage === "addresses" ||
+              currentPage === "metodosPago" ||
+              currentPage === "historialCompras" ||
+              currentPage === "dashboard"
                 ? "text-orange-500"
                 : "hover:text-orange-500"
             }`}
             title={
-              usuario
+              sessionUser
                 ? "Mi cuenta"
                 : "Iniciar sesión"
             }
@@ -364,9 +437,9 @@ export default function Navbar({
               MENÚ DE USUARIO
           ================================================== */}
 
-          {usuario &&
-            menuUsuario &&
-            vendedor && (
+          {sessionUser &&
+            userMenu &&
+            seller && (
               <div className="absolute right-0 top-9 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
 
                 <div className="px-4 py-3 border-b border-gray-100">
@@ -375,7 +448,7 @@ export default function Navbar({
                   </p>
 
                   <p className="text-xs text-gray-400 mt-1 truncate">
-                    {usuario.email || ""}
+                    {sessionUser.email || ""}
                   </p>
                 </div>
 
@@ -383,7 +456,7 @@ export default function Navbar({
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(() => navigate("/dashboard"))
+                      runAction(() => navigate("/dashboard"))
                     }
                     className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
@@ -395,7 +468,7 @@ export default function Navbar({
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(onCerrarSesion)
+                      runAction(onCloseSession)
                     }
                     className="w-full text-left px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 transition"
                   >
@@ -406,9 +479,9 @@ export default function Navbar({
               </div>
             )}
 
-          {usuario &&
-            menuUsuario &&
-            !vendedor && (
+          {sessionUser &&
+            userMenu &&
+            !seller && (
               <div className="absolute right-0 top-9 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
 
                 {/* CABECERA */}
@@ -416,12 +489,12 @@ export default function Navbar({
                 <div className="px-4 py-3 border-b border-gray-100">
 
                   <p className="text-sm font-black text-gray-900">
-                    {usuario.nombre || "Usuario"}{" "}
-                    {usuario.apellido || ""}
+                    {sessionUser.displayName || "Usuario"}{" "}
+                    {sessionUser.lastName || ""}
                   </p>
 
                   <p className="text-xs text-gray-400 mt-1 truncate">
-                    {usuario.email || ""}
+                    {sessionUser.email || ""}
                   </p>
 
                 </div>
@@ -430,20 +503,37 @@ export default function Navbar({
 
                 <div className="py-1">
 
+                  {/* Una sola entrada para las compras (en curso y
+                      anteriores van en pestañas, dentro). */}
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(onPerfil)
+                      runAction(() => navigate("/pedidos"))
                     }
-                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                    className="w-full flex items-center justify-between text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
-                    Mi perfil
+                    Mis compras
+                    {quantityOrdersInCurso > 0 && (
+                      <span className="text-xs font-black bg-orange-500 text-white rounded-full px-2 py-0.5">
+                        {quantityOrdersInCurso} en curso
+                      </span>
+                    )}
                   </button>
 
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(onDirecciones)
+                      runAction(() => navigate("/perfil"))
+                    }
+                    className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
+                  >
+                    Mis datos
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      runAction(() => navigate("/direcciones"))
                     }
                     className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
@@ -453,12 +543,13 @@ export default function Navbar({
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(onHistorial)
+                      runAction(() => navigate("/cuenta"))
                     }
                     className="w-full text-left px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-orange-500 transition"
                   >
-                    Historial de compras
+                    Ver toda mi cuenta
                   </button>
+
 
                 </div>
 
@@ -469,7 +560,7 @@ export default function Navbar({
                   <button
                     type="button"
                     onClick={() =>
-                      ejecutarAccion(onCerrarSesion)
+                      runAction(onCloseSession)
                     }
                     className="w-full text-left px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 transition"
                   >
@@ -484,46 +575,16 @@ export default function Navbar({
         </div>
 
         {/* =================================================
-            FAVORITOS
-        ================================================== */}
-
-        {!vendedor && (
-        <button
-          type="button"
-          onClick={onFavoritos}
-          className={`relative transition ${
-            paginaActual === "favoritos"
-              ? "text-orange-500"
-              : "hover:text-orange-500"
-          }`}
-          title="Favoritos"
-        >
-          <IconoCorazon
-            lleno={paginaActual === "favoritos"}
-            className="w-5 h-5"
-          />
-
-          {cantidadFavoritos > 0 && (
-            <span
-              key={pulsoFavoritos}
-              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${claseRebote(pulsoFavoritos)}`}
-            >
-              {cantidadFavoritos}
-            </span>
-          )}
-        </button>
-        )}
-
-        {/* =================================================
             CARRITO
+            Último a la derecha, como en casi todas las tiendas.
         ================================================== */}
 
-        {!vendedor && (
+        {!seller && (
         <button
           type="button"
-          onClick={onCarrito}
+          onClick={onCart}
           className={`relative transition ${
-            paginaActual === "carrito"
+            currentPage === "cartState"
               ? "text-orange-500"
               : "hover:text-orange-500"
           }`}
@@ -555,12 +616,12 @@ export default function Navbar({
             />
           </svg>
 
-          {cantidadCarrito > 0 && (
+          {cartQuantity > 0 && (
             <span
-              key={pulsoCarrito}
-              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${claseRebote(pulsoCarrito)}`}
+              key={pulseCart}
+              className={`absolute -top-2 -right-2 min-w-4 h-4 px-1 bg-orange-500 text-white rounded-full text-[10px] flex items-center justify-center font-bold ${bounceClass(pulseCart)}`}
             >
-              {cantidadCarrito}
+              {cartQuantity}
             </span>
           )}
         </button>
@@ -572,52 +633,106 @@ export default function Navbar({
 
         <button
           type="button"
-          aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
-          aria-expanded={menuAbierto}
+          aria-label={openMenu ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={openMenu}
           aria-controls="navbar-menu-celular"
-          onClick={alternarMenu}
-          className={`md:hidden transition ${menuAbierto ? "text-orange-500" : "hover:text-orange-500"}`}
+          onClick={toggleMenu}
+          className={`relative md:hidden transition ${openMenu ? "text-orange-500" : "hover:text-orange-500"}`}
         >
-          {menuAbierto ? <IconoCerrar className="h-5 w-5" /> : <IconoMenu className="h-5 w-5" />}
+          {openMenu ? <CloseIcon className="h-5 w-5" /> : <MenuIcon className="h-5 w-5" />}
+          {/* Hay pedidos en curso (están adentro del menú). */}
+          {!openMenu && quantityOrdersInCurso > 0 && (
+            <span aria-hidden="true" className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-orange-500 ring-2 ring-white" />
+          )}
         </button>
 
       </div>
 
-      {menuAbierto && (
+      {openMenu && (
         <div
           id="navbar-menu-celular"
           className="md:hidden absolute left-0 right-0 top-[calc(100%+8px)] bg-white rounded-xl shadow-2xl border border-gray-100 p-2"
         >
           {[
-            { texto: "Home", activo: paginaActual === "home", ir: onHome },
-            { texto: "Marcas", activo: paginaActual === "marcas", ir: onMarcas },
+            { texto: "Inicio", active: currentPage === "home", goTo: onHome },
+            { texto: "Marcas", active: currentPage === "brands", goTo: onBrands },
             {
               texto: "Repuestos",
-              activo: paginaActual === "catalogo" || paginaActual === "detalle",
-              ir: () => onCatalogo(),
+              active: currentPage === "catalogo" || currentPage === "detalle",
+              goTo: () => onCatalogo(),
             },
-          ].map((opcion) => (
+          ].map((option) => (
             <button
-              key={opcion.texto}
+              key={option.texto}
               type="button"
-              onClick={() => irDesdeMenu(opcion.ir)}
+              onClick={() => goToFromMenu(option.goTo)}
               className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold transition ${
-                opcion.activo ? "text-orange-500 bg-orange-50" : "text-gray-800 hover:bg-gray-50"
+                option.active ? "text-orange-500 bg-orange-50" : "text-gray-800 hover:bg-gray-50"
               }`}
             >
-              {opcion.texto}
+              {option.texto}
             </button>
           ))}
-          {pit && !vendedor && (
+          {pit && !seller && (
             <button
               type="button"
-              onClick={() => irDesdeMenu(abrirPit)}
+              onClick={() => goToFromMenu(openPit)}
               className="w-full flex items-center gap-1.5 text-left px-4 py-3 rounded-lg text-sm font-semibold text-gray-800 hover:bg-gray-50 transition"
             >
               Pit IA
               <span className="text-[10px] font-black bg-orange-500 text-white rounded-full px-1.5 py-0.5">NUEVO</span>
             </button>
           )}
+
+          {/* En celular, lo de la cuenta va acá (en la barra no entra). */}
+          <div className="border-t border-gray-100 mt-2 pt-2">
+            {(seller
+              ? [
+                  { texto: "Dashboard", active: currentPage === "dashboard", goTo: () => navigate("/dashboard") },
+                ]
+              : [
+                  {
+                    texto: "Mis compras",
+                    active: currentPage === "orders",
+                    goTo: sessionUser ? () => navigate("/pedidos") : onLogin,
+                    number: quantityOrdersInCurso,
+                    details: "en curso",
+                  },
+                  { texto: "Favoritos", active: currentPage === "favorites", goTo: onFavorites, number: favoritesQuantity },
+                  {
+                    texto: sessionUser ? "Mi cuenta" : "Iniciar sesión",
+                    active: currentPage === "profile" || currentPage === "login",
+                    goTo: sessionUser ? () => navigate("/cuenta") : onLogin,
+                  },
+                ]
+            ).map((option) => (
+              <button
+                key={option.texto}
+                type="button"
+                onClick={() => goToFromMenu(option.goTo)}
+                className={`w-full flex items-center justify-between text-left px-4 py-3 rounded-lg text-sm font-semibold transition ${
+                  option.active ? "text-orange-500 bg-orange-50" : "text-gray-800 hover:bg-gray-50"
+                }`}
+              >
+                {option.texto}
+                {option.number > 0 && (
+                  <span className="text-[10px] font-black bg-orange-500 text-white rounded-full px-1.5 py-0.5">
+                    {option.number}
+                    {option.details ? ` ${option.details}` : ""}
+                  </span>
+                )}
+              </button>
+            ))}
+            {sessionUser && (
+              <button
+                type="button"
+                onClick={() => goToFromMenu(onCloseSession)}
+                className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold text-red-500 hover:bg-red-50 transition"
+              >
+                Cerrar sesión
+              </button>
+            )}
+          </div>
         </div>
       )}
 

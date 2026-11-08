@@ -11,13 +11,13 @@ import unicodedata
 _ESPACIOS = re.compile(r"\s+")
 
 # Letras de cualquier idioma (con tildes, ñ, ü), espacios, apóstrofos y guiones.
-_NOMBRE_PERSONA = re.compile(r"^[^\W\d_]+(?:[ '’\-][^\W\d_]+)*$")
+_PERSON_NAME = re.compile(r"^[^\W\d_]+(?:[ '’\-][^\W\d_]+)*$")
 _ALIAS = re.compile(r"^[^\W_][\w .,'’\-]*$")
 _CALLE = re.compile(r"^[^\W_][\w .,'’\-º°/]*$")
 _CIUDAD = re.compile(r"^[^\W_][\w .'’\-]*$")
 _APARTAMENTO = re.compile(r"^[^\W_][\w .\-/]*$")
 _NUMERO_PUERTA = re.compile(r"^\d{1,5}(?: ?(?:bis|[a-z]))?$", re.IGNORECASE)
-_SIN_NUMERO = {"s/n", "sn", "s/nº", "sin numero"}
+_NO_NUMBER = {"s/n", "sn", "s/nº", "sin numero"}
 _CODIGO_POSTAL = re.compile(r"^\d{5}$")
 
 PASSWORD_MIN = 8
@@ -40,29 +40,29 @@ def limpiar(value: str) -> str:
 
 def normalizar(value: str) -> str:
     """Minúsculas y sin tildes, para comparar textos."""
-    sin_tildes = unicodedata.normalize("NFKD", value)
-    return "".join(c for c in sin_tildes if not unicodedata.combining(c)).casefold()
+    without_accents = unicodedata.normalize("NFKD", value)
+    return "".join(c for c in without_accents if not unicodedata.combining(c)).casefold()
 
 
-def _cantidad_letras(value: str) -> int:
+def _letter_count(value: str) -> int:
     return sum(1 for c in value if c.isalpha())
 
 
-def _requerido(value: str, mensaje_vacio: str) -> str:
+def _required(value: str, empty_message: str) -> str:
     value = limpiar(value)
     if not value:
-        raise ValueError(mensaje_vacio)
+        raise ValueError(empty_message)
     return value
 
 
 # ---------------------------------------------------------------- personas
 
-def nombre_persona(value: str, campo: str = "El nombre") -> str:
-    value = _requerido(value, f"{campo} no puede estar vacío.")
-    if not _NOMBRE_PERSONA.match(value):
-        raise ValueError(f"{campo} solo puede tener letras, espacios, apóstrofos y guiones.")
-    if _cantidad_letras(value) < 2:
-        raise ValueError(f"{campo} tiene que tener al menos 2 letras.")
+def person_name(value: str, field: str = "El nombre") -> str:
+    value = _required(value, f"{field} no puede estar vacío.")
+    if not _PERSON_NAME.match(value):
+        raise ValueError(f"{field} solo puede tener letras, espacios, apóstrofos y guiones.")
+    if _letter_count(value) < 2:
+        raise ValueError(f"{field} tiene que tener al menos 2 letras.")
     return value
 
 
@@ -76,31 +76,31 @@ def password_segura(value: str, email: str | None = None) -> str:
     if normalizar(value) in _PASSWORDS_COMUNES:
         raise ValueError("Esa contraseña es muy común. Elegí otra.")
     if email:
-        usuario = normalizar(email.split("@")[0])
-        if len(usuario) >= 3 and usuario in normalizar(value):
+        user_obj = normalizar(email.split("@")[0])
+        if len(user_obj) >= 3 and user_obj in normalizar(value):
             raise ValueError("La contraseña no puede contener tu correo.")
     return value
 
 
 # ---------------------------------------------------------------- direcciones
 
-def alias_direccion(value: str) -> str:
-    value = _requerido(value, "Poné un nombre para la dirección (ej: Casa).")
-    if not _ALIAS.match(value) or _cantidad_letras(value) < 2:
+def address_alias(value: str) -> str:
+    value = _required(value, "Poné un nombre para la dirección (ej: Casa).")
+    if not _ALIAS.match(value) or _letter_count(value) < 2:
         raise ValueError("El nombre de la dirección tiene que tener letras (ej: Casa, Trabajo).")
     return value
 
 
-def calle(value: str) -> str:
-    value = _requerido(value, "La calle no puede estar vacía.")
-    if not _CALLE.match(value) or _cantidad_letras(value) < 2:
+def street_name(value: str) -> str:
+    value = _required(value, "La calle no puede estar vacía.")
+    if not _CALLE.match(value) or _letter_count(value) < 2:
         raise ValueError("Ingresá un nombre de calle válido (ej: Av. Italia, 18 de Julio).")
     return value
 
 
-def numero_puerta(value: str) -> str:
-    value = _requerido(value, "El número de puerta no puede estar vacío.")
-    if normalizar(value) in _SIN_NUMERO:
+def door_number(value: str) -> str:
+    value = _required(value, "El número de puerta no puede estar vacío.")
+    if normalizar(value) in _NO_NUMBER:
         return "S/N"
     if not _NUMERO_PUERTA.match(value):
         raise ValueError("Ingresá un número de puerta válido (ej: 1234, 1234B, 1234 bis o S/N).")
@@ -116,14 +116,14 @@ def apartamento(value: str | None) -> str | None:
     return value
 
 
-def ciudad(value: str) -> str:
-    value = _requerido(value, "La ciudad no puede estar vacía.")
-    if not _CIUDAD.match(value) or _cantidad_letras(value) < 2:
+def city_name(value: str) -> str:
+    value = _required(value, "La ciudad no puede estar vacía.")
+    if not _CIUDAD.match(value) or _letter_count(value) < 2:
         raise ValueError("Ingresá un nombre de ciudad válido.")
     return value
 
 
-def codigo_postal(value: str | None) -> str | None:
+def postal_code_value(value: str | None) -> str | None:
     if value is None or not limpiar(value):
         return None
     value = limpiar(value)
@@ -132,10 +132,10 @@ def codigo_postal(value: str | None) -> str | None:
     return value
 
 
-def ciudad_en_departamento(ciudad_: str, departamento: str, departamentos: list[str]) -> None:
+def city_in_department(city_: str, department_name: str, departamentos: list[str]) -> None:
     """Rechaza una ciudad que se llama como otro departamento
     (ej: Montevideo en Artigas). No conoce todas las localidades."""
-    nombre = normalizar(ciudad_)
-    for otro in departamentos:
-        if otro != departamento and normalizar(otro) == nombre:
-            raise ValueError(f"{ciudad_} no está en el departamento de {departamento}.")
+    name_value = normalizar(city_)
+    for other in departamentos:
+        if other != department_name and normalizar(other) == name_value:
+            raise ValueError(f"{city_} no está en el departamento de {department_name}.")

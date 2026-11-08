@@ -1,3 +1,5 @@
+"""ModelT del carrito de un cliente."""
+
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, func
 from sqlalchemy.orm import relationship
 

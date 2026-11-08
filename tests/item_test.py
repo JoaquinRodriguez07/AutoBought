@@ -1,3 +1,4 @@
+"""Tests del catálogo: marcas, repuestos y su forma de salida."""
 
 import pytest
 
@@ -90,6 +91,15 @@ def test_brands_endpoint_returns_empty_catalog(client):
 
 	assert response.status_code == 200
 	assert response.json() == {"brands": []}
+
+
+def test_parts_endpoint_lets_vercel_cache_the_catalog(client, db_session):
+	make_catalog(db_session)
+
+	response = client.get("/api/v1/parts")
+
+	assert response.status_code == 200
+	assert response.headers["cache-control"] == "public, s-maxage=60, stale-while-revalidate=300"
 
 
 def test_parts_endpoint_serializes_compatibilities(client, db_session):

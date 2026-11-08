@@ -1,0 +1,6 @@
+Hola {{ nombre }}, {{ quien }} te sumó al equipo de vendedores de AutoBought.
+
+Para entrar al portal del vendedor, elegí tu contraseña en este enlace:
+{{ enlace }}
+
+El enlace vence en 3 días y sirve una sola vez. Después entrás con tu correo ({{ correo }}) y esa contraseña.

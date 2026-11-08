@@ -48,6 +48,8 @@ services:
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
       MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
       BACKEND_URL: ${BACKEND_URL:-}
+      MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
+      CRON_SECRET: ${CRON_SECRET:-}
 
     ports:
       - "8000:8000"
@@ -87,6 +89,8 @@ services:
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
       MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
       BACKEND_URL: ${BACKEND_URL:-}
+      MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
+      CRON_SECRET: ${CRON_SECRET:-}
 
     ports:
       - "8001:8000"
@@ -113,7 +117,8 @@ services:
     restart: unless-stopped
 
     environment:
-      VITE_API_URL: http://localhost:8000
+      # Vacía: el navegador pide /api/... y el proxy de Vite lo pasa al backend.
+      VITE_API_URL: ""
       VITE_PROXY_TARGET: http://backend:8000
 
     ports:
@@ -133,7 +138,8 @@ services:
     restart: unless-stopped
 
     environment:
-      VITE_API_URL: http://localhost:8001
+      # Vacía: el navegador pide /api/... y el proxy de Vite lo pasa al backend.
+      VITE_API_URL: ""
       VITE_PROXY_TARGET: http://backend-remote:8000
 
     ports:

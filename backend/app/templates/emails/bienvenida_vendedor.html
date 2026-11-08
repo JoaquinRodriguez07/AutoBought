@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set titulo = "Bienvenido al equipo de AutoBought" %}
+{% block contenido %}
+<p>Hola {{ nombre }}, {{ quien }} te sumó al equipo de vendedores de AutoBought.</p>
+<p>Para entrar al portal del vendedor, elegí tu contraseña:</p>
+{% with texto_boton = "Elegir mi contraseña" %}{% include "_boton.html" %}{% endwith %}
+<p>El enlace vence en 3 días y sirve una sola vez. Después entrás con tu correo ({{ correo }}) y esa contraseña.</p>
+{% endblock %}

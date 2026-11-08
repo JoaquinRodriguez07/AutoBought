@@ -1,3 +1,5 @@
+"""Consultas del dashboard: ventas por repuesto y mes, y la proyección de demanda."""
+
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -5,8 +7,8 @@ import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core import analitica
-from app.crud.part import filtrar_repuestos
+from app.core import analytics_math
+from app.crud.part import filter_parts
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
@@ -22,7 +24,7 @@ def list_sales(
     # Cada ítem vendido desde `since`: (repuesto, fecha del pedido,
     # unidades, facturación). Igual que en los más vendidos, los pedidos
     # cancelados no cuentan. El agrupado por mes se hace en Python
-    # (analitica.agrupar_por_mes): SQLite y Postgres truncan fechas
+    # (analytics_math.group_by_month): SQLite y Postgres truncan fechas
     # distinto y el mes se cuenta en la hora de Uruguay.
     query = (
         select(
@@ -35,8 +37,8 @@ def list_sales(
         .join(Part, Part.id == OrderItem.part_id)
         .where(Order.status != OrderStatus.CANCELLED, Order.created_at >= since)
     )
-    query = filtrar_repuestos(query, category=category, search=search, part_id=part_id)
-    return [(pid, fecha, int(unidades), int(facturacion)) for pid, fecha, unidades, facturacion in db.execute(query).all()]
+    query = filter_parts(query, category=category, search=search, part_id=part_id)
+    return [(pid, when, int(units), int(revenue_total)) for pid, when, units, revenue_total in db.execute(query).all()]
 
 
 def units_sold_total(db: Session, part_id: int) -> int:
@@ -50,7 +52,7 @@ def units_sold_total(db: Session, part_id: int) -> int:
 
 
 @dataclass
-class Proyeccion:
+class Forecast:
     part: Part
     # Unidades vendidas en cada uno de los últimos 12 meses (el actual,
     # hasta hoy, al final).
@@ -61,23 +63,23 @@ class Proyeccion:
     risk: str
 
 
-def proyecciones(
+def forecasts(
     db: Session,
-    hoy: date,
+    today_date: date,
     category: str | None = None,
     search: str | None = None,
     part_id: int | None = None,
-) -> tuple[analitica.Mes, list[Proyeccion]]:
+) -> tuple[analytics_math.Month, list[Forecast]]:
     """Demanda proyectada del mes que viene y riesgo de agotamiento de
     cada repuesto que cumple los filtros, también de los que no se
     vendieron nunca (proyectan 0). Devuelve el mes proyectado y la lista.
 
     Solo lee: no cambia ventas ni stock.
     """
-    meses = analitica.ultimos_meses(hoy, analitica.MESES_PROYECCION)
-    mes_proyectado = analitica.mes_siguiente(meses[-1])
+    periods = analytics_math.last_months(today_date, analytics_math.FORECAST_MONTHS)
+    forecast_month = analytics_math.next_month(periods[-1])
 
-    query = filtrar_repuestos(
+    query = filter_parts(
         select(Part).order_by(Part.part_code, Part.id),
         category=category,
         search=search,
@@ -85,38 +87,56 @@ def proyecciones(
     )
     parts = list(db.scalars(query).all())
     if not parts:
-        return mes_proyectado, []
+        return forecast_month, []
 
-    columna = {mes: i for i, mes in enumerate(meses)}
-    fila = {part.id: i for i, part in enumerate(parts)}
-    unidades = np.zeros((len(parts), len(meses)), dtype=int)
-    ventas = list_sales(
+    column_name = {period: i for i, period in enumerate(periods)}
+    row = {part.id: i for i, part in enumerate(parts)}
+    units = np.zeros((len(parts), len(periods)), dtype=int)
+    sales = list_sales(
         db,
-        since=analitica.inicio_del_mes(meses[0]),
+        since=analytics_math.month_start(periods[0]),
         category=category,
         search=search,
         part_id=part_id,
     )
-    for pid, fecha, cantidad, _ in ventas:
-        mes = columna.get(analitica.mes_de(fecha))
-        if mes is not None and pid in fila:
-            unidades[fila[pid], mes] += cantidad
+    for pid, when, qty, _ in sales:
+        period = column_name.get(analytics_math.month_of(when))
+        if period is not None and pid in row:
+            units[row[pid], period] += qty
 
     # Todos los repuestos a la vez, con el mes en curso llevado a mes completo.
-    proyectadas = analitica.proyectar_series(analitica.completar_mes_en_curso(unidades, hoy))
+    projected_values = analytics_math.project_series(analytics_math.complete_current_month(units, today_date))
 
-    resultado = []
-    for part, serie, proyectada in zip(parts, unidades, proyectadas):
-        por_dia = analitica.demanda_diaria(float(proyectada), mes_proyectado)
-        dias = analitica.dias_de_cobertura(part.stock, por_dia)
-        resultado.append(
-            Proyeccion(
+    result = []
+    for part, series_item, projected in zip(parts, units, projected_values):
+        per_day = analytics_math.demand_per_day_value(float(projected), forecast_month)
+        day_count = analytics_math.coverage_days(part.stock, per_day)
+        result.append(
+            Forecast(
                 part=part,
-                units_by_month=[int(u) for u in serie],
-                projected_units=float(proyectada),
-                daily_demand=round(por_dia, 2),
-                coverage_days=dias,
-                risk=analitica.nivel_de_riesgo(dias),
+                units_by_month=[int(u) for u in series_item],
+                projected_units=float(projected),
+                daily_demand=round(per_day, 2),
+                coverage_days=day_count,
+                risk=analytics_math.risk_level(day_count),
             )
         )
-    return mes_proyectado, resultado
+    return forecast_month, result
+
+
+def urgency_key(row: Forecast) -> tuple:
+    """Orden de las alertas de reposición, del más urgente al menos urgente.
+
+    Primero por nivel. Dentro de cada nivel, los que dejarían más unidades
+    sin cubrir el mes que viene; si no, un agotado que vende 0,3 por mes
+    taparía a uno que vende 50 y le quedan 6 días. Después, los que se
+    agotan antes; sin demanda, al final.
+    """
+    return (
+        analytics_math.RISK_ORDER[row.risk],
+        -max(row.projected_units - row.part.stock, 0),
+        row.coverage_days is None,
+        row.coverage_days or 0,
+        row.part.part_code,
+        row.part.id,
+    )

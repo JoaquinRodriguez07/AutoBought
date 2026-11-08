@@ -1,3 +1,4 @@
+"""Tests de las validaciones de nombres, contraseñas y direcciones."""
 
 import pytest
 
@@ -8,28 +9,28 @@ DEPARTAMENTOS = ["Artigas", "Montevideo", "San José", "Paysandú"]
 
 # ---------------------------------------------------------------- personas
 
-@pytest.mark.parametrize("nombre", ["Lucía Gómez", "O'Neill", "María-José Núñez", "D’Agostino Ruiz", "Ana"])
-def test_nombres_validos(nombre):
-    assert validators.nombre_persona(nombre) == nombre
+@pytest.mark.parametrize("name_value", ["Lucía Gómez", "O'Neill", "María-José Núñez", "D’Agostino Ruiz", "Ana"])
+def test_names_valid(name_value):
+    assert validators.person_name(name_value) == name_value
 
 
-def test_nombre_junta_espacios_repetidos():
-    assert validators.nombre_persona("  Lucía    Gómez ") == "Lucía Gómez"
+def test_name_joins_spaces_repeated():
+    assert validators.person_name("  Lucía    Gómez ") == "Lucía Gómez"
 
 
-@pytest.mark.parametrize("nombre", ["123", "Ana 2", "@@@", "Ana_Pérez", "   ", "A", "Ana--Paz"])
-def test_nombres_invalidos(nombre):
+@pytest.mark.parametrize("name_value", ["123", "Ana 2", "@@@", "Ana_Pérez", "   ", "A", "Ana--Paz"])
+def test_names_invalid(name_value):
     with pytest.raises(ValueError):
-        validators.nombre_persona(nombre)
+        validators.person_name(name_value)
 
 
 @pytest.mark.parametrize("password", ["clave123", "Segura2026", "mi auto 4x4"])
-def test_passwords_validas(password):
+def test_passwords_valid(password):
     assert validators.password_segura(password, "lucia@example.com") == password
 
 
 @pytest.mark.parametrize(
-    "password, mensaje",
+    "password, msg",
     [
         ("clave12", "al menos 8"),
         ("abcdefgh", "una letra y un número"),
@@ -39,64 +40,64 @@ def test_passwords_validas(password):
         ("ñ" * 37 + "1", "demasiado larga"),
     ],
 )
-def test_passwords_invalidas(password, mensaje):
-    with pytest.raises(ValueError, match=mensaje):
+def test_passwords_invalid(password, msg):
+    with pytest.raises(ValueError, match=msg):
         validators.password_segura(password, "lucia@example.com")
 
 
 # ---------------------------------------------------------------- direcciones
 
-@pytest.mark.parametrize("numero", ["1234", "1234B", "1234 bis", "12 a", "5"])
-def test_numeros_de_puerta_validos(numero):
-    assert validators.numero_puerta(numero) == numero
+@pytest.mark.parametrize("number_value", ["1234", "1234B", "1234 bis", "12 a", "5"])
+def test_numbers_of_door_valid(number_value):
+    assert validators.door_number(number_value) == number_value
 
 
-@pytest.mark.parametrize("numero", ["s/n", "SN", "S/N"])
-def test_sin_numero_se_guarda_como_s_n(numero):
-    assert validators.numero_puerta(numero) == "S/N"
+@pytest.mark.parametrize("number_value", ["s/n", "SN", "S/N"])
+def test_without_number_saves_as_s_n(number_value):
+    assert validators.door_number(number_value) == "S/N"
 
 
-@pytest.mark.parametrize("numero", ["abc", "12-34", "123456", "B12", "  "])
-def test_numeros_de_puerta_invalidos(numero):
+@pytest.mark.parametrize("number_value", ["abc", "12-34", "123456", "B12", "  "])
+def test_numbers_of_door_invalid(number_value):
     with pytest.raises(ValueError):
-        validators.numero_puerta(numero)
+        validators.door_number(number_value)
 
 
-@pytest.mark.parametrize("calle", ["Av. Italia", "18 de Julio", "Ruta 8", "Bv. Gral. Artigas"])
-def test_calles_validas(calle):
-    assert validators.calle(calle) == calle
+@pytest.mark.parametrize("street_name", ["Av. Italia", "18 de Julio", "Ruta 8", "Bv. Gral. Artigas"])
+def test_streets_valid(street_name):
+    assert validators.street_name(street_name) == street_name
 
 
-@pytest.mark.parametrize("calle", ["1234", "@@", "  ", "!Italia"])
-def test_calles_invalidas(calle):
+@pytest.mark.parametrize("street_name", ["1234", "@@", "  ", "!Italia"])
+def test_streets_invalid(street_name):
     with pytest.raises(ValueError):
-        validators.calle(calle)
+        validators.street_name(street_name)
 
 
-def test_codigo_postal_de_5_digitos():
-    assert validators.codigo_postal("11300") == "11300"
-    assert validators.codigo_postal("  ") is None
-    assert validators.codigo_postal(None) is None
-    for invalido in ["1130", "113000", "11A00"]:
+def test_code_postal_of_5_digits():
+    assert validators.postal_code_value("11300") == "11300"
+    assert validators.postal_code_value("  ") is None
+    assert validators.postal_code_value(None) is None
+    for invalid in ["1130", "113000", "11A00"]:
         with pytest.raises(ValueError):
-            validators.codigo_postal(invalido)
+            validators.postal_code_value(invalid)
 
 
-def test_apartamento():
+def test_apartment():
     assert validators.apartamento("Torre 2 - 504") == "Torre 2 - 504"
     assert validators.apartamento("") is None
     with pytest.raises(ValueError):
         validators.apartamento("#@!")
 
 
-def test_ciudad_que_se_llama_como_otro_departamento_se_rechaza():
+def test_city_that_calls_as_another_department_rejects():
     with pytest.raises(ValueError, match="no está en el departamento de Artigas"):
-        validators.ciudad_en_departamento("montevideo", "Artigas", DEPARTAMENTOS)
+        validators.city_in_department("montevideo", "Artigas", DEPARTAMENTOS)
     # Sin tildes ni mayúsculas también.
     with pytest.raises(ValueError):
-        validators.ciudad_en_departamento("PAYSANDU", "Artigas", DEPARTAMENTOS)
+        validators.city_in_department("PAYSANDU", "Artigas", DEPARTAMENTOS)
 
 
-def test_ciudad_del_mismo_departamento_o_desconocida_se_acepta():
-    validators.ciudad_en_departamento("Montevideo", "Montevideo", DEPARTAMENTOS)
-    validators.ciudad_en_departamento("Bella Unión", "Artigas", DEPARTAMENTOS)
+def test_city_of_the_same_department_or_unknown_accepts():
+    validators.city_in_department("Montevideo", "Montevideo", DEPARTAMENTOS)
+    validators.city_in_department("Bella Unión", "Artigas", DEPARTAMENTOS)

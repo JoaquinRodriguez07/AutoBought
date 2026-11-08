@@ -1,10 +1,12 @@
+"""ModelT del pago de un pedido con Mercado Pago."""
+
 import enum
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 
-from app.core.config import MINUTOS_PARA_PAGAR
+from app.core.config import MINUTES_TO_PAY
 from app.db.base import Base
 
 
@@ -36,6 +38,9 @@ class Payment(Base):
     mp_preference_id = Column(String(100))
     # El pago de Mercado Pago que decidió el estado (aprobado o rechazado).
     mp_payment_id = Column(String(50))
+    # Cuándo se le devolvió el dinero al cliente en Mercado Pago (pedido
+    # cancelado por la tienda, o pagado tarde y sin stock); None si no se devolvió.
+    refunded_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now(), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True),
@@ -51,8 +56,8 @@ class Payment(Base):
     def due_at(self) -> datetime:
         """Hasta cuándo se puede pagar el pedido: el plazo corre desde que se
         confirmó la compra, y no se reinicia al reintentar."""
-        creado = self.created_at
+        created = self.created_at
         # SQLite devuelve las fechas sin zona; Postgres, con zona.
-        if creado.tzinfo is None:
-            creado = creado.replace(tzinfo=timezone.utc)
-        return creado + timedelta(minutes=MINUTOS_PARA_PAGAR)
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        return created + timedelta(minutes=MINUTES_TO_PAY)

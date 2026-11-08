@@ -1,9 +1,11 @@
+// Selector de vehículo (marca, modelo y año).
+
 import { useEffect, useState } from "react";
 
 import BrandDropdown from "./BrandDropdown";
 import ModelDropdown from "./ModelDropdown";
-import { obtenerAnios } from "./api";
-import { IconoFlecha } from "./Iconos";
+import { getYears } from "./api";
+import { ArrowIcon } from "./Icons";
 
 /** Selector de vehículo compartido por Home y el detalle del repuesto. */
 export default function VehicleSelector({
@@ -40,7 +42,7 @@ export default function VehicleSelector({
     const loadYears = async () => {
       try {
         setLoadingYears(true);
-        const availableYears = await obtenerAnios(selectedBrand, selectedModel);
+        const availableYears = await getYears(selectedBrand, selectedModel);
         if (active) setYears(availableYears);
       } catch (error) {
         console.error("Error cargando años:", error);
@@ -61,8 +63,8 @@ export default function VehicleSelector({
     : Boolean(selectedBrand);
   const hasSelection = Boolean(selectedBrand || selectedModel || selectedYear || vehicle);
   const labelClass = dark
-    ? "block text-[10px] text-gray-400 font-bold mb-1.5"
-    : "block text-[11px] text-gray-400 font-bold tracking-wide mb-2";
+    ? "block text-xs text-gray-400 font-bold mb-1.5"
+    : "block text-xs text-gray-400 font-bold tracking-wide mb-2";
   // En el inicio, los tres campos con el mismo estilo (también
   // deshabilitados) y una flecha propia en vez de la del navegador.
   const selectClass = dark
@@ -70,18 +72,18 @@ export default function VehicleSelector({
     : "w-full appearance-none bg-white/[0.06] text-white border border-white/15 rounded-lg pl-4 pr-10 h-12 text-sm outline-hidden transition hover:border-white/30 focus:border-orange-500 disabled:opacity-40 disabled:cursor-not-allowed [&>option]:text-gray-900";
   const modelSelectClass = selectClass;
   const fieldClass = dark ? "block min-w-0" : "flex-1 min-w-0";
-  const conFlecha = (select) =>
+  const withArrow = (select) =>
     dark ? select : (
       <span className="relative block">
         {select}
-        <IconoFlecha className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <ArrowIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
       </span>
     );
   const fields = (
     <>
       <label className={fieldClass}>
         <span className={labelClass}>MARCA</span>
-        {conFlecha(<BrandDropdown
+        {withArrow(<BrandDropdown
           value={selectedBrand}
           onChange={(brand) => {
             setSelectedBrand(brand);
@@ -95,7 +97,7 @@ export default function VehicleSelector({
 
       <label className={fieldClass}>
         <span className={labelClass}>MODELO</span>
-        {conFlecha(<ModelDropdown
+        {withArrow(<ModelDropdown
           brand={selectedBrand}
           value={selectedModel}
           onChange={(model) => {
@@ -108,7 +110,7 @@ export default function VehicleSelector({
 
       <label className={fieldClass}>
         <span className={labelClass}>AÑO</span>
-        {conFlecha(<select
+        {withArrow(<select
           aria-label="AÑO"
           value={selectedYear}
           onChange={(event) => setSelectedYear(event.target.value)}
@@ -140,10 +142,10 @@ export default function VehicleSelector({
         })}
         disabled={!canConfirm}
         className={dark
-          ? "h-9 rounded-md bg-orange-500 hover:bg-orange-600 text-white px-3 text-[11px] font-black transition disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed"
-          : "h-12 shrink-0 bg-orange-500 hover:bg-orange-600 text-white rounded-lg px-7 text-xs font-black transition disabled:bg-white/10 disabled:text-gray-500 disabled:cursor-not-allowed"}
+          ? "h-9 rounded-md bg-orange-500 hover:bg-orange-600 text-white px-3 text-sm font-bold transition disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+          : "h-12 shrink-0 bg-orange-500 hover:bg-orange-600 text-white rounded-lg px-7 text-sm font-bold transition disabled:bg-white/10 disabled:text-gray-500 disabled:cursor-not-allowed"}
       >
-        {confirmLabel || (dark ? "Confirmar vehículo" : "BUSCAR REPUESTOS")}
+        {confirmLabel || (dark ? "Confirmar vehículo" : "Buscar repuestos")}
       </button>
 
       {showClear && hasSelection && (
@@ -156,9 +158,9 @@ export default function VehicleSelector({
             setYears([]);
             onClear?.();
           }}
-          className="h-12 shrink-0 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg px-5 text-xs font-black transition"
+          className="h-12 shrink-0 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg px-5 text-sm font-bold transition"
         >
-          BORRAR FILTROS
+          Borrar filtros
         </button>
       )}
 
@@ -166,7 +168,7 @@ export default function VehicleSelector({
         <button
           type="button"
           onClick={onCancel}
-          className="h-9 rounded-md border border-white/20 text-gray-300 hover:border-white/40 px-3 text-[11px] font-bold transition"
+          className="h-9 rounded-md border border-white/20 text-gray-300 hover:border-white/40 px-3 text-xs font-bold transition"
         >
           Cancelar
         </button>

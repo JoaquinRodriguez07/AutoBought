@@ -1,21 +1,29 @@
+"""Endpoints de la cuenta: registro, login, verificación del correo, recuperación de la contraseña y perfil."""
+
+from functools import lru_cache
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_client, get_current_user, get_db
+from app.api.deps import is_active, get_current_client, get_current_user, get_db
 from app.core import validators
-from app.core.auth_attempts import clear_failures, is_blocked, register_failure
-from app.core.config import FRONTEND_URL
-from app.core.email import programar_mail
+from app.core.auth_attempts import clear_failures, is_blocked, can_send_mail, register_failure
+from app.core.config import (
+    FRONTEND_URL,
+    PASSWORD_RESET_LINK_MINUTES,
+    EMAIL_VERIFICATION_LINK_MINUTES,
+)
+from app.core.email import schedule_mail
 from app.core.security import (
-    DARSE_DE_BAJA,
-    RECUPERAR_PASSWORD,
-    VERIFICAR_CORREO,
+    UNSUBSCRIBE_PURPOSE,
+    RESET_PASSWORD,
+    VERIFY_EMAIL,
     create_access_token,
     create_purpose_token,
     decode_purpose_token,
     hash_password,
-    huella_password,
+    password_fingerprint,
     verify_password,
 )
 from app.crud import user as crud_user
@@ -34,21 +42,19 @@ from app.schemas.user import ClientOut, ClientUpdate, EmailPreferences, Password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-EMAIL_EN_USO = "El correo ya está en uso."
-ENLACE_INVALIDO = "El enlace no es válido o ya venció. Pedí uno nuevo."
+EMAIL_IN_USE = "El correo ya está en uso."
+INVALID_LINK = "El enlace no es válido o ya venció. Pedí uno nuevo."
 RECUPERACION_PEDIDA = (
     "Si el correo está registrado, te mandamos un enlace para elegir una contraseña nueva."
 )
 
-VIGENCIA_VERIFICACION_MINUTOS = 24 * 60
-VIGENCIA_RECUPERACION_MINUTOS = 30
 
 
-def _mandar_verificacion(background_tasks: BackgroundTasks, user: User) -> None:
+def _send_verification(background_tasks: BackgroundTasks, user: User) -> None:
     token = create_purpose_token(
-        str(user.user_id), VERIFICAR_CORREO, VIGENCIA_VERIFICACION_MINUTOS
+        str(user.user_id), VERIFY_EMAIL, EMAIL_VERIFICATION_LINK_MINUTES
     )
-    programar_mail(
+    schedule_mail(
         background_tasks,
         user.email,
         "Verificá tu correo en AutoBought",
@@ -57,8 +63,8 @@ def _mandar_verificacion(background_tasks: BackgroundTasks, user: User) -> None:
     )
 
 
-def _mandar_aviso_password_cambiada(background_tasks: BackgroundTasks, user: User) -> None:
-    programar_mail(
+def _send_password_changed_notice(background_tasks: BackgroundTasks, user: User) -> None:
+    schedule_mail(
         background_tasks,
         user.email,
         "Tu contraseña de AutoBought se cambió",
@@ -67,15 +73,22 @@ def _mandar_aviso_password_cambiada(background_tasks: BackgroundTasks, user: Use
     )
 
 
-def _token_de_sesion(user: User) -> Token:
+def _session_token(user: User) -> Token:
     """Token de sesión con el rol, la versión de sesión vigentes y el nombre
     del usuario (el portal del vendedor saluda con él: el vendedor no tiene
     perfil propio como el cliente en /me)."""
-    access_token = create_access_token(
-        subject=str(user.user_id),
-        extra_claims={"user_type": user.user_type, "sv": user.session_version, "name": user.name},
-    )
+    claims = {"user_type": user.user_type, "sv": user.session_version, "name": user.name}
+    # El portal muestra la sección "Equipo" solo a los administradores (la
+    # API lo vuelve a verificar en cada pedido).
+    if getattr(user, "is_admin", False):
+        claims["admin"] = True
+    access_token = create_access_token(subject=str(user.user_id), extra_claims=claims)
     return Token(access_token=access_token)
+
+
+@lru_cache(maxsize=1)
+def _dummy_hash() -> str:
+    return hash_password("contraseña que no es de nadie")
 
 
 @router.post("/login", response_model=Token)
@@ -87,17 +100,26 @@ def login(credentials: LoginRequest, db: Session = Depends(get_db)):
         )
 
     user = crud_user.get_user_by_email(db, credentials.email)
+    # Si el correo no existe se compara igual contra un hash falso: así el
+    # login tarda lo mismo y no deja adivinar qué correos tienen cuenta.
+    hash_a_comparar = user.password if user else _dummy_hash()
 
-    if not user or not verify_password(credentials.password, user.password):
+    if not verify_password(credentials.password, hash_a_comparar) or not user:
         register_failure(db, credentials.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo electrónico o contraseña incorrectos.",
         )
 
+    if not is_active(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu cuenta de vendedor fue dada de baja. Si es un error, hablá con un administrador.",
+        )
+
     clear_failures(db, user.email)
 
-    return _token_de_sesion(user)
+    return _session_token(user)
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
@@ -108,7 +130,7 @@ def register(
 ):
     if crud_user.get_user_by_email(db, data.email):
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=EMAIL_EN_USO
+            status_code=status.HTTP_409_CONFLICT, detail=EMAIL_IN_USE
         )
 
     try:
@@ -124,12 +146,12 @@ def register(
         # arriba no alcanza, la restricción UNIQUE es la que decide.
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=EMAIL_EN_USO
+            status_code=status.HTTP_409_CONFLICT, detail=EMAIL_IN_USE
         )
 
-    _mandar_verificacion(background_tasks, client)
+    _send_verification(background_tasks, client)
 
-    return _token_de_sesion(client)
+    return _session_token(client)
 
 
 @router.post("/verify-email", status_code=status.HTTP_204_NO_CONTENT)
@@ -137,10 +159,10 @@ def verify_email(data: VerifyEmailRequest, db: Session = Depends(get_db)):
     """Marca el correo como verificado con el token del mail. No pide
     sesión: el enlace se puede abrir en otro dispositivo. Usar el enlace de
     nuevo no es un error, el correo sigue verificado."""
-    payload = decode_purpose_token(data.token, VERIFICAR_CORREO)
-    user = _usuario_del_token(db, payload)
+    payload = decode_purpose_token(data.token, VERIFY_EMAIL)
+    user = _user_from_token(db, payload)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=ENLACE_INVALIDO)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=INVALID_LINK)
 
     if not user.email_verified:
         crud_user.mark_email_verified(db, user)
@@ -149,10 +171,17 @@ def verify_email(data: VerifyEmailRequest, db: Session = Depends(get_db)):
 @router.post("/verify-email/resend", status_code=status.HTTP_204_NO_CONTENT)
 def resend_verification(
     background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
     client: Client = Depends(get_current_client),
 ):
-    if not client.email_verified:
-        _mandar_verificacion(background_tasks, client)
+    if client.email_verified:
+        return
+    if not can_send_mail(db, "verificar", client.email):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Ya te mandamos varios mails. Probá de nuevo en unos minutos.",
+        )
+    _send_verification(background_tasks, client)
 
 
 @router.post("/password/forgot", status_code=status.HTTP_202_ACCEPTED)
@@ -161,17 +190,18 @@ def forgot_password(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    """Responde siempre lo mismo, exista o no el correo, para no revelar
-    quién tiene cuenta."""
+    """Responde siempre lo mismo, exista o no el correo y aunque se haya
+    llegado al límite de mails, para no revelar quién tiene cuenta."""
     user = crud_user.get_user_by_email(db, data.email)
-    if user is not None:
+    # A un vendedor dado de baja no se le manda nada (como si no existiera).
+    if user is not None and is_active(user) and can_send_mail(db, "recuperar", user.email):
         token = create_purpose_token(
             str(user.user_id),
-            RECUPERAR_PASSWORD,
-            VIGENCIA_RECUPERACION_MINUTOS,
-            extra_claims={"pwd": huella_password(user.password)},
+            RESET_PASSWORD,
+            PASSWORD_RESET_LINK_MINUTES,
+            extra_claims={"pwd": password_fingerprint(user.password)},
         )
-        programar_mail(
+        schedule_mail(
             background_tasks,
             user.email,
             "Recuperá tu contraseña de AutoBought",
@@ -188,12 +218,12 @@ def reset_password(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    payload = decode_purpose_token(data.token, RECUPERAR_PASSWORD)
-    user = _usuario_del_token(db, payload)
+    payload = decode_purpose_token(data.token, RESET_PASSWORD)
+    user = _user_from_token(db, payload)
     # Si la contraseña ya cambió (por este enlace o de otra forma), la
     # huella no coincide: así el enlace sirve una sola vez.
-    if user is None or payload.get("pwd") != huella_password(user.password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=ENLACE_INVALIDO)
+    if user is None or not is_active(user) or payload.get("pwd") != password_fingerprint(user.password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=INVALID_LINK)
 
     try:
         validators.password_segura(data.new_password, user.email)
@@ -206,21 +236,21 @@ def reset_password(
     # El enlace llegó a su correo: eso también prueba que es suyo.
     if not user.email_verified:
         crud_user.mark_email_verified(db, user)
-    _mandar_aviso_password_cambiada(background_tasks, user)
+    _send_password_changed_notice(background_tasks, user)
 
 
 @router.post("/unsubscribe", status_code=status.HTTP_204_NO_CONTENT)
 def unsubscribe(data: UnsubscribeRequest, db: Session = Depends(get_db)):
     """Enlace «No quiero recibir estos mails» de los mails comerciales. No
     pide sesión. Para volver a recibirlos, el interruptor del perfil."""
-    user = _usuario_del_token(db, decode_purpose_token(data.token, DARSE_DE_BAJA))
+    user = _user_from_token(db, decode_purpose_token(data.token, UNSUBSCRIBE_PURPOSE))
     if not isinstance(user, Client):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El enlace no es válido.")
     if user.marketing_emails:
         crud_user.set_marketing_emails(db, user, False)
 
 
-def _usuario_del_token(db: Session, payload: dict | None) -> User | None:
+def _user_from_token(db: Session, payload: dict | None) -> User | None:
     if payload is None:
         return None
     try:
@@ -239,7 +269,7 @@ def refresh(user: User = Depends(get_current_user)):
     el usuario ya no existe. El token nuevo repite el user_type guardado en la
     base y vuelve a empezar la vigencia completa.
     """
-    return _token_de_sesion(user)
+    return _session_token(user)
 
 
 @router.get("/me", response_model=ClientOut)
@@ -289,10 +319,10 @@ def change_password(
 
     crud_user.update_password(db, client, hash_password(data.new_password))
     clear_failures(db, client.email)
-    _mandar_aviso_password_cambiada(background_tasks, client)
+    _send_password_changed_notice(background_tasks, client)
     # Las demás sesiones quedaron invalidadas; este dispositivo sigue con un
     # token de la versión nueva.
-    return _token_de_sesion(client)
+    return _session_token(client)
 
 
 @router.put("/me/preferences", response_model=ClientOut)

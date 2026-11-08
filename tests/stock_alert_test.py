@@ -1,3 +1,5 @@
+"""Tests de los avisos de vuelta de stock."""
+
 from app.core.security import create_access_token
 from app.models.client import Client
 from app.models.part import Part
@@ -7,11 +9,11 @@ ALERTS = "/api/v1/stock-alerts"
 
 
 def make_client(db_session, username="ana", email="ana@example.com"):
-    cliente = Client(username=username, password="secret", name="Ana", email=email)
-    db_session.add(cliente)
+    customer = Client(username=username, password="secret", name="Ana", email=email)
+    db_session.add(customer)
     db_session.commit()
-    db_session.refresh(cliente)
-    return cliente
+    db_session.refresh(customer)
+    return customer
 
 
 def make_part(db_session, stock=0, part_code="FAR-001"):
@@ -27,7 +29,7 @@ def auth_headers(user):
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_suscribirse_a_un_repuesto_agotado(client, db_session):
+def test_subscribe_a_part_sold_out(client, db_session):
     headers = auth_headers(make_client(db_session))
     part = make_part(db_session)
 
@@ -38,7 +40,7 @@ def test_suscribirse_a_un_repuesto_agotado(client, db_session):
     assert client.get(ALERTS, headers=headers).json() == {"part_ids": [part.id]}
 
 
-def test_suscribirse_dos_veces_deja_una_sola(client, db_session):
+def test_subscribe_two_times_leaves_a_single(client, db_session):
     headers = auth_headers(make_client(db_session))
     part = make_part(db_session)
 
@@ -49,7 +51,7 @@ def test_suscribirse_dos_veces_deja_una_sola(client, db_session):
     assert db_session.query(StockAlert).count() == 1
 
 
-def test_con_stock_no_hace_falta_aviso(client, db_session):
+def test_with_stock_no_does_missing_notice(client, db_session):
     headers = auth_headers(make_client(db_session))
     part = make_part(db_session, stock=3)
 
@@ -60,25 +62,25 @@ def test_con_stock_no_hace_falta_aviso(client, db_session):
     assert db_session.query(StockAlert).count() == 0
 
 
-def test_repuesto_inexistente(client, db_session):
+def test_part_nonexistent(client, db_session):
     headers = auth_headers(make_client(db_session))
 
     assert client.put(f"{ALERTS}/9999", headers=headers).status_code == 404
 
 
-def test_cancelar_la_suscripcion(client, db_session):
+def test_cancel_the_subscription(client, db_session):
     headers = auth_headers(make_client(db_session))
     part = make_part(db_session)
     client.put(f"{ALERTS}/{part.id}", headers=headers)
 
     response = client.delete(f"{ALERTS}/{part.id}", headers=headers)
-    sin_suscripcion = client.delete(f"{ALERTS}/{part.id}", headers=headers)
+    without_subscription = client.delete(f"{ALERTS}/{part.id}", headers=headers)
 
-    assert response.status_code == sin_suscripcion.status_code == 204
+    assert response.status_code == without_subscription.status_code == 204
     assert client.get(ALERTS, headers=headers).json() == {"part_ids": []}
 
 
-def test_cada_cliente_ve_solo_sus_suscripciones(client, db_session):
+def test_each_customer_sees_only_its_subscriptions(client, db_session):
     ana = make_client(db_session)
     beto = make_client(db_session, username="beto", email="beto@example.com")
     part = make_part(db_session)
@@ -87,7 +89,7 @@ def test_cada_cliente_ve_solo_sus_suscripciones(client, db_session):
     assert client.get(ALERTS, headers=auth_headers(beto)).json() == {"part_ids": []}
 
 
-def test_requiere_sesion(client, db_session):
+def test_requires_session(client, db_session):
     part = make_part(db_session)
 
     assert client.get(ALERTS).status_code == 401

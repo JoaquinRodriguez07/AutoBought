@@ -1,3 +1,5 @@
+"""Dependencias de FastAPI: la sesión de la base y quién está autenticado (cliente, vendedor o cualquiera)."""
+
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -24,14 +26,14 @@ def get_db():
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def _credenciales_invalidas() -> HTTPException:
+def _invalid_credentials() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token inválido o expirado.",
     )
 
 
-def _decodificar_token(
+def _decode_token(
     credentials: HTTPAuthorizationCredentials | None,
 ) -> tuple[int, str | None, int]:
     """Valida el token y devuelve (id de usuario, user_type, versión de sesión).
@@ -40,39 +42,39 @@ def _decodificar_token(
     claim `sv` no es un entero. Un token sin `sv` (emitido antes de que
     existiera) cuenta como versión 0.
     No toca la base: cada dependencia busca al usuario que le corresponde y
-    compara la versión con _verificar_version_de_sesion.
+    compara la versión con _check_session_version.
     """
     if credentials is None:
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     try:
         payload = jwt.decode(
             credentials.credentials, SECRET_KEY, algorithms=[JWT_ALGORITHM]
         )
     except jwt.PyJWTError:
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     user_id = payload.get("sub")
     if user_id is None:
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     try:
         user_id = int(user_id)
     except (TypeError, ValueError):
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     session_version = payload.get("sv", 0)
     # bool es subclase de int: `true` en el JWT no es una versión válida.
     if isinstance(session_version, bool) or not isinstance(session_version, int):
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
     return user_id, payload.get("user_type"), session_version
 
 
-def _verificar_version_de_sesion(user: User, session_version: int) -> None:
+def _check_session_version(user: User, session_version: int) -> None:
     """401 si la contraseña cambió después de emitir el token."""
     if user.session_version != session_version:
-        raise _credenciales_invalidas()
+        raise _invalid_credentials()
 
 
 def get_current_client(
@@ -85,7 +87,7 @@ def get_current_client(
     contraseña cambió después de emitirlo.
     403 si el token es válido pero no es de un cliente (ej: empleado).
     """
-    client_id, user_type, session_version = _decodificar_token(credentials)
+    client_id, user_type, session_version = _decode_token(credentials)
 
     if user_type != "client":
         raise HTTPException(
@@ -95,8 +97,8 @@ def get_current_client(
 
     client = db.get(Client, client_id)
     if client is None:
-        raise _credenciales_invalidas()
-    _verificar_version_de_sesion(client, session_version)
+        raise _invalid_credentials()
+    _check_session_version(client, session_version)
 
     return client
 
@@ -111,7 +113,7 @@ def get_current_employee(
     contraseña cambió después de emitirlo.
     403 si el token es válido pero no es de un empleado (ej: cliente).
     """
-    employee_id, user_type, session_version = _decodificar_token(credentials)
+    employee_id, user_type, session_version = _decode_token(credentials)
 
     if user_type != "employee":
         raise HTTPException(
@@ -120,10 +122,22 @@ def get_current_employee(
         )
 
     employee = db.get(Employee, employee_id)
-    if employee is None:
-        raise _credenciales_invalidas()
-    _verificar_version_de_sesion(employee, session_version)
+    # Un vendedor dado de baja no puede seguir usando una sesión abierta.
+    if employee is None or not employee.active:
+        raise _invalid_credentials()
+    _check_session_version(employee, session_version)
 
+    return employee
+
+
+def get_current_admin(employee: Employee = Depends(get_current_employee)) -> Employee:
+    """Como get_current_employee, pero además tiene que ser administrador
+    (sección "Equipo"). 403 si es un vendedor común."""
+    if not employee.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta acción requiere ser administrador.",
+        )
     return employee
 
 
@@ -138,11 +152,16 @@ def get_current_user(
     Para endpoints que sirven a cualquier rol (ej: renovar la sesión); los
     que son de un solo rol usan get_current_client / get_current_employee.
     """
-    user_id, _, session_version = _decodificar_token(credentials)
+    user_id, _, session_version = _decode_token(credentials)
 
     user = db.get(User, user_id)
-    if user is None:
-        raise _credenciales_invalidas()
-    _verificar_version_de_sesion(user, session_version)
+    if user is None or not is_active(user):
+        raise _invalid_credentials()
+    _check_session_version(user, session_version)
 
     return user
+
+
+def is_active(user: User) -> bool:
+    """Los clientes siempre; los vendedores, mientras no se los dé de baja."""
+    return not isinstance(user, Employee) or user.active

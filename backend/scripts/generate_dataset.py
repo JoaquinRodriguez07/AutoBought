@@ -1,21 +1,22 @@
-"""Generates the catalog data files.
+"""Genera los archivos de datos del catálogo.
 
-Usage: python -m scripts.generate_dataset
+Uso: python -m scripts.generate_dataset
 
-Writes data/car_models.json and data/parts.json. The catalogs below are the
-source of truth: to add a car or a part, edit them here and rerun.
+Escribe data/car_models.json y data/parts.json. Los catálogos de abajo son
+la fuente de verdad: para agregar un auto o un repuesto, se editan acá y se
+vuelve a correr.
 
-Compatibility rules:
-- Engine parts (filters, spark plugs, timing belt, water pump) fit every
-  model that shares the same engine code.
-- Model-specific parts (brakes, suspension, body) are per model, because
-  sharing an engine doesn't mean sharing brake pads.
-- Universal parts (oil, coolant, wipers) fit the whole catalog.
+Reglas de compatibilidad:
+- Los repuestos de motor (filtros, bujías, correa de distribución, bomba de
+  agua) le sirven a todo modelo con el mismo código de motor.
+- Los repuestos propios de cada modelo (frenos, suspensión, carrocería) van
+  por modelo: compartir el motor no significa compartir las pastillas.
+- Los universales (aceite, refrigerante, escobillas) le sirven a todo el catálogo.
 
-Manufacturers: each part comes from several manufacturers, like in a real
-store, and each one is a different product (own code, price and stock).
-The main manufacturer makes it for every car; the others only for some
-(see covers), so for a given car there may be one option or several.
+Fabricantes: cada repuesto lo hacen varios fabricantes, como en una tienda
+real, y cada uno es un producto distinto (con su código, precio y stock).
+El fabricante principal lo hace para todos los autos; los demás solo para
+algunos (ver covers), así que para un auto puede haber una opción o varias.
 """
 
 import json
@@ -177,6 +178,76 @@ DIESEL_ENGINES = {
     "2.2 OM651", "2.4 4N15", "2.0 HFC4DA",
 }
 
+# El catálogo representa una configuración concreta de cada modelo, no todas
+# las versiones comerciales. No deducir la transmisión ni las lámparas por año.
+# Las variantes no incluidas deben agregarse como modelos diferenciados cuando
+# se disponga del dato de la versión.
+AUTOMATIC_MODELS = {
+    ("Chevrolet", "Cruze"), ("Chevrolet", "Tracker"), ("Fiat", "Toro"),
+    ("Volkswagen", "T-Cross"), ("Toyota", "Corolla"), ("Nissan", "Kicks"),
+    ("Hyundai", "Creta"), ("Kia", "Sportage"), ("Chery", "Tiggo 4"),
+    ("Chery", "Tiggo 7"), ("BYD", "Song Pro DM-i"), ("BYD", "King DM-i"),
+    ("GAC", "GS3"), ("GAC", "GS4"), ("Mercedes-Benz", "Clase A"),
+    ("Mercedes-Benz", "Clase C"), ("BMW", "Serie 1"), ("BMW", "X1"),
+    ("BMW", "Serie 3"), ("Audi", "A3"), ("Audi", "Q3"),
+    ("Geely", "Coolray"), ("Geely", "Emgrand"),
+    ("Mitsubishi", "Outlander"), ("Mitsubishi", "ASX"),
+    ("Honda", "HR-V"), ("Honda", "Civic"), ("Jeep", "Compass"),
+    ("Mazda", "Mazda3"), ("Mazda", "CX-5"),
+}
+
+# Aplicaciones de lámpara declaradas explícitamente para las variantes del
+# catálogo. None = no hay una H4/H7 confirmada (p. ej. faro LED); no inventar
+# una compatibilidad. Ajustar por versión/faro si se amplía el catálogo.
+H4_MODELS = {
+    ("Chevrolet", "Prisma"), ("Chevrolet", "Corsa"), ("Chevrolet", "Spin"),
+    ("Fiat", "Cronos"), ("Fiat", "Argo"), ("Fiat", "Palio"),
+    ("Fiat", "Siena"), ("Fiat", "Uno"), ("Fiat", "Strada"),
+    ("Volkswagen", "Gol"), ("Volkswagen", "Voyage"), ("Volkswagen", "Saveiro"),
+    ("Ford", "Ka"), ("Renault", "Sandero"), ("Renault", "Logan"),
+    ("Renault", "Stepway"), ("Renault", "Duster"), ("Renault", "Kwid"),
+    ("Renault", "Kangoo"), ("Peugeot", "Partner"), ("Citroen", "Berlingo"),
+    ("Toyota", "Etios"), ("Nissan", "March"), ("Nissan", "Versa"),
+    ("Suzuki", "Swift"), ("Suzuki", "Celerio"), ("Suzuki", "Vitara"),
+    ("Chery", "Tiggo 2"), ("JAC", "S2"), ("JAC", "T8"),
+}
+H7_MODELS = {
+    ("Chevrolet", "Cruze"), ("Chevrolet", "S10"),
+    ("Fiat", "Toro"), ("Volkswagen", "Polo"), ("Volkswagen", "Virtus"),
+    ("Volkswagen", "Amarok"), ("Ford", "Fiesta"), ("Ford", "Focus"),
+    ("Ford", "EcoSport"), ("Ford", "Ranger"), ("Peugeot", "208"),
+    ("Peugeot", "2008"), ("Citroen", "C3"), ("Toyota", "Yaris"),
+    ("Toyota", "Hilux"), ("Nissan", "Frontier"), ("Hyundai", "HB20"),
+    ("Hyundai", "Creta"), ("Kia", "Rio"), ("Kia", "Sportage"),
+    ("Mercedes-Benz", "Sprinter"), ("Mitsubishi", "L200"),
+    ("Honda", "Fit"), ("Honda", "City"), ("Jeep", "Renegade"),
+    ("Mazda", "Mazda2"),
+}
+# Onix clásico usa H4; la generación Turbo usa otro conjunto óptico.
+LAMP_BY_ENGINE = {("Chevrolet", "Onix", "1.4 8V"): "H4",
+                  ("Chevrolet", "Onix", "1.0 Turbo"): None}
+
+# Cilindros por motor (solo excepciones al motor de cuatro cilindros).
+# Los cilindros definen cuántas bujías individuales se requieren.
+ENGINE_CYLINDERS = {
+    "1.0 Turbo": 3, "1.2 Turbo": 3, "1.0 TSI": 3,
+    "1.0 SCe": 3, "1.0 K10B": 3, "1.5 Dragon": 3,
+    "1.5 B38": 3, "1.5 3G15TD": 3, "3.2 Duratorq": 5,
+}
+
+
+def lamp_application(model):
+    key = (model["brand"], model["model"])
+    engine_key = (*key, model["engine_code"])
+    if engine_key in LAMP_BY_ENGINE:
+        return LAMP_BY_ENGINE[engine_key]
+    if key in H4_MODELS:
+        return "H4"
+    if key in H7_MODELS:
+        return "H7"
+    return None
+
+
 # name, price (fijo: ya están separadas por tamaño), qué autos la usan
 BATTERIES = [
     ("Batería 12V 45Ah", 4500,
@@ -238,13 +309,12 @@ REAR_DRUM_PARTS = [
 # qué autos lo usan). El precio es fijo, como el de las baterías.
 NEW_UNIVERSAL_PARTS = [
     ("Líquido de frenos DOT 4 500 ml", "Frenos", 520, None, lambda m: True),
-    ("Aceite de caja 75W90 1L", "Lubricantes", 990, None, lambda m: True),
+    ("Aceite de caja 75W90 1L", "Lubricantes", 990, None, lambda m: m["transmission"] == "manual"),
     ("Kit de fusibles surtidos", "Eléctrico", 450, None, lambda m: True),
     ("Relé 12V 4 pines", "Eléctrico", 380, None, lambda m: True),
-    # Los modelos más viejos usan H4 (una lámpara para alta y baja); los
-    # más nuevos, H7 (una para cada luz).
-    ("Lámpara de faro H4", "Eléctrico", 420, None, lambda m: m["year_from"] < 2016),
-    ("Lámpara de faro H7", "Eléctrico", 480, None, lambda m: m["year_from"] >= 2016),
+    # Aplicaciones ópticas explícitas, nunca calculadas por año.
+    ("Lámpara de faro H4", "Eléctrico", 420, None, lambda m: m["headlamp"] == "H4"),
+    ("Lámpara de faro H7", "Eléctrico", 480, None, lambda m: m["headlamp"] == "H7"),
     ("Lámpara de señal W5W", "Eléctrico", 120, None, lambda m: True),
     ("Lámpara de señal P21W", "Eléctrico", 140, None, lambda m: True),
     ("Aditivo limpia inyectores nafta 300 ml", "Lubricantes", 690, None,
@@ -539,6 +609,9 @@ def build_car_models():
             "year_from": year_from,
             "year_to": year_to,
             "segment": segment,
+            "transmission": "automatic" if (brand, model) in AUTOMATIC_MODELS else "manual",
+            "headlamp": lamp_application({"brand": brand, "model": model, "engine_code": engine_code}),
+            "cylinders": ENGINE_CYLINDERS.get(engine_code, 4),
         }
         for brand, model, engine_code, year_from, year_to, segment in CAR_MODELS + NEW_BRAND_MODELS
     ]
@@ -645,14 +718,17 @@ def specifications(name, manufacturer, compatible, code):
             ["Calibración", pick(["0,8 mm", "0,9 mm", "1,0 mm"], code)],
             ["Grado térmico", pick(["5", "6", "7"], code)],
             ["Duración estimada", "60.000 km" if electrode != "Níquel" else "30.000 km"],
+            ["Unidades por motor", str(compatible[0]["cylinders"])],
         ]
     if name.startswith("Bobina de encendido"):
-        kind = pick(["Lápiz (una por cilindro)", "Bloque (4 salidas)"], code)
+        cylinders = compatible[0]["cylinders"]
+        kind = pick(["Lápiz (una por cilindro)", "Bloque"], code)
         return [
             ["Tipo", kind],
             ["Tensión de entrada", "12 V"],
             ["Conector", pick(["3 pines", "4 pines"], code)],
-            ["Unidades", "1" if kind.startswith("Lápiz") else "1 (para los 4 cilindros)"],
+            ["Unidades por motor", str(cylinders) if kind.startswith("Lápiz") else "1"],
+            ["Salidas", str(cylinders) if kind == "Bloque" else "1"],
         ]
     if name.startswith("Kit de distribución"):
         return [
@@ -1042,12 +1118,12 @@ def build_parts(car_models):
     # solo para todos los autos: van con el catálogo original.
     nuevas = {(brand, model) for brand, model, *_ in NEW_BRAND_MODELS}
     originales = [m for m in car_models if (m["brand"], m["model"]) not in nuevas]
-    agregados = [m for m in car_models if (m["brand"], m["model"]) in nuevas]
-    repetidos = {m["engine_code"] for m in agregados} & {m["engine_code"] for m in originales}
-    if repetidos:
-        raise ValueError(f"Motores de las marcas nuevas que ya estaban: {', '.join(sorted(repetidos))}")
+    added = [m for m in car_models if (m["brand"], m["model"]) in nuevas]
+    repeated_items = {m["engine_code"] for m in added} & {m["engine_code"] for m in originales}
+    if repeated_items:
+        raise ValueError(f"Motores de las marcas nuevas que ya estaban: {', '.join(sorted(repeated_items))}")
 
-    def por_motor_y_modelo(models):
+    def by_engine_and_model(models):
         for engine_code, group in group_by_engine(models).items():
             for name, category, base_price, color in ENGINE_PARTS:
                 base(name, f" {engine_code}", category, base_price, color, group, engine_code)
@@ -1057,7 +1133,7 @@ def build_parts(car_models):
                 group = f"{car_model['brand']} {car_model['model']}"
                 base(name, "", category, base_price, color, [car_model], group)
 
-    def agregados_despues(models):
+    def added_later(models):
         for engine_code, group in group_by_engine(models).items():
             for name, category, base_price, color in EXTRA_ENGINE_PARTS:
                 base(name, f" {engine_code}", category, base_price, color, group, engine_code)
@@ -1071,13 +1147,13 @@ def build_parts(car_models):
             for name, category, base_price, color in BODY_PARTS:
                 base(name, "", category, base_price, color, group, f"{brand} {model}")
 
-    por_motor_y_modelo(originales)
+    by_engine_and_model(originales)
 
     for name, category, base_price, color in UNIVERSAL_PARTS:
         base(name, "", category, base_price, color, car_models, None)
 
     # --- Agregados después: siempre al final (ver EXTRA_ENGINE_PARTS).
-    agregados_despues(originales)
+    added_later(originales)
 
     for name, price, fits in BATTERIES:
         base(name, "", "Eléctrico", price, None, [m for m in car_models if fits(m)], None, by_segment=False)
@@ -1100,13 +1176,20 @@ def build_parts(car_models):
                 "specifications": specifications(name, manufacturer, compatible, code),
                 "warranty_months": warranty_months,
                 "warranty_provider": warranty_provider,
-                "compatibilities": [compatibility_entry(m) for m in compatible],
+                # Mantener códigos estables incluso para repuestos históricos
+                # de encendido diésel: quedan sin aplicación, no se borran
+                # productos referenciados por compras o favoritos.
+                "compatibilities": [
+                    compatibility_entry(m) for m in compatible
+                    if not (name in ("Bujía", "Bobina de encendido")
+                            and m["engine_code"] in DIESEL_ENGINES)
+                ],
             }
         )
 
     # Primero el fabricante principal de cada repuesto, en el orden de
     # siempre, y al final los demás fabricantes.
-    def con_fabricantes(lote):
+    def with_manufacturers(lote):
         for part in lote:
             manufacturer, factor = manufacturers_of(part[0])[0]
             add(part, manufacturer, factor)
@@ -1116,21 +1199,21 @@ def build_parts(car_models):
                 if covers(manufacturer, part[6]):
                     add(part, manufacturer, factor)
 
-    con_fabricantes(base_parts)
+    with_manufacturers(base_parts)
 
     # --- Marcas nuevas: todos sus repuestos después de los que ya existían.
     base_parts.clear()
-    por_motor_y_modelo(agregados)
-    agregados_despues(agregados)
-    con_fabricantes(base_parts)
+    by_engine_and_model(added)
+    added_later(added)
+    with_manufacturers(base_parts)
 
     # --- Tipos de repuesto nuevos (ver NEW_ENGINE_PARTS), para todos los
     # autos, después de todo lo anterior.
     base_parts.clear()
     en_plataforma = {model for _, models in PLATFORMS.values() for model in models}
-    sin_plataforma = {(m["brand"], m["model"]) for m in car_models} - en_plataforma
-    if sin_plataforma:
-        raise ValueError(f"Modelos sin plataforma: {sorted(sin_plataforma)}")
+    without_platform = {(m["brand"], m["model"]) for m in car_models} - en_plataforma
+    if without_platform:
+        raise ValueError(f"Modelos sin plataforma: {sorted(without_platform)}")
 
     for engine_code, group in group_by_engine(car_models).items():
         for name, category, base_price, color in NEW_ENGINE_PARTS:
@@ -1147,7 +1230,7 @@ def build_parts(car_models):
     for name, category, price, color, fits in NEW_UNIVERSAL_PARTS:
         base(name, "", category, price, color, [m for m in car_models if fits(m)], None, by_segment=False)
 
-    con_fabricantes(base_parts)
+    with_manufacturers(base_parts)
 
     return parts
 
