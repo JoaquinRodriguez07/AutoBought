@@ -95,6 +95,17 @@ describe("listado de pedidos", () => {
     expect(screen.getByText("Mostrando 2 de 2 pedidos.")).toBeInTheDocument();
   });
 
+  it("shows whether each order is a home delivery or a pickup at the store", async () => {
+    getOrders.mockResolvedValue(
+      response([pedido(1, { deliveryMethod: "shipping" }), pedido(2, { deliveryMethod: "pickup" })])
+    );
+    render(<SellerOrders />);
+    await screen.findByText("Cliente 1");
+
+    expect(within(row(1)).getByText("Envío a domicilio")).toBeInTheDocument();
+    expect(within(row(2)).getByText("Retiro en el local")).toBeInTheDocument();
+  });
+
   it("filters by status with the count of each one", async () => {
     const user = userEvent.setup();
     render(<SellerOrders />);

@@ -262,6 +262,29 @@ describe("editar la dirección de envío", () => {
   });
 });
 
+describe("retiro en el local", () => {
+  it("shows that the order is a pickup and has no shipping address", async () => {
+    getOrder.mockResolvedValue(
+      pedido({ deliveryMethod: "pickup", shipping: null, canEditShipping: false })
+    );
+    renderDetail();
+    await screen.findByRole("table");
+
+    expect(screen.getByText("Retiro en el local")).toBeInTheDocument();
+    expect(screen.getByText("Sin dirección de envío.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Editar/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the shipping address when the order is a home delivery", async () => {
+    getOrder.mockResolvedValue(pedido({ deliveryMethod: "shipping" }));
+    renderDetail();
+    await screen.findByRole("table");
+
+    expect(screen.queryByText("Retiro en el local")).not.toBeInTheDocument();
+    expect(within(panel("Envío")).getByText(/Av\. Italia/)).toBeInTheDocument();
+  });
+});
+
 describe("nota interna", () => {
   it("saves a note that only the store sees", async () => {
     const user = userEvent.setup();
