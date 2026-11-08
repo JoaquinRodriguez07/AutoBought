@@ -223,20 +223,7 @@ def stockout_risk(
     if at_risk_only:
         result_rows = [row for row in result_rows if row.risk != analytics_math.LOW_RISK]
 
-    # Del más urgente al menos urgente: primero por nivel. Dentro de cada
-    # nivel, los que dejarían más unidades sin cubrir el mes que viene; si
-    # no, un agotado que vende 0,3 por mes taparía a uno que vende 50 y le
-    # quedan 6 días. Después, los que se agotan antes; sin demanda, al final.
-    result_rows.sort(
-        key=lambda row: (
-            analytics_math.RISK_ORDER[row.risk],
-            -max(row.projected_units - row.part.stock, 0),
-            row.coverage_days is None,
-            row.coverage_days or 0,
-            row.part.part_code,
-            row.part.id,
-        )
-    )
+    result_rows.sort(key=crud_analytics.urgency_key)
     return {
         "month": analytics_math.month_text(period),
         "thresholds": {

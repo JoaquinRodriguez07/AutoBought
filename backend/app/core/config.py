@@ -44,6 +44,11 @@ GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googlea
 AI_TIMEOUT_SECONDS = float(os.getenv("IA_TIMEOUT_SEGUNDOS", "30"))
 # Consultas a la IA por usuario en las últimas 24 horas (controla el costo).
 AI_DAILY_LIMIT = int(os.getenv("IA_LIMITE_DIARIO", "20"))
+# Resumen del dashboard con IA (HU 6.3): cuántos repuestos y categorías se
+# le pasan a la IA en cada lista. Más elementos, más tokens.
+AI_SUMMARY_BEST_SELLERS = int(os.getenv("IA_RESUMEN_MAS_VENDIDOS", "3"))
+AI_SUMMARY_AT_RISK = int(os.getenv("IA_RESUMEN_EN_RIESGO", "5"))
+AI_SUMMARY_CATEGORIES = int(os.getenv("IA_RESUMEN_CATEGORIAS", "3"))
 
 # Mercado Pago. Con la cuenta de prueba, el token es el "Access Token" de
 # las credenciales de prueba. Sin token, comprar responde "pago no disponible".
