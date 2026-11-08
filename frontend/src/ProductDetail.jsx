@@ -425,7 +425,7 @@ export default function ProductDetail({
           </div>
         </section>
 
-        <BoughtTogether product={currentProduct} onDetail={onDetail} />
+        <BoughtTogether product={currentProduct} onDetail={onDetail} seller={seller} />
 
       </main>
     </div>
