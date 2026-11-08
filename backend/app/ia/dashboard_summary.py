@@ -62,7 +62,18 @@ def _part_info(part) -> dict:
 
 
 def build_metrics(db: Session, today_date: date) -> dict:
-    """Las métricas que se le pasan a la IA, calculadas como en el dashboard."""
+    """Las métricas que se le pasan a la IA, calculadas como en el dashboard.
+
+    Args:
+        db: la sesión de la base.
+        today_date: el día de hoy en Uruguay (en los tests, uno fijo).
+
+    Returns:
+        Un diccionario listo para pasar a JSON: el mes anterior, el mes en
+        curso (hasta hoy y proyectado a mes completo), la proyección del mes
+        siguiente, las categorías que más crecen y caen, los más vendidos y
+        los repuestos con más riesgo de agotarse. Sin datos de clientes.
+    """
     periods = analytics_math.last_months(today_date, analytics_math.FORECAST_MONTHS)
     previous, current = periods[-2], periods[-1]
     days_in_current = analytics_math.days_in_month(current)
@@ -161,9 +172,19 @@ def build_metrics(db: Session, today_date: date) -> dict:
 
 
 def generate(db: Session, ai_client: AIClient, today_date: date) -> tuple[list[str], int]:
-    """Calcula las métricas y le pide a la IA el resumen. Devuelve los puntos
-    y los tokens usados. Lanza AIUnavailable si la IA falla o no respeta el
-    formato."""
+    """Calcula las métricas y le pide a la IA que las redacte.
+
+    Args:
+        db: la sesión de la base.
+        ai_client: el cliente de IA (en los tests, uno falso).
+        today_date: el día de hoy en Uruguay.
+
+    Returns:
+        Los puntos del resumen (de 3 a 5) y los tokens que se usaron.
+
+    Raises:
+        AIUnavailable: si la IA no responde o no respeta el formato pedido.
+    """
     metrics = build_metrics(db, today_date)
     reply, tokens = ask_structured(
         ai_client, INSTRUCTIONS, json.dumps(metrics, ensure_ascii=False), AISummaryReply
