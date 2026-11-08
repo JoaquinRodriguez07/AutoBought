@@ -1,3 +1,5 @@
+"""Tests de los repuestos más vendidos."""
+
 from datetime import datetime, timedelta, timezone
 
 from app.crud.part import list_best_sellers
@@ -44,8 +46,8 @@ def make_part(db_session, part_code, stock=10):
 
 
 def make_order(db_session, client, items, days_ago=1, status=OrderStatus.CONFIRMED, payment=None):
-    """Create an order from (part, quantity) tuples. Without `payment` it is
-    an order from before Mercado Pago."""
+    """Crea un pedido con tuplas (repuesto, cantidad). Sin `payment` es un
+    pedido de antes de Mercado Pago."""
     order = Order(
         client_id=client.user_id,
         created_at=datetime.now(timezone.utc) - timedelta(days=days_ago),

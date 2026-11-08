@@ -1,3 +1,5 @@
+"""Endpoints de los avisos de vuelta de stock («Avisame cuando haya»)."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 

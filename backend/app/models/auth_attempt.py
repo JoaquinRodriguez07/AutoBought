@@ -1,3 +1,5 @@
+"""ModelT de los intentos fallidos por correo."""
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, Integer, String

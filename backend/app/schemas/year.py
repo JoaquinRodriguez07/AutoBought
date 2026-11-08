@@ -1,3 +1,5 @@
+"""Schemas de los años de un modelo."""
+
 from pydantic import BaseModel
 
 

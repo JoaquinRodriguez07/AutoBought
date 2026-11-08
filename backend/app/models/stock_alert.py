@@ -1,3 +1,5 @@
+"""ModelT de un aviso de vuelta de stock."""
+
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, UniqueConstraint, func
 from sqlalchemy.orm import relationship
 

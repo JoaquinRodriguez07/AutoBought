@@ -1,3 +1,5 @@
+"""Endpoint de recomendaciones: repuestos que suelen comprarse junto con los del carrito."""
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 

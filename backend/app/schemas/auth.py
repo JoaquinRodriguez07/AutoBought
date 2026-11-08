@@ -1,3 +1,5 @@
+"""Schemas de la cuenta: registro, login, enlaces por mail y token."""
+
 from pydantic import BaseModel, EmailStr, Field, ValidationInfo, field_validator
 
 from app.core import validators
@@ -25,11 +27,11 @@ class RegisterRequest(BaseModel):
     @field_validator("name")
     @classmethod
     def name_valido(cls, value: str) -> str:
-        return validators.nombre_persona(value)
+        return validators.person_name(value)
 
     @field_validator("password")
     @classmethod
-    def password_valida(cls, value: str, info: ValidationInfo) -> str:
+    def valid_password(cls, value: str, info: ValidationInfo) -> str:
         # `email` se declara antes: si es válido, ya está en info.data.
         # Incluye el límite de 72 bytes de bcrypt (con más daría un 500).
         return validators.password_segura(value, info.data.get("email"))
@@ -53,7 +55,7 @@ class ResetPasswordRequest(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def password_nueva_segura(cls, value: str) -> str:
+    def new_password_is_safe(cls, value: str) -> str:
         # La regla de que no contenga el correo se chequea en el endpoint,
         # que es el que sabe de quién es el token.
         return validators.password_segura(value)

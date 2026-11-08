@@ -4,7 +4,7 @@
 > único `name`: el frontend los envía unidos. El registro devuelve el mismo token
 > que el login, así que la sesión queda iniciada.
 >
-> Las reglas de validación son las mismas en el frontend (`validaciones.js`, avisa
+> Las reglas de validación son las mismas en el frontend (`validations.js`, avisa
 > antes de enviar) y en el backend (`core/validators.py`, la que vale):
 > - **Nombre y apellido:** solo letras, espacios, apóstrofos y guiones; al menos 2 letras.
 > - **Teléfono:** obligatorio y uruguayo.

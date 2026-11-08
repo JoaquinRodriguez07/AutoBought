@@ -1,3 +1,5 @@
+"""Endpoint con los modelos de una marca de autos."""
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 

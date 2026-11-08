@@ -8,7 +8,7 @@ internacional: "+598" + 8 dígitos (ej: +59899123456).
 
 import re
 
-MENSAJE_TELEFONO = "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."
+PHONE_MESSAGE = "Ingresá un teléfono uruguayo válido (ej: 099 123 456)."
 
 _SEPARADORES = re.compile(r"[\s\-.()]")
 # Celular: 9 + operadora 1-9 + 6 dígitos. Fijo: 2 (Montevideo) o 4 (interior) + 7.
@@ -22,7 +22,7 @@ def normalize_uy_phone(raw: str) -> str:
     if digits.startswith("+"):
         digits = digits[1:]
         if not digits.startswith("598"):
-            raise ValueError(MENSAJE_TELEFONO)
+            raise ValueError(PHONE_MESSAGE)
         digits = digits[3:]
     elif digits.startswith("00598"):
         digits = digits[5:]
@@ -34,6 +34,6 @@ def normalize_uy_phone(raw: str) -> str:
         digits = digits[1:]
 
     if not digits.isdigit() or not _NACIONAL.match(digits):
-        raise ValueError(MENSAJE_TELEFONO)
+        raise ValueError(PHONE_MESSAGE)
 
     return f"+598{digits}"

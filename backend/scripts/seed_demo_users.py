@@ -98,16 +98,16 @@ VENDEDORES = [
 ]
 
 
-def _crear_compra(db, client_id: int, items: list[tuple[str, int]]) -> int | None:
+def _create_purchase(db, client_id: int, items: list[tuple[str, int]]) -> int | None:
     """Arma un carrito con un repuesto de cada categoría y lo compra, ya
     pagado (como si Mercado Pago hubiera aprobado el pago)."""
-    for categoria, cantidad in items:
+    for categoria, qty in items:
         part = db.scalar(
-            select(Part).where(Part.category == categoria, Part.stock >= cantidad).limit(1)
+            select(Part).where(Part.category == categoria, Part.stock >= qty).limit(1)
         )
         if part is None:
             return None
-        crud_cart.add_item(db, client_id, part.id, cantidad)
+        crud_cart.add_item(db, client_id, part.id, qty)
 
     # place_order abre su propia transacción (igual que en el endpoint).
     db.rollback()
@@ -117,49 +117,49 @@ def _crear_compra(db, client_id: int, items: list[tuple[str, int]]) -> int | Non
     return order.order_id
 
 
-def crear_usuario(db, datos: dict) -> str:
-    cuenta = RegisterRequest(**datos["cuenta"])
+def create_user(db, data: dict) -> str:
+    account = RegisterRequest(**data["cuenta"])
 
-    if crud_user.get_user_by_email(db, cuenta.email):
-        return f"{cuenta.email}: ya existe, se saltea."
+    if crud_user.get_user_by_email(db, account.email):
+        return f"{account.email}: ya existe, se saltea."
 
     client = crud_user.create_client(
         db,
-        name=cuenta.name,
-        email=cuenta.email,
-        password_hash=hash_password(cuenta.password),
-        phone=cuenta.phone,
+        name=account.name,
+        email=account.email,
+        password_hash=hash_password(account.password),
+        phone=account.phone,
     )
     # Los usuarios de prueba ya vienen verificados, para poder comprar.
     crud_user.mark_email_verified(db, client)
     client_id = client.user_id
 
-    for direccion in datos["direcciones"]:
-        crud_address.create_address(db, client_id, ShippingAddressCreate(**direccion))
+    for address in data["direcciones"]:
+        crud_address.create_address(db, client_id, ShippingAddressCreate(**address))
 
-    detalle = f"{len(datos['direcciones'])} dirección(es)"
-    if items := datos.get("compra"):
-        order_id = _crear_compra(db, client_id, items)
-        detalle += f", compra #{order_id}" if order_id else ", sin compra (falta el catálogo)"
+    detail = f"{len(data['direcciones'])} dirección(es)"
+    if items := data.get("compra"):
+        order_id = _create_purchase(db, client_id, items)
+        detail += f", compra #{order_id}" if order_id else ", sin compra (falta el catálogo)"
 
-    return f"{cuenta.email} / {datos['cuenta']['password']}: {detalle}."
+    return f"{account.email} / {data['cuenta']['password']}: {detail}."
 
 
-def crear_vendedor(db, datos: dict) -> str:
-    email = datos["email"]
-    password = validators.password_segura(datos["password"], email)
+def create_seller(db, data: dict) -> str:
+    email = data["email"]
+    password = validators.password_segura(data["password"], email)
 
     if crud_user.get_user_by_email(db, email):
         return f"{email}: ya existe, se saltea."
 
     crud_user.create_employee(
         db,
-        name=datos["name"],
+        name=data["name"],
         email=email,
         password_hash=hash_password(password),
-        is_admin=datos.get("is_admin", False),
+        is_admin=data.get("is_admin", False),
     )
-    rol = "vendedor administrador" if datos.get("is_admin") else "vendedor"
+    rol = "vendedor administrador" if data.get("is_admin") else "vendedor"
     return f"{email} / {password}: {rol}."
 
 
@@ -167,10 +167,10 @@ def main():
     require_head(engine)
     db = SessionLocal()
     try:
-        for datos in USUARIOS:
-            print(crear_usuario(db, datos))
-        for datos in VENDEDORES:
-            print(crear_vendedor(db, datos))
+        for data in USUARIOS:
+            print(create_user(db, data))
+        for data in VENDEDORES:
+            print(create_seller(db, data))
     finally:
         db.close()
 

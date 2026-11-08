@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin, get_db
 from app.core.config import FRONTEND_URL
-from app.core.email import programar_mail
-from app.core.security import RECUPERAR_PASSWORD, create_purpose_token, hash_password, huella_password
+from app.core.email import schedule_mail
+from app.core.security import RESET_PASSWORD, create_purpose_token, hash_password, password_fingerprint
 from app.crud import user as crud_user
 from app.models.employee import Employee
 from app.schemas.employee import EmployeeCreate, EmployeeListOut, EmployeeOut, build_employee_out
@@ -19,19 +19,19 @@ router = APIRouter(prefix="/employees", tags=["employees"], dependencies=[Depend
 
 # Más que los 30 minutos de "olvidé mi contraseña": el vendedor nuevo
 # puede no ver el mail enseguida.
-VIGENCIA_ALTA_MINUTOS = 3 * 24 * 60
+WELCOME_LINK_MINUTES = 3 * 24 * 60
 
 
-def _mandar_bienvenida(background_tasks: BackgroundTasks, employee: Employee, admin: Employee) -> None:
+def _send_welcome(background_tasks: BackgroundTasks, employee: Employee, admin: Employee) -> None:
     """El mismo enlace que "olvidé mi contraseña" (sirve una sola vez),
     con un texto de bienvenida."""
     token = create_purpose_token(
         str(employee.user_id),
-        RECUPERAR_PASSWORD,
-        VIGENCIA_ALTA_MINUTOS,
-        extra_claims={"pwd": huella_password(employee.password)},
+        RESET_PASSWORD,
+        WELCOME_LINK_MINUTES,
+        extra_claims={"pwd": password_fingerprint(employee.password)},
     )
-    programar_mail(
+    schedule_mail(
         background_tasks,
         employee.email,
         "Te sumaron al equipo de AutoBought",
@@ -77,7 +77,7 @@ def create_employee(
             db.rollback()
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Ya hay una cuenta con ese correo.") from None
 
-    _mandar_bienvenida(background_tasks, employee, admin)
+    _send_welcome(background_tasks, employee, admin)
     return build_employee_out(employee)
 
 

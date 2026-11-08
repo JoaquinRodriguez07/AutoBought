@@ -26,11 +26,11 @@ def admin(db_session):
 
 
 @pytest.fixture
-def vendedor(db_session):
+def seller(db_session):
     return make_employee(db_session, "beto@example.com", name="Beto Vendedor")
 
 
-def como(employee):
+def as_user(employee):
     return auth_headers(employee, "employee")
 
 
@@ -38,13 +38,13 @@ def login(client, email, password="secreto123"):
     return client.post("/api/v1/auth/login", json={"email": email, "password": password})
 
 
-def enlace_del_mail(mail) -> str:
-    texto = mail.get_body(preferencelist=("plain",)).get_content()
-    return next(linea for linea in texto.splitlines() if "/restablecer-password?token=" in linea).strip()
+def link_in_mail(mail_message) -> str:
+    texto = mail_message.get_body(preferencelist=("plain",)).get_content()
+    return next(line for line in texto.splitlines() if "/restablecer-password?token=" in line).strip()
 
 
-def token_del_enlace(enlace: str) -> str:
-    return parse_qs(urlparse(enlace).query)["token"][0]
+def link_token(link: str) -> str:
+    return parse_qs(urlparse(link).query)["token"][0]
 
 
 # =====================================================
@@ -56,8 +56,8 @@ def token_del_enlace(enlace: str) -> str:
     "metodo, ruta, body",
     [("get", EMPLEADOS, None), ("post", EMPLEADOS, {"name": "Caro Nueva", "email": "caro@example.com"}), ("delete", f"{EMPLEADOS}/1", None)],
 )
-def test_un_vendedor_comun_no_puede_gestionar_el_equipo(client, vendedor, metodo, ruta, body):
-    kwargs = {"headers": como(vendedor)}
+def test_a_seller_common_no_can_manage_the_team(client, seller, metodo, ruta, body):
+    kwargs = {"headers": as_user(seller)}
     if body:
         kwargs["json"] = body
 
@@ -67,17 +67,17 @@ def test_un_vendedor_comun_no_puede_gestionar_el_equipo(client, vendedor, metodo
     assert response.json()["detail"] == "Esta acción requiere ser administrador."
 
 
-def test_un_cliente_no_puede_gestionar_el_equipo(client, db_session):
-    cliente = make_client(db_session)
+def test_a_customer_no_can_manage_the_team(client, db_session):
+    customer = make_client(db_session)
 
-    assert client.get(EMPLEADOS, headers=auth_headers(cliente)).status_code == 403
+    assert client.get(EMPLEADOS, headers=auth_headers(customer)).status_code == 403
 
 
-def test_sin_sesion_da_401(client):
+def test_without_session_gives_401(client):
     assert client.get(EMPLEADOS).status_code == 401
 
 
-def test_el_token_dice_si_es_administrador(client, admin, vendedor):
+def test_the_token_says_if_is_admin(client, admin, seller):
     def claims(email):
         token = login(client, email).json()["access_token"]
         return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
@@ -91,16 +91,16 @@ def test_el_token_dice_si_es_administrador(client, admin, vendedor):
 # =====================================================
 
 
-def test_lista_los_vendedores_activos_por_nombre(client, db_session, admin, vendedor):
-    dado_de_baja = make_employee(db_session, "caro@example.com", name="Caro Ex")
-    crud_user.deactivate_employee(db_session, dado_de_baja)
+def test_list_the_sellers_active_by_name(client, db_session, admin, seller):
+    deactivated = make_employee(db_session, "caro@example.com", name="Caro Ex")
+    crud_user.deactivate_employee(db_session, deactivated)
 
-    response = client.get(EMPLEADOS, headers=como(admin))
+    response = client.get(EMPLEADOS, headers=as_user(admin))
 
     assert response.status_code == 200
     assert response.json()["employees"] == [
         {"id": admin.user_id, "name": "Ana Admin", "email": "admin@example.com", "is_admin": True},
-        {"id": vendedor.user_id, "name": "Beto Vendedor", "email": "beto@example.com", "is_admin": False},
+        {"id": seller.user_id, "name": "Beto Vendedor", "email": "beto@example.com", "is_admin": False},
     ]
 
 
@@ -109,30 +109,30 @@ def test_lista_los_vendedores_activos_por_nombre(client, db_session, admin, vend
 # =====================================================
 
 
-def test_alta_crea_el_vendedor_y_le_manda_el_mail_para_elegir_contrasena(client, db_session, admin, mails):
-    response = client.post(EMPLEADOS, json={"name": "Caro Nueva", "email": "Caro@Example.com"}, headers=como(admin))
+def test_signup_creates_the_seller_and_sends_the_mail_for_choose_password(client, db_session, admin, sent_mails):
+    response = client.post(EMPLEADOS, json={"name": "Caro Nueva", "email": "Caro@Example.com"}, headers=as_user(admin))
 
     assert response.status_code == 201
     body = response.json()
     assert body["name"] == "Caro Nueva"
     assert body["email"] == "caro@example.com"
     assert body["is_admin"] is False
-    nuevo = db_session.get(Employee, body["id"])
-    assert nuevo.active
+    new_item = db_session.get(Employee, body["id"])
+    assert new_item.active
 
-    assert len(mails) == 1
-    assert mails[0]["To"] == "caro@example.com"
-    assert mails[0]["Subject"] == "Te sumaron al equipo de AutoBought"
-    texto = mails[0].get_body(preferencelist=("plain",)).get_content()
+    assert len(sent_mails) == 1
+    assert sent_mails[0]["To"] == "caro@example.com"
+    assert sent_mails[0]["Subject"] == "Te sumaron al equipo de AutoBought"
+    texto = sent_mails[0].get_body(preferencelist=("plain",)).get_content()
     assert "Ana Admin te sumó al equipo" in texto
 
 
-def test_con_el_enlace_del_mail_elige_su_contrasena_y_entra_al_portal(client, admin, mails):
-    client.post(EMPLEADOS, json={"name": "Caro Nueva", "email": "caro@example.com"}, headers=como(admin))
+def test_with_the_link_of_the_mail_chooses_its_password_and_enters_to_the_portal(client, admin, sent_mails):
+    client.post(EMPLEADOS, json={"name": "Caro Nueva", "email": "caro@example.com"}, headers=as_user(admin))
     # Antes de elegirla no puede entrar (nadie conoce la contraseña al azar).
     assert login(client, "caro@example.com", "Mostrador2026").status_code == 401
 
-    token = token_del_enlace(enlace_del_mail(mails[0]))
+    token = link_token(link_in_mail(sent_mails[0]))
     reset = client.post("/api/v1/auth/password/reset", json={"token": token, "new_password": "Mostrador2026"})
 
     assert reset.status_code == 204
@@ -141,39 +141,39 @@ def test_con_el_enlace_del_mail_elige_su_contrasena_y_entra_al_portal(client, ad
     claims = jwt.decode(response.json()["access_token"], SECRET_KEY, algorithms=[JWT_ALGORITHM])
     assert claims["user_type"] == "employee"
     # El enlace sirve una sola vez.
-    otra = client.post("/api/v1/auth/password/reset", json={"token": token, "new_password": "OtraClave2026"})
-    assert otra.status_code == 400
+    another = client.post("/api/v1/auth/password/reset", json={"token": token, "new_password": "OtraClave2026"})
+    assert another.status_code == 400
 
 
 @pytest.mark.parametrize("email", ["beto@example.com", "ana@example.com"])
-def test_alta_con_un_correo_en_uso_da_409(client, db_session, admin, vendedor, mails, email):
+def test_signup_with_a_email_in_usage_gives_409(client, db_session, admin, seller, sent_mails, email):
     make_client(db_session)  # ana@example.com
 
-    response = client.post(EMPLEADOS, json={"name": "Otro Nombre", "email": email}, headers=como(admin))
+    response = client.post(EMPLEADOS, json={"name": "Otro Nombre", "email": email}, headers=as_user(admin))
 
     assert response.status_code == 409
-    assert mails == []
+    assert sent_mails == []
 
 
 @pytest.mark.parametrize("body", [{"name": "", "email": "caro@example.com"}, {"name": "Caro", "email": "no-es-un-correo"}])
-def test_alta_con_datos_invalidos_da_422(client, admin, mails, body):
-    assert client.post(EMPLEADOS, json=body, headers=como(admin)).status_code == 422
-    assert mails == []
+def test_signup_with_data_invalid_gives_422(client, admin, sent_mails, body):
+    assert client.post(EMPLEADOS, json=body, headers=as_user(admin)).status_code == 422
+    assert sent_mails == []
 
 
-def test_volver_a_dar_de_alta_a_un_vendedor_dado_de_baja_lo_reactiva(client, db_session, admin, vendedor, mails):
-    client.delete(f"{EMPLEADOS}/{vendedor.user_id}", headers=como(admin))
+def test_go_back_a_give_of_signup_a_seller_given_of_removal_it_reactivates(client, db_session, admin, seller, sent_mails):
+    client.delete(f"{EMPLEADOS}/{seller.user_id}", headers=as_user(admin))
 
-    response = client.post(EMPLEADOS, json={"name": "Beto Vuelve", "email": "beto@example.com"}, headers=como(admin))
+    response = client.post(EMPLEADOS, json={"name": "Beto Vuelve", "email": "beto@example.com"}, headers=as_user(admin))
 
     assert response.status_code == 201
-    assert response.json()["id"] == vendedor.user_id
+    assert response.json()["id"] == seller.user_id
     db_session.expire_all()
-    assert db_session.get(Employee, vendedor.user_id).active
-    assert db_session.get(Employee, vendedor.user_id).name == "Beto Vuelve"
+    assert db_session.get(Employee, seller.user_id).active
+    assert db_session.get(Employee, seller.user_id).name == "Beto Vuelve"
     # La contraseña vieja ya no sirve: elige una nueva con el mail.
     assert login(client, "beto@example.com").status_code == 401
-    assert len(mails) == 1
+    assert len(sent_mails) == 1
 
 
 # =====================================================
@@ -181,24 +181,24 @@ def test_volver_a_dar_de_alta_a_un_vendedor_dado_de_baja_lo_reactiva(client, db_
 # =====================================================
 
 
-def test_baja_lo_saca_del_equipo_y_cierra_sus_sesiones(client, db_session, admin, vendedor):
-    sesion_abierta = login(client, "beto@example.com").json()["access_token"]
+def test_removal_it_removes_of_the_team_and_closes_its_sessions(client, db_session, admin, seller):
+    open_session = login(client, "beto@example.com").json()["access_token"]
 
-    response = client.delete(f"{EMPLEADOS}/{vendedor.user_id}", headers=como(admin))
+    response = client.delete(f"{EMPLEADOS}/{seller.user_id}", headers=as_user(admin))
 
     assert response.status_code == 204
     db_session.expire_all()
-    assert not db_session.get(Employee, vendedor.user_id).active
-    nombres = [e["name"] for e in client.get(EMPLEADOS, headers=como(admin)).json()["employees"]]
-    assert nombres == ["Ana Admin"]
+    assert not db_session.get(Employee, seller.user_id).active
+    names = [e["name"] for e in client.get(EMPLEADOS, headers=as_user(admin)).json()["employees"]]
+    assert names == ["Ana Admin"]
     # La sesión que tenía abierta deja de valer.
-    headers = {"Authorization": f"Bearer {sesion_abierta}"}
+    headers = {"Authorization": f"Bearer {open_session}"}
     assert client.get("/api/v1/analytics/ping", headers=headers).status_code == 401
     assert client.post("/api/v1/auth/refresh", headers=headers).status_code == 401
 
 
-def test_un_vendedor_dado_de_baja_no_puede_entrar(client, admin, vendedor):
-    client.delete(f"{EMPLEADOS}/{vendedor.user_id}", headers=como(admin))
+def test_a_seller_given_of_removal_no_can_enter(client, admin, seller):
+    client.delete(f"{EMPLEADOS}/{seller.user_id}", headers=as_user(admin))
 
     response = login(client, "beto@example.com")
 
@@ -206,27 +206,27 @@ def test_un_vendedor_dado_de_baja_no_puede_entrar(client, admin, vendedor):
     assert "dada de baja" in response.json()["detail"]
 
 
-def test_un_vendedor_dado_de_baja_no_recibe_el_mail_de_recuperar_la_contrasena(client, admin, vendedor, mails):
-    client.delete(f"{EMPLEADOS}/{vendedor.user_id}", headers=como(admin))
+def test_a_seller_given_of_removal_no_receives_the_mail_of_recover_the_password(client, admin, seller, sent_mails):
+    client.delete(f"{EMPLEADOS}/{seller.user_id}", headers=as_user(admin))
 
     response = client.post("/api/v1/auth/password/forgot", json={"email": "beto@example.com"})
 
     assert response.status_code == 202
-    assert mails == []
+    assert sent_mails == []
 
 
-def test_un_enlace_viejo_no_sirve_despues_de_la_baja(client, admin, vendedor, mails):
+def test_a_link_old_no_works_after_of_the_removal(client, admin, seller, sent_mails):
     client.post("/api/v1/auth/password/forgot", json={"email": "beto@example.com"})
-    token = token_del_enlace(enlace_del_mail(mails[0]))
-    client.delete(f"{EMPLEADOS}/{vendedor.user_id}", headers=como(admin))
+    token = link_token(link_in_mail(sent_mails[0]))
+    client.delete(f"{EMPLEADOS}/{seller.user_id}", headers=as_user(admin))
 
     response = client.post("/api/v1/auth/password/reset", json={"token": token, "new_password": "Mostrador2026"})
 
     assert response.status_code == 400
 
 
-def test_un_administrador_no_puede_darse_de_baja_a_si_mismo(client, db_session, admin):
-    response = client.delete(f"{EMPLEADOS}/{admin.user_id}", headers=como(admin))
+def test_a_admin_no_can_unsubscribe_of_removal_a_if_same(client, db_session, admin):
+    response = client.delete(f"{EMPLEADOS}/{admin.user_id}", headers=as_user(admin))
 
     assert response.status_code == 400
     assert response.json()["detail"] == "No podés darte de baja a vos mismo."
@@ -234,16 +234,16 @@ def test_un_administrador_no_puede_darse_de_baja_a_si_mismo(client, db_session, 
     assert db_session.get(Employee, admin.user_id).active
 
 
-def test_dar_de_baja_a_un_cliente_o_a_alguien_que_no_existe_da_404(client, db_session, admin):
-    cliente = make_client(db_session)
+def test_give_of_removal_a_customer_or_a_someone_that_no_exists_gives_404(client, db_session, admin):
+    customer = make_client(db_session)
 
-    assert client.delete(f"{EMPLEADOS}/{cliente.user_id}", headers=como(admin)).status_code == 404
-    assert client.delete(f"{EMPLEADOS}/99999", headers=como(admin)).status_code == 404
+    assert client.delete(f"{EMPLEADOS}/{customer.user_id}", headers=as_user(admin)).status_code == 404
+    assert client.delete(f"{EMPLEADOS}/99999", headers=as_user(admin)).status_code == 404
 
 
-def test_dar_de_baja_dos_veces_da_404(client, admin, vendedor):
-    assert client.delete(f"{EMPLEADOS}/{vendedor.user_id}", headers=como(admin)).status_code == 204
-    assert client.delete(f"{EMPLEADOS}/{vendedor.user_id}", headers=como(admin)).status_code == 404
+def test_give_of_removal_two_times_gives_404(client, admin, seller):
+    assert client.delete(f"{EMPLEADOS}/{seller.user_id}", headers=as_user(admin)).status_code == 204
+    assert client.delete(f"{EMPLEADOS}/{seller.user_id}", headers=as_user(admin)).status_code == 404
 
 
 # =====================================================
@@ -251,10 +251,10 @@ def test_dar_de_baja_dos_veces_da_404(client, admin, vendedor):
 # =====================================================
 
 
-def test_el_vendedor_del_seed_es_administrador(db_session):
+def test_the_seller_of_the_seed_is_admin(db_session):
     from scripts import seed_demo_users
 
-    datos = next(v for v in seed_demo_users.VENDEDORES if v["email"] == "vendedor@autobought.com")
-    seed_demo_users.crear_vendedor(db_session, datos)
+    data = next(v for v in seed_demo_users.VENDEDORES if v["email"] == "vendedor@autobought.com")
+    seed_demo_users.create_seller(db_session, data)
 
     assert crud_user.get_user_by_email(db_session, "vendedor@autobought.com").is_admin

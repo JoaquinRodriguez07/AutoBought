@@ -1,3 +1,5 @@
+"""Consultas y cambios de las direcciones de envío del cliente."""
+
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -5,19 +7,19 @@ from app.core.validators import normalizar
 from app.models.shipping_address import ShippingAddress
 from app.schemas.shipping_address import ShippingAddressCreate
 
-MAX_DIRECCIONES_POR_CLIENTE = 10
+MAX_ADDRESSES_PER_CLIENT = 10
 
 
 class ShippingAddressConflict(ValueError):
     """La operación choca con lo que el cliente ya tiene guardado."""
 
 
-def _misma_direccion(address: ShippingAddress, fields: dict) -> bool:
+def _same_address(address: ShippingAddress, fields: dict) -> bool:
     """Compara sin tildes ni mayúsculas: "Av. Italia" == "av. italia"."""
     claves = ("street", "number", "apartment", "city", "department")
     return all(
-        normalizar(getattr(address, clave) or "") == normalizar(fields[clave] or "")
-        for clave in claves
+        normalizar(getattr(address, key) or "") == normalizar(fields[key] or "")
+        for key in claves
     )
 
 
@@ -52,13 +54,13 @@ def create_address(db: Session, client_id: int, data: ShippingAddressCreate) -> 
     existing = list_addresses(db, client_id)
     has_addresses = bool(existing)
 
-    if len(existing) >= MAX_DIRECCIONES_POR_CLIENTE:
+    if len(existing) >= MAX_ADDRESSES_PER_CLIENT:
         raise ShippingAddressConflict(
-            f"Podés guardar hasta {MAX_DIRECCIONES_POR_CLIENTE} direcciones. Eliminá alguna para agregar otra."
+            f"Podés guardar hasta {MAX_ADDRESSES_PER_CLIENT} direcciones. Eliminá alguna para agregar otra."
         )
 
     fields = data.model_dump(mode="json")
-    if any(_misma_direccion(address, fields) for address in existing):
+    if any(_same_address(address, fields) for address in existing):
         raise ShippingAddressConflict("Ya tenés guardada esta dirección.")
 
     # La primera dirección del cliente queda como principal automáticamente.
