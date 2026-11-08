@@ -1,8 +1,9 @@
 """Schemas de las respuestas del dashboard del vendedor."""
 
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class StockPartOut(BaseModel):
@@ -141,3 +142,23 @@ class CarModelOut(BaseModel):
 
 class CarModelsResponse(BaseModel):
     car_models: list[CarModelOut]
+
+
+# --- Resumen con IA (HU 6.3) ---
+
+
+class DashboardSummaryOut(BaseModel):
+    """Un resumen: lo que lee el panel del frontend (dashboardApi.js)."""
+
+    # Se arma directo desde la fila de dashboard_summary.
+    model_config = ConfigDict(from_attributes=True)
+
+    points: list[str]
+    generated_at: datetime
+
+
+class DashboardSummaryHistoryOut(BaseModel):
+    # Cuántos días abarca el historial (IA_RESUMEN_DIAS_HISTORIAL), para que
+    # el panel diga "últimos 7 días" sin tener el número escrito.
+    days: int
+    summaries: list[DashboardSummaryOut]
