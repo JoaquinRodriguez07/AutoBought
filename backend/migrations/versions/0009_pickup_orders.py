@@ -15,26 +15,61 @@ ORDER_STATUS = ("confirmed", "packing", "shipped", "ready_for_pickup", "delivere
 
 def upgrade():
     connection = op.get_bind()
+
     if connection.dialect.name != "postgresql":
-        # En SQLite el enum es un VARCHAR(9): se ensancha para que entre 'ready_for_pickup'.
+        # SQLite
         new_status = sa.Enum(*ORDER_STATUS, name="order_status")
+
         for table in ("order", "order_status_history"):
             with op.batch_alter_table(table) as batch:
-                batch.alter_column("status", existing_type=sa.String(length=9), type_=new_status, existing_nullable=False)
-        if connection.dialect.name == "postgresql":
-        # Desde Postgres 12 se puede dentro de la transacción; el valor nuevo
-        # no se usa hasta el commit, y acá no hace falta (igual que la 0003).
-            op.execute("ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'ready_for_pickup' AFTER 'shipped'")
-            delivery_enum = sa.Enum("shipping", "pickup", name="delivery_method")
-            delivery_enum.create(connection, checkfirst=True)
-    else:
-        delivery_enum = sa.Enum("shipping", "pickup", name="delivery_method")
-        delivery_enum = sa.Enum("shipping", "pickup", name="delivery_method")
-    op.add_column("order", sa.Column("delivery_method", delivery_enum, nullable=False, server_default="shipping"))
-    with op.batch_alter_table("order") as batch:
-        for field in ("ship_personal_name", "ship_street", "ship_number", "ship_city", "ship_department"):
-            batch.alter_column(field, existing_type=sa.String(length=10 if field == "ship_number" else 50), nullable=True)
+                batch.alter_column(
+                    "status",
+                    existing_type=sa.String(length=9),
+                    type_=new_status,
+                    existing_nullable=False
+                )
 
+        delivery_enum = sa.Enum(
+            "shipping", "pickup", name="delivery_method"
+        )
+
+    else:
+        # PostgreSQL
+        op.execute(
+            "ALTER TYPE order_status ADD VALUE IF NOT EXISTS "
+            "'ready_for_pickup' AFTER 'shipped'"
+        )
+
+        delivery_enum = sa.Enum(
+            "shipping", "pickup", name="delivery_method"
+        )
+        delivery_enum.create(connection, checkfirst=True)
+
+    op.add_column(
+        "order",
+        sa.Column(
+            "delivery_method",
+            delivery_enum,
+            nullable=False,
+            server_default="shipping"
+        )
+    )
+
+    with op.batch_alter_table("order") as batch:
+        for field in (
+            "ship_personal_name",
+            "ship_street",
+            "ship_number",
+            "ship_city",
+            "ship_department"
+        ):
+            batch.alter_column(
+                field,
+                existing_type=sa.String(
+                    length=10 if field == "ship_number" else 50
+                ),
+                nullable=True
+            )
 
 def downgrade():
     connection = op.get_bind()
