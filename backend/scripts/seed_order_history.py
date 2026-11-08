@@ -395,7 +395,7 @@ def main():
     require_head(engine)
     db = SessionLocal()
     try:
-        resumen = generate_history(db, semilla=args.semilla, until=args.until)
+        resumen = generate_history(db, semilla=args.semilla, until=args.hasta)
     finally:
         db.close()
 

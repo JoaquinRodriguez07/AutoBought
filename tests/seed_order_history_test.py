@@ -219,3 +219,27 @@ def test_the_manufacturer_primary_covers_all_the_cars_and_the_rest_some():
     assert all(p["manufacturer"] for p in parts)
     assert cars_of["Bosch"] == everyone
     assert all(0 < len(cars_of[f]) < len(everyone) for f in ("Brembo", "TRW", "Ferodo"))
+
+
+def test_the_command_passes_the_options_to_the_generator(monkeypatch, capsys):
+    # El comando de consola (python -m scripts.seed_order_history): que
+    # --semilla y --hasta lleguen a generate_history.
+    from types import SimpleNamespace
+
+    from scripts import seed_order_history
+
+    calls = []
+
+    def fake_generate(db, semilla, until):
+        calls.append((semilla, until))
+        return SimpleNamespace(skipped=True)
+
+    monkeypatch.setattr(seed_order_history, "require_head", lambda engine: None)
+    monkeypatch.setattr(seed_order_history, "SessionLocal", lambda: SimpleNamespace(close=lambda: None))
+    monkeypatch.setattr(seed_order_history, "generate_history", fake_generate)
+    monkeypatch.setattr("sys.argv", ["seed_order_history", "--semilla", "7", "--hasta", "2026-03-15"])
+
+    seed_order_history.main()
+
+    assert calls == [(7, date(2026, 3, 15))]
+    assert "no se generan de nuevo" in capsys.readouterr().out
