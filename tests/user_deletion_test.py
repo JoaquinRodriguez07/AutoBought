@@ -371,6 +371,27 @@ def test_anonymized_email_and_old_password_cannot_log_in(client, db_session):
     ).status_code != 200
 
 
+def test_anonymized_email_cannot_request_password_recovery(client, db_session, sent_mails):
+    customer = make_client(db_session)
+    headers = auth_headers(customer)
+    response = client.request(
+        "DELETE",
+        DELETE_ACCOUNT,
+        json={"password": PASSWORD},
+        headers=headers,
+    )
+    assert response.status_code == 204
+    sent_mails.clear()
+
+    recovery = client.post(
+        "/api/v1/auth/password/forgot",
+        json={"email": customer.email},
+    )
+
+    assert recovery.status_code == 422
+    assert sent_mails == []
+
+
 def test_account_deletion_requires_client_authentication(client):
     response = client.request("DELETE", DELETE_ACCOUNT, json={"password": PASSWORD})
 
