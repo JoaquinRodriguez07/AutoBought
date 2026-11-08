@@ -28,7 +28,9 @@ class AIResponse:
 
 
 class AIClient(Protocol):
-    def generate(self, instructions: str, input_text: str) -> AIResponse: ...
+    def generate(self, instructions: str, input_text: str, timeout: float | None = None) -> AIResponse:
+        """`timeout`: segundos para esta llamada; sin valor, el del cliente."""
+        ...
 
 
 def extract_text(reply: dict) -> str:
@@ -83,7 +85,7 @@ class GeminiClient:
         # Solo para los tests: un transporte falso en vez de la red.
         self.transport = transport
 
-    def generate(self, instructions: str, input_text: str) -> AIResponse:
+    def generate(self, instructions: str, input_text: str, timeout: float | None = None) -> AIResponse:
         if not self.key:
             raise AIUnavailable("No hay clave de IA configurada.")
 
@@ -95,7 +97,7 @@ class GeminiClient:
             "generation_config": {"thinking_level": "low", "max_output_tokens": 2048},
         }
         try:
-            with httpx.Client(timeout=self.timeout, transport=self.transport) as http:
+            with httpx.Client(timeout=timeout or self.timeout, transport=self.transport) as http:
                 reply = http.post(
                     self.url,
                     json=order_data,

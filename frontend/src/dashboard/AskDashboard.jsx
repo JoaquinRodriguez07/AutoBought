@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { unpublishedFeature, askDashboard } from "./dashboardApi";
-import { InDevelopment } from "./pieces";
+import { askDashboard } from "./dashboardApi";
+import { formatNumber } from "./format";
 
 export const SUGGESTED_QUESTIONS = [
   "¿Qué repuestos tengo que reponer esta semana?",
@@ -16,17 +16,22 @@ export const SUGGESTED_QUESTIONS = [
   "¿Qué categoría vendió más en julio?",
 ];
 
+// Con 429 el backend dice cuándo volver a preguntar; con cualquier otro
+// error (la IA no respondió, tardó demasiado) el aviso es genérico.
+const errorMessage = (error) =>
+  error?.status === 429
+    ? error.message
+    : "No pudimos responder ahora. El resto del dashboard funciona igual; probá de nuevo en un rato.";
+
 // Preguntas en lenguaje natural sobre ventas y stock (HU 6.4). La respuesta
 // trae los datos que se usaron, para que el vendedor pueda verificarlos.
-// Con `disponible` en false (el backend todavía no tiene la ruta) se ve,
-// pero dice que está en desarrollo y no deja preguntar.
-export default function AskDashboard({ disponible = false }) {
+export default function AskDashboard() {
   const [texto, setText] = useState("");
   const [estado, setStatus] = useState({ pregunta: "", result: null, loading: false, error: null });
 
   const ask = async (pregunta) => {
     const limpia = pregunta.trim();
-    if (!limpia || estado.loading || !disponible) return;
+    if (!limpia || estado.loading) return;
     setText(limpia);
     setStatus({ pregunta: limpia, result: null, loading: true, error: null });
     try {
@@ -45,12 +50,6 @@ export default function AskDashboard({ disponible = false }) {
   return (
     <section className="flex flex-col gap-5">
       <div className="rounded-xl border bg-card p-4 sm:p-5">
-        {!disponible && (
-          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-            <InDevelopment />
-            Estamos desarrollando esta función. Pronto vas a poder preguntarle al dashboard en tus palabras.
-          </div>
-        )}
         <form onSubmit={send} className="flex gap-2">
           <label htmlFor="pregunta-dashboard" className="sr-only">
             Tu pregunta
@@ -61,10 +60,9 @@ export default function AskDashboard({ disponible = false }) {
             onChange={(event) => setText(event.target.value)}
             placeholder="Ej.: ¿qué repuestos se van a agotar este mes?"
             maxLength={300}
-            disabled={!disponible}
             className="h-11 flex-1 min-w-0 bg-background"
           />
-          <Button type="submit" disabled={!disponible || !texto.trim() || estado.loading} className="h-11 px-4">
+          <Button type="submit" disabled={!texto.trim() || estado.loading} className="h-11 px-4">
             <ArrowUpIcon />
             Preguntar
           </Button>
@@ -78,7 +76,7 @@ export default function AskDashboard({ disponible = false }) {
                 <button
                   type="button"
                   onClick={() => ask(suggested)}
-                  disabled={!disponible || estado.loading}
+                  disabled={estado.loading}
                   className="rounded-full border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-800 disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-muted/40 disabled:hover:text-muted-foreground"
                 >
                   {suggested}
@@ -105,11 +103,7 @@ export default function AskDashboard({ disponible = false }) {
             {estado.error && (
               <Alert>
                 <CircleAlertIcon />
-                <AlertDescription>
-                  {unpublishedFeature(estado.error)
-                    ? "Esta función todavía está en desarrollo."
-                    : "No pudimos responder ahora. El resto del dashboard funciona igual; probá de nuevo en un rato."}
-                </AlertDescription>
+                <AlertDescription>{errorMessage(estado.error)}</AlertDescription>
               </Alert>
             )}
 
@@ -140,7 +134,7 @@ export default function AskDashboard({ disponible = false }) {
                               <TableRow key={i}>
                                 {row.map((rawValue, j) => (
                                   <TableCell key={j} className="tabular-nums">
-                                    {rawValue}
+                                    {typeof rawValue === "number" ? formatNumber(rawValue) : rawValue}
                                   </TableCell>
                                 ))}
                               </TableRow>

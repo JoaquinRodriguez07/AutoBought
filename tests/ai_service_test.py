@@ -76,6 +76,21 @@ def test_sends_the_order_with_the_key_and_returns_the_text():
     assert "Sos un mecánico." in body_data or "Sos un mec\\u00e1nico." in body_data
 
 
+def test_a_call_can_use_its_own_timeout():
+    # Preguntarle al dashboard reparte su tiempo máximo entre dos llamadas.
+    timeouts = []
+
+    def handler(request: httpx.Request):
+        timeouts.append(request.extensions["timeout"]["read"])
+        return httpx.Response(200, json=RESPUESTA_INTERACTIONS)
+
+    client = customer_with(handler)
+    client.generate("x", "y")
+    client.generate("x", "y", timeout=0.5)
+
+    assert timeouts == [1, 0.5]
+
+
 def test_without_key_no_is_available():
     with pytest.raises(AIUnavailable, match="clave"):
         GeminiClient(key="").generate("x", "y")

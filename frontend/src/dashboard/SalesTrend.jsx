@@ -38,7 +38,7 @@ export default function SalesTrend({ filters, queryState, compact = false }) {
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <p className="text-xs text-muted-foreground">
-                {scope || "Toda la tienda"}. No cuentan los pedidos cancelados.
+                {scope || "Toda la tienda"}. Solo cuentan los pedidos pagos y no cancelados.
               </p>
               <Options
                 label="Qué mostrar"

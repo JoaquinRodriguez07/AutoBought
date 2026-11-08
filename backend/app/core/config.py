@@ -52,6 +52,11 @@ AI_SUMMARY_CATEGORIES = int(os.getenv("IA_RESUMEN_CATEGORIAS", "3"))
 # Días de resúmenes que se guardan y se muestran en el historial. Los más
 # viejos los borra la tarea diaria.
 AI_SUMMARY_HISTORY_DAYS = int(os.getenv("IA_RESUMEN_DIAS_HISTORIAL", "7"))
+# Preguntarle al dashboard (HU 6.4): preguntas por vendedor en la última
+# hora, y cuánto puede tardar en total una respuesta (todas las llamadas a
+# la IA de esa pregunta). Pasado ese tiempo, se avisa que no se pudo.
+AI_ASK_HOURLY_LIMIT = int(os.getenv("IA_PREGUNTAS_POR_HORA", "10"))
+AI_ASK_TIMEOUT_SECONDS = float(os.getenv("IA_PREGUNTA_TIMEOUT_SEGUNDOS", "25"))
 
 # Mercado Pago. Con la cuenta de prueba, el token es el "Access Token" de
 # las credenciales de prueba. Sin token, comprar responde "pago no disponible".
