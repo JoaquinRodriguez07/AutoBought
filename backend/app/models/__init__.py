@@ -15,3 +15,4 @@ from app.models.favorite import Favorite
 from app.models.stock_alert import StockAlert
 from app.models.auth_attempt import AuthAttempt
 from app.models.ai_usage import AIUsage
+from app.models.dashboard_summary import DashboardSummary
