@@ -5,6 +5,7 @@
 - [Introducción](#introducción)
 - [La Base de Datos](#la-base-de-datos)
 - [El Object-Relational Mapper (ORM)](#el-object-relational-mapper-orm)
+- [Versionando con Alembic](#versionando-con-alembic)
 - [Los Scripts de Testeo](#los-scripts-de-testeo)
 - [Privacidad y Permanencia](#privacidad-y-permanencia)
 
@@ -40,6 +41,18 @@ Se eligió un ORM para mantener el acceso a datos junto al código del dominio, 
 SQLAlchemy también construye y ejecuta las consultas SQL a partir de las operaciones sobre modelos y sesiones: filtrar repuestos, buscar un usuario, insertar un pedido o relacionar sus artículos no requiere concatenar y mantener a mano cada sentencia SQL. El ORM administra parámetros y relaciones, lo que reduce duplicación y errores en consultas repetidas, y permite usar la misma capa para PostgreSQL y, en pruebas puntuales, SQLite.
 
 El ORM no reemplaza a SQL ni decide por sí solo el diseño de la base. Las migraciones de Alembic controlan los cambios de esquema; las restricciones de PostgreSQL protegen la integridad de los datos; y, cuando una operación específica lo requiere, el proyecto puede ejecutar SQL explícito. Por ejemplo, el seed del catálogo utiliza un *advisory lock* de PostgreSQL para coordinar ejecuciones concurrentes.
+
+## Versionando con Alembic
+
+Alembic administra las versiones del esquema de la base. Cada cambio estructural —por ejemplo, agregar una columna, una tabla o una restricción— se registra como una revisión de migración en `backend/migrations/versions/`. Una revisión define `upgrade()`, que aplica el cambio, y `downgrade()`, que lo revierte. Las revisiones se encadenan para que Alembic pueda recorrer el historial y aplicar los cambios en el orden correcto.
+
+La configuración está en `backend/alembic.ini`; no contiene credenciales. Al ejecutar Alembic, `backend/migrations/env.py` toma la conexión de `DATABASE_URL`, la misma configuración y el mismo `engine` que usa el backend. También carga los modelos registrados en `Base.metadata` de SQLAlchemy. De ese modo, al crear una revisión con autogeneración, Alembic compara los modelos con el esquema actual y propone las diferencias.
+
+La autogeneración produce un borrador, no una migración lista para aplicar sin revisión. Antes de usarla hay que comprobar que representa el cambio deseado, que no propone borrar datos por error y que los métodos `upgrade()` y `downgrade()` son adecuados. En especial, un renombre puede aparecer como eliminación y creación; si se quiere conservar los datos, hay que corregir la migración para expresar el renombre. Cuando el cambio depende de una transformación de datos o Alembic no lo detecta, la migración se completa explícitamente.
+
+Las migraciones se ejecutan desde `backend/` con `uv run alembic upgrade head`, o desde Docker con `docker exec backend uv run alembic upgrade head`. `head` significa la última revisión disponible en el código; Alembic aplica las revisiones que todavía falten y registra la versión alcanzada en la tabla `alembic_version`. Así, una base nueva se prepara aplicando todas las revisiones, mientras que una base existente avanza desde su versión actual sin volver a ejecutar las anteriores. Antes de migrar una base remota, hay que verificar que `DATABASE_URL` apunta al destino previsto y realizar un respaldo.
+
+El proyecto mantiene separadas las responsabilidades: Alembic crea y modifica tablas, columnas, índices y restricciones; los scripts de seed cargan o actualizan registros, pero no cambian el esquema. Por eso, los seeds llaman a `require_head` y se niegan a ejecutarse si la base no está en la última revisión. Si se trabaja con una base antigua creada antes de Alembic, no alcanza con ejecutar `upgrade head`: primero se verifica y registra su esquema de partida con `scripts.db_baseline`, según las instrucciones de la guía de desarrollo.
 
 ## Los Scripts de Testeo
 
