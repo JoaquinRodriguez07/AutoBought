@@ -1,0 +1,62 @@
+---
+config:
+  theme: dark
+  themeVariables:
+    background: "#fafafa"
+    primaryColor: "#dae8fc"
+    primaryTextColor: "#1a1a1a"
+    primaryBorderColor: "#6c8ebf"
+    lineColor: "#666666"
+    secondaryColor: "#fff2cc"
+    tertiaryColor: "#d5e8d4"
+    clusterBkg: "#f0f4f8"
+    clusterBorder: "#b0b0b0"
+    nodeBorder: "#888888"
+    defaultLinkColor: "#888888"
+---
+erDiagram
+    USER ||--o| CLIENT : "joined inheritance"
+    USER ||--o| EMPLOYEE : "joined inheritance"
+    CLIENT ||--o| CART : owns
+    CLIENT ||--o{ SHIPPING_ADDRESS : saves
+    CLIENT ||--o{ ORDER : places
+    CLIENT ||--o{ FAVORITE : marks
+    CLIENT ||--o{ STOCK_ALERT : requests
+    USER ||--o{ AI_USAGE : generates
+    CART ||--o{ CART_ITEM : contains
+    PART ||--o{ CART_ITEM : added_to
+    ORDER ||--o{ ORDER_ITEM : contains
+    PART ||--o{ ORDER_ITEM : purchased_as
+    ORDER ||--o{ ORDER_STATUS_HISTORY : records
+    ORDER ||--o| PAYMENT : has
+    SHIPPING_ADDRESS o|--o{ ORDER : "selected for"
+    PART ||--o{ COMPATIBILITY : fits
+    CAR_MODEL ||--o{ COMPATIBILITY : compatible_with
+    PART ||--o{ FAVORITE : favorited
+    PART ||--o{ STOCK_ALERT : watched
+
+    classDef default fill:#f5f5f5,stroke:#999,stroke-width:1px,color:#333
+    classDef user fill:#e8d5f5,stroke:#7b4fa6,stroke-width:2px,color:#333
+    classDef client fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333
+    classDef employee fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333
+    classDef part fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333
+    classDef cart fill:#fff2cc,stroke:#d6b656,stroke-width:2px,color:#333
+    classDef order fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#333
+    classDef favorite fill:#ffe6cc,stroke:#d79b00,stroke-width:2px,color:#333
+    classDef stock fill:#f8cecc,stroke:#b85450,stroke-width:2px,color:#333
+
+    USER:::user
+    CLIENT:::client
+    EMPLOYEE:::employee
+    PART:::part
+    CART:::cart
+    CART_ITEM:::cart
+    SHIPPING_ADDRESS:::cart
+    ORDER:::order
+    ORDER_ITEM:::order
+    ORDER_STATUS_HISTORY:::order
+    PAYMENT:::order
+    FAVORITE:::favorite
+    STOCK_ALERT:::stock
+    AI_USAGE:::user
+    AUTH_ATTEMPT:::user
