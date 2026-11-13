@@ -9,6 +9,7 @@ import { TONES } from "./pieces";
 export const ORDER_STATUSES = {
   confirmed: { texto: "Confirmado", tono: "border-blue-200 bg-blue-50 text-blue-700" },
   packing: { texto: "Empaquetando", tono: "border-violet-200 bg-violet-50 text-violet-700" },
+  ready_for_pickup: { texto: "Listo para retirar", tono: "border-orange-200 bg-orange-50 text-orange-700" },
   shipped: { texto: "Enviado", tono: "border-indigo-200 bg-indigo-50 text-indigo-700" },
   delivered: { texto: "Entregado", tono: TONES.verde },
   cancelled: { texto: "Cancelado", tono: TONES.neutro },

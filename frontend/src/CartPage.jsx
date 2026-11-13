@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useGenericImage } from "./mapPart";
 import Navbar from "./Navbar";
-import { confirmPurchase, createPaymentLink, getAddresses } from "./api";
+import { confirmPurchase, createPaymentLink, getAddresses, getPickupInfo } from "./api";
 import { useCart } from "./context/CartContext";
 import CartSuggestions from "./CartSuggestions";
 import PageHeader from "./PageHeader";
@@ -32,6 +32,11 @@ export default function CartPage({
   const [purchaseError, setPurchaseError] = useState("");
   const [addresses, setAddresses] = useState([]);
   const [idAddress, setIdAddress] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState("shipping");
+  const [pickupInfo, setPickupInfo] = useState(null);
+  // Si no cargan las direcciones se avisa en su lugar: decir "No tenés
+  // direcciones guardadas" sería falso. El retiro en el local sigue disponible.
+  const [addressesError, setAddressesError] = useState("");
   const [loadingData, setLoadingData] = useState(false);
 
   // La principal, o la primera.
@@ -44,13 +49,27 @@ export default function CartPage({
   // preseleccionada.
   const openConfirmation = async () => {
     setOrder(null);
+    setDeliveryMethod("shipping");
     setPurchaseError("");
     setConfirmationOpen(true);
     setLoadingData(true);
     try {
-      const addressesList = await getAddresses();
-      setAddresses(addressesList);
-      setIdAddress(primaryId(addressesList));
+      const [addressesResult, pickupResult] = await Promise.allSettled([getAddresses(), getPickupInfo()]);
+      if (addressesResult.status === "fulfilled") {
+        setAddresses(addressesResult.value);
+        setIdAddress(primaryId(addressesResult.value));
+        setAddressesError("");
+      } else {
+        setAddresses([]);
+        setIdAddress("");
+        setAddressesError(addressesResult.reason?.message || "No pudimos cargar tus direcciones.");
+      }
+      if (pickupResult.status === "fulfilled") setPickupInfo(pickupResult.value);
+      else setPickupInfo(null);
+      if (addressesResult.status === "rejected" && pickupResult.status === "rejected") {
+        setAddressesError("");
+        throw new Error("No pudimos cargar las opciones de entrega.");
+      }
     } catch (error) {
       setPurchaseError(error.message || "No pudimos cargar tus direcciones.");
     } finally {
@@ -60,7 +79,7 @@ export default function CartPage({
 
   const addressText = (d) =>
     `${d.street} ${d.number}${d.apartamento ? ` apto ${d.apartamento}` : ""}, ${d.city}`;
-  const canConfirm = !sending && !loadingData && idAddress !== "";
+  const canConfirm = !sending && !loadingData && (deliveryMethod === "pickup" ? Boolean(pickupInfo?.address && pickupInfo?.hours) : idAddress !== "");
 
   const closeConfirmation = () => {
     if (sending) return;
@@ -89,7 +108,7 @@ export default function CartPage({
     setPurchaseError("");
     let newOrder;
     try {
-      newOrder = await confirmPurchase({ idAddress: Number(idAddress) });
+      newOrder = await confirmPurchase({ idAddress: deliveryMethod === "shipping" ? Number(idAddress) : null, deliveryMethod });
     } catch (error) {
       setPurchaseError(error.message || "No pudimos confirmar la compra.");
       setSending(false);
@@ -177,7 +196,17 @@ export default function CartPage({
                   <p role="status" className="mt-4 text-sm text-gray-500">Cargando tus direcciones...</p>
                 ) : (
                   <div className="mt-4 space-y-3">
-                    <div>
+                    <fieldset className="space-y-2">
+                      <legend className="block text-xs font-black text-gray-500">MODALIDAD DE ENTREGA</legend>
+                      <label className="flex gap-2 items-center text-sm"><input type="radio" name="delivery-method" value="shipping" checked={deliveryMethod === "shipping"} onChange={() => setDeliveryMethod("shipping")} /> Envío a domicilio</label>
+                      <label className="flex gap-2 items-center text-sm"><input type="radio" name="delivery-method" value="pickup" checked={deliveryMethod === "pickup"} onChange={() => setDeliveryMethod("pickup")} /> Retiro en el local</label>
+                    </fieldset>
+                    {deliveryMethod === "pickup" ? (
+                      <div className="rounded-md bg-orange-50 p-3 text-sm text-gray-700" role="status">
+                        <p className="font-bold">Retiro en el local</p>
+                        {pickupInfo?.address && pickupInfo?.hours ? <><p>Dirección: {pickupInfo.address}</p><p>Horario: {pickupInfo.hours}</p></> : <p>El retiro en el local aún no está disponible. Consultá con la tienda.</p>}
+                      </div>
+                    ) : <div>
                       <label htmlFor="direccion-envio" className="block text-xs font-black text-gray-500">DIRECCIÓN DE ENVÍO</label>
                       {addresses.length > 0 ? (
                         <select id="direccion-envio" value={idAddress} onChange={(e) => setIdAddress(e.target.value)}
@@ -186,6 +215,8 @@ export default function CartPage({
                             <option key={d.id} value={String(d.id)}>{addressText(d)}</option>
                           ))}
                         </select>
+                      ) : addressesError ? (
+                        <p role="alert" className="mt-1 text-sm text-red-600 font-bold">{addressesError}</p>
                       ) : (
                         <p className="mt-1 text-sm text-gray-500">
                           No tenés direcciones guardadas.{" "}
@@ -194,7 +225,7 @@ export default function CartPage({
                           </button>
                         </p>
                       )}
-                    </div>
+                    </div>}
                   </div>
                 )}
                 <p className="mt-4 text-xs text-gray-500">

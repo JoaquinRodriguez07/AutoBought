@@ -87,6 +87,7 @@ COLUMNAS_POSTERIORES = {
     ("employee", "active"),
     ("order", "cancellation_reason"),
     ("order", "internal_note"),
+    ("order", "delivery_method"),   # <- nueva
     ("payment", "refunded_at"),
 }
 
@@ -106,6 +107,9 @@ def legacy_schema(engine):
         if engine.dialect.name == "postgresql":
             connection.execute(text("ALTER TABLE part DROP CONSTRAINT uq_part_part_code"))
             connection.execute(text('ALTER TABLE "order" ALTER COLUMN status DROP DEFAULT'))
+                        # Antes de la 0009 los datos de envío eran obligatorios.
+            for columna in ("ship_personal_name", "ship_street", "ship_number", "ship_city", "ship_department"):
+                connection.execute(text(f'ALTER TABLE "order" ALTER COLUMN {columna} SET NOT NULL'))
             connection.execute(text("ALTER TYPE order_status RENAME TO order_status_nuevo"))
             connection.execute(text(
                 "CREATE TYPE order_status AS ENUM ('confirmed', 'shipped', 'delivered', 'cancelled')"
@@ -234,7 +238,7 @@ def sqlite_engine():
 def test_db_empty_stays_with_all_the_tables(sqlite_engine):
     migrate(sqlite_engine)
 
-    assert revision_of(sqlite_engine) == head_revision() == "0008"
+    assert revision_of(sqlite_engine) == head_revision() == "0009"
     tables = set(inspect(sqlite_engine).get_table_names())
     assert tables == set(Base.metadata.tables) | {"alembic_version"}
     assert part_unique_constraints(sqlite_engine) == {"uq_part_part_code": ["part_code"]}
@@ -647,7 +651,9 @@ def order_status_values(engine):
 @postgres
 def test_pg_0003_adds_packing_in_order_and_the_downgrade_it_removes(pg_engine):
     migrate(pg_engine)
-    assert order_status_values(pg_engine) == ["confirmed", "packing", "shipped", "delivered", "cancelled"]
+    assert order_status_values(pg_engine) == [
+        "confirmed", "packing", "shipped", "ready_for_pickup", "delivered", "cancelled",
+    ]
     add_data(pg_engine)
     set_order_status(pg_engine, "packing")
 
@@ -732,3 +738,16 @@ def test_pg_undo_the_0003_removes_packing_of_the_enum(pg_engine):
     migrate(pg_engine)
     assert revision_of(pg_engine) == head_revision()
     assert model_diff(pg_engine) == []
+
+def test_0009_downgrade_vuelve_los_retiros_a_empaquetando(sqlite_engine):
+    migrate(sqlite_engine)
+    add_data(sqlite_engine)
+    set_order_status(sqlite_engine, "ready_for_pickup")
+    with sqlite_engine.begin() as connection:
+        connection.execute(text("UPDATE \"order\" SET delivery_method = 'pickup'"))
+
+    downgrade(sqlite_engine, "0008")
+
+    assert order_statuses(sqlite_engine) == ["packing"]
+    assert "delivery_method" not in order_columns(sqlite_engine)
+    assert revision_of(sqlite_engine) == "0008"

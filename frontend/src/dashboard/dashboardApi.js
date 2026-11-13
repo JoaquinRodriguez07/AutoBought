@@ -258,6 +258,7 @@ function mapSellerOrder(p) {
     id: p.order_id,
     date: p.created_at,
     estado: p.status,
+    deliveryMethod: p.delivery_method ?? "shipping",
     // "pending" | "approved" | "rejected"; null en los de antes de Mercado Pago (ya cobrados).
     paymentStatus: p.payment_status ?? null,
     total: p.total,
@@ -268,7 +269,7 @@ function mapSellerOrder(p) {
     faltaDevolver: Boolean(p.refund_pending),
     customer: { displayName: p.client_name, email: p.client_email, phone: p.client_phone ?? null },
     // A dónde se envía: la copia guardada al comprar (no cambia si el cliente edita su perfil).
-    shipping: {
+    shipping: p.shipping_address ? {
       // El nombre que el cliente le puso a la dirección ("Casa", "Trabajo"), no quién recibe.
       addressName: p.shipping_address.personal_name,
       street: p.shipping_address.street,
@@ -277,7 +278,7 @@ function mapSellerOrder(p) {
       city: p.shipping_address.city,
       department: p.shipping_address.department,
       codePostal: p.shipping_address.postal_code ?? null,
-    },
+    } : null,
     items: p.items.map((item) => ({
       idPart: item.part_id,
       code: item.part_code,

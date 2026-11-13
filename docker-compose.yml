@@ -48,6 +48,9 @@ services:
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
       MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
       BACKEND_URL: ${BACKEND_URL:-}
+      # Retiro en el local: sin estas variables el retiro queda deshabilitado.
+      LOCAL_ADDRESS: ${LOCAL_ADDRESS:-}
+      LOCAL_HOURS: ${LOCAL_HOURS:-}
       MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
       CRON_SECRET: ${CRON_SECRET:-}
 
@@ -89,6 +92,9 @@ services:
       MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
       MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
       BACKEND_URL: ${BACKEND_URL:-}
+      # Retiro en el local: sin estas variables el retiro queda deshabilitado.
+      LOCAL_ADDRESS: ${LOCAL_ADDRESS:-}
+      LOCAL_HOURS: ${LOCAL_HOURS:-}
       MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
       CRON_SECRET: ${CRON_SECRET:-}
 

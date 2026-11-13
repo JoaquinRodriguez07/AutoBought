@@ -1079,6 +1079,7 @@ function mapOrder(p) {
     id: p.order_id,
     date: p.created_at,
     estado: p.status,
+    deliveryMethod: p.delivery_method ?? "shipping",
     shippingAddress: p.shipping_address ? mapAddress(p.shipping_address) : null,
     paymentMethod: p.payment_method ?? "",
     // "pending" | "approved" | "rejected"; null en los pedidos de antes de
@@ -1113,13 +1114,14 @@ function mapOrder(p) {
  * dirección elegida (sin elegir, usa la principal). El pedido queda
  * pendiente de pago: se paga después en Mercado Pago (crearLinkPago).
  */
-export async function confirmPurchase({ idAddress } = {}) {
+export async function confirmPurchase({ idAddress, deliveryMethod = "shipping" } = {}) {
   const data = await fetchCustomerAccount(
     `${API_BASE_URL}/api/v1/orders`,
     {
       method: "POST",
       body: JSON.stringify({
-        shipping_address_id: idAddress ?? null,
+        shipping_address_id: deliveryMethod === "pickup" ? null : (idAddress ?? null),
+        delivery_method: deliveryMethod,
       }),
     },
     ORDER_STATUS_MESSAGES,
@@ -1262,4 +1264,11 @@ export async function askAssistant({ texto, marca, modelo, anio, historial = [],
     historial: data.historial ?? [],
     firma: data.firma ?? null,
   };
+}
+
+/** Datos públicos del local para la modalidad retiro. */
+export async function getPickupInfo() {
+  const response = await fetch(`${API_BASE_URL}/api/v1/orders/pickup-info`);
+  if (!response.ok) throw new Error("No pudimos cargar la información del local.");
+  return response.json();
 }

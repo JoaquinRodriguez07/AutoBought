@@ -5,7 +5,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import CartPage from "./CartPage";
-import { confirmPurchase, createPaymentLink, getAddresses } from "./api";
+import { confirmPurchase, createPaymentLink, getAddresses, getPickupInfo } from "./api";
 import { useCart } from "./context/CartContext";
 import { goTo } from "./redirect";
 
@@ -15,6 +15,7 @@ jest.mock("./api", () => ({
   confirmPurchase: jest.fn(),
   createPaymentLink: jest.fn(),
   getAddresses: jest.fn(),
+  getPickupInfo: jest.fn(),
 }));
 
 // jsdom no navega a otras páginas: se registra adónde se habría ido.
@@ -81,6 +82,7 @@ async function openConfirmation(user) {
 beforeEach(() => {
   jest.clearAllMocks();
   getAddresses.mockResolvedValue([shippingAddress(1, "Av. Italia", true)]);
+  getPickupInfo.mockResolvedValue({ address: "Av. Ejemplo 123, Montevideo", hours: "Lunes a viernes, 9 a 18" });
   createPaymentLink.mockResolvedValue(LINK_MP);
 });
 
@@ -113,7 +115,7 @@ describe("Carrito: confirmación de compra (HU 1.9)", () => {
     await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
 
     expect(await screen.findByText("Pedido #42")).toBeInTheDocument();
-    expect(confirmPurchase).toHaveBeenCalledWith({ idAddress: 1 });
+    expect(confirmPurchase).toHaveBeenCalledWith({ idAddress: 1, deliveryMethod: "shipping" });
     expect(loadCart).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(goTo).toHaveBeenCalledWith(LINK_MP));
     expect(createPaymentLink).toHaveBeenCalledWith(42);
@@ -189,7 +191,7 @@ describe("Carrito: dirección de envío", () => {
     await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
 
     expect(await screen.findByText("Pedido #50")).toBeInTheDocument();
-    expect(confirmPurchase).toHaveBeenCalledWith({ idAddress: 1 });
+    expect(confirmPurchase).toHaveBeenCalledWith({ idAddress: 1, deliveryMethod: "shipping" });
   });
 
   test("Sin dirección guardada: muestra un enlace para agregarla y no deja confirmar", async () => {
@@ -205,6 +207,106 @@ describe("Carrito: dirección de envío", () => {
     await user.click(within(dialogo).getByRole("button", { name: "Agregar una dirección" }));
     expect(onAddresses).toHaveBeenCalledTimes(1);
     expect(confirmPurchase).not.toHaveBeenCalled();
+  });
+});
+
+describe("Carrito: retiro en el local", () => {
+  test("Con retiro no pide dirección, muestra la dirección y el horario del local y confirma como retiro", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    confirmPurchase.mockResolvedValue({ id: 60, total: 2000, items: [] });
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+    await user.click(within(dialogo).getByLabelText("Retiro en el local"));
+
+    expect(within(dialogo).queryByLabelText("DIRECCIÓN DE ENVÍO")).not.toBeInTheDocument();
+    expect(within(dialogo).getByText("Dirección: Av. Ejemplo 123, Montevideo")).toBeInTheDocument();
+    expect(within(dialogo).getByText("Horario: Lunes a viernes, 9 a 18")).toBeInTheDocument();
+
+    await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
+
+    expect(await screen.findByText("Pedido #60")).toBeInTheDocument();
+    expect(confirmPurchase).toHaveBeenCalledWith({ idAddress: null, deliveryMethod: "pickup" });
+  });
+
+  test("Se puede retirar aunque el cliente no tenga direcciones guardadas", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getAddresses.mockResolvedValue([]);
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+    await user.click(within(dialogo).getByLabelText("Retiro en el local"));
+
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeEnabled();
+  });
+
+  test("Si el local no configuró dirección y horario, avisa y no deja confirmar el retiro", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getPickupInfo.mockResolvedValue({ address: "", hours: "" });
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+    await user.click(within(dialogo).getByLabelText("Retiro en el local"));
+
+    expect(within(dialogo).getByText(/aún no está disponible/)).toBeInTheDocument();
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeDisabled();
+    expect(confirmPurchase).not.toHaveBeenCalled();
+  });
+
+  test("Si no carga la información del local, el retiro figura como no disponible y el envío sigue andando", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getPickupInfo.mockRejectedValue(new Error("Sin conexión."));
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+
+    // Con envío (la opción por defecto) se puede comprar igual.
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeEnabled();
+    expect(within(dialogo).queryByRole("alert")).not.toBeInTheDocument();
+
+    await user.click(within(dialogo).getByLabelText("Retiro en el local"));
+    expect(within(dialogo).getByText(/aún no está disponible/)).toBeInTheDocument();
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeDisabled();
+
+    // Vuelve a envío a domicilio y puede comprar.
+    await user.click(within(dialogo).getByLabelText("Envío a domicilio"));
+    expect(within(dialogo).getByLabelText("DIRECCIÓN DE ENVÍO")).toBeInTheDocument();
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeEnabled();
+  });
+
+  test("Si no cargan las direcciones lo avisa en su lugar, pero deja retirar en el local", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getAddresses.mockRejectedValue(new Error("Sin conexión."));
+    confirmPurchase.mockResolvedValue({ id: 61, total: 2000, items: [] });
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+
+    expect(within(dialogo).getByRole("alert")).toHaveTextContent("Sin conexión.");
+    expect(within(dialogo).queryByText(/No tenés direcciones guardadas/)).not.toBeInTheDocument();
+
+    await user.click(within(dialogo).getByLabelText("Retiro en el local"));
+    await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
+
+    expect(confirmPurchase).toHaveBeenCalledWith({ idAddress: null, deliveryMethod: "pickup" });
+  });
+
+  test("Si no carga nada, avisa que no hay opciones de entrega y no deja confirmar", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getAddresses.mockRejectedValue(new Error("Sin conexión."));
+    getPickupInfo.mockRejectedValue(new Error("Sin conexión."));
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+
+    expect(within(dialogo).getByRole("alert")).toHaveTextContent("No pudimos cargar las opciones de entrega.");
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeDisabled();
   });
 });
 

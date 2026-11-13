@@ -19,7 +19,7 @@ from fastapi import BackgroundTasks
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.config import FRONTEND_URL
+from app.core.config import FRONTEND_URL, LOCAL_ADDRESS, LOCAL_HOURS
 from app.core.email import send_mail, schedule_mail
 from app.core.security import UNSUBSCRIBE_PURPOSE, create_purpose_token
 from app.crud.payment import is_paid_order
@@ -27,7 +27,7 @@ from app.models.cart import Cart
 from app.models.cart_item import CartItem
 from app.models.client import Client
 from app.models.favorite import Favorite
-from app.models.order import Order, OrderStatus
+from app.models.order import DeliveryMethod, Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
 from app.models.payment import Payment
@@ -61,6 +61,7 @@ MAINTENANCE_WINDOW_DAYS = 7
 _ESTADOS = {
     OrderStatus.PACKING: ("se está preparando", "Lo estamos empaquetando. Te avisamos cuando salga para tu dirección."),
     OrderStatus.SHIPPED: ("fue enviado", "Ya está en camino a tu dirección."),
+    OrderStatus.READY_FOR_PICKUP: ("está listo para retirar", "Ya podés pasar a buscarlo por el local."),
     OrderStatus.DELIVERED: ("fue entregado", "Esperamos que todo esté bien. ¡Gracias por comprar en AutoBought!"),
 }
 
@@ -110,10 +111,11 @@ def _order_data(order: Order) -> dict:
         }
         for item in order.items
     ]
-    address = f"{order.ship_street} {order.ship_number}"
-    if order.ship_apartment:
-        address += f", apto. {order.ship_apartment}"
-    address += f", {order.ship_city}, {order.ship_department}"
+    address = f"{order.ship_street} {order.ship_number}" if order.delivery_method == DeliveryMethod.SHIPPING else LOCAL_ADDRESS
+    if order.delivery_method == DeliveryMethod.SHIPPING:
+        if order.ship_apartment:
+            address += f", apto. {order.ship_apartment}"
+        address += f", {order.ship_city}, {order.ship_department}"
 
     return {
         "nombre": order.client.name,
@@ -121,6 +123,8 @@ def _order_data(order: Order) -> dict:
         "items": items,
         "total": format_price(sum(item.frozen_price * item.quantity for item in order.items)),
         "direccion": address,
+        "retiro": order.delivery_method == DeliveryMethod.PICKUP,
+        "horario_local": LOCAL_HOURS,
         "pago": order.payment_method_label,
         "enlace": f"{FRONTEND_URL}/historial",
     }
@@ -168,6 +172,8 @@ def notify_status_change(order: Order, background_tasks: BackgroundTasks | None 
         return
 
     state, detail = _ESTADOS[order.status]
+    if order.status == OrderStatus.PACKING and order.delivery_method == DeliveryMethod.PICKUP:
+        detail = "Lo estamos empaquetando. Te avisamos cuando esté listo para retirar."
     _schedule(
         background_tasks,
         order.client.email,

@@ -139,6 +139,7 @@ export default function SellerOrders({ initialStatus = "all", onCambio, onDetail
                       <TableHead className="hidden lg:table-cell">Productos</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead>Pago</TableHead>
+                      <TableHead>Entrega</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="pr-4 sm:pr-5 text-right">
                         <span className="sr-only">Acciones</span>
@@ -174,6 +175,7 @@ export default function SellerOrders({ initialStatus = "all", onCambio, onDetail
                         <TableCell>
                           <PaymentBadge pedido={pedido} />
                         </TableCell>
+                        <TableCell className="text-sm">{pedido.deliveryMethod === "pickup" ? "Retiro en el local" : "Envío a domicilio"}</TableCell>
                         <TableCell>
                           <OrderStatusBadgeSeller estado={pedido.estado} />
                           {pedido.reasonCancellation && (

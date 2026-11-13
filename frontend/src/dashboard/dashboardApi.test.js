@@ -468,6 +468,7 @@ describe("seller orders", () => {
     id: 42,
     date: "2026-11-01T10:00:00Z",
     estado: "confirmed",
+    deliveryMethod: "shipping",
     paymentStatus: "approved",
     total: 4900,
     paymentMethod: "mercado_pago",

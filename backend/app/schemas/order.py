@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, model_validator
 
 from app.crud.order import can_cancel, can_edit_shipping, next_status, previous_status
-from app.models.order import Order, OrderStatus
+from app.models.order import DeliveryMethod, Order, OrderStatus
 from app.models.order_status_history import CancelReason
 from app.models.payment import PaymentStatus
 from app.schemas.shipping_address import ShippingAddressCreate
@@ -32,6 +32,7 @@ class OrderConfirm(BaseModel):
     """Body opcional de POST /orders; sin dirección, usa la principal."""
 
     shipping_address_id: int | None = None
+    delivery_method: DeliveryMethod = DeliveryMethod.SHIPPING
 
 
 class OrderOut(BaseModel):
@@ -68,7 +69,8 @@ class OrderDetailOut(BaseModel):
     order_id: int
     created_at: datetime
     status: OrderStatus
-    shipping_address: OrderShippingAddressOut
+    delivery_method: DeliveryMethod
+    shipping_address: OrderShippingAddressOut | None
     payment_method: str
     # None en los pedidos de antes de Mercado Pago (ya cobrados con tarjeta).
     payment_status: PaymentStatus | None
@@ -245,6 +247,7 @@ def build_order_detail_out(order: Order) -> OrderDetailOut:
         order_id=order.order_id,
         created_at=order.created_at,
         status=order.status,
+        delivery_method=order.delivery_method,
         shipping_address=OrderShippingAddressOut(
             personal_name=order.ship_personal_name,
             street=order.ship_street,
@@ -253,7 +256,7 @@ def build_order_detail_out(order: Order) -> OrderDetailOut:
             city=order.ship_city,
             department=order.ship_department,
             postal_code=order.ship_postal_code,
-        ),
+        ) if order.delivery_method == DeliveryMethod.SHIPPING else None,
         payment_method=order.payment_method_label,
         payment_status=order.payment.status if order.payment else None,
         payment_due_at=order.payment.due_at if order.payment else None,

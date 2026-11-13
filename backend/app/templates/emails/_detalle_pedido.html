@@ -11,6 +11,7 @@
   </tr>
 </table>
 <p style="font-size:13px; color:#4b5563;">
-  <strong>Envío a:</strong> {{ direccion }}<br>
+  <strong>{{ "Retiro en el local:" if retiro else "Envío a:" }}</strong> {{ direccion }}<br>
+  {% if retiro %}<strong>Horario:</strong> {{ horario_local }}<br>{% endif %}
   <strong>Pago:</strong> {{ pago }}
 </p>

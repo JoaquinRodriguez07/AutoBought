@@ -958,6 +958,18 @@ describe("orders and Mercado Pago API", () => {
     items: [],
   };
 
+  it("confirms a pickup purchase without sending an address", async () => {
+    fetch.mockResolvedValue(response(backendOrder));
+
+    await confirmPurchase({ idAddress: 3, deliveryMethod: "pickup" });
+
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/orders`, {
+      method: "POST",
+      body: JSON.stringify({ shipping_address_id: null, delivery_method: "pickup" }),
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
+
   it("confirms the purchase with only the chosen address and maps the payment status", async () => {
     fetch.mockResolvedValue(response(backendOrder));
 
@@ -969,7 +981,7 @@ describe("orders and Mercado Pago API", () => {
 
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/orders`, {
       method: "POST",
-      body: JSON.stringify({ shipping_address_id: 3 }),
+      body: JSON.stringify({ shipping_address_id: 3, delivery_method: "shipping" }),
       headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
     });
   });
@@ -1171,6 +1183,7 @@ describe("purchase history", () => {
         paymentMethod: "mercado_pago",
         paymentStatus: "pending",
         expiresPayment: "2026-11-02T10:00:00Z",
+        deliveryMethod: "shipping",
         detailCancellation: null,
         total: 4900,
         tracking: [
@@ -1197,6 +1210,7 @@ describe("purchase history", () => {
         paymentMethod: "",
         paymentStatus: null,
         expiresPayment: null,
+        deliveryMethod: "shipping",
         detailCancellation: null,
         total: 0,
         tracking: [],
@@ -1248,7 +1262,7 @@ describe("confirmPurchase without a chosen address", () => {
 
     await confirmPurchase();
 
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ shipping_address_id: null });
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ shipping_address_id: null, delivery_method: "shipping" });
   });
 
   it("explains missing stock, the most delicate rejection of a purchase", async () => {

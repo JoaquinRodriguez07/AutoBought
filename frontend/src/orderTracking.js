@@ -1,5 +1,6 @@
 // Las etapas de un pedido que sigue su curso, en orden.
 const STAGES = ["confirmed", "packing", "shipped", "delivered"];
+const stagesFor = (purchase) => purchase.deliveryMethod === "pickup" ? ["confirmed", "packing", "ready_for_pickup", "delivered"] : STAGES;
 
 /**
  * Los pasos de la línea de tiempo: { estado, hecho, fecha }. Si el pedido
@@ -7,6 +8,7 @@ const STAGES = ["confirmed", "packing", "shipped", "delivered"];
  * se canceló, solo las que alcanzó y al final «Cancelado».
  */
 export function trackingSteps(purchase) {
+  const stages = stagesFor(purchase);
   const tracking = purchase.tracking?.length
     ? purchase.tracking
     : [{ estado: purchase.estado, date: null }];
@@ -15,15 +17,15 @@ export function trackingSteps(purchase) {
   for (const step of tracking) dates[step.estado] = step.date;
 
   if (purchase.estado === "cancelled") {
-    const reached = STAGES.filter((etapa) => etapa in dates);
+    const reached = stages.filter((etapa) => etapa in dates);
     return [
       ...reached.map((estado) => ({ estado, hecho: true, date: dates[estado] })),
       { estado: "cancelled", hecho: true, date: dates.cancelled ?? null },
     ];
   }
 
-  const current = STAGES.indexOf(purchase.estado);
-  return STAGES.map((estado, indice) => ({
+  const current = stages.indexOf(purchase.estado);
+  return stages.map((estado, indice) => ({
     estado,
     hecho: indice <= current,
     date: indice <= current ? dates[estado] ?? null : null,
@@ -52,7 +54,7 @@ export const cancelledByStore = (purchase) =>
 
 /** Todavía no terminó: falta pagarlo, o se está preparando o enviando. */
 export function isActive(purchase) {
-  return isUnpaid(purchase) || ["confirmed", "packing", "shipped"].includes(purchase.estado);
+  return isUnpaid(purchase) || ["confirmed", "packing", "shipped", "ready_for_pickup"].includes(purchase.estado);
 }
 
 /** La frase grande de un pedido en curso: qué pasa ahora con él. */
@@ -64,6 +66,7 @@ export function statusPhrase(purchase) {
     confirmed: "Lo estamos preparando",
     packing: "Lo estamos empaquetando",
     shipped: "Está en camino",
+    ready_for_pickup: "Listo para retirar en el local",
     delivered: "Entregado",
     cancelled: "Cancelado",
   }[purchase.estado] ?? "";
@@ -107,6 +110,7 @@ export const STATUS_NAME = {
   confirmed: "Confirmado",
   packing: "Empaquetando",
   shipped: "Enviado",
+  ready_for_pickup: "Listo para retirar",
   delivered: "Entregado",
   cancelled: "Cancelado",
 };
@@ -114,12 +118,12 @@ export const STATUS_NAME = {
 /** La frase en corto, para lugares chicos (la tarjeta del inicio). */
 export function shortPhrase(purchase) {
   if (isUnpaid(purchase)) return purchase.paymentStatus === "rejected" ? "Pago rechazado" : "Falta pagar";
-  return { confirmed: "Preparando", packing: "Empaquetando", shipped: "En camino" }[purchase.estado] ?? statusPhrase(purchase);
+  return { confirmed: "Preparando", packing: "Empaquetando", shipped: "En camino", ready_for_pickup: "Listo para retirar" }[purchase.estado] ?? statusPhrase(purchase);
 }
 
 // Del más avanzado al menos: enviado, empaquetando, preparando y, al
 // final, los que falta pagar. Entre iguales, el más nuevo primero.
-const PROGRESS_ORDER = { shipped: 0, packing: 1, confirmed: 2 };
+const PROGRESS_ORDER = { shipped: 0, ready_for_pickup: 0, packing: 1, confirmed: 2 };
 const position = (pedido) => (isUnpaid(pedido) ? 9 : PROGRESS_ORDER[pedido.estado] ?? 5);
 
 export function sortByProgress(orders) {

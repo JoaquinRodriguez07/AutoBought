@@ -301,11 +301,15 @@ export default function SellerOrderDetail({ sessionUser, onHome, onCloseSession 
 
             {/* Arriba, a quién y a dónde va y cómo pagó; abajo, qué preparar. */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Shipping
+              {pedido.deliveryMethod === "pickup" ? (
+                <Panel title="Retiro en el local" details="El cliente pasa a buscar el pedido al comercio.">
+                  <p>Sin dirección de envío.</p>
+                </Panel>
+              ) : <Shipping
                 shipping={pedido.shipping}
                 customer={pedido.customer}
                 onEdit={pedido.canEditShipping ? () => setEditingShipping(true) : null}
-              />
+              />}
               <Customer customer={pedido.customer} />
               <Payment pedido={pedido} />
             </div>
