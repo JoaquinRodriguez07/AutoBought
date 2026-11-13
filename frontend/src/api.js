@@ -905,13 +905,13 @@ export async function getFavorites() {
 }
 
 export async function addFavoriteApi(partId) {
-  await fetchFavorites(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+  await fetchFavorites(`${API_BASE_URL}/api/v1/favorites/${encodeURIComponent(partId)}`, {
     method: "PUT",
   });
 }
 
 export async function removeFavoriteApi(partId) {
-  await fetchFavorites(`${API_BASE_URL}/api/v1/favorites/${partId}`, {
+  await fetchFavorites(`${API_BASE_URL}/api/v1/favorites/${encodeURIComponent(partId)}`, {
     method: "DELETE",
   });
 }
@@ -942,13 +942,13 @@ export async function getStockAlerts() {
 }
 
 export async function addStockAlert(partId) {
-  await fetchStockAlerts(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
+  await fetchStockAlerts(`${API_BASE_URL}/api/v1/stock-alerts/${encodeURIComponent(partId)}`, {
     method: "PUT",
   });
 }
 
 export async function removeStockAlert(partId) {
-  await fetchStockAlerts(`${API_BASE_URL}/api/v1/stock-alerts/${partId}`, {
+  await fetchStockAlerts(`${API_BASE_URL}/api/v1/stock-alerts/${encodeURIComponent(partId)}`, {
     method: "DELETE",
   });
 }
@@ -994,7 +994,7 @@ export async function createAddress(f) {
 /** PATCH /api/v1/addresses/{id}/primary */
 export async function setPrimaryAddress(id) {
   const data = await fetchAddresses(
-    `${API_BASE_URL}/api/v1/addresses/${id}/primary`,
+    `${API_BASE_URL}/api/v1/addresses/${encodeURIComponent(id)}/primary`,
     { method: "PATCH" }
   );
   return mapAddress(data);
@@ -1002,7 +1002,7 @@ export async function setPrimaryAddress(id) {
 
 /** DELETE /api/v1/addresses/{id} */
 export async function deleteAddressApi(id) {
-  await fetchAddresses(`${API_BASE_URL}/api/v1/addresses/${id}`, {
+  await fetchAddresses(`${API_BASE_URL}/api/v1/addresses/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
