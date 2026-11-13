@@ -672,6 +672,15 @@ describe("Home", () => {
     expect(props.onDetail).not.toHaveBeenCalled();
   });
 
+  it("the seller sees the best sellers without the 'Agregar' button", async () => {
+    getBestSellers.mockResolvedValue([catalogProducts[0]]);
+
+    render(<Home {...navigationProps()} sessionUser={{ id: 1, displayName: "Vendedor", userType: SELLER_TYPE }} />);
+
+    expect(await screen.findByRole("button", { name: catalogProducts[0].displayName })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^agregar$/i })).not.toBeInTheDocument();
+  });
+
   it("keeps the landing page available when categories fail to load", async () => {
     const props = navigationProps();
     getCategories.mockRejectedValue(new Error("API unavailable"));
@@ -1390,6 +1399,31 @@ describe("DetalleProducto", () => {
 
     await user.click(within(section).getByRole("button", { name: /^agregar$/i }));
     await waitFor(() => expect(addCartItem).toHaveBeenCalledWith(9, 1));
+  });
+
+  it("the seller sees the parts usually bought together without the 'Agregar' button", async () => {
+    getPart.mockResolvedValue(mapPart({
+      id: 7, name: "Filtro compatible", manufacturer: "Bosch", part_code: "FIL-0007",
+      category: "Filtros", price: 790, stock: 3, compatibilities: [],
+    }));
+    getRecommendations.mockResolvedValue([mapPart({
+      id: 9, name: "Aceite de motor 5W30 4L Castrol", manufacturer: "Castrol", part_code: "LUB-0001",
+      category: "Lubricantes", price: 3900, stock: 10, compatibilities: [],
+    })]);
+
+    render(
+      <Routes>
+        <Route
+          path="/producto/:id"
+          element={<ProductDetail {...navigationProps()} sessionUser={{ id: 1, displayName: "Vendedor", userType: SELLER_TYPE }} />}
+        />
+      </Routes>,
+      { initialEntries: ["/producto/filtro-compatible-7"] }
+    );
+
+    const section = await screen.findByRole("region", { name: "Suelen comprarse juntos" });
+    expect(within(section).getByText("Aceite de motor 5W30 4L Castrol")).toBeInTheDocument();
+    expect(within(section).queryByRole("button", { name: /^agregar$/i })).not.toBeInTheDocument();
   });
 
   it("con un vehículo activo, las sugerencias son solo las compatibles con ese auto", async () => {
