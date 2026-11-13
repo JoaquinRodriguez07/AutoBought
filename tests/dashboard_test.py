@@ -19,6 +19,7 @@ from app.models.car_model import CarModel
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
+from app.models.payment import Payment, PaymentStatus
 
 STOCK = "/api/v1/analytics/stock"
 MAS_VENDIDOS = "/api/v1/analytics/best-sellers"
@@ -395,6 +396,105 @@ def test_more_sold_by_months_calendar_and_category(client, db_session, seller, c
     assert ranking(months=6) == [("FRE-001", 105), ("FIL-001", 8)]
     assert ranking(months=3, category="Frenos") == [("FRE-001", 5)]
     assert ranking(search="FIL") == [("FIL-001", 8)]
+
+
+# --- Solo cuentan los pedidos pagos, en todas las métricas ---
+
+# Un pago vencido es uno pendiente al que se le pasó el plazo, pero que
+# todavía no se canceló (cancel_expired_orders no corrió).
+VENCIDO = "vencido"
+
+
+def _sale_with_payment(db_session, customer, part, qty, payment):
+    # Una venta del 15 de marzo de 2026 con su pago de Mercado Pago. Los
+    # pendientes, rechazados y vencidos siguen confirmados, como en la tienda.
+    created = datetime(2026, 3, 15, 12, tzinfo=timezone.utc)
+    if payment == VENCIDO:
+        payment_row = Payment(status=PaymentStatus.PENDING, created_at=created)
+    else:
+        # Recién creado: un pendiente que todavía está a tiempo de pagarse.
+        payment_row = Payment(status=payment)
+    db_session.add(
+        Order(
+            client_id=customer.user_id,
+            created_at=created,
+            status=OrderStatus.DELIVERED if payment == PaymentStatus.APPROVED else OrderStatus.CONFIRMED,
+            ship_personal_name=customer.name,
+            ship_street="Av. Italia",
+            ship_number="1234",
+            ship_city="Montevideo",
+            ship_department="Montevideo",
+            payment_method_label="Mercado Pago",
+            items=[OrderItem(part=part, quantity=qty, frozen_price=part.price)],
+            payment=payment_row,
+        )
+    )
+    db_session.commit()
+
+
+def _metrics(client, seller, part):
+    """Lo que cada sección del dashboard dice de las ventas del repuesto."""
+    sales = client.get(EVOLUCION, headers=seller).json()
+    forecast = client.get(PROYECCION, headers=seller).json()["parts"][0]
+    detail = client.get(f"{DETALLE}/{part.id}", headers=seller).json()
+    best_sellers = client.get(MAS_VENDIDOS, headers=seller).json()["parts"]
+    # Riesgo al final: es el único que cancela los vencidos antes de calcular.
+    risk = client.get(RIESGO, headers=seller).json()["parts"][0]
+    return {
+        "ventas_unidades": sum(m["units"] for m in sales["months"]),
+        "ventas_facturacion": sum(m["revenue"] for m in sales["months"]),
+        "ventas_proyeccion": sales["projection"]["units"],
+        "proyeccion_12_meses": forecast["units_last_12_months"],
+        "proyeccion": forecast["projected_units"],
+        "riesgo_demanda": risk["projected_units"],
+        "detalle_vendidas": detail["units_sold"],
+        "detalle_meses": sum(m["units"] for m in detail["months"]),
+        "detalle_proyeccion": detail["projection"]["units"],
+        "mas_vendidos": sum(p["units_sold"] for p in best_sellers),
+    }
+
+
+@pytest.mark.parametrize(
+    "payment", [PaymentStatus.PENDING, PaymentStatus.REJECTED, VENCIDO], ids=["pendiente", "rechazado", "vencido"]
+)
+def test_an_unpaid_order_adds_up_in_no_metric(client, db_session, seller, customer, payment):
+    # Escenario "Métricas consistentes": igual que en más vendidos, un pedido
+    # sin pagar no suma en ventas, proyección, riesgo ni el detalle.
+    _today(date(2026, 3, 31))
+    part = _part(db_session, "FRE-001", stock=10)
+    _sale_with_payment(db_session, customer, part, 7, payment)
+
+    assert set(_metrics(client, seller, part).values()) == {0}
+
+
+def test_an_approved_order_adds_up_in_every_metric(client, db_session, seller, customer):
+    _today(date(2026, 3, 31))
+    part = _part(db_session, "FRE-001", stock=10)
+    _sale_with_payment(db_session, customer, part, 7, PaymentStatus.APPROVED)
+
+    metrics = _metrics(client, seller, part)
+
+    assert metrics["ventas_unidades"] == metrics["proyeccion_12_meses"] == metrics["mas_vendidos"] == 7
+    assert metrics["detalle_vendidas"] == metrics["detalle_meses"] == 7
+    assert metrics["ventas_facturacion"] == 7000
+    assert metrics["proyeccion"] > 0
+    assert metrics["riesgo_demanda"] == metrics["detalle_proyeccion"] == metrics["proyeccion"]
+
+
+def test_metrics_add_up_only_the_paid_orders_and_the_ones_before_mercado_pago(client, db_session, seller, customer):
+    # Los pedidos sin fila de pago son los de antes de Mercado Pago: cuentan.
+    _today(date(2026, 3, 31))
+    part = _part(db_session, "FRE-001", stock=10)
+    _sale(db_session, customer, part, 2, 2026, 3)
+    _sale_with_payment(db_session, customer, part, 3, PaymentStatus.APPROVED)
+    _sale_with_payment(db_session, customer, part, 40, PaymentStatus.PENDING)
+    _sale_with_payment(db_session, customer, part, 50, PaymentStatus.REJECTED)
+    _sale_with_payment(db_session, customer, part, 60, VENCIDO)
+
+    metrics = _metrics(client, seller, part)
+
+    assert metrics["ventas_unidades"] == metrics["detalle_vendidas"] == metrics["mas_vendidos"] == 5
+    assert metrics["proyeccion_12_meses"] == metrics["detalle_meses"] == 5
 
 
 # --- Vehículos para el formulario de repuestos (HU 5.10) ---

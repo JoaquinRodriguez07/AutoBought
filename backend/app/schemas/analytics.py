@@ -1,9 +1,9 @@
 """Schemas de las respuestas del dashboard del vendedor."""
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 
 
 class StockPartOut(BaseModel):
@@ -170,3 +170,26 @@ class DashboardSummaryHistoryOut(BaseModel):
     # el panel diga "últimos 7 días" sin tener el número escrito.
     days: int
     summaries: list[DashboardSummaryOut]
+
+
+# --- Preguntarle al dashboard (HU 6.4) ---
+
+
+class AskDashboardIn(BaseModel):
+    # El campo del frontend corta en 300 caracteres.
+    question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
+
+
+class AskDashboardData(BaseModel):
+    """La tabla con los datos que sustentan la respuesta."""
+
+    columns: list[str]
+    rows: list[list[Union[int, float, str, None]]]
+
+
+class AskDashboardOut(BaseModel):
+    """Lo que lee el campo "Preguntale al dashboard" (dashboardApi.js)."""
+
+    answer: str
+    # None si la pregunta no se pudo responder con los datos del sistema.
+    data: AskDashboardData | None

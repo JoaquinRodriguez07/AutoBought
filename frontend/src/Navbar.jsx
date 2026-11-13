@@ -36,6 +36,7 @@ export default function Navbar({
   onCart,
   onFavorites,
   onCloseSession,
+  onDeleteAccount,
   favoritesQuantity = 0,
   sessionUser,
 }) {
@@ -566,6 +567,15 @@ export default function Navbar({
                   >
                     Cerrar sesión
                   </button>
+                  {!seller && onDeleteAccount && (
+                    <button
+                      type="button"
+                      onClick={() => runAction(onDeleteAccount)}
+                      className="w-full text-left px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 transition"
+                    >
+                      Borrar mi cuenta
+                    </button>
+                  )}
 
                 </div>
 
@@ -724,13 +734,24 @@ export default function Navbar({
               </button>
             ))}
             {sessionUser && (
-              <button
-                type="button"
-                onClick={() => goToFromMenu(onCloseSession)}
-                className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold text-red-500 hover:bg-red-50 transition"
-              >
-                Cerrar sesión
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => goToFromMenu(onCloseSession)}
+                  className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold text-red-500 hover:bg-red-50 transition"
+                >
+                  Cerrar sesión
+                </button>
+                {!seller && onDeleteAccount && (
+                  <button
+                    type="button"
+                    onClick={() => goToFromMenu(onDeleteAccount)}
+                    className="w-full text-left px-4 py-3 rounded-lg text-sm font-bold text-red-500 hover:bg-red-50 transition"
+                  >
+                    Borrar mi cuenta
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

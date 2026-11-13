@@ -48,7 +48,7 @@ export const GROUPS = [
   },
   {
     title: "Asistente",
-    views: [{ rawValue: "ask", texto: "Preguntar", Icon: MessageCircleQuestionIcon, inDesarrollo: true }],
+    views: [{ rawValue: "ask", texto: "Preguntar", Icon: MessageCircleQuestionIcon }],
   },
   // Solo la ven los administradores (SCRUM-175).
   {

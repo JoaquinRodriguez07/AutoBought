@@ -8,6 +8,7 @@ import AssistantInvite from "./AssistantInvite";
 import VehicleSelector from "./VehicleSelector";
 import { getCategories, getManufacturers, getBestSellers } from "./api";
 import AddToCartButton from "./AddToCartButton";
+import { isSeller } from "./auth";
 import { useVehicle } from "./context/VehicleContext";
 import repuestos from "./assets/repuestos.jpg";
 import {
@@ -95,6 +96,7 @@ export default function Home({
   onAddresses,
   onHistory,
   onCloseSession,
+  onDeleteAccount,
 
   cartQuantity,
   favoritesQuantity,
@@ -205,6 +207,8 @@ export default function Home({
   // sección se oculta y el resto de la página sigue funcionando.
 
   const [moreVendidos, setMoreVendidos] = useState(null);
+  // El vendedor no compra: en «Más vendidos» no ve el botón «Agregar».
+  const seller = isSeller(sessionUser);
 
   useEffect(() => {
     let active = true;
@@ -248,6 +252,7 @@ export default function Home({
         onAddresses={onAddresses}
         onHistory={onHistory}
         onCloseSession={onCloseSession}
+        onDeleteAccount={onDeleteAccount}
         cartQuantity={cartQuantity}
         favoritesQuantity={favoritesQuantity}
       />
@@ -553,13 +558,16 @@ export default function Home({
                     {price(product.price)}
                   </p>
 
-                  <AddToCartButton
-                    product={product}
-                    className="relative z-10 w-full mt-3 flex items-center justify-center gap-2 h-10 rounded-md text-xs font-bold"
-                  >
-                    <CartIcon />
-                    Agregar
-                  </AddToCartButton>
+                  {/* El vendedor no compra: ve los productos, sin el botón. */}
+                  {!seller && (
+                    <AddToCartButton
+                      product={product}
+                      className="relative z-10 w-full mt-3 flex items-center justify-center gap-2 h-10 rounded-md text-xs font-bold"
+                    >
+                      <CartIcon />
+                      Agregar
+                    </AddToCartButton>
+                  )}
 
                 </div>
 

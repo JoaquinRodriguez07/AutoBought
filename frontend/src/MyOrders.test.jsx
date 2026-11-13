@@ -1,6 +1,6 @@
 // Tests de los pedidos en curso.
 
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
@@ -8,6 +8,7 @@ import MyOrders from "./MyOrders";
 import { confirmReceipt, createPaymentLink, getPurchaseDetail, getPurchaseHistory } from "./api";
 import { goTo } from "./redirect";
 import { isActive, statusPhrase, trackingSteps } from "./orderTracking";
+import { AUTO_REFRESH_MS } from "./useAutoRefresh";
 
 jest.mock("./api", () => ({
   confirmReceipt: jest.fn(),
@@ -233,6 +234,52 @@ describe("MisPedidos: el detalle (/pedidos/:id)", () => {
 
     expect(screen.getByTestId("route")).toHaveTextContent(/^\/pedidos$/);
     expect(await inProgress()).toBeInTheDocument();
+  });
+});
+
+describe("MisPedidos: se actualiza solo cuando el vendedor cambia el estado", () => {
+  const packingOrder = {
+    ...inWay,
+    estado: "packing",
+    tracking: inWay.tracking.slice(0, 2),
+  };
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  const waitRefresh = () =>
+    act(async () => {
+      await jest.advanceTimersByTimeAsync(AUTO_REFRESH_MS);
+    });
+
+  test("the list goes from packing to shipped to delivered without reloading", async () => {
+    getPurchaseHistory.mockResolvedValue([packingOrder]);
+    renderOrders();
+
+    const list = await inProgress();
+    expect(within(list).getByText("Lo estamos empaquetando")).toBeInTheDocument();
+
+    getPurchaseHistory.mockResolvedValue([inWay]);
+    await waitRefresh();
+    expect(within(list).getByText("Está en camino")).toBeInTheDocument();
+
+    // Entregado: ya no está en curso.
+    getPurchaseHistory.mockResolvedValue([{ ...inWay, estado: "delivered" }]);
+    await waitRefresh();
+    expect(screen.getByText("No tenés pedidos en curso.")).toBeInTheDocument();
+  });
+
+  test("the order detail shows the new status without reloading", async () => {
+    getPurchaseDetail.mockResolvedValue(packingOrder);
+    renderOrders("/pedidos/17");
+
+    await screen.findByRole("heading", { name: "Pedido #17" });
+    expect(screen.queryByRole("button", { name: /Ya lo recibí/ })).not.toBeInTheDocument();
+
+    getPurchaseDetail.mockResolvedValue(inWay);
+    await waitRefresh();
+    expect(getPurchaseDetail).toHaveBeenLastCalledWith("17");
+    expect(screen.getByRole("button", { name: /Ya lo recibí/ })).toBeInTheDocument();
   });
 });
 

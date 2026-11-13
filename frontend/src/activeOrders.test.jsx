@@ -1,6 +1,6 @@
 // Tests de los pedidos en curso fuera de «Mis pedidos».
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 
@@ -11,6 +11,7 @@ import Footer from "./Footer";
 import Navbar from "./Navbar";
 import { getPurchaseHistory } from "./api";
 import { getSession } from "./auth";
+import { AUTO_REFRESH_MS } from "./useAutoRefresh";
 
 // Los pedidos en curso fuera de «Mis pedidos»: el ícono de la barra, el
 // la tarjeta del inicio y el link del pie de página.
@@ -76,6 +77,32 @@ describe("tarjeta de pedidos en curso del inicio", () => {
 
     await user.click(orders[0]);
     expect(screen.getByTestId("route")).toHaveTextContent("/pedidos/1");
+  });
+
+  test("updates by itself when the seller changes the status: packing → shipped → delivered", async () => {
+    jest.useFakeTimers();
+    try {
+      getPurchaseHistory.mockResolvedValue([packing]);
+      renderHome();
+
+      expect(ordersOf(await cardElement())[0]).toHaveTextContent("Empaquetando");
+
+      const waitRefresh = () =>
+        act(async () => {
+          await jest.advanceTimersByTimeAsync(AUTO_REFRESH_MS);
+        });
+
+      getPurchaseHistory.mockResolvedValue([{ ...packing, estado: "shipped" }]);
+      await waitRefresh();
+      expect(ordersOf(screen.getByRole("region", { name: "Tus pedidos en curso" }))[0]).toHaveTextContent("En camino");
+
+      // Entregado: ya no está en curso y la tarjeta desaparece.
+      getPurchaseHistory.mockResolvedValue([{ ...packing, estado: "delivered" }]);
+      await waitRefresh();
+      expect(screen.queryByRole("region", { name: "Tus pedidos en curso" })).not.toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   test("shows at most three and links to all of them", async () => {

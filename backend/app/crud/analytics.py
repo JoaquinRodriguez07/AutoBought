@@ -9,9 +9,20 @@ from sqlalchemy.orm import Session
 
 from app.core import analytics_math
 from app.crud.part import filter_parts
+from app.crud.payment import is_paid_order
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.part import Part
+from app.models.payment import Payment
+
+
+def _sold() -> tuple:
+    """Qué pedidos cuentan como venta en todas las métricas del dashboard: no
+    cancelados y pagos, con el mismo criterio que los más vendidos
+    (`crud.part.list_best_sellers`). Un pedido con el pago pendiente,
+    rechazado o vencido (aunque todavía no se haya cancelado) no suma.
+    Pide un outer join con Payment."""
+    return Order.status != OrderStatus.CANCELLED, is_paid_order()
 
 
 def list_sales(
@@ -22,10 +33,10 @@ def list_sales(
     part_id: int | None = None,
 ) -> list[tuple[int, datetime, int, int]]:
     # Cada ítem vendido desde `since`: (repuesto, fecha del pedido,
-    # unidades, facturación). Igual que en los más vendidos, los pedidos
-    # cancelados no cuentan. El agrupado por mes se hace en Python
-    # (analytics_math.group_by_month): SQLite y Postgres truncan fechas
-    # distinto y el mes se cuenta en la hora de Uruguay.
+    # unidades, facturación). Igual que en los más vendidos, solo cuentan
+    # los pedidos pagos y no cancelados (ver _sold). El agrupado por mes se
+    # hace en Python (analytics_math.group_by_month): SQLite y Postgres
+    # truncan fechas distinto y el mes se cuenta en la hora de Uruguay.
     query = (
         select(
             OrderItem.part_id,
@@ -35,7 +46,8 @@ def list_sales(
         )
         .join(Order, Order.order_id == OrderItem.order_id)
         .join(Part, Part.id == OrderItem.part_id)
-        .where(Order.status != OrderStatus.CANCELLED, Order.created_at >= since)
+        .outerjoin(Payment, Payment.order_id == Order.order_id)
+        .where(*_sold(), Order.created_at >= since)
     )
     query = filter_parts(query, category=category, search=search, part_id=part_id)
     return [(pid, when, int(units), int(revenue_total)) for pid, when, units, revenue_total in db.execute(query).all()]
@@ -46,7 +58,8 @@ def units_sold_total(db: Session, part_id: int) -> int:
     query = (
         select(func.coalesce(func.sum(OrderItem.quantity), 0))
         .join(Order, Order.order_id == OrderItem.order_id)
-        .where(OrderItem.part_id == part_id, Order.status != OrderStatus.CANCELLED)
+        .outerjoin(Payment, Payment.order_id == Order.order_id)
+        .where(OrderItem.part_id == part_id, *_sold())
     )
     return int(db.scalar(query))
 

@@ -48,24 +48,41 @@ def ask_structured(
         raise AIUnavailable("La respuesta de la IA no respeta el formato pedido.") from error
 
 
-def recent_queries(db: Session, user_id: int, current_time: datetime | None = None) -> int:
+def recent_queries(
+    db: Session,
+    user_id: int,
+    current_time: datetime | None = None,
+    hours: int = 24,
+    funcionalidad: str | None = None,
+) -> int:
+    """Consultas que salieron bien en las últimas `hours` horas: de todas las
+    funcionalidades, o solo de `funcionalidad`."""
     current_time = current_time or datetime.now(timezone.utc)
-    since = current_time - timedelta(hours=24)
-    return db.scalar(
-        select(func.count()).select_from(AIUsage).where(AIUsage.user_id == user_id, AIUsage.ok.is_(True), AIUsage.created_at >= since)
-    ) or 0
+    since = current_time - timedelta(hours=hours)
+    query = select(func.count()).select_from(AIUsage).where(
+        AIUsage.user_id == user_id, AIUsage.ok.is_(True), AIUsage.created_at >= since
+    )
+    if funcionalidad is not None:
+        query = query.where(AIUsage.funcionalidad == funcionalidad)
+    return db.scalar(query) or 0
 
 
 LIMIT_REACHED = "Llegaste al límite de consultas al asistente por hoy. Probá de nuevo mañana."
 
 
 def check_limit(
-    db: Session, user_id: int, limit_value: int | None = None, detail: str = LIMIT_REACHED
+    db: Session,
+    user_id: int,
+    limit_value: int | None = None,
+    detail: str = LIMIT_REACHED,
+    hours: int = 24,
+    funcionalidad: str | None = None,
 ) -> None:
-    """429 si el usuario ya hizo el máximo de consultas de las últimas 24 h.
+    """429 si el usuario ya hizo el máximo de consultas de las últimas
+    `hours` horas (por defecto, 24 h de todas las funcionalidades).
     `detail` es el mensaje: cada funcionalidad nombra la suya."""
     limit_value = AI_DAILY_LIMIT if limit_value is None else limit_value
-    if recent_queries(db, user_id) >= limit_value:
+    if recent_queries(db, user_id, hours=hours, funcionalidad=funcionalidad) >= limit_value:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
 
 

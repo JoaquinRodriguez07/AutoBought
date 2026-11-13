@@ -281,17 +281,19 @@ Los cálculos son del backend, en `/api/v1/analytics/*` (endpoints en `app/api/v
 |---|---|---|
 | Alertas de reposición | `stockout-risk?at_risk_only=true` | Arriba de todo: los repuestos con riesgo alto (destacados) o medio, con stock, demanda proyectada y días de cobertura. |
 | Evolución de ventas | `sales-by-month` | Unidades o facturación de cada mes, con la proyección del mes que viene punteada. El último mes es el actual, hasta hoy. |
-| Más vendidos | `best-sellers` | Ranking por unidades vendidas en el período. No cuentan los pedidos cancelados; sí los repuestos agotados. |
+| Más vendidos | `best-sellers` | Ranking por unidades vendidas en el período. Incluye los repuestos agotados. |
 | Stock actual | `stock` | Todos los repuestos de menos a más stock, con su estado escrito: *Sin stock*, *Stock bajo* (5 unidades o menos) o *Normal*. |
 | Proyección | `demand-forecast` | Demanda proyectada del mes que viene por repuesto. |
 | Riesgo de agotamiento | `stockout-risk` | Días de cobertura y nivel de riesgo, del más urgente al menos urgente. |
 | Detalle de un repuesto | `parts/{id}` | Stock, unidades vendidas, ventas de 12 meses con la proyección, cobertura y riesgo. Desde ahí se edita el repuesto y se ajusta el stock. |
 
+- **Qué cuenta como venta:** en todas las secciones (más vendidos, evolución, proyección, riesgo, detalle y el resumen con IA), solo los pedidos pagos (pago aprobado, o sin pago: los de antes de Mercado Pago) y no cancelados. Un pedido con el pago pendiente, rechazado o vencido no suma, aunque todavía no se haya cancelado. El filtro es `crud.payment.is_paid_order()`.
 - **Filtros:** categoría, repuesto (nombre o código) y período (3, 6 o 12 meses calendario, el actual incluido) en todas las secciones; van en la URL, así que al volver del detalle quedan como estaban. El período aplica a las ventas; la proyección siempre mira 12 meses.
 - **Proyección:** regresión lineal (numpy) sobre las unidades de los últimos 12 meses, evaluada en el mes siguiente. El mes en curso se lleva a mes completo al ritmo que lleva (el día 15 de un mes de 30 cuenta el doble), si no siempre parecería una caída. Nunca da menos de 0 y no modifica ventas ni stock.
 - **Riesgo:** días de cobertura = stock / (demanda proyectada / días del mes proyectado). Alto con menos de 15 días, medio de 15 a 30, bajo con más de 30 o sin demanda proyectada. Los umbrales están en `app/core/analytics_math.py`.
 - **Alta, edición y stock:** `POST /api/v1/parts`, `PUT /api/v1/parts/{id}` y `PATCH /api/v1/parts/{id}/stock`, solo para vendedores. Un repuesto necesita al menos un vehículo compatible para aparecer en el catálogo. Reponer un agotado manda el aviso de «Avisame cuando haya», y bajar el precio, el de baja de precio a quienes lo tienen en favoritos.
 - **Resumen con IA (HU 6.3):** `GET /api/v1/analytics/summary` devuelve el resumen del día (de 3 a 5 puntos): si ya se generó hoy, el guardado, sin llamar a la IA; si no, genera uno. `POST` lo regenera ("Actualizar") y `GET /summary/history` lista los de los últimos días sin llamar a la IA. El backend calcula los números con las mismas cuentas del dashboard (`app/ia/dashboard_summary.py`) y a Gemini le pasa solo esos agregados, nunca datos de clientes. Cada resumen queda en `dashboard_summary` y cuenta para el límite diario y para `uso_ia` (`resumen_dashboard`). Sin IA responde 503 y el panel dice "Resumen no disponible". Se configura con `IA_RESUMEN_DIAS_HISTORIAL` (7: los días que se guardan y se muestran; la tarea diaria borra los más viejos) y `IA_RESUMEN_MAS_VENDIDOS`, `IA_RESUMEN_EN_RIESGO` e `IA_RESUMEN_CATEGORIAS` (cuántos elementos de cada lista recibe la IA).
+- **Preguntarle al dashboard (HU 6.4):** `POST /api/v1/analytics/preguntar` con `{"question": "..."}` (hasta 300 caracteres) responde `{"answer", "data"}`: un texto breve con los números y la tabla que lo sustenta (`columns` y `rows`), para que el vendedor pueda verificarlo. Responde en dos pasos (`app/ia/ask_dashboard.py`): la IA elige de una lista cerrada qué herramientas usar (ventas por mes, ventas por categoría, más vendidos, stock, proyección y riesgo, en `app/api/v1/endpoints/ask_dashboard.py`), el backend las corre llamando a los mismos endpoints del dashboard y la IA redacta solo con esos resultados. La IA nunca escribe SQL: cada herramienta tiene sus parámetros validados (los mismos límites que los endpoints) y una herramienta que no existe o un parámetro inválido rechaza el pedido entero sin correr nada. Si la pregunta no se responde con esos datos ("¿qué opinan los clientes?"), dice que no tiene esa información y `data` viene en `null`. Cada pregunta queda en `uso_ia` (`pregunta_dashboard`). Límites: `IA_PREGUNTAS_POR_HORA` (10 por vendedor; pasado eso, 429) e `IA_PREGUNTA_TIMEOUT_SEGUNDOS` (25, para todas las llamadas a la IA de una pregunta). Sin IA, o si tarda demasiado, responde 503 y el panel avisa; el resto del dashboard funciona igual.
 
 ## Mails
 
@@ -317,7 +319,7 @@ Estos mails, y el de baja de precio, son comerciales: traen el enlace «No quier
 
 ## Tests de punta a punta (E2E)
 
-La carpeta `e2e/` tiene recorridos con [Playwright](https://playwright.dev) que abren la app en un Chrome de verdad y hacen lo que haría una persona: filtrar el catálogo desde el inicio (categoría, marca, fabricante), buscar, agregar al carrito y deshacer, favoritos, comprar con los datos guardados, registrarse y verificar el correo (leyendo el mail desde Mailpit) y entrar como vendedor.
+La carpeta `e2e/` tiene recorridos con [Playwright](https://playwright.dev) que abren la app en un Chrome de verdad y hacen lo que haría una persona: filtrar el catálogo desde el inicio (categoría, marca, fabricante), buscar, agregar al carrito y deshacer, favoritos, comprar con los datos guardados, registrarse y verificar el correo (leyendo el mail desde Mailpit), entrar como vendedor y borrar una cuenta con sus distintos resultados (éxito, contraseña incorrecta y pedido pagado en curso).
 
 **En GitHub** corren solos cada vez que se mergea a `dev` o a `main` (`.github/workflows/e2e.yml`), y también a mano desde *Actions → E2E → Run workflow*. Cada corrida levanta la app con una base nueva y carga `scripts.seed` y `scripts.seed_demo_users`. Si algo falla, abre un issue con la etiqueta `e2e` (o comenta el que ya esté abierto para esa rama) con los recorridos que fallaron y el link a la corrida; las capturas, los videos y los logs de la app quedan 7 días en el artefacto `e2e-fallas`.
 
@@ -331,7 +333,7 @@ npx playwright test               # todos los recorridos
 npx playwright test --ui          # para verlos paso a paso
 ```
 
-Ojo: en local usan tu base. Cada recorrido deja las cosas como estaban (deshace lo que agrega al carrito y a favoritos), pero la compra vacía el carrito de Ana antes de empezar y queda en su historial, y el registro crea un usuario `e2e-…@autobought.com` nuevo en cada corrida.
+Ojo: en local usan tu base. Cada recorrido deja las cosas como estaban (deshace lo que agrega al carrito y a favoritos), pero la compra vacía el carrito de Ana antes de empezar y queda en su historial, y el registro crea un usuario `e2e-…@autobought.com` nuevo en cada corrida. Las pruebas de baja también dejan filas de cuenta anonimizadas, como corresponde al comportamiento real.
 
 ## Asistente de compra con IA
 
@@ -381,4 +383,3 @@ def refund(db: Session, payment: Payment, mp_client: MercadoPagoClient) -> bool:
         cron la reintenta.
     """
 ```
-
