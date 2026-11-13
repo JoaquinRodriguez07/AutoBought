@@ -18,6 +18,12 @@ def test_last_months_includes_the_current_and_crosses_the_year():
     assert analytics_math.last_months(date(2026, 2, 10), 4) == [(2025, 11), (2025, 12), (2026, 1), (2026, 2)]
 
 
+def test_last_months_never_goes_past_the_maximum():
+    periods = analytics_math.last_months(date(2026, 2, 10), 1000)
+    assert len(periods) == analytics_math.MAX_MONTHS
+    assert periods[-1] == (2026, 2)
+
+
 def test_month_next_of_december_is_january():
     assert analytics_math.next_month((2026, 12)) == (2027, 1)
     assert analytics_math.next_month((2026, 3)) == (2026, 4)

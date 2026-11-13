@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CloseIcon, SearchIcon } from "./Icons";
 
 /**
@@ -37,6 +37,12 @@ export default function SearchBar({
 }) {
   // Estado interno para permitir uso "no controlado" si no se pasa `value`.
   const [interno, setInterno] = useState(value ?? "");
+  const input = useRef(null);
+
+  // Foco al aparecer, con ref en lugar del atributo autoFocus (Sonar S9379).
+  useEffect(() => {
+    if (autoFocus) input.current?.focus();
+  }, [autoFocus]);
 
   useEffect(() => {
     if (value !== undefined) {
@@ -76,7 +82,7 @@ export default function SearchBar({
         onChange={(e) => update(e.target.value)}
         onKeyDown={handleTecla}
         type="search"
-        autoFocus={autoFocus}
+        ref={input}
         aria-label="Buscar repuesto por nombre o código"
         placeholder={placeholder}
         className="flex-1 min-w-0 px-4 py-3 text-sm outline-hidden [&::-webkit-search-cancel-button]:appearance-none"
