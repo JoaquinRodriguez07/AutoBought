@@ -26,9 +26,6 @@ import { PERIODS, DEFAULT_PERIOD, formatMonth, formatNumber, formatPesos, change
 import { Change, Metric, Panel } from "./pieces";
 import { useQuery } from "./useQuery";
 
-// Pasar a true cuando el backend tenga POST /analytics/preguntar (HU 6.4).
-const ASK_AVAILABLE = false;
-
 // Qué cuenta cada sección, debajo del título.
 const DESCRIPTIONS = {
   orders:
@@ -200,7 +197,7 @@ export default function Dashboard({ sessionUser, onHome, onCloseSession }) {
         <Panel
           title={`Los más vendidos · últimos ${filters.months} meses`}
           id="titulo-mas-vendidos"
-          details="Ordenados por unidades vendidas. No cuentan los pedidos cancelados; sí los repuestos que hoy están agotados."
+          details="Ordenados por unidades vendidas. Solo cuentan los pedidos pagos y no cancelados; sí los repuestos que hoy están agotados."
         >
           <BestSellers key={version} filters={filters} onDetail={goToDetail} />
         </Panel>
@@ -218,7 +215,7 @@ export default function Dashboard({ sessionUser, onHome, onCloseSession }) {
       {vista === "risk" && (
         <StockoutRisk key={version} filters={filters} onDetail={goToDetail} onRestock={setToRestock} />
       )}
-      {vista === "ask" && <AskDashboard disponible={ASK_AVAILABLE} />}
+      {vista === "ask" && <AskDashboard />}
       {vista === "team" && <Team sessionUser={sessionUser} />}
 
       <AdjustStockDialog

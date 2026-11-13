@@ -7,6 +7,7 @@ import { notifyInvalidSession } from "../api";
 import {
   addSeller,
   adjustStock,
+  askDashboard,
   createPart,
   removeSeller,
   getAISummaryHistory,
@@ -140,6 +141,35 @@ describe("equipo (SCRUM-175)", () => {
   });
 });
 
+
+it("sends the question and maps the answer with the data used", async () => {
+  global.fetch = responder(200, {
+    answer: "Frenos vendió 12 unidades.",
+    data: { columns: ["Categoría", "Unidades"], rows: [["Frenos", 12]] },
+  });
+
+  const result = await askDashboard("¿Qué categoría vendió más en julio?");
+
+  const [url, options] = global.fetch.mock.calls[0];
+  expect(url).toBe("http://api/api/v1/analytics/preguntar");
+  expect(options.method).toBe("POST");
+  expect(JSON.parse(options.body)).toEqual({ question: "¿Qué categoría vendió más en julio?" });
+  expect(result).toEqual({
+    response: "Frenos vendió 12 unidades.",
+    info: { columnas: ["Categoría", "Unidades"], rows: [["Frenos", 12]] },
+  });
+});
+
+it("an answer without data has no table, and the AI errors keep their status", async () => {
+  global.fetch = responder(200, { answer: "No tengo esa información.", data: null });
+  expect(await askDashboard("¿Qué opinan los clientes?")).toEqual({ response: "No tengo esa información.", info: null });
+
+  global.fetch = responder(503, { detail: "No pudimos responder ahora." });
+  await expect(askDashboard("¿Cómo vienen las ventas?")).rejects.toMatchObject({
+    status: 503,
+    message: "No pudimos responder ahora.",
+  });
+});
 
 it("maps the summary history from the API", async () => {
   global.fetch = responder(200, {

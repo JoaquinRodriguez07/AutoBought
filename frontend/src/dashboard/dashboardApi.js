@@ -363,9 +363,8 @@ export async function updateOrder(id, { shipping, internalNote } = {}) {
 
 /* =====================================================
    DASHBOARD CON IA (HU 6.3 y 6.4)
-   El resumen (HU 6.3) ya está en el backend. Preguntarle al
-   dashboard (HU 6.4) todavía no: mientras tanto, esa pantalla
-   dice "En desarrollo". El contrato está en cada función.
+   El resumen del día y las preguntas en lenguaje natural.
+   El contrato está en cada función.
 ====================================================== */
 
 /** true si la ruta todavía no existe en el backend. */
@@ -406,9 +405,11 @@ export async function getAISummaryHistory() {
 
 /**
  * POST /analytics/preguntar (HU 6.4)
- * Cuerpo: { question }
+ * Cuerpo: { question } (hasta 300 caracteres)
  * Respuesta: { answer, data: { columns: string[], rows: any[][] } | null }
- * `data` son los datos que se usaron para responder, para verificarlos.
+ * `data` son los datos que se usaron para responder, para verificarlos;
+ * null si la pregunta no se responde con los datos del sistema.
+ * Errores: 429 (límite de preguntas por hora) y 503 (la IA no respondió).
  */
 export async function askDashboard(pregunta) {
   const data = await request("/analytics/preguntar", {
