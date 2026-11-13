@@ -8,6 +8,7 @@
 
 [![CI](https://github.com/JoaquinRodriguez07/AutoBought/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/JoaquinRodriguez07/AutoBought/actions/workflows/ci.yml)
 [![E2E](https://github.com/JoaquinRodriguez07/AutoBought/actions/workflows/e2e.yml/badge.svg?branch=dev)](https://github.com/JoaquinRodriguez07/AutoBought/actions/workflows/e2e.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=JoaquinRodriguez07_AutoBought&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=JoaquinRodriguez07_AutoBought)
 
 [**Ver la tienda en vivo →**](https://autobought-pearl.vercel.app)
 

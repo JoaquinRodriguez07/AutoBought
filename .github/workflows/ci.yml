@@ -62,6 +62,13 @@ jobs:
       - name: Tests + cobertura (mínimo 70%)
         run: uv run pytest --cov-fail-under=70
 
+      - name: Guardar cobertura para Sonar
+        uses: actions/upload-artifact@v7
+        with:
+          name: cobertura-backend
+          path: backend/coverage.xml
+          if-no-files-found: error
+
   frontend:
     name: frontend
     runs-on: ubuntu-latest
@@ -91,3 +98,57 @@ jobs:
       # se movieron o se renombraron), el job falla en lugar de pasar en verde.
       - name: Tests unitarios (Jest)
         run: npm test
+
+      - name: Guardar cobertura para Sonar
+        uses: actions/upload-artifact@v7
+        with:
+          name: cobertura-frontend
+          path: frontend/coverage/lcov.info
+          if-no-files-found: error
+
+  # Corre después de los tests porque necesita sus reportes de cobertura.
+  sonar:
+    name: sonar
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      # Las PRs de Dependabot y de forks no reciben secrets: sin token se
+      # saltea el análisis en lugar de marcar el job en rojo.
+      - name: Avisar si no hay token
+        if: env.SONAR_TOKEN == ''
+        run: echo "::notice::Sin SONAR_TOKEN, se saltea el análisis de Sonar."
+
+      # Sonar usa la historia completa para saber qué código es nuevo.
+      - uses: actions/checkout@v7
+        if: env.SONAR_TOKEN != ''
+        with:
+          fetch-depth: 0
+
+      - name: Bajar cobertura del backend
+        if: env.SONAR_TOKEN != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: cobertura-backend
+          path: backend
+
+      - name: Bajar cobertura del frontend
+        if: env.SONAR_TOKEN != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: cobertura-frontend
+          path: frontend/coverage
+
+      # Los reportes salen con rutas relativas a backend/app y a frontend/, y
+      # Sonar trabaja desde la raíz del repo. Si no coinciden, el análisis pasa
+      # igual pero muestra 0% de cobertura.
+      - name: Ajustar rutas de cobertura a la raíz del repo
+        if: env.SONAR_TOKEN != ''
+        run: |
+          sed -i -e "s#<source>.*</source>#<source>$GITHUB_WORKSPACE</source>#" -e 's#filename="#filename="backend/app/#' backend/coverage.xml
+          sed -i 's#^SF:#SF:frontend/#' frontend/coverage/lcov.info
+
+      - name: Análisis de SonarQube Cloud
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@v8

@@ -321,4 +321,4 @@ async function main() {
   }
 }
 
-main();
+main().catch((error) => salirConError(error.message));

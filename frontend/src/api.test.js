@@ -22,6 +22,7 @@ import {
   deleteAddressApi,
   removeCartItem,
   login,
+  deleteAccount,
   setPrimaryAddress,
   getCart,
   getCategories,
@@ -135,6 +136,44 @@ describe("login", () => {
     await expect(login("user@example.com", "bad")).rejects.toThrow("Cuenta bloqueada");
     await expect(login("user@example.com", "bad")).rejects.toThrow(
       "Correo electrónico o contraseña incorrectos."
+    );
+  });
+});
+
+describe("deleteAccount", () => {
+  it("sends the password and bearer token to the account deletion endpoint", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204 }));
+
+    await expect(deleteAccount("secret")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/users/me`, {
+      method: "DELETE",
+      headers: {
+        Authorization: "Bearer jwt-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password: "secret" }),
+    });
+  });
+
+  it("throws the backend error and status", async () => {
+    fetch.mockResolvedValue(
+      response(
+        { detail: "La contraseña es incorrecta." },
+        { ok: false, status: 400 }
+      )
+    );
+
+    await expect(deleteAccount("incorrecta")).rejects.toMatchObject({
+      message: "La contraseña es incorrecta.",
+      status: 400,
+    });
+  });
+
+  it("reports network failures", async () => {
+    fetch.mockRejectedValue(new Error("offline"));
+
+    await expect(deleteAccount("secret")).rejects.toThrow(
+      "No pudimos conectar con el servidor."
     );
   });
 });

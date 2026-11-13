@@ -56,6 +56,7 @@ export default function ProductDetail({
   onAddresses,
   onHistory,
   onCloseSession,
+  onDeleteAccount,
 }) {
   const { activeVehicle: filtersVehicle, activateVehicle } = useVehicle();
   // El vendedor no compra: no ve carrito, favoritos ni avisos de stock.
@@ -108,7 +109,7 @@ export default function ProductDetail({
     <Navbar currentPage="detalle" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
       onBrands={onBrands} onCart={onCart} onFavorites={onFavorites}
       sessionUser={sessionUser} onProfile={onProfile} onAddresses={onAddresses}
-      onHistory={onHistory} onCloseSession={onCloseSession}
+      onHistory={onHistory} onCloseSession={onCloseSession} onDeleteAccount={onDeleteAccount}
       favoritesQuantity={favoritesQuantity} />
   );
 
@@ -425,7 +426,7 @@ export default function ProductDetail({
           </div>
         </section>
 
-        <BoughtTogether product={currentProduct} onDetail={onDetail} />
+        <BoughtTogether product={currentProduct} onDetail={onDetail} seller={seller} />
 
       </main>
     </div>

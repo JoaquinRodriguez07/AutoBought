@@ -154,7 +154,7 @@ describe("preguntarle al dashboard (HU 6.4)", () => {
       response: "Frenos vendió 320 unidades en julio.",
       info: { columnas: ["Categoría", "Unidades"], rows: [["Frenos", 320], ["Filtros", 210]] },
     });
-    render(<AskDashboard disponible />);
+    render(<AskDashboard />);
 
     const suggested = screen.getByRole("list", { name: "Preguntas sugeridas" });
     await user.click(within(suggested).getByRole("button", { name: "¿Qué categoría vendió más en julio?" }));
@@ -168,7 +168,7 @@ describe("preguntarle al dashboard (HU 6.4)", () => {
   it("asks what the seller types", async () => {
     const user = userEvent.setup();
     askDashboard.mockResolvedValue({ response: "No tengo esa información.", info: null });
-    render(<AskDashboard disponible />);
+    render(<AskDashboard />);
 
     expect(screen.getByRole("button", { name: "Preguntar" })).toBeDisabled();
     await user.type(screen.getByLabelText("Tu pregunta"), "¿Qué opinan los clientes?");
@@ -181,7 +181,7 @@ describe("preguntarle al dashboard (HU 6.4)", () => {
   it("warns when the AI does not answer", async () => {
     const user = userEvent.setup();
     askDashboard.mockRejectedValue(withStatus(503));
-    render(<AskDashboard disponible />);
+    render(<AskDashboard />);
 
     await user.type(screen.getByLabelText("Tu pregunta"), "¿Cómo vienen las ventas?");
     await user.click(screen.getByRole("button", { name: "Preguntar" }));
@@ -189,12 +189,70 @@ describe("preguntarle al dashboard (HU 6.4)", () => {
     expect(await screen.findByText(/No pudimos responder ahora/)).toBeInTheDocument();
   });
 
-  it("says it is in development and does not let the seller ask while the backend does not have it", () => {
+  it("shows the suggested questions from the story", () => {
     render(<AskDashboard />);
 
-    expect(screen.getByText("En desarrollo")).toBeInTheDocument();
-    expect(screen.getByLabelText("Tu pregunta")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "¿Cómo vienen las ventas de Frenos?" })).toBeDisabled();
-    expect(askDashboard).not.toHaveBeenCalled();
+    const suggested = within(screen.getByRole("list", { name: "Preguntas sugeridas" })).getAllByRole("button");
+    expect(suggested.map((button) => button.textContent)).toEqual(
+      expect.arrayContaining(["¿Qué repuestos tengo que reponer esta semana?", "¿Cómo vienen las ventas de Frenos?"])
+    );
+    expect(screen.queryByText("En desarrollo")).not.toBeInTheDocument();
+  });
+
+  it("does not ask an empty question and trims what the seller types", async () => {
+    const user = userEvent.setup();
+    askDashboard.mockResolvedValue({ response: "Vendiste 1.234 unidades.", info: null });
+    render(<AskDashboard />);
+
+    await user.type(screen.getByLabelText("Tu pregunta"), "   ");
+    expect(screen.getByRole("button", { name: "Preguntar" })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("Tu pregunta"), "¿Cómo vienen las ventas?  {enter}");
+
+    expect(askDashboard).toHaveBeenCalledTimes(1);
+    expect(askDashboard).toHaveBeenCalledWith("¿Cómo vienen las ventas?");
+    expect(await screen.findByText("Vendiste 1.234 unidades.")).toBeInTheDocument();
+    expect(screen.getByText("¿Cómo vienen las ventas?", { selector: "p" })).toBeInTheDocument();
+  });
+
+  it("does not let the seller ask again while waiting for the answer", async () => {
+    const user = userEvent.setup();
+    let resolve;
+    askDashboard.mockReturnValue(new Promise((done) => (resolve = done)));
+    render(<AskDashboard />);
+
+    await user.click(screen.getByRole("button", { name: "¿Cómo vienen las ventas de Frenos?" }));
+
+    expect(screen.getByLabelText("Pensando…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "¿Qué repuestos tengo que reponer esta semana?" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Preguntar" })).toBeDisabled();
+    resolve({ response: "Frenos viene en alza.", info: null });
+    expect(await screen.findByText("Frenos viene en alza.")).toBeInTheDocument();
+  });
+
+  it("formats the numbers of the data used", async () => {
+    const user = userEvent.setup();
+    askDashboard.mockResolvedValue({
+      response: "Encendido facturó $ 1.250.000.",
+      info: { columnas: ["Categoría", "Facturación ($)"], rows: [["Encendido", 1250000]] },
+    });
+    render(<AskDashboard />);
+
+    await user.click(screen.getByRole("button", { name: "¿Qué categoría vendió más en julio?" }));
+    await user.click(await screen.findByText("Ver los datos que se usaron"));
+
+    expect(screen.getByRole("table")).toHaveTextContent("Encendido1.250.000");
+  });
+
+  it("shows the message of the hourly limit", async () => {
+    const user = userEvent.setup();
+    askDashboard.mockRejectedValue(
+      Object.assign(new Error("Llegaste al límite de preguntas por hora. Probá de nuevo en un rato."), { status: 429 })
+    );
+    render(<AskDashboard />);
+
+    await user.click(screen.getByRole("button", { name: "¿Cómo vienen las ventas de Frenos?" }));
+
+    expect(await screen.findByText("Llegaste al límite de preguntas por hora. Probá de nuevo en un rato.")).toBeInTheDocument();
   });
 });
