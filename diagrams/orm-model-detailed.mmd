@@ -6,14 +6,15 @@ references:
 generationTime: 2026-11-10T03:40:19.433Z
 ---
 erDiagram
-    USER ||--o| Client : "joined inheritance"
+    USER ||--o| CLIENT : "joined inheritance"
     USER ||--o| EMPLOYEE : "joined inheritance"
-    USER ||--o{ AI_USAGE : generates
-    Client ||--o| CART : owns
-    Client ||--o{ SHIPPING_ADDRESS : saves
-    Client ||--o{ ORDER : places
-    Client ||--o{ FAVORITE : marks
-    Client ||--o{ STOCK_ALERT : requests
+    USER ||--o{ USO_IA : generates
+    USER o|--o{ DASHBOARD_SUMMARY : generates
+    CLIENT ||--o| CART : owns
+    CLIENT ||--o{ SHIPPING_ADDRESS : saves
+    CLIENT ||--o{ ORDER : places
+    CLIENT ||--o{ FAVORITE : marks
+    CLIENT ||--o{ STOCK_ALERT : requests
     CART ||--o{ CART_ITEM : contains
     PART ||--o{ CART_ITEM : added_to
     ORDER ||--o{ ORDER_ITEM : contains
@@ -30,12 +31,13 @@ erDiagram
         int user_id PK
         string user_type
         string username UK
+        string password
         string email UK
         string name
         boolean email_verified
         int session_version
     }
-    Client {
+    CLIENT {
         int user_id PK, FK
         string phone
         boolean marketing_emails
@@ -45,13 +47,20 @@ erDiagram
         boolean is_admin
         boolean active
     }
-    AI_USAGE {
+    USO_IA {
         int uso_ia_id PK
         int user_id FK
         string funcionalidad
         int tokens
         boolean ok
         datetime created_at
+    }
+    DASHBOARD_SUMMARY {
+        int id PK
+        JSON points
+        int tokens
+        int generated_by FK
+        datetime generated_at
     }
     AUTH_ATTEMPT {
         int auth_attempt_id PK
@@ -76,22 +85,36 @@ erDiagram
         string personal_name
         string street
         string city
+        string number
+        string apartment
         string department
+        string postal_code
         boolean is_primary
     }
     ORDER {
         int order_id PK
         int client_id FK
-        int shipping_address_id FK
         datetime created_at
         string status
+        string delivery_method
+        int shipping_address_id FK
+        string ship_personal_name
+        string ship_street
+        string ship_number
+        string ship_apartment
+        string ship_city
+        string ship_department
+        string ship_postal_code
         string payment_method_label
+        string cancellation_reason
+        string internal_note
     }
     ORDER_ITEM {
         int order_id PK, FK
         int part_id PK, FK
         int quantity
         int frozen_price
+        datetime reminder_sent_at
     }
     PAYMENT {
         int payment_id PK
@@ -100,6 +123,8 @@ erDiagram
         string mp_preference_id
         string mp_payment_id
         datetime refunded_at
+        datetime created_at
+        datetime updated_at
     }
     ORDER_STATUS_HISTORY {
         int id PK
@@ -114,8 +139,13 @@ erDiagram
         string name
         string manufacturer
         string category
+        string color
         int price
         int stock
+        string description
+        JSON specifications
+        int warranty_months
+        string warranty_provider
     }
     CAR_MODEL {
         int id PK

@@ -22,7 +22,8 @@ erDiagram
     CLIENT ||--o{ ORDER : places
     CLIENT ||--o{ FAVORITE : marks
     CLIENT ||--o{ STOCK_ALERT : requests
-    USER ||--o{ AI_USAGE : generates
+    USER ||--o{ USO_IA : generates
+    USER o|--o{ DASHBOARD_SUMMARY : generates
     CART ||--o{ CART_ITEM : contains
     PART ||--o{ CART_ITEM : added_to
     ORDER ||--o{ ORDER_ITEM : contains
@@ -58,5 +59,6 @@ erDiagram
     PAYMENT:::order
     FAVORITE:::favorite
     STOCK_ALERT:::stock
-    AI_USAGE:::user
+    USO_IA:::user
+    DASHBOARD_SUMMARY:::user
     AUTH_ATTEMPT:::user

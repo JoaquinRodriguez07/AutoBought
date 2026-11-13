@@ -11,7 +11,7 @@
 
 ## Introducción
 
-Siguiendo las buenas prácticas de la industria, los componentes de software del backend de esta aplicación actuan como procesos  completamente desprovistos de memoria, stateless. Esto se elige por las claras ventajas de mayor escalabilidad y tolerancia a fallos, pero este diseño brinda consigo un desafío igual de claro: la persistencia. Sin una memoria durable y segura, esta aplicación no podría hacer e-commerce o siquiera mostrar partes a los usuarios. Por tal razón, hay también herramientas y componentes de software diseñados específicamente para la provisión de persistencia. Implementar este software permite a nuestro proyecto centralizar toda la complejidad de la persistencia en su propio componente, mejorando así el desempeño del resto de la aplicación.
+Siguiendo las buenas prácticas de la industria, los componentes de software del backend de esta aplicación  como procesos  completamente independientes de la memoria, stateless. Esto se elige por las claras ventajas de mayor escalabilidad y tolerancia a fallos, pero este diseño trae consigo un desafío igual de claro: la persistencia. Sin una memoria durable y segura, esta aplicación no podría hacer e-commerce o siquiera mostrar partes a los usuarios. Por tal razón, hay también herramientas y componentes de software diseñados específicamente para la provisión de persistencia. Implementar este software permite a nuestro proyecto centralizar toda la complejidad de la persistencia en su propio componente, mejorando así el desempeño del resto de la aplicación.
 
 ## La Base de Datos
 
@@ -34,7 +34,7 @@ En desarrollo se puede usar un contenedor PostgreSQL local o configurar el perfi
 
 ## El Object-Relational Mapper (ORM)
 
-La aplicación utiliza SQLAlchemy como ORM (*Object-Relational Mapper*). Los modelos de Python representan las entidades relacionales de la aplicación —por ejemplo, repuestos, modelos de auto, usuarios, direcciones, carritos, pedidos, pagos y compatibilidades— y describen cómo se relacionan entre sí. La información que se consulta o modifica mediante esos modelos corresponde a tablas y filas de PostgreSQL.
+La aplicación utiliza SQLAlchemy como ORM (*Object-Relational Mapper*). Los modelos de Python representan las entidades relacionales de la aplicación —por ejemplo, repuestos, modelos de auto, usuarios, direcciones, carritos, pedidos, pagos, compatibilidades e historial de resúmenes del dashboard— y describen cómo se relacionan entre sí. La información que se consulta o modifica mediante esos modelos corresponde a tablas y filas de PostgreSQL.
 
 Se eligió un ORM para mantener el acceso a datos junto al código del dominio, con nombres y estructuras que el resto del backend ya utiliza. Así, una modificación en las entidades se puede seguir desde el modelo hasta las operaciones que lo usan y, cuando cambia el esquema, hasta su migración. Esto facilita leer, revisar y mantener el código sin tener que reconstruir manualmente en cada lugar cómo se relacionan las tablas.
 
@@ -53,6 +53,8 @@ La autogeneración produce un borrador, no una migración lista para aplicar sin
 Las migraciones se ejecutan desde `backend/` con `uv run alembic upgrade head`, o desde Docker con `docker exec backend uv run alembic upgrade head`. `head` significa la última revisión disponible en el código; Alembic aplica las revisiones que todavía falten y registra la versión alcanzada en la tabla `alembic_version`. Así, una base nueva se prepara aplicando todas las revisiones, mientras que una base existente avanza desde su versión actual sin volver a ejecutar las anteriores. Antes de migrar una base remota, hay que verificar que `DATABASE_URL` apunta al destino previsto y realizar un respaldo.
 
 El proyecto mantiene separadas las responsabilidades: Alembic crea y modifica tablas, columnas, índices y restricciones; los scripts de seed cargan o actualizan registros, pero no cambian el esquema. Por eso, los seeds llaman a `require_head` y se niegan a ejecutarse si la base no está en la última revisión. Si se trabaja con una base antigua creada antes de Alembic, no alcanza con ejecutar `upgrade head`: primero se verifica y registra su esquema de partida con `scripts.db_baseline`, según las instrucciones de la guía de desarrollo.
+
+Las revisiones recientes reflejan funcionalidades nuevas: `0008` crea `dashboard_summary` para guardar cada resumen generado por el dashboard, y `0009` agrega a los pedidos el método de entrega (`shipping` o `pickup`) y el estado `ready_for_pickup` («Listo para retirar»). La revisión `0009` también permite que los campos de dirección de envío queden vacíos cuando el pedido es para retiro.
 
 ## Los Scripts de Testeo
 
@@ -93,6 +95,10 @@ El script no usa el flujo normal de compra para insertar el historial: inserta p
 ## Privacidad y Permanencia
 
 PostgreSQL conserva los datos que la aplicación necesita entre solicitudes y despliegues. Entre ellos están el catálogo de repuestos y sus precios y stock, modelos de auto y compatibilidades; las cuentas de clientes y vendedores; los hashes de contraseñas y el estado de verificación; las direcciones, carritos, favoritos y alertas; los pedidos, sus artículos, direcciones de envío, estados e información del pago; y los datos operativos del dashboard, como el uso de IA y los resúmenes guardados. Las restricciones y relaciones de la base vinculan estos registros, por ejemplo, los artículos de un pedido con el pedido y los repuestos correspondientes.
+
+Cada resumen del dashboard se persiste en `dashboard_summary` como una fila independiente: se guardan sus puntos de texto, la cantidad de tokens, quién lo generó y cuándo. Los resúmenes anteriores no se pisan; forman un historial disponible durante el período configurado por `IA_RESUMEN_DIAS_HISTORIAL` (siete días por defecto). La tarea diaria elimina de esta tabla los resúmenes que superan ese período. Si se elimina la cuenta de quien lo generó, el resumen permanece y la referencia al usuario queda vacía.
+
+En cada pedido se guarda también el método de entrega. Para el envío a domicilio se conservan la referencia a la dirección del cliente y una copia de sus datos al momento de la compra, para que el historial no cambie si se edita o elimina esa dirección. Para el retiro en el local, el método queda registrado como `pickup` y no se asocia ni se guarda una dirección de envío: la dirección y el horario del local se configuran mediante `LOCAL_ADDRESS` y `LOCAL_HOURS` en el entorno del backend. El progreso del pedido se guarda como estado e historial; en los pedidos para retirar, `ready_for_pickup` indica que ya está listo. Los datos del local configurados en el entorno no se persisten en PostgreSQL.
 
 Las imágenes de los repuestos no se guardan como contenido binario en PostgreSQL. Son archivos estáticos del frontend, ubicados en `frontend/public/repuestos/`, que se incluyen y sirven como recursos de la aplicación desplegada en Vercel. El modelo de repuesto en la base almacena información de producto, no el archivo de imagen. Por eso, actualizar el despliegue del frontend puede cambiar esos recursos sin modificar los registros del catálogo, y una copia de la base por sí sola no incluye las imágenes.
 
