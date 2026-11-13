@@ -6,6 +6,8 @@ jest.mock("./auth", () => ({
 
 import {
   onInvalidSession,
+  getPurchaseHistory,
+  searchText,
   updateCartItem,
   askAssistant,
   addFavoriteApi,
@@ -1134,5 +1136,272 @@ describe("assistant API", () => {
 
     await expect(askAssistant({ texto: "x y z", marca: "A", modelo: "B", anio: 2016 }))
       .rejects.toMatchObject({ status: 503, message: "El asistente no está disponible." });
+  });
+});
+
+describe("purchase history", () => {
+  // El backend no manda el id ni `is_primary` en la dirección de un pedido
+  // (OrderShippingAddressOut): solo los datos para mostrarla.
+  const pedido = {
+    order_id: 42,
+    created_at: "2026-11-01T10:00:00Z",
+    status: "packing",
+    shipping_address: {
+      personal_name: "Ana Pérez",
+      street: "18 de Julio",
+      number: "1234",
+      apartment: null,
+      city: "Montevideo",
+      department: "Montevideo",
+      postal_code: null,
+    },
+    payment_method: "mercado_pago",
+    payment_status: "pending",
+    payment_due_at: "2026-11-02T10:00:00Z",
+    total: 4900,
+    status_history: [{ status: "confirmed", changed_at: "2026-11-01T10:00:00Z" }, { status: "packing" }],
+    items: [{ part_id: 21, part_code: "DF-21", name: "Disco de freno", quantity: 2, frozen_price: 2450 }],
+  };
+
+  it("maps every order with its address, payment deadline, tracking and frozen prices", async () => {
+    fetch.mockResolvedValue(response({ orders: [pedido] }));
+
+    await expect(getPurchaseHistory()).resolves.toEqual([
+      {
+        id: 42,
+        date: "2026-11-01T10:00:00Z",
+        estado: "packing",
+        shippingAddress: {
+          displayName: "Ana Pérez",
+          street: "18 de Julio",
+          number: "1234",
+          apartamento: "",
+          city: "Montevideo",
+          department: "Montevideo",
+          codePostal: "",
+        },
+        paymentMethod: "mercado_pago",
+        paymentStatus: "pending",
+        expiresPayment: "2026-11-02T10:00:00Z",
+        deliveryMethod: "shipping",
+        detailCancellation: null,
+        total: 4900,
+        tracking: [
+          { estado: "confirmed", date: "2026-11-01T10:00:00Z" },
+          { estado: "packing", date: null },
+        ],
+        reasonCancellation: null,
+        items: [{ partId: 21, code: "DF-21", displayName: "Disco de freno", quantity: 2, price: 2450 }],
+      },
+    ]);
+    expect(fetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/v1/orders`);
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBe("Bearer jwt-token");
+  });
+
+  it("tolerates an order that comes without address, payment, tracking or items", async () => {
+    fetch.mockResolvedValue(response({ orders: [{ order_id: 7, created_at: "2025-01-01", status: "shipped" }] }));
+
+    await expect(getPurchaseHistory()).resolves.toEqual([
+      {
+        id: 7,
+        date: "2025-01-01",
+        estado: "shipped",
+        shippingAddress: null,
+        paymentMethod: "",
+        paymentStatus: null,
+        expiresPayment: null,
+        deliveryMethod: "shipping",
+        detailCancellation: null,
+        total: 0,
+        tracking: [],
+        reasonCancellation: null,
+        items: [],
+      },
+    ]);
+  });
+
+  it("keeps the reasons of a cancelled order", async () => {
+    fetch.mockResolvedValue(
+      response({ orders: [{ order_id: 9, status: "cancelled", cancellation_reason: "Sin stock", cancel_reason: "store" }] })
+    );
+
+    const [compra] = await getPurchaseHistory();
+
+    expect(compra).toMatchObject({ detailCancellation: "Sin stock", reasonCancellation: "store" });
+  });
+
+  it("keeps a line of an order when the part lost its code or name", async () => {
+    fetch.mockResolvedValue(
+      response({ orders: [{ order_id: 8, items: [{ part_id: 1, quantity: 1, frozen_price: 10 }] }] })
+    );
+
+    const [compra] = await getPurchaseHistory();
+
+    expect(compra.items).toEqual([{ partId: 1, code: "", displayName: "", quantity: 1, price: 10 }]);
+  });
+
+  it("fails when the answer has no list of orders", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(getPurchaseHistory()).rejects.toThrow("No pudimos cargar tu historial de compras.");
+  });
+
+  it("explains an expired session", async () => {
+    fetch.mockResolvedValue(response({}, { status: 401, ok: false }));
+
+    await expect(getPurchaseHistory()).rejects.toMatchObject({
+      status: 401,
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+    });
+  });
+});
+
+describe("confirmPurchase without a chosen address", () => {
+  it("lets the backend use the primary address", async () => {
+    fetch.mockResolvedValue(response({ order_id: 1, items: [] }));
+
+    await confirmPurchase();
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ shipping_address_id: null, delivery_method: "shipping" });
+  });
+
+  it("explains missing stock, the most delicate rejection of a purchase", async () => {
+    fetch.mockResolvedValue(response({}, { status: 409, ok: false }));
+
+    await expect(confirmPurchase({ idAddress: 3 })).rejects.toMatchObject({
+      status: 409,
+      message: "No hay stock suficiente para completar la compra.",
+    });
+  });
+
+  it("prefers the backend detail over the generic message", async () => {
+    fetch.mockResolvedValue(response({ detail: "Sin stock de DF-21." }, { status: 409, ok: false }));
+
+    await expect(confirmPurchase()).rejects.toThrow("Sin stock de DF-21.");
+  });
+
+  it("does not report a purchase as confirmed when the answer cannot be read", async () => {
+    fetch.mockResolvedValue(response(null, { jsonError: new SyntaxError("vacío") }));
+
+    await expect(confirmPurchase()).rejects.toThrow("No pudimos leer la respuesta del servidor.");
+  });
+
+  it("does not offer a field error when a failed answer cannot be read", async () => {
+    fetch.mockResolvedValue(response(null, { status: 500, ok: false, jsonError: new SyntaxError("vacío") }));
+
+    await expect(confirmPurchase()).rejects.toMatchObject({
+      status: 500,
+      message: "No pudimos confirmar la compra.",
+      fields: {},
+    });
+  });
+});
+
+describe("cart with broken answers", () => {
+  it("does not take an unreadable answer as a valid cart", async () => {
+    fetch.mockResolvedValue(response(null, { jsonError: new SyntaxError("vacío") }));
+
+    await expect(getCart()).rejects.toMatchObject({
+      status: 200,
+      message: "No pudimos leer la respuesta del carrito.",
+    });
+  });
+
+  it("uses a generic message when a failed answer cannot be read", async () => {
+    fetch.mockResolvedValue(response(null, { status: 500, ok: false, jsonError: new SyntaxError("vacío") }));
+
+    await expect(getCart()).rejects.toMatchObject({
+      status: 500,
+      message: "No pudimos actualizar el carrito.",
+    });
+  });
+
+  it("treats a cart without items or total as empty", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(getCart()).resolves.toEqual({ items: [], total: 0 });
+  });
+
+  it("sends no Authorization header without a session", async () => {
+    getSession.mockReturnValue(null);
+    fetch.mockResolvedValue(response({ items: [], total: 0 }));
+
+    await getCart();
+
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBeUndefined();
+  });
+});
+
+describe("searchText", () => {
+  it("sends the encoded text and maps the parts with their entities", async () => {
+    const entities = { part: "pastillas", brand: "Chevrolet", model: "Onix", year: 2020, fuel: null };
+    fetch.mockResolvedValue(response({ parts: [backendPart], entities }));
+
+    await expect(searchText("pastillas & onix")).resolves.toEqual({ parts: [uiPart], entities });
+    expect(fetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/v1/parts?q=pastillas+%26+onix`);
+  });
+
+  it("returns empty entities when the backend sends none", async () => {
+    fetch.mockResolvedValue(response({ parts: [] }));
+
+    await expect(searchText("nada")).resolves.toEqual({
+      parts: [],
+      entities: { part: null, brand: null, model: null, year: null, fuel: null },
+    });
+  });
+
+  it("fails when the answer has no list of parts", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(searchText("nada")).rejects.toThrow("No pudimos realizar la búsqueda.");
+  });
+});
+
+describe("incomplete answers", () => {
+  it.each([
+    ["an array", []],
+    ["a part without id", { name: "Disco" }],
+    ["an empty body", null],
+  ])("rejects %s as a part", async (_nombre, cuerpo) => {
+    fetch.mockResolvedValue(response(cuerpo));
+
+    await expect(getPart(21)).rejects.toThrow("No pudimos cargar el repuesto.");
+  });
+
+  it("treats missing brands and models as empty lists", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(getBrands()).resolves.toEqual([]);
+    await expect(getModels("Fiat")).resolves.toEqual([]);
+  });
+
+  it("asks for no recommendations without real part ids", async () => {
+    await expect(getRecommendations(null)).resolves.toEqual([]);
+    await expect(getRecommendations([undefined, null])).resolves.toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("does not create a session when the registration brings no token", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(
+      register({ displayName: "Ana", lastName: "Pérez", email: "ana@test.com", phone: "", password: "x" })
+    ).rejects.toThrow("No pudimos crear tu cuenta. Intentá de nuevo.");
+  });
+
+  it("gives the assistant answer safe defaults", async () => {
+    fetch.mockResolvedValue(response({ recomendaciones: [{ tipo: "cambio", motivo: "Desgaste" }] }));
+
+    await expect(askAssistant({ texto: "ruido", marca: "A", modelo: "B", anio: 2016 })).resolves.toEqual({
+      diagnostico: "",
+      urgencia: "baja",
+      aviso: null,
+      pregunta: null,
+      opciones: [],
+      offTopic: false,
+      recomendaciones: [{ tipo: "cambio", motivo: "Desgaste", repuestos: [] }],
+      historial: [],
+      firma: null,
+    });
   });
 });

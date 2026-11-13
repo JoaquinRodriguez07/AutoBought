@@ -255,4 +255,206 @@ describe("Carrito: retiro en el local", () => {
     expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeDisabled();
     expect(confirmPurchase).not.toHaveBeenCalled();
   });
+
+  test("Si no carga la información del local, el retiro figura como no disponible y el envío sigue andando", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getPickupInfo.mockRejectedValue(new Error("Sin conexión."));
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+
+    // Con envío (la opción por defecto) se puede comprar igual.
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeEnabled();
+    expect(within(dialogo).queryByRole("alert")).not.toBeInTheDocument();
+
+    await user.click(within(dialogo).getByLabelText("Retiro en el local"));
+    expect(within(dialogo).getByText(/aún no está disponible/)).toBeInTheDocument();
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeDisabled();
+
+    // Vuelve a envío a domicilio y puede comprar.
+    await user.click(within(dialogo).getByLabelText("Envío a domicilio"));
+    expect(within(dialogo).getByLabelText("DIRECCIÓN DE ENVÍO")).toBeInTheDocument();
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeEnabled();
+  });
+
+  test("Si no cargan las direcciones lo avisa en su lugar, pero deja retirar en el local", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getAddresses.mockRejectedValue(new Error("Sin conexión."));
+    confirmPurchase.mockResolvedValue({ id: 61, total: 2000, items: [] });
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+
+    expect(within(dialogo).getByRole("alert")).toHaveTextContent("Sin conexión.");
+    expect(within(dialogo).queryByText(/No tenés direcciones guardadas/)).not.toBeInTheDocument();
+
+    await user.click(within(dialogo).getByLabelText("Retiro en el local"));
+    await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
+
+    expect(confirmPurchase).toHaveBeenCalledWith({ idAddress: null, deliveryMethod: "pickup" });
+  });
+
+  test("Si no carga nada, avisa que no hay opciones de entrega y no deja confirmar", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getAddresses.mockRejectedValue(new Error("Sin conexión."));
+    getPickupInfo.mockRejectedValue(new Error("Sin conexión."));
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+
+    expect(within(dialogo).getByRole("alert")).toHaveTextContent("No pudimos cargar las opciones de entrega.");
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeDisabled();
+  });
+});
+
+describe("Carrito: errores y acciones de la compra", () => {
+  test("Si no cargan las direcciones muestra el error y no deja confirmar", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getAddresses.mockRejectedValue(new Error("Sin conexión."));
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+
+    expect(within(dialogo).getByRole("alert")).toHaveTextContent("Sin conexión.");
+    expect(within(dialogo).getByRole("button", { name: "Ir a pagar" })).toBeDisabled();
+  });
+
+  test("Usa un mensaje propio si el error de direcciones no trae uno", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getAddresses.mockRejectedValue(new Error(""));
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+
+    expect(within(dialogo).getByRole("alert")).toHaveTextContent("No pudimos cargar tus direcciones.");
+  });
+
+  test("Usa un mensaje propio si la compra falla sin explicación", async () => {
+    const user = userEvent.setup();
+    const loadCart = withCart([pads]);
+    confirmPurchase.mockRejectedValue(new Error(""));
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+    await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
+
+    expect(await within(dialogo).findByRole("alert")).toHaveTextContent("No pudimos confirmar la compra.");
+    expect(loadCart).not.toHaveBeenCalled();
+    expect(createPaymentLink).not.toHaveBeenCalled();
+  });
+
+  test("Usa un mensaje propio si Mercado Pago falla sin explicación, sin crear otro pedido", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    confirmPurchase.mockResolvedValue({ id: 42 });
+    createPaymentLink.mockRejectedValue(new Error(""));
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+    await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos abrir Mercado Pago.");
+    expect(screen.getByText("Tus repuestos quedan reservados mientras pagás.")).toBeInTheDocument();
+    expect(confirmPurchase).toHaveBeenCalledTimes(1);
+    expect(goTo).not.toHaveBeenCalled();
+  });
+
+  test("Cancelar cierra la confirmación sin crear el pedido", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+    await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(confirmPurchase).not.toHaveBeenCalled();
+  });
+
+  test("No se puede cancelar mientras se está creando el pedido", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    confirmPurchase.mockReturnValue(new Promise(() => {}));
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+    await user.click(within(dialogo).getByRole("button", { name: "Ir a pagar" }));
+
+    expect(within(dialogo).getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  });
+
+  test("Muestra el apartamento en la dirección a elegir", async () => {
+    const user = userEvent.setup();
+    withCart([pads]);
+    getAddresses.mockResolvedValue([{ ...shippingAddress(1, "Av. Italia", true), apartamento: "5B" }]);
+
+    renderCart();
+    const dialogo = await openConfirmation(user);
+
+    expect(within(dialogo).getByRole("option", { name: "Av. Italia 1234 apto 5B, Montevideo" })).toBeInTheDocument();
+  });
+});
+
+describe("Carrito: resumen y navegación", () => {
+  test("Habla de una unidad en singular", () => {
+    withCart([itemCart(1, "Pastillas de freno", 1000, 1)]);
+
+    renderCart();
+
+    expect(screen.getByText("Subtotal (1 unidad)")).toBeInTheDocument();
+  });
+
+  test("Habla de varias unidades en plural", () => {
+    withCart([pads]);
+
+    renderCart();
+
+    expect(screen.getByText("Subtotal (2 unidades)")).toBeInTheDocument();
+  });
+
+  test("Avisa cuando una línea llegó al stock máximo", () => {
+    withCart([itemCart(1, "Pastillas de freno", 1000, 3, 3)]);
+
+    renderCart();
+
+    expect(screen.getByText("Stock máximo")).toBeInTheDocument();
+  });
+
+  test("No avisa del stock máximo si quedan unidades", () => {
+    withCart([pads]);
+
+    renderCart();
+
+    expect(screen.queryByText("Stock máximo")).not.toBeInTheDocument();
+  });
+
+  test("Seguir comprando vuelve al catálogo", async () => {
+    const user = userEvent.setup();
+    const onCatalogo = jest.fn();
+    withCart([pads]);
+
+    renderCart({ onCatalogo });
+    await user.click(screen.getByRole("button", { name: "Seguir comprando" }));
+
+    expect(onCatalogo).toHaveBeenCalledTimes(1);
+  });
+
+  test("La foto y el nombre llevan al detalle del repuesto", async () => {
+    const user = userEvent.setup();
+    const onDetail = jest.fn();
+    withCart([pads]);
+
+    renderCart({ onDetail });
+    const [foto, nombre] = screen.getAllByRole("button", { name: "Pastillas de freno" });
+    await user.click(foto);
+    await user.click(nombre);
+
+    expect(onDetail).toHaveBeenCalledTimes(2);
+    expect(onDetail).toHaveBeenCalledWith(pads);
+  });
 });

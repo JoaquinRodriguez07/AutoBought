@@ -34,6 +34,9 @@ export default function CartPage({
   const [idAddress, setIdAddress] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState("shipping");
   const [pickupInfo, setPickupInfo] = useState(null);
+  // Si no cargan las direcciones se avisa en su lugar: decir "No tenés
+  // direcciones guardadas" sería falso. El retiro en el local sigue disponible.
+  const [addressesError, setAddressesError] = useState("");
   const [loadingData, setLoadingData] = useState(false);
 
   // La principal, o la primera.
@@ -55,13 +58,16 @@ export default function CartPage({
       if (addressesResult.status === "fulfilled") {
         setAddresses(addressesResult.value);
         setIdAddress(primaryId(addressesResult.value));
+        setAddressesError("");
       } else {
         setAddresses([]);
         setIdAddress("");
+        setAddressesError(addressesResult.reason?.message || "No pudimos cargar tus direcciones.");
       }
       if (pickupResult.status === "fulfilled") setPickupInfo(pickupResult.value);
       else setPickupInfo(null);
       if (addressesResult.status === "rejected" && pickupResult.status === "rejected") {
+        setAddressesError("");
         throw new Error("No pudimos cargar las opciones de entrega.");
       }
     } catch (error) {
@@ -209,6 +215,8 @@ export default function CartPage({
                             <option key={d.id} value={String(d.id)}>{addressText(d)}</option>
                           ))}
                         </select>
+                      ) : addressesError ? (
+                        <p role="alert" className="mt-1 text-sm text-red-600 font-bold">{addressesError}</p>
                       ) : (
                         <p className="mt-1 text-sm text-gray-500">
                           No tenés direcciones guardadas.{" "}
