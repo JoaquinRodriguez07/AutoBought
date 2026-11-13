@@ -1,0 +1,172 @@
+---
+references:
+  - "File: /backend/app/models/client.py"
+  - "File: /backend/app/models"
+  - "File: /backend/app/models/cart.py"
+generationTime: 2026-11-10T03:40:19.433Z
+---
+erDiagram
+    USER ||--o| CLIENT : "joined inheritance"
+    USER ||--o| EMPLOYEE : "joined inheritance"
+    USER ||--o{ USO_IA : generates
+    USER o|--o{ DASHBOARD_SUMMARY : generates
+    CLIENT ||--o| CART : owns
+    CLIENT ||--o{ SHIPPING_ADDRESS : saves
+    CLIENT ||--o{ ORDER : places
+    CLIENT ||--o{ FAVORITE : marks
+    CLIENT ||--o{ STOCK_ALERT : requests
+    CART ||--o{ CART_ITEM : contains
+    PART ||--o{ CART_ITEM : added_to
+    ORDER ||--o{ ORDER_ITEM : contains
+    PART ||--o{ ORDER_ITEM : purchased_as
+    ORDER ||--o| PAYMENT : has
+    ORDER ||--o{ ORDER_STATUS_HISTORY : records
+    SHIPPING_ADDRESS o|--o{ ORDER : "selected for"
+    PART ||--o{ FAVORITE : favorited
+    PART ||--o{ STOCK_ALERT : watched
+    PART ||--o{ COMPATIBILITY : fits
+    CAR_MODEL ||--o{ COMPATIBILITY : compatible_with
+
+    USER {
+        int user_id PK
+        string user_type
+        string username UK
+        string password
+        string email UK
+        string name
+        boolean email_verified
+        int session_version
+    }
+    CLIENT {
+        int user_id PK, FK
+        string phone
+        boolean marketing_emails
+    }
+    EMPLOYEE {
+        int user_id PK, FK
+        boolean is_admin
+        boolean active
+    }
+    USO_IA {
+        int uso_ia_id PK
+        int user_id FK
+        string funcionalidad
+        int tokens
+        boolean ok
+        datetime created_at
+    }
+    DASHBOARD_SUMMARY {
+        int id PK
+        JSON points
+        int tokens
+        int generated_by FK
+        datetime generated_at
+    }
+    AUTH_ATTEMPT {
+        int auth_attempt_id PK
+        string email UK
+        int failed_attempts
+        datetime first_failed_at
+        datetime blocked_until
+    }
+    CART {
+        int client_id PK, FK
+        datetime updated_at
+        datetime reminder_sent_at
+    }
+    CART_ITEM {
+        int cart_id PK, FK
+        int part_id PK, FK
+        int amount
+    }
+    SHIPPING_ADDRESS {
+        int shipping_address_id PK
+        int client_id FK
+        string personal_name
+        string street
+        string city
+        string number
+        string apartment
+        string department
+        string postal_code
+        boolean is_primary
+    }
+    ORDER {
+        int order_id PK
+        int client_id FK
+        datetime created_at
+        string status
+        string delivery_method
+        int shipping_address_id FK
+        string ship_personal_name
+        string ship_street
+        string ship_number
+        string ship_apartment
+        string ship_city
+        string ship_department
+        string ship_postal_code
+        string payment_method_label
+        string cancellation_reason
+        string internal_note
+    }
+    ORDER_ITEM {
+        int order_id PK, FK
+        int part_id PK, FK
+        int quantity
+        int frozen_price
+        datetime reminder_sent_at
+    }
+    PAYMENT {
+        int payment_id PK
+        int order_id FK, UK
+        string status
+        string mp_preference_id
+        string mp_payment_id
+        datetime refunded_at
+        datetime created_at
+        datetime updated_at
+    }
+    ORDER_STATUS_HISTORY {
+        int id PK
+        int order_id FK
+        string status
+        string reason
+        datetime changed_at
+    }
+    PART {
+        int id PK
+        string part_code UK
+        string name
+        string manufacturer
+        string category
+        string color
+        int price
+        int stock
+        string description
+        JSON specifications
+        int warranty_months
+        string warranty_provider
+    }
+    CAR_MODEL {
+        int id PK
+        string brand
+        string model
+        string engine_code
+    }
+    COMPATIBILITY {
+        int part_id PK, FK
+        int car_model_id PK, FK
+        int year_from
+        int year_to
+    }
+    FAVORITE {
+        int favorite_id PK
+        int client_id FK
+        int part_id FK
+    }
+    STOCK_ALERT {
+        int stock_alert_id PK
+        int client_id FK
+        int part_id FK
+        datetime created_at
+    }
