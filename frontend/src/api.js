@@ -76,6 +76,24 @@ export async function login(email, password) {
 }
 
 /**
+ * Borra los datos personales de la cuenta sin eliminar sus pedidos.
+ *
+ * @param {string} password - Contraseña actual del cliente.
+ * @returns {Promise<void>}
+ */
+export async function deleteAccount(password) {
+  await fetchCustomerAccount(
+    `${API_BASE_URL}/api/v1/users/me`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({ password }),
+    },
+    {},
+    "No pudimos borrar tu cuenta."
+  );
+}
+
+/**
  * POST /api/v1/auth/register
  *
  * El formulario pide nombre y apellido por separado, pero el backend

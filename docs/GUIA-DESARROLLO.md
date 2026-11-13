@@ -317,7 +317,7 @@ Estos mails, y el de baja de precio, son comerciales: traen el enlace «No quier
 
 ## Tests de punta a punta (E2E)
 
-La carpeta `e2e/` tiene recorridos con [Playwright](https://playwright.dev) que abren la app en un Chrome de verdad y hacen lo que haría una persona: filtrar el catálogo desde el inicio (categoría, marca, fabricante), buscar, agregar al carrito y deshacer, favoritos, comprar con los datos guardados, registrarse y verificar el correo (leyendo el mail desde Mailpit) y entrar como vendedor.
+La carpeta `e2e/` tiene recorridos con [Playwright](https://playwright.dev) que abren la app en un Chrome de verdad y hacen lo que haría una persona: filtrar el catálogo desde el inicio (categoría, marca, fabricante), buscar, agregar al carrito y deshacer, favoritos, comprar con los datos guardados, registrarse y verificar el correo (leyendo el mail desde Mailpit), entrar como vendedor y borrar una cuenta con sus distintos resultados (éxito, contraseña incorrecta y pedido pagado en curso).
 
 **En GitHub** corren solos cada vez que se mergea a `dev` o a `main` (`.github/workflows/e2e.yml`), y también a mano desde *Actions → E2E → Run workflow*. Cada corrida levanta la app con una base nueva y carga `scripts.seed` y `scripts.seed_demo_users`. Si algo falla, abre un issue con la etiqueta `e2e` (o comenta el que ya esté abierto para esa rama) con los recorridos que fallaron y el link a la corrida; las capturas, los videos y los logs de la app quedan 7 días en el artefacto `e2e-fallas`.
 
@@ -331,7 +331,7 @@ npx playwright test               # todos los recorridos
 npx playwright test --ui          # para verlos paso a paso
 ```
 
-Ojo: en local usan tu base. Cada recorrido deja las cosas como estaban (deshace lo que agrega al carrito y a favoritos), pero la compra vacía el carrito de Ana antes de empezar y queda en su historial, y el registro crea un usuario `e2e-…@autobought.com` nuevo en cada corrida.
+Ojo: en local usan tu base. Cada recorrido deja las cosas como estaban (deshace lo que agrega al carrito y a favoritos), pero la compra vacía el carrito de Ana antes de empezar y queda en su historial, y el registro crea un usuario `e2e-…@autobought.com` nuevo en cada corrida. Las pruebas de baja también dejan filas de cuenta anonimizadas, como corresponde al comportamiento real.
 
 ## Asistente de compra con IA
 
@@ -381,4 +381,3 @@ def refund(db: Session, payment: Payment, mp_client: MercadoPagoClient) -> bool:
         cron la reintenta.
     """
 ```
-

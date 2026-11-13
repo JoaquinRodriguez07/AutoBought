@@ -46,6 +46,7 @@ import ResetPassword from "./ResetPassword";
 import VerifyEmail from "./VerifyEmail";
 import VerifyEmailNotice from "./VerifyEmailNotice";
 import Unsubscribe from "./Unsubscribe";
+import DeleteAccountDialog from "./DeleteAccountDialog";
 
 // El dashboard (con Recharts y Base UI) se descarga recién cuando entra un
 // vendedor: un cliente nunca baja ese código.
@@ -102,6 +103,7 @@ function App() {
     const session = getSession();
     return isSessionValid(session) ? session : null;
   });
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
 
   /* =====================================================
      FAVORITOS
@@ -308,6 +310,7 @@ function App() {
 
   const closeSession = () => {
     setUser(null);
+    setDeleteAccountOpen(false);
 
     localStorage.removeItem("autobought-sesion");
     sessionStorage.removeItem("autobought-sesion");
@@ -522,6 +525,10 @@ function App() {
     onOrders: () => navigate("/pedidos"),
 
     onCloseSession: closeSession,
+
+    onDeleteAccount: () => {
+      if (!seller) setDeleteAccountOpen(true);
+    },
 
     // ==========================================
     // CONTADORES
@@ -858,6 +865,15 @@ function App() {
       <PitPanel
         onDetail={goToDetail}
         onSearchInCatalogo={(queryState) => navigate(`/catalogo?q=${encodeURIComponent(queryState)}`)}
+      />
+    )}
+    {deleteAccountOpen && (
+      <DeleteAccountDialog
+        onClose={() => setDeleteAccountOpen(false)}
+        onDeleted={() => {
+          setDeleteAccountOpen(false);
+          closeSession();
+        }}
       />
     )}
     </>

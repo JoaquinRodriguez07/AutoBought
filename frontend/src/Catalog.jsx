@@ -77,6 +77,7 @@ export default function Catalog({
   onAddresses,
   onHistory,
   onCloseSession,
+  onDeleteAccount,
 
   // CONTADORES
   favoritesQuantity,
@@ -531,6 +532,7 @@ export default function Catalog({
         onAddresses={onAddresses}
         onHistory={onHistory}
         onCloseSession={onCloseSession}
+        onDeleteAccount={onDeleteAccount}
 
         favoritesQuantity={favoritesQuantity}
       />

@@ -15,7 +15,7 @@ import { goTo } from "./redirect";
 export default function CartPage({
   onHome, onCatalogo, onLogin, onBrands, onCart, onFavorites,
   favoritesQuantity, onDetail, onAddresses,
-  sessionUser, onProfile, onHistory, onOrders, onCloseSession,
+  sessionUser, onProfile, onHistory, onOrders, onCloseSession, onDeleteAccount,
 }) {
   const { cart: products, updateQuantity, removeFromCart, clearCart, total, loadCart } = useCart();
 
@@ -226,7 +226,7 @@ export default function CartPage({
       <Navbar currentPage="cartState" onHome={onHome} onCatalogo={onCatalogo} onLogin={onLogin}
         onBrands={onBrands} onCart={onCart} onFavorites={onFavorites}
         sessionUser={sessionUser} onProfile={onProfile} onAddresses={onAddresses}
-        onHistory={onHistory} onCloseSession={onCloseSession}
+        onHistory={onHistory} onCloseSession={onCloseSession} onDeleteAccount={onDeleteAccount}
         favoritesQuantity={favoritesQuantity} />
 
       <main>

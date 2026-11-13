@@ -6,7 +6,8 @@ import Navbar from "./Navbar";
 import PageHeader from "./PageHeader";
 import { useOrders } from "./context/OrdersContext";
 import { ACCOUNT_SECTIONS } from "./accountSections";
-import { LogoutIcon } from "./Icons";
+import { LogoutIcon, TrashIcon } from "./Icons";
+import { isSeller } from "./auth";
 
 /**
  * CuentaLayout
@@ -39,7 +40,7 @@ export default function AccountLayout({
 }) {
   const navigate = useNavigate();
   const { inProgress } = useOrders();
-  const { sessionUser, onHome, onCloseSession } = propsNavbar;
+  const { sessionUser, onHome, onCloseSession, onDeleteAccount } = propsNavbar;
   const inHome = section === null;
 
   const displayName = [sessionUser?.displayName, sessionUser?.lastName].filter(Boolean).join(" ") || "Mi cuenta";
@@ -124,6 +125,16 @@ export default function AccountLayout({
                   <LogoutIcon className="w-5 h-5 shrink-0" />
                   Cerrar sesión
                 </button>
+                {sessionUser && !isSeller(sessionUser) && onDeleteAccount && (
+                  <button
+                    type="button"
+                    onClick={onDeleteAccount}
+                    className="w-full flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm text-left text-red-600 hover:bg-red-50 transition"
+                  >
+                    <TrashIcon className="w-5 h-5 shrink-0" />
+                    Borrar mi cuenta
+                  </button>
+                )}
               </div>
             </aside>
 

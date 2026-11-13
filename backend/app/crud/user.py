@@ -3,12 +3,25 @@
 import re
 import secrets
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.security import hash_password
+from app.models.auth_attempt import AuthAttempt
+from app.models.cart import Cart
+from app.models.cart_item import CartItem
 from app.models.client import Client
 from app.models.employee import Employee
+from app.models.favorite import Favorite
+from app.models.order import Order, OrderStatus
+from app.models.payment import Payment, PaymentStatus
+from app.models.shipping_address import ShippingAddress
+from app.models.stock_alert import StockAlert
 from app.models.user import User
+
+
+class AccountDeletionBlocked(Exception):
+    """La cuenta tiene un pedido pendiente de entrega y no se puede borrar."""
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -52,6 +65,73 @@ def create_client(
     db.commit()
     db.refresh(client)
     return client
+
+
+def delete_client_account(db: Session, client: Client) -> None:
+    """Anonimiza la cuenta y elimina los datos personales innecesarios.
+
+    Los pedidos se retienen para ventas y analítica, pero se desvinculan de las
+    direcciones guardadas y se limpian sus copias de datos de envío.
+
+    Raises:
+        AccountDeletionBlocked: si hay un pedido no terminal con pago pendiente
+            o aprobado.
+    """
+    blocking_order = db.scalar(
+        select(Order.order_id)
+        .join(Payment, Payment.order_id == Order.order_id)
+        .where(
+            Order.client_id == client.user_id,
+            Order.status.notin_((OrderStatus.DELIVERED, OrderStatus.CANCELLED)),
+            Payment.status.in_((PaymentStatus.PENDING, PaymentStatus.APPROVED)),
+        )
+        .limit(1)
+    )
+    if blocking_order is not None:
+        raise AccountDeletionBlocked
+
+    db.execute(
+        update(Order)
+        .where(Order.client_id == client.user_id)
+        .values(
+            shipping_address_id=None,
+            ship_personal_name="Cliente eliminado",
+            ship_street="Eliminado",
+            ship_number="",
+            ship_apartment=None,
+            ship_city="Eliminado",
+            ship_department="Eliminado",
+            ship_postal_code=None,
+        )
+    )
+    db.execute(delete(CartItem).where(CartItem.cart_id == client.user_id))
+    db.execute(delete(Cart).where(Cart.client_id == client.user_id))
+    db.execute(delete(Favorite).where(Favorite.client_id == client.user_id))
+    db.execute(delete(StockAlert).where(StockAlert.client_id == client.user_id))
+    db.execute(delete(ShippingAddress).where(ShippingAddress.client_id == client.user_id))
+    email = client.email.strip().lower()
+    db.execute(
+        delete(AuthAttempt).where(
+            AuthAttempt.email.in_(
+                (
+                    email,
+                    f"mail:verificar:{email}",
+                    f"mail:recuperar:{email}",
+                )
+            )
+        )
+    )
+
+    anonymous_suffix = secrets.token_hex(16)
+    client.name = f"Cliente eliminado {anonymous_suffix}"
+    client.username = f"eliminado_{anonymous_suffix}"
+    client.email = f"eliminado-{client.user_id}@autobought.invalid"
+    client.password = hash_password(secrets.token_urlsafe(32))
+    client.phone = None
+    client.email_verified = False
+    client.marketing_emails = False
+    client.session_version += 1
+    db.commit()
 
 
 def create_employee(
