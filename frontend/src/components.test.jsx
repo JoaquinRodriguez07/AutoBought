@@ -601,6 +601,34 @@ describe("Footer dentro del catálogo (App)", () => {
 });
 
 describe("Home", () => {
+  it("shows the four categories with the most parts big and the rest small, and all of them open the catalog", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    getCategories.mockResolvedValue([
+      { displayName: "Accesorios", quantity: 3 },
+      { displayName: "Frenos", quantity: 12 },
+      { displayName: "Motor", quantity: 9 },
+      { displayName: "Filtros", quantity: 7 },
+      { displayName: "Suspensión", quantity: 5 },
+      { displayName: "Categoría sin ícono propio", quantity: 0 },
+    ]);
+
+    render(<Home {...props} />);
+
+    const chica = await screen.findByRole("button", { name: /Accesorios/ });
+    for (const destacada of [/Frenos/, /Motor/, /Filtros/, /Suspensión/]) {
+      expect(screen.getByRole("button", { name: destacada })).toHaveClass("h-44");
+    }
+    expect(chica).toHaveClass("h-32");
+    expect(screen.getByRole("button", { name: /Categoría sin ícono propio/ })).toHaveClass("h-32");
+
+    await user.click(chica);
+    await user.click(screen.getByRole("button", { name: /Frenos/ }));
+
+    expect(props.onCatalogo).toHaveBeenNthCalledWith(1, "Accesorios");
+    expect(props.onCatalogo).toHaveBeenNthCalledWith(2, "Frenos");
+  });
+
   it("renders the hero with the vehicle selector as the main action", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
