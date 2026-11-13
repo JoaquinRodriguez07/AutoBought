@@ -65,7 +65,7 @@ def _months(default_value: int | None):
     return Query(
         default_value,
         ge=1,
-        le=24,
+        le=analytics_math.MAX_MONTHS,
         description="Últimos N meses calendario, el actual incluido (sus ventas son hasta hoy).",
     )
 

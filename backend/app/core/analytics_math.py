@@ -20,6 +20,10 @@ URUGUAY = timezone(timedelta(hours=-3))
 # mira el vendedor: con 3 puntos la recta depende demasiado del azar.
 FORECAST_MONTHS = 12
 
+# Lo más atrás que se puede mirar en el dashboard. La API ya lo valida,
+# pero last_months también lo respeta para no depender solo de eso.
+MAX_MONTHS = 24
+
 # Niveles de riesgo de agotamiento según los días de cobertura. Los
 # umbrales son la propuesta de la HU 5.6, a confirmar en la planificación.
 HIGH_RISK = "high"
@@ -52,7 +56,8 @@ def days_in_month(period: Month) -> int:
 
 def last_months(today_date: date, qty: int) -> list[Month]:
     """Los últimos `cantidad` meses calendario, del más viejo al actual
-    (el mes en curso incluido)."""
+    (el mes en curso incluido). Nunca más de MAX_MONTHS."""
+    qty = min(qty, MAX_MONTHS)
     periods = []
     anio, number_value = today_date.year, today_date.month
     for _ in range(qty):
