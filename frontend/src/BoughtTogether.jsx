@@ -16,13 +16,15 @@ import { productIsCompatible } from "./compatibility";
  * ese auto (la misma regla de la tarjeta de compatibilidad del detalle):
  * el backend sugiere para cualquiera de los autos del repuesto, y puede
  * traer uno de otro auto. Sin vehículo activo no se filtra.
+ *
+ * El vendedor (`seller`) ve las sugerencias sin el botón «Agregar».
  */
 
 const MAX_SUGGESTIONS = 4;
 
 const price = (rawValue) => `$${rawValue.toLocaleString("es-UY")}`;
 
-export default function BoughtTogether({ product, onDetail }) {
+export default function BoughtTogether({ product, onDetail, seller = false }) {
   const [suggestions, setSuggestions] = useState({ partId: null, list: [] });
   const { activeVehicle } = useVehicle();
   const partId = product?.partId;
@@ -86,13 +88,15 @@ export default function BoughtTogether({ product, onDetail }) {
                 <h3 className="text-sm font-bold mt-1 leading-snug">{suggestionItem.displayName}</h3>
                 <p className="text-lg font-black mt-auto pt-3">{price(suggestionItem.price)}</p>
 
-                <AddToCartButton
-                  product={suggestionItem}
-                  className="w-full mt-3 flex items-center justify-center gap-2 h-9 rounded-md text-xs font-bold"
-                >
-                  <CartIcon />
-                  Agregar
-                </AddToCartButton>
+                {!seller && (
+                  <AddToCartButton
+                    product={suggestionItem}
+                    className="w-full mt-3 flex items-center justify-center gap-2 h-9 rounded-md text-xs font-bold"
+                  >
+                    <CartIcon />
+                    Agregar
+                  </AddToCartButton>
+                )}
               </div>
             </li>
           ))}

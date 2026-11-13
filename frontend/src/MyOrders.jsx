@@ -12,6 +12,7 @@ import PurchaseTabs from "./PurchaseTabs";
 import { goTo } from "./redirect";
 import { isActive, formatDate } from "./orderTracking";
 import ActiveOrderCard from "./ActiveOrderCard";
+import { useAutoRefresh } from "./useAutoRefresh";
 
 function Loading({ texto }) {
   return (
@@ -109,6 +110,24 @@ export default function MyOrders(propsNavbar) {
     setPurchases(list);
     establecer(list);
   };
+
+  // Los cambios del vendedor (ej. «Empaquetando» → «Enviado») se ven sin
+  // recargar: cada tanto se vuelve a pedir lo que está en pantalla. No
+  // corre mientras el usuario está pagando o confirmando la llegada.
+  useAutoRefresh(
+    async () => {
+      if (id) {
+        const pedido = await getPurchaseDetail(id);
+        setDetail(pedido);
+        reemplazar(pedido);
+      } else {
+        const list = await getPurchaseHistory();
+        setPurchases(list);
+        establecer(list);
+      }
+    },
+    { enabled: !busy }
+  );
 
   const pay = async (purchase) => {
     setPayingId(purchase.id);
