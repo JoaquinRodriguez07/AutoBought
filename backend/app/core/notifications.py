@@ -11,14 +11,15 @@ tareas diarias, los tests).
 """
 
 import calendar
+import re
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
-from urllib.parse import quote
 
 from fastapi import BackgroundTasks
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core import validators
 from app.core.config import FRONTEND_URL, LOCAL_ADDRESS, LOCAL_HOURS
 from app.core.email import send_mail, schedule_mail
 from app.core.security import UNSUBSCRIBE_PURPOSE, create_purpose_token
@@ -37,6 +38,9 @@ from app.models.stock_alert import StockAlert
 UNSUBSCRIBE_LINK_MINUTES = 10 * 365 * 24 * 60
 
 ABANDONED_CART_HOURS = 24
+
+# Lo que no puede ir en la dirección de un repuesto (ver _part_link).
+_NOT_SLUG = re.compile(r"[^a-z0-9]+")
 
 # Cada cuántos meses se suele cambiar cada repuesto, según cómo empieza su
 # nombre en el catálogo. Lo que no está acá no genera recordatorio.
@@ -76,8 +80,10 @@ def unsubscribe_link(client: Client) -> str:
 
 
 def _part_link(part: Part) -> str:
-    # Cuando exista el detalle con URL propia (HU 1.16), apuntar ahí.
-    return f"{FRONTEND_URL}/catalogo?q={quote(part.name)}"
+    """El detalle del repuesto en la tienda (/producto/<nombre>-<id>), igual
+    que frontend/src/productSlug.js. El frontend solo usa el id del final."""
+    name_slug = _NOT_SLUG.sub("-", validators.normalizar(part.name)).strip("-")
+    return f"{FRONTEND_URL}/producto/{name_slug or 'repuesto'}-{part.id}"
 
 
 def _schedule(background_tasks: BackgroundTasks | None, *args, **kwargs) -> None:

@@ -37,7 +37,8 @@ def build_message(
     contexto = {"frontend_url": FRONTEND_URL, "enlace_baja": unsubscribe_link, **data}
 
     msg = EmailMessage()
-    msg["Subject"] = subject
+    # El asunto no admite saltos de línea (EmailMessage lanza ValueError).
+    msg["Subject"] = " ".join(subject.split())
     msg["From"] = EMAIL_FROM
     msg["To"] = recipient
     if unsubscribe_link:
@@ -64,7 +65,13 @@ def send_mail(
     """Se llama con schedule_mail: si el envío falla, la acción del
     usuario ya se hizo, así que solo se registra.
     Devuelve si salió, para las tareas diarias."""
-    msg = build_message(recipient, subject, template, data, unsubscribe_link)
+    try:
+        msg = build_message(recipient, subject, template, data, unsubscribe_link)
+    except ValueError:
+        # Un dato que no entra en un mail (por ejemplo, un destinatario mal
+        # formado): se registra, pero no rompe la acción que lo disparó.
+        logger.exception("No se pudo armar el mail '%s' a %s", subject, _mask(recipient))
+        return False
     if not SMTP_HOST:
         logger.error("No se mandó el mail '%s': falta SMTP_HOST.", subject)
         return False

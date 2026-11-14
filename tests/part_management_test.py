@@ -239,3 +239,22 @@ def test_without_session_no_modifies_nothing(client, db_session, vehicles):
 
     assert client.patch(f"{PARTS}/{part.id}/stock", json={"stock": 50}).status_code == 401
     assert client.post(PARTS, json=_data([vehicles[0].id])).status_code == 401
+
+
+@pytest.mark.parametrize("field", ["part_code", "name", "manufacturer", "category", "color"])
+def test_signup_rejects_line_breaks_in_the_texts_of_a_single_line(client, seller, vehicles, field):
+    # El nombre va en el asunto de los mails, que no admite saltos de línea.
+    data = _data([vehicles[0].id], **{field: "Filtro\nBcc: otro@example.com"})
+
+    response = client.post(PARTS, json=data, headers=seller)
+
+    assert response.status_code == 422
+
+
+def test_signup_keeps_the_line_breaks_of_the_description(client, seller, vehicles):
+    data = _data([vehicles[0].id], description="Primera línea.\nSegunda línea.")
+
+    response = client.post(PARTS, json=data, headers=seller)
+
+    assert response.status_code == 201
+    assert response.json()["description"] == "Primera línea.\nSegunda línea."

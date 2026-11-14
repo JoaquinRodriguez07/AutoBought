@@ -54,18 +54,26 @@ def recent_queries(
     current_time: datetime | None = None,
     hours: int = 24,
     funcionalidad: str | None = None,
+    ok: bool = True,
 ) -> int:
-    """Consultas que salieron bien en las últimas `hours` horas: de todas las
-    funcionalidades, o solo de `funcionalidad`."""
+    """Consultas de las últimas `hours` horas que salieron bien (o, con
+    `ok=False`, las que fallaron): de todas las funcionalidades, o solo de
+    `funcionalidad`."""
     current_time = current_time or datetime.now(timezone.utc)
     since = current_time - timedelta(hours=hours)
     query = select(func.count()).select_from(AIUsage).where(
-        AIUsage.user_id == user_id, AIUsage.ok.is_(True), AIUsage.created_at >= since
+        AIUsage.user_id == user_id, AIUsage.ok.is_(ok), AIUsage.created_at >= since
     )
     if funcionalidad is not None:
         query = query.where(AIUsage.funcionalidad == funcionalidad)
     return db.scalar(query) or 0
 
+
+# Las consultas que fallan no gastan el límite del usuario (no es su culpa
+# que la IA no responda), pero tampoco pueden ser infinitas: una respuesta
+# que no respeta el formato igual consumió tokens. Con este múltiplo del
+# límite en consultas fallidas, también se corta.
+FAILED_LIMIT_FACTOR = 3
 
 LIMIT_REACHED = "Llegaste al límite de consultas al asistente por hoy. Probá de nuevo mañana."
 
@@ -79,10 +87,13 @@ def check_limit(
     funcionalidad: str | None = None,
 ) -> None:
     """429 si el usuario ya hizo el máximo de consultas de las últimas
-    `hours` horas (por defecto, 24 h de todas las funcionalidades).
+    `hours` horas (por defecto, 24 h de todas las funcionalidades), o si
+    en ese tiempo le fallaron FAILED_LIMIT_FACTOR veces el máximo.
     `detail` es el mensaje: cada funcionalidad nombra la suya."""
     limit_value = AI_DAILY_LIMIT if limit_value is None else limit_value
-    if recent_queries(db, user_id, hours=hours, funcionalidad=funcionalidad) >= limit_value:
+    succeeded = recent_queries(db, user_id, hours=hours, funcionalidad=funcionalidad)
+    failed = recent_queries(db, user_id, hours=hours, funcionalidad=funcionalidad, ok=False)
+    if succeeded >= limit_value or failed >= limit_value * FAILED_LIMIT_FACTOR:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
 
 

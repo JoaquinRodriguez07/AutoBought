@@ -1,5 +1,6 @@
 """Schemas de los repuestos: lo que muestra el catálogo y lo que carga el vendedor."""
 
+import unicodedata
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -152,6 +153,15 @@ class PartData(BaseModel):
     # Sin compatibilidades el repuesto no aparece en el catálogo, que se
     # arma desde los vehículos.
     compatibilities: list[CompatibilityIn] = Field(min_length=1, max_length=200)
+
+    @field_validator("part_code", "name", "manufacturer", "category", "color")
+    @classmethod
+    def single_line(cls, value: Optional[str]) -> Optional[str]:
+        # Estos textos van en una sola línea: en listas, en el asunto de los
+        # mails (que no admite saltos de línea) y en el link de Mercado Pago.
+        if value is not None and any(unicodedata.category(c).startswith("C") for c in value):
+            raise ValueError("No puede tener saltos de línea ni caracteres de control.")
+        return value
 
     @field_validator("compatibilities")
     @classmethod

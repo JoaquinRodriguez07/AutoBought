@@ -233,6 +233,8 @@ def reset_password(
         ) from None
 
     crud_user.update_password(db, user, hash_password(data.new_password))
+    # Si estaba bloqueado por intentos fallidos, ya puede entrar con la nueva.
+    clear_failures(db, user.email)
     # El enlace llegó a su correo: eso también prueba que es suyo.
     if not user.email_verified:
         crud_user.mark_email_verified(db, user)

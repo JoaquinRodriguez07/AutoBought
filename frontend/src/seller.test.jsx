@@ -543,3 +543,32 @@ describe("acciones de comprador según el rol", () => {
     expect(screen.getByRole("button", { name: /Avisame cuando haya/ })).toBeInTheDocument();
   });
 });
+
+describe("volver a la página pedida después de iniciar sesión", () => {
+  const logIn = async (tipo) => {
+    const user = userEvent.setup();
+    login.mockResolvedValue({ access_token: tokenOf(tipo), token_type: "bearer" });
+    await user.type(await screen.findByPlaceholderText("tu@email.com"), "alguien@example.com");
+    await user.type(screen.getByPlaceholderText("••••••••"), "secreto123");
+    await user.click(within(document.querySelector("form")).getByRole("button", { name: "Iniciar sesión" }));
+  };
+
+  it("sends a client back to the page that asked for a session", async () => {
+    // Por ejemplo, el enlace «Ver mis compras» de un mail, sin sesión.
+    renderApp("/historial");
+    expect(currentRoute()).toBe("/login");
+
+    await logIn("client");
+
+    await waitFor(() => expect(currentRoute()).toBe("/historial"));
+  });
+
+  it("does not send a client to the dashboard that was opened without a session", async () => {
+    renderApp("/dashboard");
+    expect(currentRoute()).toBe("/login");
+
+    await logIn("client");
+
+    await waitFor(() => expect(currentRoute()).toBe("/"));
+  });
+});

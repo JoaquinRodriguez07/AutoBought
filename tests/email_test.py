@@ -90,6 +90,24 @@ def test_the_html_escapes_the_data_of_the_user():
     assert "&lt;b&gt;Ana&lt;/b&gt;" in html(msg)
 
 
+def test_the_subject_goes_in_a_single_line():
+    msg = email_module.build_message(
+        "ana@example.com", "Bajó el precio de Filtro\nBcc: otro@example.com", "verificar_correo", {"nombre": "Ana", "enlace": "x"}
+    )
+
+    assert msg["Subject"] == "Bajó el precio de Filtro Bcc: otro@example.com"
+    assert msg["Bcc"] is None
+
+
+def test_a_mail_that_no_can_be_built_no_stops_the_action(sent_mails):
+    sent = email_module.send_mail(
+        "ana@example.com\nBcc: otro@example.com", "Asunto", "verificar_correo", {"nombre": "Ana", "enlace": "x"}
+    )
+
+    assert sent is False
+    assert sent_mails == []
+
+
 def test_if_the_shipping_fails_no_stops_the_action(monkeypatch):
     def failing(_message):
         raise smtplib.SMTPException("sin conexión")

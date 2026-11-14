@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 
 from app.ia.client import GeminiClient, AIUnavailable, extract_text, extract_tokens
-from app.ia.service import recent_queries, check_limit, extract_json, ask_structured, record_usage
+from app.ia.service import FAILED_LIMIT_FACTOR, recent_queries, check_limit, extract_json, ask_structured, record_usage
 from app.models.client import Client
 from app.models.ai_usage import AIUsage
 from ai_fake import FakeAIClient
@@ -191,3 +191,20 @@ def test_only_count_the_last_24_hours(db_session):
     db_session.commit()
 
     assert recent_queries(db_session, customer.user_id) == 0
+
+
+def test_the_failed_queries_also_have_a_limit(db_session):
+    # No gastan el límite normal, pero no pueden ser infinitas: una respuesta
+    # con formato inválido igual consumió tokens.
+    customer = make_client(db_session)
+    for _ in range(4 * FAILED_LIMIT_FACTOR - 1):
+        record_usage(db_session, customer.user_id, "asistente", tokens=0, ok=False)
+
+    check_limit(db_session, customer.user_id, limit_value=4)
+    record_usage(db_session, customer.user_id, "asistente", tokens=0, ok=False)
+
+    with pytest.raises(HTTPException) as error:
+        check_limit(db_session, customer.user_id, limit_value=4)
+    assert error.value.status_code == 429
+    assert recent_queries(db_session, customer.user_id) == 0
+    assert recent_queries(db_session, customer.user_id, ok=False) == 4 * FAILED_LIMIT_FACTOR
