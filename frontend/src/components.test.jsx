@@ -201,7 +201,7 @@ const originalFetch = global.fetch;
 const startClientSession = () => {
   localStorage.setItem(
     "autobought-sesion",
-    JSON.stringify({ id: 1, displayName: "Test User" })
+    JSON.stringify({ id: 1, displayName: "Test User", token: createToken(Date.now() + 60 * 60 * 1000) })
   );
 };
 
@@ -468,7 +468,10 @@ describe("Navbar", () => {
   it("calls navigation handlers and displays the cart count", async () => {
     const user = userEvent.setup();
     const props = navigationProps();
-    localStorage.setItem("autobought-sesion", JSON.stringify({ displayName: "Ana" }));
+    localStorage.setItem(
+      "autobought-sesion",
+      JSON.stringify({ displayName: "Ana", token: createToken(Date.now() + 60 * 60 * 1000) })
+    );
     getCart.mockResolvedValue({ items: [{ ...product, quantity: 2 }], total: 3000 });
 
     render(<Navbar currentPage="home" {...props} />);
@@ -2266,13 +2269,15 @@ describe("Authentication helpers", () => {
     expect(isSessionValid({ token })).toBe(true);
     expect(isSessionValid({ token: "header.invalid.signature" })).toBe(false);
     expect(isSessionValid({ token: `header.${btoa(JSON.stringify({ exp: 1 }))}.signature` })).toBe(false);
-    expect(isSessionValid({ displayName: "Local User" })).toBe(true);
+    // Sin token no hay sesión: el backend rechazaría todos los pedidos.
+    expect(isSessionValid({ displayName: "Local User" })).toBe(false);
     expect(isSessionValid(null)).toBe(false);
   });
 
   it("reads sessions from localStorage before sessionStorage", () => {
-    sessionStorage.setItem("autobought-sesion", JSON.stringify({ id: 2 }));
-    expect(getSession()).toEqual({ id: 2 });
+    const session = { id: 2, token: createToken(Date.now() + 60 * 60 * 1000) };
+    sessionStorage.setItem("autobought-sesion", JSON.stringify(session));
+    expect(getSession()).toEqual(session);
     expect(hasActiveSession()).toBe(true);
 
     localStorage.setItem("autobought-sesion", "not-json");
@@ -2325,10 +2330,7 @@ describe("App", () => {
 
   it("persists a product added from the catalog in the cart", async () => {
     const user = userEvent.setup();
-    localStorage.setItem(
-      "autobought-sesion",
-      JSON.stringify({ id: 1, displayName: "Test User" })
-    );
+    startClientSession();
     addCartItem.mockResolvedValue({
       items: [{ ...catalogProducts[0], quantity: 1 }],
       total: catalogProducts[0].price,
@@ -3718,7 +3720,7 @@ describe("ProtectedRoute", () => {
     );
 
     expect(screen.getByText("Pantalla de login")).toBeInTheDocument();
-    localStorage.setItem("autobought-sesion", JSON.stringify({ id: 1, displayName: "Ana" }));
+    startClientSession();
     window.history.pushState({}, "", "/privado");
     renderBase(
       <MemoryRouter initialEntries={["/privado"]}>

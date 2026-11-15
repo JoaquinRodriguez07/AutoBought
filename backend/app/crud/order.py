@@ -211,12 +211,30 @@ def cancel_expired_orders(db: Session, current_time: datetime | None = None) -> 
         .with_for_update(skip_locked=True, of=Payment)
     ).all()
 
+    # Cuánto stock vuelve de cada repuesto, para avisar después a quienes
+    # esperaban uno que estaba agotado.
+    returned: dict[int, int] = {}
     for payment in payments:
         change_status(payment.order, OrderStatus.CANCELLED, CancelReason.EXPIRED)
         _change_stock(db, payment.order, +1)
+        for item in payment.order.items:
+            returned[item.part_id] = returned.get(item.part_id, 0) + item.quantity
 
     db.commit()
+    _notify_returned_stock(db, returned)
     return len(payments)
+
+
+def _notify_returned_stock(db: Session, returned: dict[int, int]) -> None:
+    """Avisa a quienes pidieron «Avisame cuando haya» de un repuesto que
+    volvió a tener stock porque venció un pedido sin pagar."""
+    if not returned:
+        return
+    # Acá y no arriba: notifications importa crud.payment, que importa este módulo.
+    from app.core.notifications import notify_back_in_stock
+
+    for part in db.scalars(select(Part).where(Part.id.in_(returned))):
+        notify_back_in_stock(db, part, part.stock - returned[part.id])
 
 
 def reactivate_paid_order(db: Session, order: Order) -> bool:

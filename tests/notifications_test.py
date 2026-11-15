@@ -161,7 +161,8 @@ def test_back_of_stock_notifies_a_time_a_the_subscribed(db_session, sent_mails):
     assert notified == 2
     assert sorted(m["To"] for m in sent_mails) == ["ana@example.com", "beto@example.com"]
     assert "Faro delantero — $ 8.900" in texto(sent_mails[0])
-    assert "/catalogo?q=Faro%20delantero" in texto(sent_mails[0])
+    # El enlace va al detalle del repuesto (el frontend usa el id del final).
+    assert f"/producto/faro-delantero-{part.id}" in texto(sent_mails[0])
     assert db_session.query(StockAlert).count() == 0
 
     assert notifications.notify_back_in_stock(db_session, part, previous_stock=0) == 0

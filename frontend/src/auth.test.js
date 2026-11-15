@@ -2,6 +2,7 @@
 
 import {
   RENEWAL_MARGIN_MS,
+  destinationAfterLogin,
   isAdmin,
   isSeller,
   saveSession,
@@ -84,4 +85,32 @@ describe("isAdmin", () => {
     expect(isAdmin({ userType: "employee" })).toBe(false);
     expect(isAdmin(null)).toBe(false);
   });
+});
+
+describe("destinationAfterLogin", () => {
+  const client = { userType: "client" };
+  const seller = { userType: "employee" };
+
+  it("goes back to the page that asked for a session", () => {
+    expect(destinationAfterLogin("/historial", client)).toBe("/historial");
+    expect(destinationAfterLogin("/pago?pedido=7&payment_id=9", client)).toBe("/pago?pedido=7&payment_id=9");
+    expect(destinationAfterLogin("/dashboard/pedidos/3", seller)).toBe("/dashboard/pedidos/3");
+  });
+
+  it("without a page to go back to, uses the usual one for each role", () => {
+    expect(destinationAfterLogin(undefined, client)).toBe("/");
+    expect(destinationAfterLogin(undefined, seller)).toBe("/dashboard");
+  });
+
+  it("does not send a role to the screens of the other", () => {
+    expect(destinationAfterLogin("/dashboard", client)).toBe("/");
+    expect(destinationAfterLogin("/carrito", seller)).toBe("/dashboard");
+  });
+
+  it.each(["https://otro-sitio.example", "//otro-sitio.example", "/\\otro-sitio.example", "historial", 7, null])(
+    "ignores %p: only routes of the store",
+    (from) => {
+      expect(destinationAfterLogin(from, client)).toBe("/");
+    }
+  );
 });

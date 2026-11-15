@@ -3,7 +3,14 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { onSessionSaved, isSeller, saveSession, getSession, isSessionValid } from "./auth";
+import {
+  destinationAfterLogin,
+  onSessionSaved,
+  isSeller,
+  saveSession,
+  getSession,
+  isSessionValid,
+} from "./auth";
 import { useSessionRenewal } from "./useSessionRenewal";
 import {
   onInvalidSession,
@@ -69,7 +76,7 @@ const ROUTES_WITHOUT_FOOTER = [
 
 function App() {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, state: routeState } = useLocation();
 
   // Al pasar a otra página se arranca desde arriba (sin esto, el
   // navegador conserva el scroll de la página anterior).
@@ -247,15 +254,19 @@ function App() {
       );
     }
 
+    // Si llegó al login desde una página que pedía sesión (por ejemplo, el
+    // enlace de un mail), vuelve ahí; si no, al inicio o al portal.
+    const destination = destinationAfterLogin(routeState?.from, userLoggedIn);
+
     // Un vendedor no tiene carrito: va directo a su portal.
     if (isSeller(userLoggedIn)) {
-      navigate("/dashboard");
+      navigate(destination);
       return;
     }
 
     loadCart();
     reloadOrders();
-    navigate("/");
+    navigate(destination);
   };
 
   /* =====================================================

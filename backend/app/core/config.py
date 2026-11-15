@@ -34,7 +34,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 # Los mails salen en segundo plano, después de responder. En Vercel no: la
 # función se congela al responder y la tarea puede no correr nunca, así que
 # allá se mandan antes de responder (Vercel define VERCEL=1). Se puede
-# forzar con SEND_MAILS_IN_BACKGROUND=1 o 0.
+# forzar con MAILS_EN_SEGUNDO_PLANO=1 o 0.
 SEND_MAILS_IN_BACKGROUND = os.getenv(
     "MAILS_EN_SEGUNDO_PLANO", "0" if os.getenv("VERCEL") else "1"
 ) == "1"
@@ -83,7 +83,8 @@ CORS_ORIGINS = [
     for origen in os.getenv(
         "CORS_ORIGINS",
         "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,"
-        "http://127.0.0.1:5174,https://autobought.vercel.app",
+        "http://127.0.0.1:5174,https://autobought.vercel.app,"
+        "https://autobought-pearl.vercel.app",
     ).split(",")
     if origen.strip()
 ]

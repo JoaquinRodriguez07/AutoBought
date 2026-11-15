@@ -62,6 +62,7 @@ def apply_mp_status(
     (quien llama ve el estado del pedido para saber qué mail mandar).
     Un pago aprobado por un monto distinto al total del pedido queda
     rechazado y en el log: no se da por pagado un pedido cobrado de menos.
+    Quien llama le devuelve ese dinero al cliente (ver `refund_wrong_amount`).
     """
     payment = db.scalar(
         select(Payment).where(Payment.order_id == order_id).with_for_update()
@@ -99,6 +100,43 @@ def refund_key(order_id: int) -> str:
     venga de donde venga (cancelación del vendedor, pago tardío sin stock o
     reintento del cron): Mercado Pago nunca devuelve dos veces el mismo pedido."""
     return f"autobought-devolucion-pedido-{order_id}"
+
+
+def charged_wrong_amount(payment: Payment | None, mp_payment_id: str, mp_status: str) -> bool:
+    """Si `apply_mp_status` acaba de rechazar este pago aunque Mercado Pago
+    lo aprobó: se cobró un monto que no es el del pedido."""
+    return (
+        payment is not None
+        and mp_status == "approved"
+        and payment.status == PaymentStatus.REJECTED
+        and payment.mp_payment_id == mp_payment_id
+    )
+
+
+def refund_wrong_amount(order_id: int, mp_payment_id: str, mp_client: MercadoPagoClient) -> bool:
+    """Devuelve un pago que se cobró por un monto distinto al del pedido.
+
+    No se anota en `refunded_at`: el pedido sigue sin pagar y el cliente
+    puede pagarlo de nuevo, con otro pago. La clave de idempotencia es la de
+    ese pago, no la del pedido, así no choca con una devolución posterior
+    del pedido ni se devuelve dos veces si el aviso se repite.
+
+    Returns:
+        Si la devolución salió. Si Mercado Pago falla, queda en el log para
+        devolver el dinero a mano.
+    """
+    try:
+        mp_client.refund_payment(mp_payment_id, f"autobought-devolucion-pago-{mp_payment_id}")
+    except MercadoPagoUnavailable as error:
+        logger.error(
+            "No se pudo devolver el pago %s del pedido %s (cobrado por otro monto): devolver el dinero a mano. %s",
+            mp_payment_id,
+            order_id,
+            error,
+        )
+        return False
+    logger.warning("Se devolvió el pago %s del pedido %s: se había cobrado por otro monto.", mp_payment_id, order_id)
+    return True
 
 
 def refund(db: Session, payment: Payment, mp_client: MercadoPagoClient) -> bool:

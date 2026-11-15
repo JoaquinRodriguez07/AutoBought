@@ -30,11 +30,8 @@ export function getSession() {
 }
 
 export function isSessionValid(session) {
-  if (!session) return false;
-
-  // Sesiones sin JWT (ej. flujo de registro local, todavía no
-  // conectado al backend) se consideran válidas mientras existan.
-  if (!session.token) return true;
+  // Sin token no hay sesión: el backend rechazaría todos los pedidos.
+  if (!session?.token) return false;
 
   const payload = decodeToken(session.token);
   if (!payload?.exp) return false;
@@ -62,6 +59,20 @@ export function isSeller(session) {
 export function isAdmin(session) {
   if (!isSeller(session) || !session?.token) return false;
   return decodeToken(session.token)?.admin === true;
+}
+
+/**
+ * A dónde ir después de iniciar sesión: la página que se quiso abrir sin
+ * sesión (la guardan ProtectedRoute y EmployeeRoute) o, si no hay, la de
+ * siempre. Solo rutas de la tienda: nunca una dirección de otro sitio.
+ */
+export function destinationAfterLogin(from, session) {
+  const fallback = isSeller(session) ? "/dashboard" : "/";
+  if (typeof from !== "string" || !from.startsWith("/") || from.startsWith("//") || from.includes("\\")) {
+    return fallback;
+  }
+  // Cada rol vuelve solo a sus propias pantallas.
+  return from.startsWith("/dashboard") === isSeller(session) ? from : fallback;
 }
 
 export function hasActiveSession() {

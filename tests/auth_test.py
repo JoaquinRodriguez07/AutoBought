@@ -132,6 +132,17 @@ def test_password_of_more_of_72_bytes_returns_422_and_no_500(client):
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("email", ["lucia@example.com", "nadie@example.com"])
+def test_login_with_password_of_more_of_72_bytes_returns_401_and_no_500(client, email):
+    # bcrypt rechaza más de 72 bytes: tiene que ser un 401 común, exista o no la cuenta.
+    client.post(REGISTER, json=payload())
+
+    response = client.post(LOGIN, json={"email": email, "password": "a1" * 100})
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Correo electrónico o contraseña incorrectos."
+
+
 def test_name_empty_returns_422(client):
     assert client.post(REGISTER, json=payload(name="   ")).status_code == 422
 
@@ -777,3 +788,22 @@ def test_token_of_employee_previous_to_the_change_of_password_returns_401(client
         subject=str(seller.user_id), extra_claims={"user_type": "employee", "sv": 1}
     )
     assert client.get(ANALYTICS_EMPLEADO, headers=_bearer(new_item)).status_code == 200
+
+
+def test_reset_the_password_removes_the_block_by_failed_attempts(client, db_session):
+    client.post(REGISTER, json=payload())
+    for _ in range(5):
+        client.post(LOGIN, json={"email": "lucia@example.com", "password": "otra-clave-9"})
+    assert client.post(LOGIN, json={"email": "lucia@example.com", "password": "secreto123"}).status_code == 429
+    customer = db_session.scalars(select(Client)).one()
+    link = create_purpose_token(
+        str(customer.user_id),
+        RESET_PASSWORD,
+        minutes_count=30,
+        extra_claims={"pwd": password_fingerprint(customer.password)},
+    )
+
+    assert client.post(RESET, json={"token": link, "new_password": "Nueva2026x"}).status_code == 204
+
+    # Sin esperar a que termine el bloqueo, ya entra con la contraseña nueva.
+    assert client.post(LOGIN, json={"email": "lucia@example.com", "password": "Nueva2026x"}).status_code == 200

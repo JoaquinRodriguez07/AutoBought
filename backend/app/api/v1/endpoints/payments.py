@@ -9,7 +9,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_client, get_db
 from app.core.config import BACKEND_URL, FRONTEND_URL, CURRENCY
-from app.core.mercadopago import MercadoPagoClient, MercadoPagoUnavailable, valid_signature, get_mp_client
+from app.core.mercadopago import (
+    MercadoPagoClient,
+    MercadoPagoUnavailable,
+    MPPayment,
+    get_mp_client,
+    valid_signature,
+)
 from app.core.notifications import notify_purchase, notify_paid_without_stock
 from app.crud import order as crud_order
 from app.crud import payment as crud_payment
@@ -80,6 +86,13 @@ def _notify_approved_payment(
         notify_purchase(order, background_tasks)
 
 
+def _refund_wrong_amount(payment, payment_data: MPPayment, mp_client: MercadoPagoClient) -> None:
+    """Si Mercado Pago aprobó el pago por un monto que no es el del pedido,
+    el pedido queda sin pagar y ese dinero se le devuelve al cliente."""
+    if crud_payment.charged_wrong_amount(payment, payment_data.id, payment_data.state):
+        crud_payment.refund_wrong_amount(payment.order_id, payment_data.id, mp_client)
+
+
 @router.post("/webhook")
 async def receive_notification(
     request: Request,
@@ -136,13 +149,14 @@ async def receive_notification(
         payment, just_approved = crud_payment.apply_mp_status(
             db, int(payment_data.reference), payment_data.id, payment_data.state, payment_data.charged_amount
         )
-        # El pedido se carga acá, en el hilo, para el mail.
-        return payment.order if just_approved else None
+        # El pedido se carga acá, en el hilo, para el mail. Las devoluciones
+        # llaman a Mercado Pago: también van en el hilo.
+        if just_approved:
+            _notify_approved_payment(db, payment.order, background_tasks, mp_client)
+        else:
+            _refund_wrong_amount(payment, payment_data, mp_client)
 
-    approved_order = await run_in_threadpool(apply)
-    if approved_order is not None:
-        # La devolución (si hace falta) llama a Mercado Pago: también en un hilo.
-        await run_in_threadpool(_notify_approved_payment, db, approved_order, background_tasks, mp_client)
+    await run_in_threadpool(apply)
     return {"ok": True}
 
 
@@ -183,6 +197,8 @@ def verify_payment(
     payment, just_approved = crud_payment.apply_mp_status(db, order_id, payment_data.id, payment_data.state, payment_data.charged_amount)
     if just_approved:
         _notify_approved_payment(db, payment.order, background_tasks, mp_client)
+    else:
+        _refund_wrong_amount(payment, payment_data, mp_client)
     return PaymentStatusOut(estado=payment.status)
 
 

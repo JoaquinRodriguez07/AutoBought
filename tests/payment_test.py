@@ -24,6 +24,7 @@ from app.models.cart_item import CartItem
 from app.models.order import Order, OrderStatus
 from app.models.part import Part
 from app.models.payment import Payment, PaymentStatus
+from app.models.stock_alert import StockAlert
 from backend.main import app
 from order_test import auth_headers, make_address, make_cart, make_client, make_part
 
@@ -288,6 +289,47 @@ def test_a_payment_approved_by_another_amount_stays_rejected_and_in_the_log(
     assert payment_state(db_session, order_id) == PaymentStatus.REJECTED
     assert sent_mails == []
     assert f"El pago 999 del pedido {order_id} se aprobó por {charged_amount}, pero el pedido cuesta 3000" in caplog.text
+    # Al cliente le cobraron: ese pago se le devuelve.
+    assert mp.refunds == [("999", "autobought-devolucion-pago-999")]
+
+
+def test_a_payment_by_another_amount_refunds_and_the_order_can_be_paid_again(client, db_session, mp, order_data, sent_mails):
+    order_id, headers = order_data
+    mp.payments["999"] = MPPayment(id="999", state="approved", reference=str(order_id), charged_amount=1500)
+    notify_payment(client)
+    # El aviso repetido usa la misma clave: Mercado Pago no devuelve dos veces.
+    notify_payment(client)
+    assert {key for _, key in mp.refunds} == {"autobought-devolucion-pago-999"}
+
+    mp.payments["1000"] = MPPayment(id="1000", state="approved", reference=str(order_id), charged_amount=3000)
+    notify_payment(client, "1000")
+
+    assert payment_state(db_session, order_id) == PaymentStatus.APPROVED
+    # El pago bueno no se devuelve ni queda marcado como devuelto.
+    assert all(payment_id == "999" for payment_id, _ in mp.refunds)
+    assert db_session.query(Payment).one().refunded_at is None
+    assert len(sent_mails) == 1
+
+
+def test_if_the_refund_of_a_payment_by_another_amount_fails_it_records(client, db_session, mp, order_data, caplog):
+    order_id, _ = order_data
+    mp.payments["999"] = MPPayment(id="999", state="approved", reference=str(order_id), charged_amount=1500)
+    mp.refund_payment = lambda *_: (_ for _ in ()).throw(MercadoPagoUnavailable("sin conexión"))
+
+    response = notify_payment(client)
+
+    assert response.status_code == 200
+    assert payment_state(db_session, order_id) == PaymentStatus.REJECTED
+    assert f"No se pudo devolver el pago 999 del pedido {order_id}" in caplog.text
+
+
+def test_a_payment_rejected_by_mercado_payment_no_refunds(client, db_session, mp, order_data):
+    order_id, _ = order_data
+    mp.payments["999"] = MPPayment(id="999", state="rejected", reference=str(order_id))
+
+    notify_payment(client)
+
+    assert mp.refunds == []
 
 
 def test_verify_a_payment_by_another_amount_no_it_gives_by_paid(client, db_session, mp, order_data, sent_mails):
@@ -298,6 +340,7 @@ def test_verify_a_payment_by_another_amount_no_it_gives_by_paid(client, db_sessi
 
     assert response.json() == {"estado": "rejected"}
     assert sent_mails == []
+    assert mp.refunds == [("999", "autobought-devolucion-pago-999")]
 
 
 def test_a_notice_repetido_no_processes_two_times(client, db_session, mp, order_data, sent_mails):
@@ -577,6 +620,36 @@ def test_a_order_without_pay_a_time_cancels_and_returns_the_stock(client, db_ses
     assert body["orders"][0]["status"] == "cancelled"
     assert order_state(db_session, order_id) == OrderStatus.CANCELLED
     assert db_session.query(Part).one().stock == 5
+
+
+def test_a_order_expired_notifies_a_those_who_were_waiting_the_stock(client, db_session, order_data, sent_mails):
+    order_id, headers = order_data
+    # El pedido sin pagar tenía reservadas las últimas unidades.
+    brake_pads = db_session.query(Part).one()
+    brake_pads.stock = 0
+    db_session.add(StockAlert(client_id=db_session.query(Order).one().client_id, part_id=brake_pads.id))
+    db_session.commit()
+    expire(db_session, order_id)
+
+    client.get("/api/v1/parts")
+
+    assert db_session.query(Part).one().stock == 2
+    assert [m["Subject"] for m in sent_mails] == [f"Volvió a haber stock de {brake_pads.name}"]
+    assert db_session.query(StockAlert).count() == 0
+
+
+def test_a_order_expired_no_notifies_if_the_part_already_had_stock(client, db_session, order_data, sent_mails):
+    order_id, _ = order_data
+    brake_pads = db_session.query(Part).one()
+    db_session.add(StockAlert(client_id=db_session.query(Order).one().client_id, part_id=brake_pads.id))
+    db_session.commit()
+    expire(db_session, order_id)
+
+    client.get("/api/v1/parts")
+
+    # Quedaban 3 en stock: no "volvió" a haber, el aviso sigue pendiente.
+    assert sent_mails == []
+    assert db_session.query(StockAlert).count() == 1
 
 
 def test_a_order_inside_of_the_deadline_keeps_reserved(client, db_session, order_data):

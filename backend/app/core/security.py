@@ -9,6 +9,9 @@ import jwt
 from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM, SECRET_KEY
 
 
+BCRYPT_MAX_BYTES = 72
+
+
 def hash_password(password: str) -> str:
     password_bytes = password.encode("utf-8")
     salt = bcrypt.gensalt()
@@ -18,6 +21,10 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, hashed_password: str) -> bool:
     password_bytes = password.encode("utf-8")
+    # bcrypt no acepta más de 72 bytes (lanza ValueError, que sería un 500).
+    # Ninguna contraseña guardada los supera, así que no puede coincidir.
+    if len(password_bytes) > BCRYPT_MAX_BYTES:
+        return False
     hashed_bytes = hashed_password.encode("utf-8")
     return bcrypt.checkpw(password_bytes, hashed_bytes)
 
