@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { execSync } from "node:child_process";
 
 // Usuarios de backend/scripts/seed_demo_users.py (solo existen en la base
 // de prueba; no son cuentas reales).
@@ -21,7 +22,11 @@ export async function logIn(page, { email, password }) {
 export async function emptyCart(page) {
   await page.goto("/carrito");
   const clearButton = page.getByRole("button", { name: "Vaciar carrito" });
-  if (await clearButton.isVisible().catch(() => false)) await clearButton.click();
+  // El carrito se carga después de abrir la pantalla: se espera a ver o el
+  // botón o el carrito vacío, si no el botón todavía no está y no se vacía.
+  const emptyTitle = page.getByRole("heading", { name: "Tu carrito está vacío" });
+  await expect(clearButton.or(emptyTitle)).toBeVisible();
+  if (await clearButton.isVisible()) await clearButton.click();
   await expect(page.getByRole("button", { name: /^Quitar .* del carrito$/ })).toHaveCount(0);
 }
 
@@ -54,3 +59,14 @@ export const addedNotice = (page) =>
 // que Playwright nunca las ve "quietas" para hacer clic: se dispara el
 // clic directo sobre el botón.
 export const clickInRibbon = (button) => button.first().dispatchEvent("click");
+
+// Aprueba el pago del pedido `orderId` como lo haría Mercado Pago, con
+// backend/scripts/e2e_approve_payment.py (la misma función que el webhook).
+// En CI corre dentro del contenedor del backend; en local se puede cambiar
+// el comando con E2E_APPROVE_CMD (el número de pedido va al final).
+export function approvePayment(orderId) {
+  const command =
+    process.env.E2E_APPROVE_CMD ||
+    "docker compose exec -T -e E2E_APROBAR_PAGOS=1 backend uv run python -m scripts.e2e_approve_payment";
+  execSync(`${command} ${Number(orderId)}`, { cwd: "..", stdio: "pipe", env: { ...process.env, E2E_APROBAR_PAGOS: "1" } });
+}
