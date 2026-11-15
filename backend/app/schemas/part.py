@@ -21,12 +21,12 @@ class PartOut(BaseModel):
     manufacturer: str
     compatible_brands: list[str]
     compatible_models: list[str]
-    year_from: Optional[int]
-    year_to: Optional[int]
-    engine_code: Optional[str]
+    year_from: Optional[int] = None
+    year_to: Optional[int] = None
+    engine_code: Optional[str] = None
     part_code: str
     category: str
-    color: Optional[str]
+    color: Optional[str] = None
     price: int
     stock: int
     description: Optional[str] = None

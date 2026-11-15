@@ -51,6 +51,7 @@ export default function DeleteAccountDialog({ onClose, onDeleted }) {
 
   return (
     <div
+      role="presentation"
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-5"
       onMouseDown={closeFromBackdrop}
     >

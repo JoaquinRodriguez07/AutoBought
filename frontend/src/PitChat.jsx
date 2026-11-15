@@ -51,8 +51,15 @@ export default function PitChat({
   const [texto, setText] = useState(initialText);
   const [changingCar, setChangingCar] = useState(false);
   const list = useRef(null);
+  const input = useRef(null);
 
   const withVehicle = isVehicleComplete(vehicle);
+
+  // Foco en el campo apenas se puede escribir, con ref en lugar del
+  // atributo autoFocus (Sonar S9379).
+  useEffect(() => {
+    if (autoFocus && withVehicle) input.current?.focus();
+  }, [autoFocus, withVehicle]);
   const vehicleName = withVehicle ? `${vehicle.brand} ${vehicle.model} ${vehicle.year}` : "";
   const last = messages.at(-1);
 
@@ -221,7 +228,7 @@ export default function PitChat({
             onChange={(e) => setText(e.target.value)}
             maxLength={500}
             disabled={!withVehicle}
-            autoFocus={autoFocus && withVehicle}
+            ref={input}
             autoComplete="off"
             placeholder={withVehicle ? "Escribí qué le pasa a tu auto…" : "Primero elegí tu vehículo"}
             className="flex-1 min-w-0 text-base md:text-sm outline-hidden bg-transparent disabled:cursor-not-allowed"
