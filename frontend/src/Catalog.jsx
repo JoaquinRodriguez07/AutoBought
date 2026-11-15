@@ -60,6 +60,9 @@ function compatibilityText({ brands = [], models = [] }) {
   return "Para varias marcas";
 }
 
+// Mismo nombre de marca o modelo, sin importar mayúsculas.
+const sameName = (a, b) => (a || "").toLowerCase() === (b || "").toLowerCase();
+
 export default function Catalog({
   // ==========================================
   // NAVBAR
@@ -182,8 +185,9 @@ export default function Catalog({
     error: "",
   });
 
+  const searchKey = `libre|${queryState}|${vehicleKey}`;
   const loading = queryState
-    ? response.key !== `libre|${queryState}`
+    ? response.key !== searchKey
     : response.key !== orderKey;
   const products = response.products;
   const error = response.error;
@@ -216,14 +220,31 @@ export default function Catalog({
   // ==========================================
   // BÚSQUEDA LIBRE
   // ==========================================
+  // La búsqueda respeta el vehículo elegido: el servidor filtra por él.
+  // Si el texto nombra OTRO auto ("pastillas onix" con un Toyota elegido),
+  // gana lo escrito: se elige ese auto y la búsqueda se repite con él.
   useEffect(() => {
   if (!queryState) return;
 
   let active = true;
+  const key = `libre|${queryState}|${vehicleKey}`;
 
-  searchText(queryState)
+  searchText(queryState, activeVehicle)
     .then(({ parts, entities }) => {
       if (!active) return;
+
+      const otherVehicle =
+        entities?.brand &&
+        (!sameName(entities.brand, activeVehicle?.brand) ||
+          (entities.model && !sameName(entities.model, activeVehicle?.model)));
+      if (otherVehicle) {
+        activateVehicle({
+          brand: entities.brand,
+          model: entities.model || "",
+          year: entities.year || "",
+        });
+        return;
+      }
 
       const hasEntities =
         entities &&
@@ -235,7 +256,7 @@ export default function Catalog({
 
       if (!hasEntities) {
         setResponse({
-          key: `libre|${queryState}`,
+          key,
           products: [],
           error:
             "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual",
@@ -243,16 +264,8 @@ export default function Catalog({
         return;
       }
 
-      if (entities.brand) {
-        activateVehicle({
-          brand: entities.brand,
-          model: entities.model || "",
-          year: entities.year || "",
-        });
-      }
-
       setResponse({
-        key: `libre|${queryState}`,
+        key,
         products: parts,
         error: "",
       });
@@ -261,7 +274,7 @@ export default function Catalog({
       if (!active) return;
 
       setResponse({
-        key: `libre|${queryState}`,
+        key,
         products: [],
         error: e.message || "No pudimos realizar la búsqueda.",
       });
@@ -270,7 +283,8 @@ export default function Catalog({
   return () => {
     active = false;
   };
-}, [queryState, activateVehicle]);
+// activeVehicle se lee por vehicleKey: el objeto cambia aunque sea el mismo auto.
+}, [queryState, vehicleKey, activateVehicle]);
 
   // ==========================================
   // CARGAR REPUESTOS
