@@ -1,3 +1,5 @@
+"""ModelT de una dirección de envío de un cliente."""
+
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, false, text
 from sqlalchemy.orm import relationship
 

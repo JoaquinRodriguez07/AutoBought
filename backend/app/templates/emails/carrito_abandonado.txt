@@ -1,0 +1,8 @@
+Hola {{ nombre }}, dejaste estos repuestos en tu carrito:
+
+{% for item in items %}- {{ item.cantidad }} x {{ item.nombre }}
+{% endfor %}
+Los guardamos para vos, pero el stock puede cambiar.
+Ir a mi carrito: {{ enlace }}
+
+¿No querés recibir más ofertas ni recordatorios? {{ enlace_baja }}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set titulo = "Tu pedido #" ~ pedido ~ " " ~ estado %}
+{% block contenido %}
+<p>Hola {{ nombre }}, tu pedido <strong>#{{ pedido }}</strong> {{ estado }}.</p>
+<p>{{ detalle_estado }}</p>
+{% include "_detalle_pedido.html" %}
+{% with texto_boton = "Ver mis compras" %}{% include "_boton.html" %}{% endwith %}
+{% endblock %}

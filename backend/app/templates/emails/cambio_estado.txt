@@ -1,0 +1,6 @@
+Hola {{ nombre }}, tu pedido #{{ pedido }} {{ estado }}.
+
+{{ detalle_estado }}
+
+{% include "_detalle_pedido.txt" %}
+Ver mis compras: {{ enlace }}

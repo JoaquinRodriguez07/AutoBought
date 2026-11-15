@@ -33,6 +33,26 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://${LOCAL_DB_USER:-ingsoft2}:${LOCAL_DB_PASSWORD}@${LOCAL_DB_HOST:-postgres}:${LOCAL_DB_PORT:-5432}/${LOCAL_DB_NAME:-ingsoft2db}
       SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en el .env de la raíz (ver .env.example)}
+      # Sin variables en el .env, los mails van a Mailpit (http://localhost:8025).
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-AutoBought <no-reply@autobought.local>}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      # Asistente de compra con IA: sin clave responde "no disponible".
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      IA_LIMITE_DIARIO: ${IA_LIMITE_DIARIO:-20}
+      # Pago con Mercado Pago: sin token, comprar no puede abrir el pago.
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      BACKEND_URL: ${BACKEND_URL:-}
+      # Retiro en el local: sin estas variables el retiro queda deshabilitado.
+      LOCAL_ADDRESS: ${LOCAL_ADDRESS:-}
+      LOCAL_HOURS: ${LOCAL_HOURS:-}
+      MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
+      CRON_SECRET: ${CRON_SECRET:-}
 
     ports:
       - "8000:8000"
@@ -40,6 +60,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
     volumes:
       - ./backend:/app
@@ -54,6 +76,27 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://${REMOTE_DB_USER:-}:${REMOTE_DB_PASSWORD:-}@${REMOTE_DB_HOST:-}:${REMOTE_DB_PORT:-5432}/${REMOTE_DB_NAME:-ingsoft2db}
       SECRET_KEY: ${SECRET_KEY:?Falta SECRET_KEY en el .env de la raíz (ver .env.example)}
+      # El perfil remoto no levanta Mailpit: para mandar mails hay que
+      # configurar el SMTP de Gmail en el .env.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-AutoBought <no-reply@autobought.local>}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5174}
+      # Asistente de compra con IA: sin clave responde "no disponible".
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      IA_LIMITE_DIARIO: ${IA_LIMITE_DIARIO:-20}
+      # Pago con Mercado Pago: sin token, comprar no puede abrir el pago.
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN:-}
+      MERCADOPAGO_WEBHOOK_SECRET: ${MERCADOPAGO_WEBHOOK_SECRET:-}
+      BACKEND_URL: ${BACKEND_URL:-}
+      # Retiro en el local: sin estas variables el retiro queda deshabilitado.
+      LOCAL_ADDRESS: ${LOCAL_ADDRESS:-}
+      LOCAL_HOURS: ${LOCAL_HOURS:-}
+      MINUTOS_PARA_PAGAR: ${MINUTOS_PARA_PAGAR:-15}
+      CRON_SECRET: ${CRON_SECRET:-}
 
     ports:
       - "8001:8000"
@@ -62,6 +105,17 @@ services:
       - ./backend:/app
       - /app/.venv
 
+  # Servidor de mail falso para desarrollo: recibe todo lo que manda el
+  # backend y lo muestra en http://localhost:8025, sin mandar nada real.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: mailpit
+    profiles: ["local"]
+    restart: unless-stopped
+
+    ports:
+      - "8025:8025"
+
   frontend:
     build: ./frontend
     container_name: frontend
@@ -69,7 +123,8 @@ services:
     restart: unless-stopped
 
     environment:
-      VITE_API_URL: http://localhost:8000
+      # Vacía: el navegador pide /api/... y el proxy de Vite lo pasa al backend.
+      VITE_API_URL: ""
       VITE_PROXY_TARGET: http://backend:8000
 
     ports:
@@ -89,7 +144,8 @@ services:
     restart: unless-stopped
 
     environment:
-      VITE_API_URL: http://localhost:8001
+      # Vacía: el navegador pide /api/... y el proxy de Vite lo pasa al backend.
+      VITE_API_URL: ""
       VITE_PROXY_TARGET: http://backend-remote:8000
 
     ports:

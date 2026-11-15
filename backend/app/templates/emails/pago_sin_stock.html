@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set titulo = "No pudimos completar tu pedido #" ~ pedido %}
+{% block contenido %}
+<p>Hola {{ nombre }}, recibimos tu pago del pedido <strong>#{{ pedido }}</strong>, pero llegó después de que venciera el plazo para pagar y ya no nos queda stock de lo que pediste.</p>
+<p>Por eso el pedido quedó cancelado y te vamos a devolver el dinero. El reintegro puede tardar unos días en verse en tu estado de cuenta.</p>
+{% include "_detalle_pedido.html" %}
+{% with texto_boton = "Ver mis compras" %}{% include "_boton.html" %}{% endwith %}
+{% endblock %}

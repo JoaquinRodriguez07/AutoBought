@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, String
+"""ModelT base de los usuarios (clientes y vendedores comparten tabla)."""
+
+from sqlalchemy import Boolean, Column, Integer, String, false
 
 from app.db.base import Base
 
@@ -12,6 +14,10 @@ class User(Base):
     password = Column(String(255), nullable=False)
     name = Column(String(120), nullable=False)
     email = Column(String(255), nullable=False, unique=True)
+    # Sin verificar se puede navegar, pero no confirmar compras.
+    email_verified = Column(Boolean, nullable=False, default=False, server_default=false())
+    # Sube cada vez que cambia la contraseña; los tokens con otra versión dejan de valer.
+    session_version = Column(Integer, nullable=False, default=0, server_default="0")
 
     __mapper_args__ = {
         "polymorphic_on": user_type,

@@ -1,3 +1,5 @@
+"""ModelT de un repuesto favorito de un cliente."""
+
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import relationship
 

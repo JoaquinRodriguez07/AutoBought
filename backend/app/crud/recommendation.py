@@ -1,3 +1,5 @@
+"""Recomendaciones de repuestos complementarios a los del carrito."""
+
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -19,6 +21,10 @@ COMPLEMENTARY_CATEGORIES = {
     "Suspensión": ["Frenos"],
     "Carrocería": ["Accesorios"],
     "Accesorios": ["Carrocería"],
+    "Dirección": ["Suspensión", "Frenos"],
+    "Transmisión": ["Lubricantes", "Motor"],
+    "Escape": ["Motor"],
+    "Climatización": ["Refrigeración"],
 }
 
 

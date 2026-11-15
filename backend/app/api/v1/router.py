@@ -1,7 +1,11 @@
+"""Junta los routers de todos los endpoints bajo /api/v1."""
+
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, brands, parts, models, years, cart, shipping_address, payment_method, orders
-from app.api.v1.endpoints import favorites, recommendations
+from app.api.v1.endpoints import auth, brands, parts, models, years, cart, shipping_address, orders, payments
+from app.api.v1.endpoints import favorites, recommendations, stock_alerts, analytics, assistant, tasks
+from app.api.v1.endpoints import employees, ask_dashboard
+from app.api.v1.endpoints import users
 
 api_router = APIRouter()
 api_router.include_router(auth.router)
@@ -11,7 +15,14 @@ api_router.include_router(models.router)
 api_router.include_router(years.router)
 api_router.include_router(cart.router)
 api_router.include_router(shipping_address.router)
-api_router.include_router(payment_method.router)
 api_router.include_router(orders.router)
+api_router.include_router(payments.router)
 api_router.include_router(recommendations.router)
 api_router.include_router(favorites.router)
+api_router.include_router(stock_alerts.router)
+api_router.include_router(analytics.router)
+api_router.include_router(ask_dashboard.router)
+api_router.include_router(assistant.router)
+api_router.include_router(tasks.router)
+api_router.include_router(employees.router)
+api_router.include_router(users.router)

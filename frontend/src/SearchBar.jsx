@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { CloseIcon, SearchIcon } from "./Icons";
 
 /**
  * SearchBar
@@ -19,7 +20,12 @@ import { useEffect, useState } from "react";
  *  - placeholder (string)   opcional
  *  - autoFocus   (bool)     opcional
  *  - className   (string)   opcional, extiende el contenedor
+ *  - inputId     (string)   opcional, id del input (para enfocarlo desde afuera)
  */
+// El buscador del catálogo: la lupa de la barra lo enfoca en vez de abrir
+// otro buscador encima.
+export const CATALOG_SEARCH_ID = "buscador-catalogo";
+
 export default function SearchBar({
   value,
   onChange,
@@ -27,9 +33,16 @@ export default function SearchBar({
   placeholder = "Buscar repuesto por nombre o código...",
   autoFocus = false,
   className = "",
+  inputId,
 }) {
   // Estado interno para permitir uso "no controlado" si no se pasa `value`.
   const [interno, setInterno] = useState(value ?? "");
+  const input = useRef(null);
+
+  // Foco al aparecer, con ref en lugar del atributo autoFocus (Sonar S9379).
+  useEffect(() => {
+    if (autoFocus) input.current?.focus();
+  }, [autoFocus]);
 
   useEffect(() => {
     if (value !== undefined) {
@@ -37,61 +50,62 @@ export default function SearchBar({
     }
   }, [value]);
 
-  const actualizar = (nuevoValor) => {
-    setInterno(nuevoValor);
-    onChange?.(nuevoValor);
+  const update = (newValue) => {
+    setInterno(newValue);
+    onChange?.(newValue);
   };
 
-  const buscar = () => {
+  const runSearch = () => {
     onSubmit?.(interno);
   };
 
-  const manejarTecla = (e) => {
+  const handleTecla = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      buscar();
+      runSearch();
     }
   };
 
-  const limpiar = () => {
-    actualizar("");
+  const clean = () => {
+    update("");
     onSubmit?.("");
   };
 
   return (
     <div
       role="search"
-      className={`flex w-full bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100 ${className}`}
+      className={`flex w-full bg-white rounded-lg shadow-xs overflow-hidden border border-gray-100 focus-within:ring-2 focus-within:ring-orange-500 transition ${className}`}
     >
       <input
+        id={inputId}
         value={interno}
-        onChange={(e) => actualizar(e.target.value)}
-        onKeyDown={manejarTecla}
+        onChange={(e) => update(e.target.value)}
+        onKeyDown={handleTecla}
         type="search"
-        autoFocus={autoFocus}
+        ref={input}
         aria-label="Buscar repuesto por nombre o código"
         placeholder={placeholder}
-        className="flex-1 px-4 py-4 text-[10px] outline-none"
+        className="flex-1 min-w-0 px-4 py-3 text-sm outline-hidden [&::-webkit-search-cancel-button]:appearance-none"
       />
 
       {interno && (
         <button
           type="button"
-          onClick={limpiar}
+          onClick={clean}
           aria-label="Limpiar búsqueda"
-          className="px-3 text-gray-400 hover:text-gray-600 text-[12px]"
+          className="px-3 text-gray-400 hover:text-gray-600"
         >
-          ✕
+          <CloseIcon />
         </button>
       )}
 
       <button
         type="button"
-        onClick={buscar}
+        onClick={runSearch}
         aria-label="Buscar"
-        className="bg-orange-500 hover:bg-orange-600 text-white w-14 transition"
+        className="bg-orange-500 hover:bg-orange-600 text-white w-14 flex items-center justify-center transition"
       >
-        🔍
+        <SearchIcon className="w-5 h-5" />
       </button>
     </div>
   );

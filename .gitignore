@@ -6,9 +6,16 @@ CLAUDE.md
 __pycache__/
 *.pyc
 .pytest_cache/
-.coverage
+.coverage*
 coverage.xml
 coverage_html/
 
 # Variables de entorno locales (docker compose)
 .env
+
+# Dependencias de Node
+node_modules/
+
+# Copias que crea iCloud cuando un archivo cambia rápido (el Escritorio está en iCloud Drive).
+* 2.*
+* 2

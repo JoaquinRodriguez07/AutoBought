@@ -1,0 +1,8 @@
+Hola {{ nombre }}, hace {{ meses }} meses compraste {{ repuesto }}.
+
+Es lo que se suele recomendar entre un cambio y otro. Si todavía no lo cambiaste, puede ser un buen momento.
+Ver repuestos: {{ enlace }}
+
+Cada auto es distinto: seguí lo que indica el manual de tu vehículo.
+
+¿No querés recibir más ofertas ni recordatorios? {{ enlace_baja }}

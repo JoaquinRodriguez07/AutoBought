@@ -1,0 +1,260 @@
+"""Alta, edición y ajuste de stock de repuestos desde el dashboard (HU 5.10)."""
+
+from datetime import datetime, timedelta, timezone
+
+import jwt
+import pytest
+
+from app.core.config import JWT_ALGORITHM, SECRET_KEY
+from app.core.security import hash_password
+from app.crud import user as crud_user
+from app.models.car_model import CarModel
+from app.models.compatibility import Compatibility
+from app.models.favorite import Favorite
+from app.models.part import Part
+from app.models.stock_alert import StockAlert
+
+PARTS = "/api/v1/parts"
+
+
+def _headers(user_id, user_type):
+    payload = {
+        "sub": str(user_id),
+        "user_type": user_type,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+    }
+    return {"Authorization": f"Bearer {jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)}"}
+
+
+@pytest.fixture
+def seller(db_session):
+    employee = crud_user.create_employee(
+        db_session, name="Vendedor Uno", email="vendedor@example.com", password_hash=hash_password("secreto123")
+    )
+    return _headers(employee.user_id, "employee")
+
+
+@pytest.fixture
+def customer(db_session):
+    return crud_user.create_client(
+        db_session, name="Ana Pérez", email="ana@example.com", password_hash=hash_password("secreto123")
+    )
+
+
+@pytest.fixture
+def vehicles(db_session):
+    gol = CarModel(brand="Volkswagen", model="Gol", engine_code="1.6")
+    onix = CarModel(brand="Chevrolet", model="Onix", engine_code="1.4 8V")
+    db_session.add_all([gol, onix])
+    db_session.commit()
+    return gol, onix
+
+
+def _part(db_session, car_model, stock=38, price=2500, code="FRE-001"):
+    part = Part(part_code=code, name="Pastillas de freno", manufacturer="Bosch", category="Frenos", price=price, stock=stock)
+    part.compatibilities = [Compatibility(car_model_id=car_model.id, year_from=2010, year_to=2020)]
+    db_session.add(part)
+    db_session.commit()
+    return part
+
+
+def _data(car_model_ids, **cambios):
+    data = {
+        "part_code": "FRE-100",
+        "name": "Discos de freno",
+        "manufacturer": "Fremax",
+        "category": "Frenos",
+        "price": 4200,
+        "stock": 12,
+        "description": "Par de discos ventilados.",
+        "compatibilities": [{"car_model_id": i, "year_from": 2015, "year_to": 2022} for i in car_model_ids],
+    }
+    return {**data, **cambios}
+
+
+# --- Ajustar stock ---
+
+
+def test_adjust_stock(client, db_session, seller, vehicles):
+    # Escenario de la HU: de 38 a 50 unidades.
+    part = _part(db_session, vehicles[0], stock=38)
+
+    response = client.patch(f"{PARTS}/{part.id}/stock", json={"stock": 50}, headers=seller)
+
+    assert response.status_code == 200
+    assert response.json()["stock"] == 50
+    assert client.get(f"{PARTS}/{part.id}").json()["stock"] == 50
+    assert [p["stock"] for p in client.get(PARTS).json()["parts"]] == [50]
+
+
+def test_adjust_stock_rejects_negative(client, db_session, seller, vehicles):
+    part = _part(db_session, vehicles[0])
+
+    assert client.patch(f"{PARTS}/{part.id}/stock", json={"stock": -1}, headers=seller).status_code == 422
+
+
+def test_adjust_stock_of_a_part_that_no_exists(client, seller):
+    response = client.patch(f"{PARTS}/9999/stock", json={"stock": 5}, headers=seller)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Repuesto no encontrado."
+
+
+def test_restock_a_sold_out_notifies_a_those_who_it_were_waiting(client, db_session, seller, customer, vehicles, sent_mails):
+    part = _part(db_session, vehicles[0], stock=0)
+    db_session.add(StockAlert(client_id=customer.user_id, part_id=part.id))
+    db_session.commit()
+
+    client.patch(f"{PARTS}/{part.id}/stock", json={"stock": 10}, headers=seller)
+
+    assert [m["To"] for m in sent_mails] == ["ana@example.com"]
+    assert db_session.query(StockAlert).count() == 0
+
+
+# --- Alta de repuesto ---
+
+
+def test_signup_of_part(client, db_session, seller, vehicles):
+    gol, onix = vehicles
+
+    response = client.post(PARTS, json=_data([gol.id, onix.id]), headers=seller)
+
+    assert response.status_code == 201
+    created = response.json()
+    assert (created["part_code"], created["name"], created["price"], created["stock"]) == ("FRE-100", "Discos de freno", 4200, 12)
+    assert sorted(created["compatible_models"]) == ["Gol", "Onix"]
+
+    # Aparece en el catálogo y en los filtros por vehículo.
+    assert [p["part_code"] for p in client.get(PARTS).json()["parts"]] == ["FRE-100"]
+    gol_part = client.get(PARTS, params={"brand": "Volkswagen", "model": "Gol", "year": 2018}).json()["parts"]
+    fuera_de_rango = client.get(PARTS, params={"brand": "Volkswagen", "model": "Gol", "year": 2010}).json()["parts"]
+    assert [p["part_code"] for p in gol_part] == ["FRE-100"]
+    assert fuera_de_rango == []
+
+
+def test_signup_clears_the_spaces(client, seller, vehicles):
+    response = client.post(PARTS, json=_data([vehicles[0].id], name="  Discos de freno  "), headers=seller)
+
+    assert response.json()["name"] == "Discos de freno"
+
+
+def test_signup_with_a_code_that_already_exists(client, db_session, seller, vehicles):
+    _part(db_session, vehicles[0], code="FRE-100")
+
+    response = client.post(PARTS, json=_data([vehicles[0].id], part_code="fre-100"), headers=seller)
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Ya existe un repuesto con ese código."
+
+
+@pytest.mark.parametrize(
+    "cambios",
+    [
+        {"compatibilities": []},
+        {"compatibilities": [{"car_model_id": 1, "year_from": 2020, "year_to": 2015}]},
+        {"compatibilities": [{"car_model_id": 1, "year_from": 2015, "year_to": 2020}] * 2},
+        {"price": 0},
+        {"stock": -3},
+        {"name": "   "},
+        {"part_code": ""},
+    ],
+)
+def test_signup_with_data_invalid(client, seller, vehicles, cambios):
+    response = client.post(PARTS, json=_data([vehicles[0].id], **cambios), headers=seller)
+
+    assert response.status_code == 422
+
+
+def test_signup_with_a_vehicle_that_no_exists(client, seller, vehicles):
+    response = client.post(PARTS, json=_data([vehicles[0].id, 9999]), headers=seller)
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Alguno de los vehículos compatibles no existe."
+
+
+# --- Edición ---
+
+
+def test_edit_replaces_the_data_and_the_vehicles_without_touching_the_stock(client, db_session, seller, vehicles):
+    gol, onix = vehicles
+    part = _part(db_session, gol, stock=38)
+
+    response = client.put(
+        f"{PARTS}/{part.id}",
+        json=_data([onix.id], part_code="FRE-001", name="Pastillas cerámicas", stock=999),
+        headers=seller,
+    )
+
+    assert response.status_code == 200
+    edited = response.json()
+    assert edited["name"] == "Pastillas cerámicas"
+    assert edited["stock"] == 38
+    assert edited["compatible_models"] == ["Onix"]
+    assert client.get(PARTS, params={"brand": "Volkswagen", "model": "Gol"}).json()["parts"] == []
+
+
+def test_edit_with_the_code_of_another_part(client, db_session, seller, vehicles):
+    _part(db_session, vehicles[0], code="FRE-001")
+    other = _part(db_session, vehicles[0], code="FRE-002")
+
+    response = client.put(f"{PARTS}/{other.id}", json=_data([vehicles[0].id], part_code="FRE-001"), headers=seller)
+
+    assert response.status_code == 409
+
+
+def test_edit_a_part_that_no_exists(client, seller, vehicles):
+    assert client.put(f"{PARTS}/9999", json=_data([vehicles[0].id]), headers=seller).status_code == 404
+
+
+def test_lower_the_price_notifies_a_those_who_it_have_in_favorites(client, db_session, seller, customer, vehicles, sent_mails):
+    part = _part(db_session, vehicles[0], price=2500)
+    customer.marketing_emails = True
+    db_session.add(Favorite(client_id=customer.user_id, part_id=part.id))
+    db_session.commit()
+
+    client.put(f"{PARTS}/{part.id}", json=_data([vehicles[0].id], part_code="FRE-001", price=2000), headers=seller)
+
+    assert [m["To"] for m in sent_mails] == ["ana@example.com"]
+
+
+# --- Permisos ---
+
+
+def test_customer_without_permission(client, db_session, customer, vehicles):
+    # Escenario de la HU: un cliente intenta modificar un repuesto.
+    part = _part(db_session, vehicles[0], stock=38)
+    headers = _headers(customer.user_id, "client")
+
+    assert client.patch(f"{PARTS}/{part.id}/stock", json={"stock": 50}, headers=headers).status_code == 403
+    assert client.put(f"{PARTS}/{part.id}", json=_data([vehicles[0].id]), headers=headers).status_code == 403
+    assert client.post(PARTS, json=_data([vehicles[0].id]), headers=headers).status_code == 403
+
+    db_session.expire_all()
+    assert db_session.get(Part, part.id).stock == 38
+    assert db_session.query(Part).count() == 1
+
+
+def test_without_session_no_modifies_nothing(client, db_session, vehicles):
+    part = _part(db_session, vehicles[0])
+
+    assert client.patch(f"{PARTS}/{part.id}/stock", json={"stock": 50}).status_code == 401
+    assert client.post(PARTS, json=_data([vehicles[0].id])).status_code == 401
+
+
+@pytest.mark.parametrize("field", ["part_code", "name", "manufacturer", "category", "color"])
+def test_signup_rejects_line_breaks_in_the_texts_of_a_single_line(client, seller, vehicles, field):
+    # El nombre va en el asunto de los mails, que no admite saltos de línea.
+    data = _data([vehicles[0].id], **{field: "Filtro\nBcc: otro@example.com"})
+
+    response = client.post(PARTS, json=data, headers=seller)
+
+    assert response.status_code == 422
+
+
+def test_signup_keeps_the_line_breaks_of_the_description(client, seller, vehicles):
+    data = _data([vehicles[0].id], description="Primera línea.\nSegunda línea.")
+
+    response = client.post(PARTS, json=data, headers=seller)
+
+    assert response.status_code == 201
+    assert response.json()["description"] == "Primera línea.\nSegunda línea."

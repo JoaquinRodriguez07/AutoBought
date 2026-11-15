@@ -1,0 +1,6 @@
+Hola {{ nombre }}, recibimos tu pago del pedido #{{ pedido }}, pero llegó después de que venciera el plazo para pagar y ya no nos queda stock de lo que pediste.
+
+Por eso el pedido quedó cancelado y te vamos a devolver el dinero. El reintegro puede tardar unos días en verse en tu estado de cuenta.
+
+{% include "_detalle_pedido.txt" %}
+Ver mis compras: {{ enlace }}

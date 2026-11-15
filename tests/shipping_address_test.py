@@ -1,13 +1,19 @@
+"""Tests de las direcciones de envío."""
+
+import itertools
+
+import pytest
+
 from app.core.security import create_access_token
 from app.models.client import Client
 
 
 def make_client(db_session, username="ana", email="ana@example.com"):
-    cliente = Client(username=username, password="secret", name="Ana", email=email)
-    db_session.add(cliente)
+    customer = Client(username=username, password="secret", name="Ana", email=email)
+    db_session.add(customer)
     db_session.commit()
-    db_session.refresh(cliente)
-    return cliente
+    db_session.refresh(customer)
+    return customer
 
 
 def auth_headers(user):
@@ -23,13 +29,18 @@ def payload(**overrides):
         "street": "Goes",
         "number": "2297",
         "city": "Montevideo",
-        "department": "San José",
+        "department": "Montevideo",
     }
     data.update(overrides)
     return data
 
 
+_numeros = itertools.count(1000)
+
+
 def create(client, headers, **overrides):
+    # Cada dirección en otro número de puerta: dos iguales son un duplicado.
+    overrides.setdefault("number", str(next(_numeros)))
     return client.post("/api/v1/addresses", json=payload(**overrides), headers=headers)
 
 
@@ -48,7 +59,7 @@ def test_create_and_list_address(client, db_session):
 
     resp = create(client, headers, apartment="114", postal_code="11800")
     assert resp.status_code == 201
-    assert resp.json()["department"] == "San José"
+    assert resp.json()["department"] == "Montevideo"
 
     listed = client.get("/api/v1/addresses", headers=headers).json()
     assert [a["street"] for a in listed] == ["Goes"]
@@ -121,3 +132,70 @@ def test_client_cannot_modify_other_clients_address(client, db_session):
     assert client.patch(f"/api/v1/addresses/{address_id}/primary", headers=beto).status_code == 404
     assert client.delete(f"/api/v1/addresses/{address_id}", headers=beto).status_code == 404
     assert len(client.get("/api/v1/addresses", headers=ana).json()) == 1
+
+
+# =====================================================
+# Validaciones
+# =====================================================
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("personal_name", "   "),
+        ("personal_name", "123"),
+        ("street", "   "),
+        ("street", "@@@"),
+        ("number", "abc"),
+        ("apartment", "#!"),
+        ("city", "   "),
+        ("postal_code", "1130"),
+        ("postal_code", "ABCDE"),
+    ],
+)
+def test_data_invalid_reject_in_its_field(client, db_session, field, value):
+    headers = auth_headers(make_client(db_session))
+
+    resp = create(client, headers, **{field: value})
+
+    assert resp.status_code == 422
+    assert resp.json()["detail"][0]["loc"] == ["body", field]
+
+
+def test_city_of_another_department_rejects(client, db_session):
+    headers = auth_headers(make_client(db_session))
+
+    resp = create(client, headers, city="Montevideo", department="Artigas")
+
+    assert resp.status_code == 422
+    assert resp.json()["detail"][0]["loc"] == ["body", "department"]
+    assert "Montevideo no está en el departamento de Artigas" in resp.json()["detail"][0]["msg"]
+
+
+def test_without_number_and_spaces_are_normalized(client, db_session):
+    headers = auth_headers(make_client(db_session))
+
+    body = create(client, headers, street="  Ruta   8 ", number="s/n", city="Pando",
+                  department="Canelones", apartment="  ", postal_code="").json()
+
+    assert (body["street"], body["number"], body["apartment"], body["postal_code"]) == (
+        "Ruta 8", "S/N", None, None,
+    )
+
+
+def test_address_duplicate_returns_409_without_matter_uppercase_nor_accents(client, db_session):
+    headers = auth_headers(make_client(db_session))
+    create(client, headers, street="Av. Italia", number="1234")
+
+    resp = create(client, headers, personal_name="Otra", street="AV. ITALIA", number="1234")
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Ya tenés guardada esta dirección."
+
+
+def test_no_can_save_more_of_10_addresses(client, db_session):
+    headers = auth_headers(make_client(db_session))
+    for _ in range(10):
+        assert create(client, headers).status_code == 201
+
+    assert create(client, headers).status_code == 409

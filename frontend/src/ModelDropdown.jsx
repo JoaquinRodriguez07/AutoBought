@@ -1,5 +1,7 @@
+// Desplegable de modelos del selector de vehículo.
+
 import { useEffect, useState } from "react";
-import { obtenerModelos } from "./api";
+import { getModels } from "./api";
 
 function ModelDropdown({
   brand,
@@ -15,7 +17,7 @@ function ModelDropdown({
       return;
     }
 
-    obtenerModelos(brand)
+    getModels(brand)
       .then((data) => {
         setModels(data);
       })
@@ -30,9 +32,8 @@ function ModelDropdown({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       disabled={!brand}
-      className={`${className} ${
-        !brand ? "bg-gray-200 text-gray-400 cursor-not-allowed" : ""
-      }`}
+      // Cómo se ve deshabilitado lo decide quien lo usa (disabled: en className).
+      className={className}
     >
       <option value="">
         {brand ? "Selecciona tu Modelo" : "Selecciona una Marca primero"}

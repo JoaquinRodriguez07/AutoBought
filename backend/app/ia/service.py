@@ -1,0 +1,102 @@
+"""Servicio de IA: respuestas estructuradas, límite de consultas y registro
+de uso. Lo usan todas las funcionalidades con IA."""
+
+import json
+from datetime import datetime, timedelta, timezone
+from typing import TypeVar
+
+from fastapi import HTTPException, status
+from pydantic import BaseModel, ValidationError
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.core.config import AI_DAILY_LIMIT
+from app.ia.client import AIClient, AIUnavailable
+from app.models.ai_usage import AIUsage
+
+ModelT = TypeVar("Modelo", bound=BaseModel)
+
+def extract_json(texto: str) -> dict:
+    """El objeto JSON de la respuesta, aunque venga dentro de un bloque de
+    código o con texto alrededor."""
+    # Si viene en un bloque ```json ... ```, se queda con lo de adentro.
+    partes = texto.split("```")
+    if len(partes) >= 3:
+        texto = partes[1].removeprefix("json")
+    start_at, end = texto.find("{"), texto.rfind("}")
+    if start_at == -1 or end <= start_at:
+        raise AIUnavailable("La respuesta de la IA no trae un objeto JSON.")
+    try:
+        data = json.loads(texto[start_at : end + 1])
+    except json.JSONDecodeError as error:
+        raise AIUnavailable("La respuesta de la IA no es un JSON válido.") from error
+    if not isinstance(data, dict):
+        raise AIUnavailable("La respuesta de la IA no es un objeto JSON.")
+    return data
+
+
+def ask_structured(
+    ai_client: AIClient, instructions: str, input_text: str, modelo: type[ModelT]
+) -> tuple[ModelT, int]:
+    """Pide una respuesta y la valida contra `modelo`. Si no respeta el
+    formato, se rechaza: nunca llega a la funcionalidad algo a medias.
+    Devuelve el objeto validado y los tokens que se usaron."""
+    reply = ai_client.generate(instructions, input_text)
+    try:
+        return modelo.model_validate(extract_json(reply.texto)), reply.tokens
+    except ValidationError as error:
+        raise AIUnavailable("La respuesta de la IA no respeta el formato pedido.") from error
+
+
+def recent_queries(
+    db: Session,
+    user_id: int,
+    current_time: datetime | None = None,
+    hours: int = 24,
+    funcionalidad: str | None = None,
+    ok: bool = True,
+) -> int:
+    """Consultas de las últimas `hours` horas que salieron bien (o, con
+    `ok=False`, las que fallaron): de todas las funcionalidades, o solo de
+    `funcionalidad`."""
+    current_time = current_time or datetime.now(timezone.utc)
+    since = current_time - timedelta(hours=hours)
+    query = select(func.count()).select_from(AIUsage).where(
+        AIUsage.user_id == user_id, AIUsage.ok.is_(ok), AIUsage.created_at >= since
+    )
+    if funcionalidad is not None:
+        query = query.where(AIUsage.funcionalidad == funcionalidad)
+    return db.scalar(query) or 0
+
+
+# Las consultas que fallan no gastan el límite del usuario (no es su culpa
+# que la IA no responda), pero tampoco pueden ser infinitas: una respuesta
+# que no respeta el formato igual consumió tokens. Con este múltiplo del
+# límite en consultas fallidas, también se corta.
+FAILED_LIMIT_FACTOR = 3
+
+LIMIT_REACHED = "Llegaste al límite de consultas al asistente por hoy. Probá de nuevo mañana."
+
+
+def check_limit(
+    db: Session,
+    user_id: int,
+    limit_value: int | None = None,
+    detail: str = LIMIT_REACHED,
+    hours: int = 24,
+    funcionalidad: str | None = None,
+) -> None:
+    """429 si el usuario ya hizo el máximo de consultas de las últimas
+    `hours` horas (por defecto, 24 h de todas las funcionalidades), o si
+    en ese tiempo le fallaron FAILED_LIMIT_FACTOR veces el máximo.
+    `detail` es el mensaje: cada funcionalidad nombra la suya."""
+    limit_value = AI_DAILY_LIMIT if limit_value is None else limit_value
+    succeeded = recent_queries(db, user_id, hours=hours, funcionalidad=funcionalidad)
+    failed = recent_queries(db, user_id, hours=hours, funcionalidad=funcionalidad, ok=False)
+    if succeeded >= limit_value or failed >= limit_value * FAILED_LIMIT_FACTOR:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail)
+
+
+def record_usage(db: Session, user_id: int, funcionalidad: str, tokens: int, ok: bool) -> None:
+    db.add(AIUsage(user_id=user_id, funcionalidad=funcionalidad, tokens=tokens, ok=ok))
+    db.commit()

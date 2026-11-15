@@ -1,3 +1,5 @@
+"""Consultas de los autos del catálogo: marcas, modelos y años."""
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -61,3 +63,9 @@ def list_years_by_model(
             years.add(year)
 
     return sorted(years)
+
+def list_car_models(db: Session) -> list[CarModel]:
+    # Todos los vehículos, para elegir los compatibles al dar de alta o
+    # editar un repuesto desde el dashboard.
+    query = select(CarModel).order_by(CarModel.brand, CarModel.model, CarModel.engine_code, CarModel.id)
+    return list(db.scalars(query).all())

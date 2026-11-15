@@ -1,3 +1,5 @@
+"""ModelT de un repuesto dentro del carrito."""
+
 from sqlalchemy import Column, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 

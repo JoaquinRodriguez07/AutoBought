@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set titulo = "¿Toca hacer mantenimiento?" %}
+{% block contenido %}
+<p>Hola {{ nombre }}, hace {{ meses }} meses compraste <strong>{{ repuesto }}</strong>.</p>
+<p>Es lo que se suele recomendar entre un cambio y otro. Si todavía no lo cambiaste, puede ser un buen momento.</p>
+{% with texto_boton = "Ver repuestos" %}{% include "_boton.html" %}{% endwith %}
+<p style="font-size:12px; color:#6b7280;">Cada auto es distinto: seguí lo que indica el manual de tu vehículo.</p>
+{% endblock %}

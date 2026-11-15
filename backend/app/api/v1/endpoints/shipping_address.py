@@ -1,3 +1,5 @@
+"""Endpoints de las direcciones de envío del cliente."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -16,7 +18,10 @@ def list_addresses(db: Session = Depends(get_db), client: Client = Depends(get_c
 
 @router.post("", response_model=ShippingAddressOut, status_code=status.HTTP_201_CREATED)
 def create_address(body: ShippingAddressCreate, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
-    return crud_address.create_address(db, client.user_id, body)
+    try:
+        return crud_address.create_address(db, client.user_id, body)
+    except crud_address.ShippingAddressConflict as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
 
 
 @router.patch("/{shipping_address_id}/primary", response_model=ShippingAddressOut)
@@ -29,6 +34,6 @@ def set_primary_address(shipping_address_id: int, db: Session = Depends(get_db),
 
 @router.delete("/{shipping_address_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_address(shipping_address_id: int, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
-    eliminada = crud_address.delete_address(db, client.user_id, shipping_address_id)
-    if not eliminada:
+    deleted = crud_address.delete_address(db, client.user_id, shipping_address_id)
+    if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dirección no encontrada.")

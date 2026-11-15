@@ -1,3 +1,5 @@
+"""Schemas de las marcas de autos."""
+
 from pydantic import BaseModel
 
 

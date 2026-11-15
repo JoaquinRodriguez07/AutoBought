@@ -6,6 +6,7 @@ module.exports = {
     "^.+\\.[jt]sx?$": "babel-jest",
   },
   moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/src/$1",
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",
     "\\.(gif|jpe?g|png|svg|webp)$": "<rootDir>/src/testAssetMock.js",
   },

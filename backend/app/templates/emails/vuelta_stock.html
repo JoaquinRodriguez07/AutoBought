@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set titulo = "¡Volvió a haber stock!" %}
+{% block contenido %}
+<p>Hola {{ nombre }}, el repuesto que esperabas ya está disponible:</p>
+<p style="font-size:16px;"><strong>{{ repuesto }}</strong> — {{ precio }}</p>
+<p>Hay pocas unidades: si lo necesitás, no esperes mucho.</p>
+{% with texto_boton = "Ver el repuesto" %}{% include "_boton.html" %}{% endwith %}
+{% endblock %}

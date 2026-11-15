@@ -1,3 +1,5 @@
+"""Schemas del carrito y sus repuestos."""
+
 from pydantic import BaseModel, Field
 
 from app.models.cart import Cart
@@ -28,6 +30,7 @@ class CartOut(BaseModel):
 
 class CartItemDetailOut(BaseModel):
     part_id: int
+    part_code: str
     name: str
     price: int
     amount: int
@@ -56,6 +59,7 @@ def build_cart_detail_out(cart: Cart) -> CartDetailOut:
         items.append(
             CartItemDetailOut(
                 part_id=part.id,
+                part_code=part.part_code,
                 name=part.name,
                 price=part.price,
                 amount=cart_item.amount,

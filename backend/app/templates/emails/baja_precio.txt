@@ -1,0 +1,7 @@
+Hola {{ nombre }}, un repuesto que tenés en favoritos está más barato:
+
+{{ repuesto }}: antes {{ precio_anterior }}, ahora {{ precio }}.
+
+Ver el repuesto: {{ enlace }}
+
+¿No querés recibir más ofertas ni recordatorios? {{ enlace_baja }}

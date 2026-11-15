@@ -1,3 +1,5 @@
+"""Endpoint de recomendaciones: repuestos que suelen comprarse junto con los del carrito."""
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -14,6 +16,10 @@ router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 # consulta con miles de ids dispare miles de queries.
 MAX_PART_IDS = 50
 
+# El id es un Integer (máximo 2147483647, 10 dígitos). Rechazar los más largos
+# antes de int(), que falla con textos de miles de dígitos.
+MAX_PART_ID_DIGITS = 10
+
 
 def parse_part_ids(raw: str) -> list[int]:
     """Convierte "1,5" en [1, 5], sin repetidos y respetando el orden."""
@@ -28,6 +34,11 @@ def parse_part_ids(raw: str) -> list[int]:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="part_ids debe ser una lista de ids numéricos separados por coma.",
+            )
+        if len(chunk) > MAX_PART_ID_DIGITS:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Cada id de part_ids admite como máximo {MAX_PART_ID_DIGITS} dígitos.",
             )
         part_ids.append(int(chunk))
     part_ids = list(dict.fromkeys(part_ids))

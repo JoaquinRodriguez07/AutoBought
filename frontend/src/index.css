@@ -1,3 +1,213 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './components/ui/shadcn.css';
+
+/*
+  Tema de shadcn/ui (src/components/ui/), que hoy usa solo el dashboard del
+  vendedor. Son colores con nombre propio (bg-primary, text-muted-foreground…)
+  con la paleta de la tienda; la tienda no usa esos nombres, así que no
+  cambia. A propósito NO se copió del tema de shadcn: la fuente, los radios
+  (--radius-*) ni el bloque @layer base, que cambiarían toda la tienda.
+  `dark:` solo aplica debajo de una clase .dark: la tienda no tiene modo
+  oscuro y los componentes no se tienen que oscurecer con el del sistema.
+
+  Va en esta misma hoja y no en una aparte del dashboard: dos hojas con las
+  mismas clases de Tailwind se pisan el orden (un `hidden` de la segunda le
+  gana al `md:flex` del Navbar).
+*/
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #111827; /* gray-900 */
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #f97316; /* orange-500, el de los botones de la tienda */
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6; /* gray-100 */
+  --secondary-foreground: #111827;
+  --muted: #f9fafb; /* gray-50 */
+  --muted-foreground: #4b5563; /* gray-600: el 500 se leía muy claro en textos chicos */
+  --accent: #fff7ed; /* orange-50 */
+  --accent-foreground: #9a3412; /* orange-800 */
+  --destructive: #dc2626; /* red-600 */
+  --border: #e5e7eb; /* gray-200 */
+  --input: #d1d5db; /* gray-300 */
+  --ring: #f97316;
+  /* Línea de los gráficos: el 500 no llega a 3:1 sobre blanco. */
+  --chart-1: #ea580c; /* orange-600 */
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+/*
+  Tailwind CSS v4 changed the default placeholder color (now currentcolor at
+  50% opacity) and the default button cursor (now `default`). These styles
+  keep the Tailwind CSS v3 behavior.
+*/
+@layer base {
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/*
+  Tailwind CSS v4's preflight sets `opacity: 1` on form controls, which
+  removes the browser's default dimming of disabled selects that v3 kept.
+*/
+@layer base {
+  select:disabled {
+    opacity: 0.7;
+  }
+}
+
+/*
+  Cinta de logos del inicio: se mueve sola en un bucle continuo (la lista
+  va dos veces y se corre la mitad), se frena al pasar el mouse y queda
+  quieta si el sistema pide reducir el movimiento.
+*/
+@keyframes cinta {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.cinta {
+  animation: cinta 35s linear infinite;
+}
+
+.cinta-reversa {
+  animation-direction: reverse;
+}
+
+.cinta-contenedor:hover .cinta,
+.cinta-contenedor:focus-within .cinta {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinta {
+    animation: none;
+  }
+}
+
+/*
+  Aviso de "agregado al carrito": el contador del navbar rebota cuando
+  sube y el aviso entra deslizándose. Se usan con `motion-safe:` para
+  respetar a quien tiene activado "reducir movimiento" en el sistema.
+*/
+@theme {
+  --animate-rebote: rebote 0.4s ease-out;
+  --animate-entrar-aviso: entrar-aviso 0.2s ease-out;
+
+  @keyframes rebote {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.5);
+    }
+  }
+
+  @keyframes entrar-aviso {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/*
+  Chat de Pit: cada mensaje entra con un deslizamiento corto. Se usa con
+  `motion-safe:`, así no se mueve si el sistema pide reducir el movimiento.
+*/
+@theme {
+  --animate-aparecer: aparecer 0.25s ease-out both;
+  --animate-entrar-derecha: entrar-derecha 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* El botón de Pit late dos veces al aparecer y después queda quieto. */
+  --animate-llamar: llamar 1.4s cubic-bezier(0, 0, 0.2, 1) 0.8s 2 both;
+
+  @keyframes llamar {
+    from {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+    to {
+      transform: scale(1.6);
+      opacity: 0;
+    }
+  }
+
+  @keyframes entrar-derecha {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes aparecer {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

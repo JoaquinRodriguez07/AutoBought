@@ -1,0 +1,179 @@
+"""Crea clientes y un vendedor de prueba. Los clientes traen direcciones ya
+cargadas.
+
+Usage: python -m scripts.seed_demo_users
+       (en Docker: docker exec backend uv run python -m scripts.seed_demo_users)
+
+Los datos pasan por los mismos schemas y funciones que usa la API, así
+que cumplen las mismas validaciones que lo que carga un usuario. Si una
+regla cambia y algún dato deja de ser válido, el script falla en vez de
+dejar datos que la app no aceptaría.
+
+Si un usuario ya existe (mismo correo), se saltea. Correr scripts.seed
+antes, para que haya repuestos con los que armar la compra de ejemplo.
+
+| Correo                          | Contraseña    | Qué tiene para probar                          |
+|---------------------------------|---------------|------------------------------------------------|
+| ana.perez@autobought.com        | Repuestos2026 | 2 direcciones, una compra pagada               |
+| martin.rodriguez@autobought.com | Motor2026x    | Dirección en Maldonado                         |
+| lucia.fernandez@autobought.com  | Frenos2026x   | Dirección en el interior con apto. y S/N       |
+| vendedor@autobought.com         | Ventas2026x   | Vendedor administrador: /dashboard y "Equipo"  |
+
+Los pagos se hacen en Mercado Pago, con las tarjetas de prueba de la
+cuenta de prueba: la tienda no guarda tarjetas.
+"""
+
+from sqlalchemy import select
+
+from app.core import validators
+from app.core.security import hash_password
+from app.crud import cart as crud_cart
+from app.crud import order as crud_order
+from app.crud import shipping_address as crud_address
+from app.crud import user as crud_user
+from app.db.migrations import require_head
+from app.db.session import SessionLocal, engine
+from app.models.part import Part
+from app.models.payment import PaymentStatus
+from app.schemas.auth import RegisterRequest
+from app.schemas.shipping_address import ShippingAddressCreate
+import app.models
+
+USUARIOS = [
+    {
+        "cuenta": {
+            "name": "Ana Pérez",
+            "email": "ana.perez@autobought.com",
+            "password": "Repuestos2026",
+            "phone": "099 123 456",
+        },
+        "direcciones": [
+            {"personal_name": "Casa", "street": "Av. Italia", "number": "2864",
+             "apartment": "502", "city": "Montevideo", "department": "Montevideo",
+             "postal_code": "11600", "is_primary": True},
+            {"personal_name": "Trabajo", "street": "Av. Giannattasio", "number": "1250",
+             "city": "Ciudad de la Costa", "department": "Canelones", "postal_code": "15000"},
+        ],
+        "compra": [("Filtros", 1), ("Frenos", 2)],
+    },
+    {
+        "cuenta": {
+            "name": "Martín Rodríguez",
+            "email": "martin.rodriguez@autobought.com",
+            "password": "Motor2026x",
+            "phone": "098 765 432",
+        },
+        "direcciones": [
+            {"personal_name": "Casa de playa", "street": "Rambla Lorenzo Batlle Pacheco",
+             "number": "345", "city": "Punta del Este", "department": "Maldonado",
+             "postal_code": "20100", "is_primary": True},
+        ],
+    },
+    {
+        "cuenta": {
+            "name": "Lucía Fernández",
+            "email": "lucia.fernandez@autobought.com",
+            "password": "Frenos2026x",
+            "phone": "4732 1234",
+        },
+        "direcciones": [
+            {"personal_name": "Casa", "street": "Uruguay", "number": "S/N",
+             "apartment": "B", "city": "Salto", "department": "Salto",
+             "postal_code": "50000", "is_primary": True},
+        ],
+    },
+]
+
+# Vendedores (rol employee). La contraseña pasa por la misma regla que la de
+# los clientes (no puede contener la parte local del correo, por eso no es
+# "Vendedor..."). El de prueba es administrador: ve la sección "Equipo" y
+# puede dar de alta y de baja vendedores.
+VENDEDORES = [
+    {
+        "name": "Vendedor AutoBought",
+        "email": "vendedor@autobought.com",
+        "password": "Ventas2026x",
+        "is_admin": True,
+    },
+]
+
+
+def _create_purchase(db, client_id: int, items: list[tuple[str, int]]) -> int | None:
+    """Arma un carrito con un repuesto de cada categoría y lo compra, ya
+    pagado (como si Mercado Pago hubiera aprobado el pago)."""
+    for categoria, qty in items:
+        part = db.scalar(
+            select(Part).where(Part.category == categoria, Part.stock >= qty).limit(1)
+        )
+        if part is None:
+            return None
+        crud_cart.add_item(db, client_id, part.id, qty)
+
+    # place_order abre su propia transacción (igual que en el endpoint).
+    db.rollback()
+    order = crud_order.place_order(db, client_id)
+    order.payment.status = PaymentStatus.APPROVED
+    db.commit()
+    return order.order_id
+
+
+def create_user(db, data: dict) -> str:
+    account = RegisterRequest(**data["cuenta"])
+
+    if crud_user.get_user_by_email(db, account.email):
+        return f"{account.email}: ya existe, se saltea."
+
+    client = crud_user.create_client(
+        db,
+        name=account.name,
+        email=account.email,
+        password_hash=hash_password(account.password),
+        phone=account.phone,
+    )
+    # Los usuarios de prueba ya vienen verificados, para poder comprar.
+    crud_user.mark_email_verified(db, client)
+    client_id = client.user_id
+
+    for address in data["direcciones"]:
+        crud_address.create_address(db, client_id, ShippingAddressCreate(**address))
+
+    detail = f"{len(data['direcciones'])} dirección(es)"
+    if items := data.get("compra"):
+        order_id = _create_purchase(db, client_id, items)
+        detail += f", compra #{order_id}" if order_id else ", sin compra (falta el catálogo)"
+
+    return f"{account.email} / {data['cuenta']['password']}: {detail}."
+
+
+def create_seller(db, data: dict) -> str:
+    email = data["email"]
+    password = validators.password_segura(data["password"], email)
+
+    if crud_user.get_user_by_email(db, email):
+        return f"{email}: ya existe, se saltea."
+
+    crud_user.create_employee(
+        db,
+        name=data["name"],
+        email=email,
+        password_hash=hash_password(password),
+        is_admin=data.get("is_admin", False),
+    )
+    rol = "vendedor administrador" if data.get("is_admin") else "vendedor"
+    return f"{email} / {password}: {rol}."
+
+
+def main():
+    require_head(engine)
+    db = SessionLocal()
+    try:
+        for data in USUARIOS:
+            print(create_user(db, data))
+        for data in VENDEDORES:
+            print(create_seller(db, data))
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()

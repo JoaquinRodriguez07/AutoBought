@@ -1,3 +1,5 @@
+// Tests de integración del catálogo contra el backend real (Pactum).
+
 const fs = require("node:fs");
 const net = require("node:net");
 const os = require("node:os");

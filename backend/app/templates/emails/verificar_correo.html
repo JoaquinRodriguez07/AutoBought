@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set titulo = "Verificá tu correo" %}
+{% block contenido %}
+<p>Hola {{ nombre }}, gracias por registrarte en AutoBought.</p>
+<p>Para poder confirmar compras, verificá que este correo es tuyo:</p>
+{% with texto_boton = "Verificar mi correo" %}{% include "_boton.html" %}{% endwith %}
+<p>El enlace vence en 24 horas. Si no creaste una cuenta, ignorá este mail.</p>
+{% endblock %}

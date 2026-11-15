@@ -1,42 +1,64 @@
+// Tests de las llamadas al backend (api.js).
+
 jest.mock("./auth", () => ({
-  obtenerSesion: jest.fn(),
+  getSession: jest.fn(),
 }));
 
 import {
-  actualizarItemCarrito,
-  agregarFavoritoAPI,
-  actualizarPerfil,
-  cambiarPassword,
-  agregarItemCarrito,
-  crearDireccion,
-  crearMetodoPago,
-  eliminarDireccionAPI,
-  eliminarItemCarrito,
-  eliminarMetodoPagoAPI,
+  onInvalidSession,
+  getPurchaseHistory,
+  searchText,
+  updateCartItem,
+  askAssistant,
+  addFavoriteApi,
+  updateProfile,
+  changePassword,
+  addCartItem,
+  createAddress,
+  confirmPurchase,
+  confirmReceipt,
+  createPaymentLink,
+  verifyPayment,
+  deleteAddressApi,
+  removeCartItem,
   login,
-  marcarDireccionPrincipal,
-  marcarMetodoPagoPrincipal,
-  obtenerCarrito,
-  obtenerCategorias,
-  obtenerDirecciones,
-  obtenerFavoritos,
-  obtenerMarcas,
-  obtenerMetodosPago,
-  obtenerModelos,
-  obtenerPerfil,
-  obtenerRecomendaciones,
-  obtenerRepuestos,
-  quitarFavoritoAPI,
-  registrar,
-  vaciarCarritoAPI,
+  deleteAccount,
+  setPrimaryAddress,
+  getCart,
+  getCategories,
+  getBestSellers,
+  getAddresses,
+  getFavorites,
+  getBrands,
+  getPurchaseDetail,
+  getModels,
+  getYears,
+  getProfile,
+  getRecommendations,
+  getPart,
+  getParts,
+  getStockAlerts,
+  addStockAlert,
+  removeStockAlert,
+  unsubscribe,
+  saveMailPreferences,
+  requestPasswordReset,
+  removeFavoriteApi,
+  resendVerification,
+  register,
+  renewToken,
+  resetPassword,
+  clearCartApi,
+  verifyEmail,
 } from "./api";
-import { obtenerSesion } from "./auth";
-import { IMAGEN_PLACEHOLDER } from "./mapearRepuesto";
+import { getSession } from "./auth";
+import { PLACEHOLDER_IMAGE } from "./mapPart";
 
 const BASE_URL = "http://127.0.0.1:8000";
 const backendPart = {
   id: 21,
   name: "Disco de freno",
+  manufacturer: "Brembo",
   part_code: "DF-21",
   category: "Frenos",
   price: 2450,
@@ -46,24 +68,35 @@ const backendPart = {
 const uiPart = {
   id: "21",
   partId: 21,
-  nombre: "Disco de freno",
-  codigo: "DF-21",
+  displayName: "Disco de freno",
+  fabricante: "Brembo",
+  code: "DF-21",
   categoria: "Frenos",
-  precio: 2450,
+  price: 2450,
   stock: 7,
   marca: "Volkswagen Audi",
-  marcaPrincipal: "Volkswagen",
-  imagen: IMAGEN_PLACEHOLDER,
+  primaryBrand: "Volkswagen",
+  brands: ["Volkswagen", "Audi"],
+  models: [],
+  description: "",
+  specifications: [],
+  warranty: "",
+  monthsWarranty: null,
+  warrantyProvider: null,
+  compatibilidades: [],
+  fitments: [],
+  image: PLACEHOLDER_IMAGE,
+  imagesExtra: [],
 };
 
 /**
- * Creates a fetch response stub with a resolving or rejecting JSON mock.
- * @param {*} data - Value resolved by json() when no jsonError is supplied.
- * @param {Object} [options={}] - Response metadata and JSON failure overrides.
- * @param {number} [options.status=200] - HTTP status code.
- * @param {boolean} [options.ok=true] - Success flag, independent of status.
- * @param {Error} [options.jsonError] - Truthy error that makes json() reject.
- * @returns {{ok: boolean, status: number, json: Function}} Fetch response stub.
+ * Una respuesta de fetch falsa, con un json() que resuelve o falla.
+ * @param {*} data - Lo que devuelve json() si no se pasa jsonError.
+ * @param {Object} [options={}] - Datos de la respuesta y el error de json().
+ * @param {number} [options.status=200] - Código HTTP.
+ * @param {boolean} [options.ok=true] - Si salió bien, aparte del código.
+ * @param {Error} [options.jsonError] - Si está, json() falla con este error.
+ * @returns {{ok: boolean, status: number, json: Function}} La respuesta falsa.
  */
 function response(data, { status = 200, ok = true, jsonError } = {}) {
   return {
@@ -75,7 +108,7 @@ function response(data, { status = 200, ok = true, jsonError } = {}) {
 
 beforeEach(() => {
   global.fetch = jest.fn();
-  obtenerSesion.mockReturnValue({ token: "jwt-token" });
+  getSession.mockReturnValue({ token: "jwt-token" });
 });
 
 afterEach(() => {
@@ -107,14 +140,52 @@ describe("login", () => {
   });
 });
 
+describe("deleteAccount", () => {
+  it("sends the password and bearer token to the account deletion endpoint", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204 }));
+
+    await expect(deleteAccount("secret")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/users/me`, {
+      method: "DELETE",
+      headers: {
+        Authorization: "Bearer jwt-token",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password: "secret" }),
+    });
+  });
+
+  it("throws the backend error and status", async () => {
+    fetch.mockResolvedValue(
+      response(
+        { detail: "La contraseña es incorrecta." },
+        { ok: false, status: 400 }
+      )
+    );
+
+    await expect(deleteAccount("incorrecta")).rejects.toMatchObject({
+      message: "La contraseña es incorrecta.",
+      status: 400,
+    });
+  });
+
+  it("reports network failures", async () => {
+    fetch.mockRejectedValue(new Error("offline"));
+
+    await expect(deleteAccount("secret")).rejects.toThrow(
+      "No pudimos conectar con el servidor."
+    );
+  });
+});
+
 describe("registrar", () => {
-  const datos = { nombre: "Lucia", apellido: "Gomez", email: "lucia@example.com", telefono: "099123456", password: "secreto123" };
+  const info = { displayName: "Lucia", lastName: "Gomez", email: "lucia@example.com", phone: "099123456", password: "secreto123" };
 
   it("posts the data with name and surname joined, the phone, and returns the token", async () => {
     const data = { access_token: "token", token_type: "bearer" };
     fetch.mockResolvedValue(response(data, { status: 201 }));
 
-    await expect(registrar(datos)).resolves.toEqual(data);
+    await expect(register(info)).resolves.toEqual(data);
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -133,29 +204,38 @@ describe("registrar", () => {
       .mockResolvedValueOnce(response({ detail: [{ msg: "x" }] }, { ok: false, status: 422 }))
       .mockResolvedValueOnce(response({}, { ok: false, status: 500 }));
 
-    await expect(registrar(datos)).rejects.toThrow("El correo ya está en uso.");
-    await expect(registrar(datos)).rejects.toThrow("Revisá los datos ingresados.");
-    await expect(registrar(datos)).rejects.toThrow("No pudimos crear tu cuenta. Intentá de nuevo.");
+    await expect(register(info)).rejects.toThrow("El correo ya está en uso.");
+    await expect(register(info)).rejects.toThrow("Revisá los datos ingresados.");
+    await expect(register(info)).rejects.toThrow("No pudimos crear tu cuenta. Intentá de nuevo.");
   });
 
   it("translates a network failure", async () => {
     fetch.mockRejectedValue(new TypeError("Failed to fetch"));
 
-    await expect(registrar(datos)).rejects.toThrow("No pudimos conectar con el servidor.");
+    await expect(register(info)).rejects.toThrow("No pudimos conectar con el servidor.");
   });
 });
 
-describe("obtenerPerfil", () => {
+describe("getProfile", () => {
   it("sends the given token and maps the profile to the session shape", async () => {
     fetch.mockResolvedValue(
-      response({ user_id: 7, name: "Lucia Gomez", email: "lucia@example.com", phone: "+59899123456" })
+      response({
+        user_id: 7,
+        name: "Lucia Gomez",
+        email: "lucia@example.com",
+        phone: "+59899123456",
+        email_verified: false,
+        marketing_emails: true,
+      })
     );
 
-    await expect(obtenerPerfil("tok")).resolves.toEqual({
-      nombre: "Lucia Gomez",
-      apellido: "",
+    await expect(getProfile("tok")).resolves.toEqual({
+      displayName: "Lucia Gomez",
+      lastName: "",
       email: "lucia@example.com",
-      telefono: "099 123 456",
+      phone: "099 123 456",
+      verifiedEmail: false,
+      recibeOfertas: true,
     });
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me`, {
       headers: { Authorization: "Bearer tok" },
@@ -165,7 +245,7 @@ describe("obtenerPerfil", () => {
   it("maps a missing phone to an empty string", async () => {
     fetch.mockResolvedValue(response({ user_id: 7, name: "Ana", email: "a@b.com", phone: null }));
 
-    await expect(obtenerPerfil("tok")).resolves.toEqual(expect.objectContaining({ telefono: "" }));
+    await expect(getProfile("tok")).resolves.toEqual(expect.objectContaining({ phone: "" }));
   });
 
   it("fails on error statuses, broken bodies and network errors", async () => {
@@ -174,9 +254,219 @@ describe("obtenerPerfil", () => {
       .mockResolvedValueOnce(response(null, { jsonError: new Error("bad json") }))
       .mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
-    await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
-    await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
-    await expect(obtenerPerfil("tok")).rejects.toThrow("No pudimos conectar con el servidor.");
+    await expect(getProfile("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
+    await expect(getProfile("tok")).rejects.toThrow("No pudimos cargar tu perfil.");
+    await expect(getProfile("tok")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("mails de cuenta", () => {
+  const jsonPost = (body, headers = {}) => ({
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  it("verifica el correo con el token del enlace", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await expect(verifyEmail("tok-mail")).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/verify-email`,
+      jsonPost({ token: "tok-mail" })
+    );
+  });
+
+  it("reenvía la verificación con la sesión actual", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await resendVerification();
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/verify-email/resend`,
+      jsonPost(undefined, { Authorization: "Bearer jwt-token" })
+    );
+  });
+
+  it("pide la recuperación y devuelve el mensaje del backend", async () => {
+    fetch.mockResolvedValue(response({ detail: "Si el correo está registrado..." }, { status: 202 }));
+
+    await expect(requestPasswordReset("ana@example.com")).resolves.toBe("Si el correo está registrado...");
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/password/forgot`,
+      jsonPost({ email: "ana@example.com" })
+    );
+  });
+
+  it("restablece la contraseña con el token y la contraseña nueva", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await resetPassword("tok-reset", "Nueva2026x");
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/auth/password/reset`,
+      jsonPost({ token: "tok-reset", new_password: "Nueva2026x" })
+    );
+  });
+
+  it("propaga el detalle del backend y el código de estado", async () => {
+    fetch.mockResolvedValue(
+      response({ detail: "El enlace no es válido o ya venció. Pedí uno nuevo." }, { ok: false, status: 400 })
+    );
+
+    await expect(resetPassword("old", "Nueva2026x")).rejects.toMatchObject({
+      message: "El enlace no es válido o ya venció. Pedí uno nuevo.",
+      status: 400,
+    });
+  });
+
+  it("usa el error de validación de pydantic o un mensaje por defecto", async () => {
+    fetch
+      .mockResolvedValueOnce(response(
+        { detail: [{ loc: ["body", "new_password"], msg: "Value error, La contraseña es muy corta." }] },
+        { ok: false, status: 422 }
+      ))
+      .mockResolvedValueOnce(response(null, { ok: false, status: 500, jsonError: new Error("html") }))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    await expect(resetPassword("tok", "corta")).rejects.toThrow("La contraseña es muy corta.");
+    await expect(verifyEmail("tok")).rejects.toThrow("No pudimos verificar tu correo.");
+    await expect(requestPasswordReset("a@b.com")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("avisos de stock y preferencias de mails", () => {
+  const authHeaders = { "Content-Type": "application/json", Authorization: "Bearer jwt-token" };
+
+  it("lista, pide y cancela avisos de stock", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ part_ids: [3, 7] }))
+      .mockResolvedValueOnce(response(null, { status: 204 }))
+      .mockResolvedValueOnce(response(null, { status: 204 }));
+
+    await expect(getStockAlerts()).resolves.toEqual([3, 7]);
+    await addStockAlert(7);
+    await removeStockAlert(7);
+
+    expect(fetch).toHaveBeenNthCalledWith(1, `${BASE_URL}/api/v1/stock-alerts`, { headers: authHeaders });
+    expect(fetch).toHaveBeenNthCalledWith(2, `${BASE_URL}/api/v1/stock-alerts/7`, { method: "PUT", headers: authHeaders });
+    expect(fetch).toHaveBeenNthCalledWith(3, `${BASE_URL}/api/v1/stock-alerts/7`, { method: "DELETE", headers: authHeaders });
+  });
+
+  it("una respuesta sin lista se toma como vacía", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(getStockAlerts()).resolves.toEqual([]);
+  });
+
+  it("propaga el detalle y el estado de un aviso rechazado", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Este repuesto tiene stock: ya lo podés comprar." }, { ok: false, status: 409 }))
+      .mockResolvedValueOnce(response({}, { ok: false, status: 401 }));
+
+    await expect(addStockAlert(7)).rejects.toMatchObject({
+      message: "Este repuesto tiene stock: ya lo podés comprar.",
+      status: 409,
+    });
+    await expect(addStockAlert(7)).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
+  });
+
+  it("guarda la preferencia y devuelve el perfil", async () => {
+    fetch.mockResolvedValue(response({
+      user_id: 7, name: "Ana", email: "ana@example.com", phone: null, email_verified: true, marketing_emails: false,
+    }));
+
+    await expect(saveMailPreferences(false)).resolves.toEqual(expect.objectContaining({ recibeOfertas: false }));
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me/preferences`, {
+      method: "PUT",
+      body: JSON.stringify({ marketing_emails: false }),
+      headers: authHeaders,
+    });
+  });
+
+  it("se da de baja con el token del enlace, sin sesión", async () => {
+    fetch.mockResolvedValue(response(null, { status: 204, jsonError: new Error("sin cuerpo") }));
+
+    await unsubscribe("tok-baja");
+
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/unsubscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: "tok-baja" }),
+    });
+  });
+});
+
+describe("renewToken", () => {
+  it("posts the current session token and returns the new one", async () => {
+    const data = { access_token: "token-nuevo", token_type: "bearer" };
+    fetch.mockResolvedValue(response(data));
+
+    await expect(renewToken()).resolves.toEqual(data);
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/refresh`, {
+      method: "POST",
+      headers: { Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("rejects with status 401 when the token already expired", async () => {
+    fetch.mockResolvedValue(response({ detail: "Token inválido o expirado." }, { ok: false, status: 401 }));
+
+    await expect(renewToken()).rejects.toMatchObject({
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+      status: 401,
+    });
+  });
+
+  it("ignores the answer when the session token changed while the request was in flight", async () => {
+    // Cambió la contraseña en este dispositivo y se guardó un token nuevo
+    // mientras /refresh viajaba con el viejo: ni su 200 ni su 401 valen.
+    fetch.mockImplementation(async () => {
+      getSession.mockReturnValue({ token: "jwt-nuevo" });
+      return response({ access_token: "token-con-sv-viejo", token_type: "bearer" });
+    });
+    await expect(renewToken()).rejects.toThrow("La sesión cambió mientras se renovaba.");
+
+    getSession.mockReturnValue({ token: "jwt-token" });
+    fetch.mockImplementation(async () => {
+      getSession.mockReturnValue({ token: "jwt-nuevo" });
+      return response({ detail: "x" }, { ok: false, status: 401 });
+    });
+    const error = await renewToken().catch((e) => e);
+    expect(error.message).toBe("La sesión cambió mientras se renovaba.");
+    expect(error.status).toBeUndefined();
+  });
+
+  it("ignores the answer when the session was closed while the request was in flight", async () => {
+    fetch.mockImplementation(async () => {
+      getSession.mockReturnValue(null);
+      return response({ access_token: "token-nuevo", token_type: "bearer" });
+    });
+
+    await expect(renewToken()).rejects.toThrow("La sesión cambió mientras se renovaba.");
+  });
+
+  it("keeps the status of other server errors so the caller can retry", async () => {
+    fetch.mockResolvedValue(response({}, { ok: false, status: 503 }));
+
+    await expect(renewToken()).rejects.toMatchObject({
+      message: "No pudimos renovar tu sesión.",
+      status: 503,
+    });
+  });
+
+  it("rejects without a status when there is no connection, or the body is not usable", async () => {
+    fetch
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(response(null, { jsonError: new Error("bad json") }))
+      .mockResolvedValueOnce(response({ token_type: "bearer" }));
+
+    const withoutNetwork = await renewToken().catch((e) => e);
+    expect(withoutNetwork.message).toBe("No pudimos conectar con el servidor.");
+    expect(withoutNetwork.status).toBeUndefined();
+
+    await expect(renewToken()).rejects.toThrow("No pudimos renovar tu sesión.");
+    await expect(renewToken()).rejects.toThrow("No pudimos renovar tu sesión.");
   });
 });
 
@@ -184,7 +474,7 @@ describe("favorites API", () => {
   it("loads the favorites with the session token and maps them like the catalog", async () => {
     fetch.mockResolvedValue(response({ parts: [backendPart] }));
 
-    await expect(obtenerFavoritos()).resolves.toEqual([uiPart]);
+    await expect(getFavorites()).resolves.toEqual([uiPart]);
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/favorites`, {
       headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
     });
@@ -193,14 +483,14 @@ describe("favorites API", () => {
   it("fails when the list is missing", async () => {
     fetch.mockResolvedValue(response({}));
 
-    await expect(obtenerFavoritos()).rejects.toThrow("No pudimos cargar tus favoritos.");
+    await expect(getFavorites()).rejects.toThrow("No pudimos cargar tus favoritos.");
   });
 
   it("marks and unmarks a part", async () => {
     fetch.mockResolvedValue({ ok: true, status: 204, json: jest.fn() });
 
-    await expect(agregarFavoritoAPI(21)).resolves.toBeUndefined();
-    await expect(quitarFavoritoAPI(21)).resolves.toBeUndefined();
+    await expect(addFavoriteApi(21)).resolves.toBeUndefined();
+    await expect(removeFavoriteApi(21)).resolves.toBeUndefined();
 
     expect(fetch).toHaveBeenNthCalledWith(1, `${BASE_URL}/api/v1/favorites/21`, expect.objectContaining({ method: "PUT" }));
     expect(fetch).toHaveBeenNthCalledWith(2, `${BASE_URL}/api/v1/favorites/21`, expect.objectContaining({ method: "DELETE" }));
@@ -211,27 +501,27 @@ describe("favorites API", () => {
       .mockResolvedValueOnce(response({ detail: "Repuesto no encontrado." }, { ok: false, status: 404 }))
       .mockResolvedValueOnce(response(null, { ok: false, status: 401, jsonError: new Error("bad json") }));
 
-    await expect(agregarFavoritoAPI(999)).rejects.toThrow("Repuesto no encontrado.");
-    await expect(quitarFavoritoAPI(1)).rejects.toMatchObject({
+    await expect(addFavoriteApi(999)).rejects.toThrow("Repuesto no encontrado.");
+    await expect(removeFavoriteApi(1)).rejects.toMatchObject({
       message: "Tu sesión venció. Iniciá sesión de nuevo.",
       status: 401,
     });
   });
 });
 
-describe("actualizarPerfil", () => {
+describe("updateProfile", () => {
   it("sends name and phone with the session token and maps the response", async () => {
     fetch.mockResolvedValue(
       response({ user_id: 7, name: "Lucia Perez", email: "lucia@example.com", phone: "+59898765432" })
     );
 
     await expect(
-      actualizarPerfil({ nombre: "Lucia", apellido: "Perez", telefono: "098 765 432" })
+      updateProfile({ displayName: "Lucia", lastName: "Perez", phone: "098 765 432" })
     ).resolves.toEqual({
-      nombre: "Lucia Perez",
-      apellido: "",
+      displayName: "Lucia Perez",
+      lastName: "",
       email: "lucia@example.com",
-      telefono: "098 765 432",
+      phone: "098 765 432",
     });
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me`, {
       method: "PATCH",
@@ -243,7 +533,7 @@ describe("actualizarPerfil", () => {
   it("sends a null phone when it is empty", async () => {
     fetch.mockResolvedValue(response({ user_id: 7, name: "Ana", email: "a@b.com", phone: null }));
 
-    await actualizarPerfil({ nombre: "Ana", apellido: "", telefono: "" });
+    await updateProfile({ displayName: "Ana", lastName: "", phone: "" });
 
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ name: "Ana", phone: null });
   });
@@ -255,24 +545,39 @@ describe("actualizarPerfil", () => {
       .mockResolvedValueOnce(response(null, { jsonError: new Error("bad json") }))
       .mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
-    const datos = { nombre: "Ana", apellido: "", telefono: "" };
-    await expect(actualizarPerfil(datos)).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
-    await expect(actualizarPerfil(datos)).rejects.toThrow("Revisá el nombre y el teléfono (ej: 099 123 456).");
-    await expect(actualizarPerfil(datos)).rejects.toThrow("No pudimos guardar tus datos.");
-    await expect(actualizarPerfil(datos)).rejects.toThrow("No pudimos conectar con el servidor.");
+    const info = { displayName: "Ana", lastName: "", phone: "" };
+    await expect(updateProfile(info)).rejects.toMatchObject({
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+      status: 401,
+    });
+    await expect(updateProfile(info)).rejects.toThrow("Revisá el nombre y el teléfono (ej: 099 123 456).");
+    await expect(updateProfile(info)).rejects.toThrow("No pudimos guardar tus datos.");
+    await expect(updateProfile(info)).rejects.toThrow("No pudimos conectar con el servidor.");
   });
 });
 
-describe("cambiarPassword", () => {
-  it("sends both passwords with the session token", async () => {
-    fetch.mockResolvedValue({ ok: true, status: 204, json: jest.fn() });
+describe("changePassword", () => {
+  it("sends both passwords with the session token and returns the new token", async () => {
+    const data = { access_token: "jwt-nuevo", token_type: "bearer" };
+    fetch.mockResolvedValue(response(data));
 
-    await expect(cambiarPassword("secreto123", "nueva-clave-1")).resolves.toBeUndefined();
+    await expect(changePassword("secreto123", "nueva-clave-1")).resolves.toEqual(data);
     expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/auth/me/password`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
       body: JSON.stringify({ current_password: "secreto123", new_password: "nueva-clave-1" }),
     });
+  });
+
+  it("shows the backend validation message for a weak new password", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Esa contraseña es muy común. Elegí otra." }, { ok: false, status: 422 }))
+      .mockResolvedValueOnce(response({
+        detail: [{ loc: ["body", "new_password"], msg: "Value error, La contraseña tiene que tener al menos una letra y un número." }],
+      }, { ok: false, status: 422 }));
+
+    await expect(changePassword("a", "b")).rejects.toThrow("Esa contraseña es muy común. Elegí otra.");
+    await expect(changePassword("a", "b")).rejects.toThrow("La contraseña tiene que tener al menos una letra y un número.");
   });
 
   it("maps error statuses, broken bodies and network errors to messages", async () => {
@@ -283,22 +588,131 @@ describe("cambiarPassword", () => {
       .mockResolvedValueOnce(response(null, { ok: false, status: 500, jsonError: new Error("bad json") }))
       .mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
-    await expect(cambiarPassword("a", "b")).rejects.toThrow("La contraseña actual es incorrecta.");
-    await expect(cambiarPassword("a", "b")).rejects.toThrow("Tu sesión venció. Iniciá sesión de nuevo.");
-    await expect(cambiarPassword("a", "b")).rejects.toThrow("La nueva contraseña tiene que tener entre 8 caracteres y 72 bytes.");
-    await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos cambiar tu contraseña.");
-    await expect(cambiarPassword("a", "b")).rejects.toThrow("No pudimos conectar con el servidor.");
+    await expect(changePassword("a", "b")).rejects.toThrow("La contraseña actual es incorrecta.");
+    await expect(changePassword("a", "b")).rejects.toMatchObject({
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+      status: 401,
+    });
+    await expect(changePassword("a", "b")).rejects.toThrow("Revisá la nueva contraseña.");
+    await expect(changePassword("a", "b")).rejects.toThrow("No pudimos cambiar tu contraseña.");
+    await expect(changePassword("a", "b")).rejects.toThrow("No pudimos conectar con el servidor.");
+  });
+});
+
+describe("onInvalidSession", () => {
+  const without401 = { ok: false, status: 401 };
+  let onInvalidarse;
+  let desregistrar;
+
+  beforeEach(() => {
+    onInvalidarse = jest.fn();
+    desregistrar = onInvalidSession(onInvalidarse);
+  });
+
+  afterEach(() => {
+    desregistrar();
+  });
+
+  it.each([
+    ["getFavorites", () => getFavorites()],
+    ["getCart", () => getCart()],
+    ["addCartItem", () => addCartItem(1, 1)],
+    ["getAddresses", () => getAddresses()],
+    ["createPaymentLink", () => createPaymentLink(42)],
+    ["getStockAlerts", () => getStockAlerts()],
+    ["getProfile", () => getProfile("jwt-token")],
+    ["updateProfile", () => updateProfile({ displayName: "Ana", lastName: "", phone: "" })],
+    ["changePassword", () => changePassword("a", "b")],
+    ["resendVerification", () => resendVerification()],
+  ])("fires when %s gets a 401 with the session token", async (name, llamar) => {
+    fetch.mockResolvedValue(response({ detail: "Token inválido o expirado." }, without401));
+
+    await expect(llamar()).rejects.toThrow();
+
+    expect(onInvalidarse).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire for the 401 of a failed login", async () => {
+    fetch.mockResolvedValue(response({ detail: "Credenciales inválidas" }, without401));
+
+    await expect(login("user@example.com", "bad")).rejects.toThrow();
+
+    expect(onInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("does not fire for the 400 of a wrong current password", async () => {
+    fetch.mockResolvedValue(
+      response({ detail: "La contraseña actual es incorrecta." }, { ok: false, status: 400 })
+    );
+
+    await expect(changePassword("mal", "nueva-clave-1")).rejects.toThrow(
+      "La contraseña actual es incorrecta."
+    );
+
+    expect(onInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("does not fire for other error statuses", async () => {
+    fetch.mockResolvedValue(response({ detail: "x" }, { ok: false, status: 403 }));
+
+    await expect(getCart()).rejects.toThrow();
+
+    expect(onInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("does not fire when the request did not send a token", async () => {
+    getSession.mockReturnValue(null);
+    fetch.mockResolvedValue(response({ detail: "x" }, without401));
+
+    await expect(getCart()).rejects.toThrow();
+
+    expect(onInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("ignores a 401 for a token that is no longer the session one", async () => {
+    // El token cambió mientras el pedido estaba en vuelo (cambio de contraseña
+    // o sesión ya cerrada): el 401 es del token viejo.
+    fetch.mockImplementation(async () => {
+      getSession.mockReturnValue({ token: "jwt-nuevo" });
+      return response({ detail: "x" }, without401);
+    });
+
+    await expect(getCart()).rejects.toThrow();
+
+    expect(onInvalidarse).not.toHaveBeenCalled();
+  });
+
+  it("stops calling the handler once it is unregistered", async () => {
+    desregistrar();
+    fetch.mockResolvedValue(response({ detail: "x" }, without401));
+
+    await expect(getFavorites()).rejects.toThrow();
+
+    expect(onInvalidarse).not.toHaveBeenCalled();
   });
 });
 
 describe("catalog API", () => {
+  it("loads one part by its URL ID and maps it like a catalog result", async () => {
+    fetch.mockResolvedValue(response(backendPart));
+
+    await expect(getPart(21)).resolves.toEqual(uiPart);
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/parts/21`);
+  });
+
+  it("preserves the 404 status for a missing part", async () => {
+    fetch.mockResolvedValue(response({ detail: "Repuesto no encontrado." }, { ok: false, status: 404 }));
+
+    await expect(getPart(999999)).rejects.toMatchObject({ status: 404 });
+  });
+
   it("requests all parts or combines and encodes the supported filters", async () => {
     fetch.mockResolvedValue(response({ parts: [backendPart] }));
 
-    await expect(obtenerRepuestos()).resolves.toEqual([uiPart]);
+    await expect(getParts()).resolves.toEqual([uiPart]);
     expect(fetch).toHaveBeenNthCalledWith(1, `${BASE_URL}/api/v1/parts`);
 
-    await obtenerRepuestos({
+    await getParts({
       categoria: "Frenos y filtros",
       brand: "Volkswagen & Audi",
       model: "Golf GTI",
@@ -315,14 +729,23 @@ describe("catalog API", () => {
       .mockResolvedValueOnce(response({ parts: [backendPart] }))
       .mockResolvedValueOnce(response({ categories: [{ name: "Frenos", count: 3 }] }));
 
-    await expect(obtenerRepuestos("Frenos")).resolves.toEqual([uiPart]);
+    await expect(getParts("Frenos")).resolves.toEqual([uiPart]);
     expect(fetch).toHaveBeenNthCalledWith(
       1,
       `${BASE_URL}/api/v1/parts?categoria=Frenos`
     );
-    await expect(obtenerCategorias()).resolves.toEqual([
-      { nombre: "Frenos", cantidad: 3 },
+    await expect(getCategories()).resolves.toEqual([
+      { displayName: "Frenos", quantity: 3 },
     ]);
+  });
+
+  it("asks for the best sellers of the last 90 days with stock", async () => {
+    fetch.mockResolvedValueOnce(response({ parts: [{ ...backendPart, units_sold: 7 }] }));
+
+    await expect(getBestSellers()).resolves.toEqual([uiPart]);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/parts/best-sellers?limit=4&days=90&in_stock=true`
+    );
   });
 
   it("reports network, HTTP, invalid JSON, and malformed list failures", async () => {
@@ -332,10 +755,10 @@ describe("catalog API", () => {
       .mockResolvedValueOnce(response(null, { jsonError: new SyntaxError("invalid JSON") }))
       .mockResolvedValueOnce(response({}));
 
-    await expect(obtenerRepuestos()).rejects.toThrow("No pudimos cargar los repuestos.");
-    await expect(obtenerRepuestos()).rejects.toThrow("Backend en mantenimiento");
-    await expect(obtenerRepuestos()).rejects.toThrow("No pudimos cargar los repuestos.");
-    await expect(obtenerRepuestos()).rejects.toThrow("No pudimos cargar los repuestos.");
+    await expect(getParts()).rejects.toThrow("No pudimos cargar los repuestos.");
+    await expect(getParts()).rejects.toThrow("Backend en mantenimiento");
+    await expect(getParts()).rejects.toThrow("No pudimos cargar los repuestos.");
+    await expect(getParts()).rejects.toThrow("No pudimos cargar los repuestos.");
   });
 
   it("maps brands and URL-encodes the requested brand for models", async () => {
@@ -343,12 +766,24 @@ describe("catalog API", () => {
       .mockResolvedValueOnce(response({ brands: [{ brand: "Volkswagen" }] }))
       .mockResolvedValueOnce(response({ models: [{ model: "Golf" }] }));
 
-    await expect(obtenerMarcas()).resolves.toEqual([{ brand: "Volkswagen" }]);
-    await expect(obtenerModelos("VW & Audi")).resolves.toEqual([{ model: "Golf" }]);
+    await expect(getBrands()).resolves.toEqual([{ brand: "Volkswagen" }]);
+    await expect(getModels("VW & Audi")).resolves.toEqual([{ model: "Golf" }]);
     expect(fetch).toHaveBeenNthCalledWith(
       2,
       `${BASE_URL}/api/v1/models?brand=VW%20%26%20Audi`
     );
+  });
+
+  it("requests years from the API base URL with the brand and model encoded", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ years: [2020, 2021] }))
+      .mockResolvedValueOnce(response({}));
+
+    await expect(getYears("VW & Audi", "Golf GTI")).resolves.toEqual([2020, 2021]);
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/years?brand=VW%20%26%20Audi&model=Golf%20GTI`
+    );
+    await expect(getYears("Toyota", "Corolla")).resolves.toEqual([]);
   });
 });
 
@@ -356,6 +791,7 @@ describe("cart API", () => {
   const backendCart = {
     items: [{
       part_id: 21,
+      part_code: "BRK-0021",
       name: "Disco de freno",
       price: 2450,
       amount: 2,
@@ -369,13 +805,14 @@ describe("cart API", () => {
     items: [{
       id: "21",
       partId: 21,
-      nombre: "Disco de freno",
-      precio: 2450,
-      cantidad: 2,
+      code: "BRK-0021",
+      displayName: "Disco de freno",
+      price: 2450,
+      quantity: 2,
       subtotal: 4900,
       stock: 7,
       categoria: "Frenos",
-      imagen: IMAGEN_PLACEHOLDER,
+      image: PLACEHOLDER_IMAGE,
     }],
     total: 4900,
   };
@@ -383,11 +820,11 @@ describe("cart API", () => {
   it("sends authenticated GET/POST/PATCH/DELETE operations and maps each cart", async () => {
     fetch.mockResolvedValue(response(backendCart));
 
-    await expect(obtenerCarrito()).resolves.toEqual(uiCart);
-    await expect(agregarItemCarrito(21, 2)).resolves.toEqual(uiCart);
-    await expect(actualizarItemCarrito(21, 2)).resolves.toEqual(uiCart);
-    await expect(eliminarItemCarrito(21)).resolves.toEqual(uiCart);
-    await expect(vaciarCarritoAPI()).resolves.toEqual(uiCart);
+    await expect(getCart()).resolves.toEqual(uiCart);
+    await expect(addCartItem(21, 2)).resolves.toEqual(uiCart);
+    await expect(updateCartItem(21, 2)).resolves.toEqual(uiCart);
+    await expect(removeCartItem(21)).resolves.toEqual(uiCart);
+    await expect(clearCartApi()).resolves.toEqual(uiCart);
 
     expect(fetch).toHaveBeenNthCalledWith(1, `${BASE_URL}/api/v1/cart`, {
       headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
@@ -418,15 +855,15 @@ describe("cart API", () => {
       .mockResolvedValueOnce(response({ detail: "Stock actualizado" }, { ok: false, status: 409 }))
       .mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
-    await expect(obtenerCarrito()).rejects.toMatchObject({
+    await expect(getCart()).rejects.toMatchObject({
       message: "No hay stock suficiente.",
       status: 409,
     });
-    await expect(obtenerCarrito()).rejects.toMatchObject({
+    await expect(getCart()).rejects.toMatchObject({
       message: "Stock actualizado",
       status: 409,
     });
-    await expect(obtenerCarrito()).rejects.toThrow("No pudimos conectar con el carrito.");
+    await expect(getCart()).rejects.toThrow("No pudimos conectar con el carrito.");
   });
 });
 
@@ -444,14 +881,14 @@ describe("address API", () => {
   };
   const uiAddress = {
     id: 4,
-    nombre: "Casa",
-    calle: "Av. Italia",
-    numero: "1234",
+    displayName: "Casa",
+    street: "Av. Italia",
+    number: "1234",
     apartamento: "",
-    ciudad: "Montevideo",
-    departamento: "Montevideo",
-    codigoPostal: "",
-    principal: true,
+    city: "Montevideo",
+    department: "Montevideo",
+    codePostal: "",
+    primary: true,
   };
 
   it("maps addresses and submits create, primary, and delete requests", async () => {
@@ -461,19 +898,19 @@ describe("address API", () => {
       .mockResolvedValueOnce(response(backendAddress))
       .mockResolvedValueOnce(response(null, { status: 204 }));
 
-    await expect(obtenerDirecciones()).resolves.toEqual([uiAddress]);
-    await expect(crearDireccion({
-      nombre: "Casa",
-      calle: "Av. Italia",
-      numero: "1234",
+    await expect(getAddresses()).resolves.toEqual([uiAddress]);
+    await expect(createAddress({
+      displayName: "Casa",
+      street: "Av. Italia",
+      number: "1234",
       apartamento: "",
-      ciudad: "Montevideo",
-      departamento: "Montevideo",
-      codigoPostal: "",
-      principal: true,
+      city: "Montevideo",
+      department: "Montevideo",
+      codePostal: "",
+      primary: true,
     })).resolves.toEqual(uiAddress);
-    await expect(marcarDireccionPrincipal(4)).resolves.toEqual(uiAddress);
-    await expect(eliminarDireccionAPI(4)).resolves.toBeUndefined();
+    await expect(setPrimaryAddress(4)).resolves.toEqual(uiAddress);
+    await expect(deleteAddressApi(4)).resolves.toBeUndefined();
 
     expect(fetch).toHaveBeenNthCalledWith(2, `${BASE_URL}/api/v1/addresses`, {
       method: "POST",
@@ -502,70 +939,131 @@ describe("address API", () => {
   it("uses endpoint-specific errors for rejected requests", async () => {
     fetch.mockResolvedValue(response({}, { ok: false, status: 422 }));
 
-    await expect(obtenerDirecciones()).rejects.toMatchObject({
+    await expect(getAddresses()).rejects.toMatchObject({
       message: "Revisá los datos de la dirección.",
       status: 422,
     });
   });
 });
 
-describe("payment method API", () => {
-  const backendMethod = {
-    payment_method_id: 8,
-    card_type: "Visa",
-    holder: "Ana Pérez",
-    last_four: "4242",
-    expiry: "12/30",
-    is_primary: true,
-  };
-  const uiMethod = {
-    id: 8,
-    tipo: "Visa",
-    titular: "Ana Pérez",
-    numero: "4242",
-    vencimiento: "12/30",
-    principal: true,
+describe("orders and Mercado Pago API", () => {
+  const backendOrder = {
+    order_id: 42,
+    created_at: "2026-10-27T12:00:00Z",
+    status: "confirmed",
+    shipping_address: null,
+    payment_method: "Mercado Pago",
+    payment_status: "pending",
+    total: 3000,
+    items: [],
   };
 
-  it("maps methods and only submits the final four card digits", async () => {
-    fetch
-      .mockResolvedValueOnce(response([backendMethod]))
-      .mockResolvedValueOnce(response(backendMethod))
-      .mockResolvedValueOnce(response(backendMethod))
-      .mockResolvedValueOnce(response(null, { status: 204 }));
+  it("confirms a pickup purchase without sending an address", async () => {
+    fetch.mockResolvedValue(response(backendOrder));
 
-    await expect(obtenerMetodosPago()).resolves.toEqual([uiMethod]);
-    await expect(crearMetodoPago({
-      tipo: "Visa",
-      titular: "Ana Pérez",
-      numero: "4111 1111 1111 4242",
-      vencimiento: "12/30",
-      principal: true,
-      cvv: "123",
-    })).resolves.toEqual(uiMethod);
-    await expect(marcarMetodoPagoPrincipal(8)).resolves.toEqual(uiMethod);
-    await expect(eliminarMetodoPagoAPI(8)).resolves.toBeUndefined();
+    await confirmPurchase({ idAddress: 3, deliveryMethod: "pickup" });
 
-    expect(fetch).toHaveBeenNthCalledWith(2, `${BASE_URL}/api/v1/payment-methods`, {
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/orders`, {
       method: "POST",
-      body: JSON.stringify({
-        card_type: "Visa",
-        holder: "Ana Pérez",
-        last_four: "4242",
-        expiry: "12/30",
-        is_primary: true,
-      }),
+      body: JSON.stringify({ shipping_address_id: null, delivery_method: "pickup" }),
       headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
     });
-    expect(JSON.stringify(fetch.mock.calls[1][1].body)).not.toContain("123");
   });
 
-  it("uses a payment-specific validation error", async () => {
-    fetch.mockResolvedValue(response({}, { ok: false, status: 422 }));
+  it("confirms the purchase with only the chosen address and maps the payment status", async () => {
+    fetch.mockResolvedValue(response(backendOrder));
 
-    await expect(obtenerMetodosPago()).rejects.toMatchObject({
-      message: "Revisá los datos de la tarjeta.",
-      status: 422,
+    await expect(confirmPurchase({ idAddress: 3 })).resolves.toMatchObject({
+      id: 42,
+      paymentMethod: "Mercado Pago",
+      paymentStatus: "pending",
+    });
+
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/orders`, {
+      method: "POST",
+      body: JSON.stringify({ shipping_address_id: 3, delivery_method: "shipping" }),
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("maps orders from before Mercado Pago without a payment status", async () => {
+    fetch.mockResolvedValue(response({ ...backendOrder, payment_method: "Visa •••• 1234", payment_status: null }));
+
+    await expect(getPurchaseDetail(42)).resolves.toMatchObject({ paymentStatus: null });
+  });
+
+  it("maps the order tracking and the cancel reason", async () => {
+    fetch.mockResolvedValue(response({
+      ...backendOrder,
+      status: "cancelled",
+      status_history: [
+        { status: "confirmed", changed_at: "2026-01-02T10:00:00Z" },
+        { status: "cancelled", changed_at: null },
+      ],
+      cancel_reason: "store",
+    }));
+
+    await expect(getPurchaseDetail(42)).resolves.toMatchObject({
+      tracking: [
+        { estado: "confirmed", date: "2026-01-02T10:00:00Z" },
+        { estado: "cancelled", date: null },
+      ],
+      reasonCancellation: "store",
+    });
+  });
+
+  it("confirms the arrival of an order and returns it delivered", async () => {
+    fetch.mockResolvedValue(response({ ...backendOrder, status: "delivered" }));
+
+    await expect(confirmReceipt(42)).resolves.toMatchObject({ id: backendOrder.order_id, estado: "delivered" });
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/orders/42/recibido`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("uses the backend detail when the arrival can't be confirmed", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Solo se puede confirmar la llegada de un pedido enviado." }, { ok: false, status: 409 }))
+      .mockResolvedValueOnce(response({}, { ok: false, status: 404 }));
+
+    await expect(confirmReceipt(42)).rejects.toMatchObject({
+      message: "Solo se puede confirmar la llegada de un pedido enviado.",
+      status: 409,
+    });
+    await expect(confirmReceipt(42)).rejects.toMatchObject({ message: "No encontramos ese pedido.", status: 404 });
+  });
+
+  it("asks for the Mercado Pago link of an order", async () => {
+    fetch.mockResolvedValue(response({ url: "https://mercadopago.test/pagar" }));
+
+    await expect(createPaymentLink(42)).resolves.toBe("https://mercadopago.test/pagar");
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/pagos/42`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("asks the backend to verify the payment Mercado Pago returned with", async () => {
+    fetch.mockResolvedValue(response({ estado: "approved" }));
+
+    await expect(verifyPayment(42, "999")).resolves.toBe("approved");
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/pagos/42/verificar`, {
+      method: "POST",
+      body: JSON.stringify({ payment_id: "999" }),
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
+
+  it("uses the backend detail or a payment-specific message when the link fails", async () => {
+    fetch
+      .mockResolvedValueOnce(response({ detail: "Este pedido ya está pagado." }, { ok: false, status: 409 }))
+      .mockResolvedValueOnce(response({}, { ok: false, status: 503 }));
+
+    await expect(createPaymentLink(42)).rejects.toMatchObject({ message: "Este pedido ya está pagado.", status: 409 });
+    await expect(createPaymentLink(42)).rejects.toMatchObject({
+      message: "No pudimos conectar con Mercado Pago. Probá de nuevo en un rato.",
+      status: 503,
     });
   });
 });
@@ -574,11 +1072,11 @@ describe("recommendations API", () => {
   it("skips empty IDs and maps recommendations for valid IDs", async () => {
     fetch.mockResolvedValue(response({ parts: [backendPart] }));
 
-    await expect(obtenerRecomendaciones([])).resolves.toEqual([]);
-    await expect(obtenerRecomendaciones([null, undefined])).resolves.toEqual([]);
+    await expect(getRecommendations([])).resolves.toEqual([]);
+    await expect(getRecommendations([null, undefined])).resolves.toEqual([]);
     expect(fetch).not.toHaveBeenCalled();
 
-    await expect(obtenerRecomendaciones([21, null, 32])).resolves.toEqual([uiPart]);
+    await expect(getRecommendations([21, null, 32])).resolves.toEqual([uiPart]);
     expect(fetch).toHaveBeenCalledWith(
       `${BASE_URL}/api/v1/recommendations?part_ids=21,32`
     );
@@ -587,6 +1085,323 @@ describe("recommendations API", () => {
   it("returns an empty list if the optional recommendations service fails", async () => {
     fetch.mockRejectedValue(new TypeError("Failed to fetch"));
 
-    await expect(obtenerRecomendaciones([21])).resolves.toEqual([]);
+    await expect(getRecommendations([21])).resolves.toEqual([]);
+  });
+});
+
+describe("assistant API", () => {
+  const backendPart = {
+    id: 11, name: "Pastillas de freno delanteras Bosch", manufacturer: "Bosch", part_code: "BRK-0011",
+    category: "Frenos", price: 2800, stock: 5, compatible_brands: ["Chevrolet"], compatible_models: ["Onix"],
+  };
+
+  it("sends the symptom and the vehicle with the session and maps the parts like the catalog", async () => {
+    fetch.mockResolvedValue(response({
+      diagnostico: "Pastillas gastadas.", urgencia: "alta", aviso: "No manejes.", pregunta: null, fuera_de_tema: false,
+      recomendaciones: [{ tipo: "Pastillas de freno", motivo: "Chillido.", repuestos: [backendPart] }],
+    }));
+
+    const result = await askAssistant({ texto: "chilla", marca: "Chevrolet", modelo: "Onix", anio: "2016" });
+
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/asistente`, expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ texto: "chilla", marca: "Chevrolet", modelo: "Onix", anio: 2016 }),
+      headers: expect.objectContaining({ Authorization: "Bearer jwt-token" }),
+    }));
+    expect(result).toMatchObject({ diagnostico: "Pastillas gastadas.", urgencia: "alta", aviso: "No manejes.", offTopic: false });
+    expect(result.recomendaciones[0].repuestos[0]).toMatchObject({ id: "11", displayName: backendPart.name, fabricante: "Bosch", price: 2800 });
+  });
+
+  it("sends the signed history to continue the conversation and returns the new one", async () => {
+    const historial = [{ rol: "cliente", texto: "chilla" }, { rol: "asistente", texto: "Pastillas gastadas." }];
+    fetch.mockResolvedValue(response({
+      diagnostico: "Si es fuerte, revisá los discos.", urgencia: "media", aviso: null, pregunta: "¿Hace cuánto?",
+      opciones: ["Una semana"], fuera_de_tema: false, recomendaciones: [],
+      historial: [...historial, { rol: "cliente", texto: "fuerte" }], firma: "firma-2",
+    }));
+
+    const result = await askAssistant({
+      texto: "fuerte", marca: "Chevrolet", modelo: "Onix", anio: "2016", historial, firma: "firma-1",
+    });
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      texto: "fuerte", marca: "Chevrolet", modelo: "Onix", anio: 2016, historial, firma: "firma-1",
+    });
+    expect(result).toMatchObject({ opciones: ["Una semana"], firma: "firma-2" });
+    expect(result.historial).toHaveLength(3);
+  });
+
+  it("keeps the status so the screen can offer the catalog search", async () => {
+    fetch.mockResolvedValue(response({ detail: "El asistente no está disponible." }, { status: 503, ok: false }));
+
+    await expect(askAssistant({ texto: "x y z", marca: "A", modelo: "B", anio: 2016 }))
+      .rejects.toMatchObject({ status: 503, message: "El asistente no está disponible." });
+  });
+});
+
+describe("purchase history", () => {
+  // El backend no manda el id ni `is_primary` en la dirección de un pedido
+  // (OrderShippingAddressOut): solo los datos para mostrarla.
+  const pedido = {
+    order_id: 42,
+    created_at: "2026-11-01T10:00:00Z",
+    status: "packing",
+    shipping_address: {
+      personal_name: "Ana Pérez",
+      street: "18 de Julio",
+      number: "1234",
+      apartment: null,
+      city: "Montevideo",
+      department: "Montevideo",
+      postal_code: null,
+    },
+    payment_method: "mercado_pago",
+    payment_status: "pending",
+    payment_due_at: "2026-11-02T10:00:00Z",
+    total: 4900,
+    status_history: [{ status: "confirmed", changed_at: "2026-11-01T10:00:00Z" }, { status: "packing" }],
+    items: [{ part_id: 21, part_code: "DF-21", name: "Disco de freno", quantity: 2, frozen_price: 2450 }],
+  };
+
+  it("maps every order with its address, payment deadline, tracking and frozen prices", async () => {
+    fetch.mockResolvedValue(response({ orders: [pedido] }));
+
+    await expect(getPurchaseHistory()).resolves.toEqual([
+      {
+        id: 42,
+        date: "2026-11-01T10:00:00Z",
+        estado: "packing",
+        shippingAddress: {
+          displayName: "Ana Pérez",
+          street: "18 de Julio",
+          number: "1234",
+          apartamento: "",
+          city: "Montevideo",
+          department: "Montevideo",
+          codePostal: "",
+        },
+        paymentMethod: "mercado_pago",
+        paymentStatus: "pending",
+        expiresPayment: "2026-11-02T10:00:00Z",
+        deliveryMethod: "shipping",
+        detailCancellation: null,
+        total: 4900,
+        tracking: [
+          { estado: "confirmed", date: "2026-11-01T10:00:00Z" },
+          { estado: "packing", date: null },
+        ],
+        reasonCancellation: null,
+        items: [{ partId: 21, code: "DF-21", displayName: "Disco de freno", quantity: 2, price: 2450 }],
+      },
+    ]);
+    expect(fetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/v1/orders`);
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBe("Bearer jwt-token");
+  });
+
+  it("tolerates an order that comes without address, payment, tracking or items", async () => {
+    fetch.mockResolvedValue(response({ orders: [{ order_id: 7, created_at: "2025-01-01", status: "shipped" }] }));
+
+    await expect(getPurchaseHistory()).resolves.toEqual([
+      {
+        id: 7,
+        date: "2025-01-01",
+        estado: "shipped",
+        shippingAddress: null,
+        paymentMethod: "",
+        paymentStatus: null,
+        expiresPayment: null,
+        deliveryMethod: "shipping",
+        detailCancellation: null,
+        total: 0,
+        tracking: [],
+        reasonCancellation: null,
+        items: [],
+      },
+    ]);
+  });
+
+  it("keeps the reasons of a cancelled order", async () => {
+    fetch.mockResolvedValue(
+      response({ orders: [{ order_id: 9, status: "cancelled", cancellation_reason: "Sin stock", cancel_reason: "store" }] })
+    );
+
+    const [compra] = await getPurchaseHistory();
+
+    expect(compra).toMatchObject({ detailCancellation: "Sin stock", reasonCancellation: "store" });
+  });
+
+  it("keeps a line of an order when the part lost its code or name", async () => {
+    fetch.mockResolvedValue(
+      response({ orders: [{ order_id: 8, items: [{ part_id: 1, quantity: 1, frozen_price: 10 }] }] })
+    );
+
+    const [compra] = await getPurchaseHistory();
+
+    expect(compra.items).toEqual([{ partId: 1, code: "", displayName: "", quantity: 1, price: 10 }]);
+  });
+
+  it("fails when the answer has no list of orders", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(getPurchaseHistory()).rejects.toThrow("No pudimos cargar tu historial de compras.");
+  });
+
+  it("explains an expired session", async () => {
+    fetch.mockResolvedValue(response({}, { status: 401, ok: false }));
+
+    await expect(getPurchaseHistory()).rejects.toMatchObject({
+      status: 401,
+      message: "Tu sesión venció. Iniciá sesión de nuevo.",
+    });
+  });
+});
+
+describe("confirmPurchase without a chosen address", () => {
+  it("lets the backend use the primary address", async () => {
+    fetch.mockResolvedValue(response({ order_id: 1, items: [] }));
+
+    await confirmPurchase();
+
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ shipping_address_id: null, delivery_method: "shipping" });
+  });
+
+  it("explains missing stock, the most delicate rejection of a purchase", async () => {
+    fetch.mockResolvedValue(response({}, { status: 409, ok: false }));
+
+    await expect(confirmPurchase({ idAddress: 3 })).rejects.toMatchObject({
+      status: 409,
+      message: "No hay stock suficiente para completar la compra.",
+    });
+  });
+
+  it("prefers the backend detail over the generic message", async () => {
+    fetch.mockResolvedValue(response({ detail: "Sin stock de DF-21." }, { status: 409, ok: false }));
+
+    await expect(confirmPurchase()).rejects.toThrow("Sin stock de DF-21.");
+  });
+
+  it("does not report a purchase as confirmed when the answer cannot be read", async () => {
+    fetch.mockResolvedValue(response(null, { jsonError: new SyntaxError("vacío") }));
+
+    await expect(confirmPurchase()).rejects.toThrow("No pudimos leer la respuesta del servidor.");
+  });
+
+  it("does not offer a field error when a failed answer cannot be read", async () => {
+    fetch.mockResolvedValue(response(null, { status: 500, ok: false, jsonError: new SyntaxError("vacío") }));
+
+    await expect(confirmPurchase()).rejects.toMatchObject({
+      status: 500,
+      message: "No pudimos confirmar la compra.",
+      fields: {},
+    });
+  });
+});
+
+describe("cart with broken answers", () => {
+  it("does not take an unreadable answer as a valid cart", async () => {
+    fetch.mockResolvedValue(response(null, { jsonError: new SyntaxError("vacío") }));
+
+    await expect(getCart()).rejects.toMatchObject({
+      status: 200,
+      message: "No pudimos leer la respuesta del carrito.",
+    });
+  });
+
+  it("uses a generic message when a failed answer cannot be read", async () => {
+    fetch.mockResolvedValue(response(null, { status: 500, ok: false, jsonError: new SyntaxError("vacío") }));
+
+    await expect(getCart()).rejects.toMatchObject({
+      status: 500,
+      message: "No pudimos actualizar el carrito.",
+    });
+  });
+
+  it("treats a cart without items or total as empty", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(getCart()).resolves.toEqual({ items: [], total: 0 });
+  });
+
+  it("sends no Authorization header without a session", async () => {
+    getSession.mockReturnValue(null);
+    fetch.mockResolvedValue(response({ items: [], total: 0 }));
+
+    await getCart();
+
+    expect(fetch.mock.calls[0][1].headers.Authorization).toBeUndefined();
+  });
+});
+
+describe("searchText", () => {
+  it("sends the encoded text and maps the parts with their entities", async () => {
+    const entities = { part: "pastillas", brand: "Chevrolet", model: "Onix", year: 2020, fuel: null };
+    fetch.mockResolvedValue(response({ parts: [backendPart], entities }));
+
+    await expect(searchText("pastillas & onix")).resolves.toEqual({ parts: [uiPart], entities });
+    expect(fetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/v1/parts?q=pastillas+%26+onix`);
+  });
+
+  it("returns empty entities when the backend sends none", async () => {
+    fetch.mockResolvedValue(response({ parts: [] }));
+
+    await expect(searchText("nada")).resolves.toEqual({
+      parts: [],
+      entities: { part: null, brand: null, model: null, year: null, fuel: null },
+    });
+  });
+
+  it("fails when the answer has no list of parts", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(searchText("nada")).rejects.toThrow("No pudimos realizar la búsqueda.");
+  });
+});
+
+describe("incomplete answers", () => {
+  it.each([
+    ["an array", []],
+    ["a part without id", { name: "Disco" }],
+    ["an empty body", null],
+  ])("rejects %s as a part", async (_nombre, cuerpo) => {
+    fetch.mockResolvedValue(response(cuerpo));
+
+    await expect(getPart(21)).rejects.toThrow("No pudimos cargar el repuesto.");
+  });
+
+  it("treats missing brands and models as empty lists", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(getBrands()).resolves.toEqual([]);
+    await expect(getModels("Fiat")).resolves.toEqual([]);
+  });
+
+  it("asks for no recommendations without real part ids", async () => {
+    await expect(getRecommendations(null)).resolves.toEqual([]);
+    await expect(getRecommendations([undefined, null])).resolves.toEqual([]);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("does not create a session when the registration brings no token", async () => {
+    fetch.mockResolvedValue(response({}));
+
+    await expect(
+      register({ displayName: "Ana", lastName: "Pérez", email: "ana@test.com", phone: "", password: "x" })
+    ).rejects.toThrow("No pudimos crear tu cuenta. Intentá de nuevo.");
+  });
+
+  it("gives the assistant answer safe defaults", async () => {
+    fetch.mockResolvedValue(response({ recomendaciones: [{ tipo: "cambio", motivo: "Desgaste" }] }));
+
+    await expect(askAssistant({ texto: "ruido", marca: "A", modelo: "B", anio: 2016 })).resolves.toEqual({
+      diagnostico: "",
+      urgencia: "baja",
+      aviso: null,
+      pregunta: null,
+      opciones: [],
+      offTopic: false,
+      recomendaciones: [{ tipo: "cambio", motivo: "Desgaste", repuestos: [] }],
+      historial: [],
+      firma: null,
+    });
   });
 });

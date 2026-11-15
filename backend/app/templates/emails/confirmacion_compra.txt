@@ -1,0 +1,4 @@
+Hola {{ nombre }}, confirmamos tu pedido #{{ pedido }}. Te vamos a avisar cuando lo enviemos.
+
+{% include "_detalle_pedido.txt" %}
+Ver mis compras: {{ enlace }}

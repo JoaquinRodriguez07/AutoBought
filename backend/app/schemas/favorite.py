@@ -1,3 +1,5 @@
+"""Schemas de los favoritos."""
+
 from pydantic import BaseModel
 
 from app.schemas.part import PartOut

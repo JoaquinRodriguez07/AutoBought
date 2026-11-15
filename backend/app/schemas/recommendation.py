@@ -1,3 +1,5 @@
+"""Schemas de las recomendaciones."""
+
 from pydantic import BaseModel
 
 from app.schemas.part import PartOut

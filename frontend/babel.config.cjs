@@ -1,7 +1,7 @@
 const plugins = [];
 
 if (process.env.NODE_ENV === "test") {
-  plugins.push(function replaceViteApiUrl({ types }) {
+  plugins.push(function replaceViteEnv({ types }) {
     return {
       visitor: {
         MemberExpression(path) {
@@ -10,7 +10,7 @@ if (process.env.NODE_ENV === "test") {
 
           if (
             node.computed ||
-            node.property.name !== "VITE_API_URL" ||
+            !node.property.name?.startsWith("VITE_") ||
             envAccess?.type !== "MemberExpression" ||
             envAccess.computed ||
             envAccess.property.name !== "env" ||

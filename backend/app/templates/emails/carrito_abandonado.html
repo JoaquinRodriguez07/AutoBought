@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% set titulo = "Te quedó algo en el carrito" %}
+{% block contenido %}
+<p>Hola {{ nombre }}, dejaste estos repuestos en tu carrito:</p>
+<ul style="padding-left:20px;">
+  {% for item in items %}<li>{{ item.cantidad }} × {{ item.nombre }}</li>{% endfor %}
+</ul>
+<p>Los guardamos para vos, pero el stock puede cambiar.</p>
+{% with texto_boton = "Ir a mi carrito" %}{% include "_boton.html" %}{% endwith %}
+{% endblock %}

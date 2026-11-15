@@ -1,163 +1,174 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+// La aplicación: rutas, sesión, providers y la barra de navegación.
+
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { obtenerSesion, sesionValida } from "./auth";
 import {
-  agregarFavoritoAPI,
-  obtenerFavoritos,
-  quitarFavoritoAPI,
+  destinationAfterLogin,
+  onSessionSaved,
+  isSeller,
+  saveSession,
+  getSession,
+  isSessionValid,
+} from "./auth";
+import { useSessionRenewal } from "./useSessionRenewal";
+import {
+  onInvalidSession,
+  addStockAlert,
+  addFavoriteApi,
+  getStockAlerts,
+  getFavorites,
+  removeStockAlert,
+  removeFavoriteApi,
 } from "./api";
 import { useCart } from "./context/CartContext";
 import { useVehicle } from "./context/VehicleContext";
+import { slugifyProduct } from "./productSlug";
 
 import Home from "./Home";
 import Login from "./Login";
-import Registro from "./Registro";
-import Perfil from "./Perfil";
-import Direcciones from "./Direcciones";
-import MetodosPago from "./MetodosPago";
-import HistorialCompras from "./HistorialCompras";
-import Catalogo from "./Catalogo";
-import DetalleProducto from "./DetalleProducto";
-import Marcas from "./Marcas";
-import Carrito from "./Carrito";
-import Favoritos from "./Favoritos";
+import Register from "./Register";
+import Profile from "./Profile";
+import Addresses from "./Addresses";
+import PurchaseHistory from "./PurchaseHistory";
+import MyOrders from "./MyOrders";
+import AccountHome from "./AccountHome";
+import Notifications from "./Notifications";
+import Security from "./Security";
+import PaymentResult from "./PaymentResult";
+import Catalog from "./Catalog";
+import ProductDetail from "./ProductDetail";
+import Brands from "./Brands";
+import CartPage from "./CartPage";
+import Favorites from "./Favorites";
+import PitPanel from "./PitPanel";
+import { usePit } from "./context/PitContext";
+import { useOrders } from "./context/OrdersContext";
 import ProtectedRoute from "./ProtectedRoute";
+import Footer from "./Footer";
+import EmployeeRoute from "./EmployeeRoute";
+import NotFoundPage from "./NotFoundPage";
+import ForgotPassword from "./ForgotPassword";
+import ResetPassword from "./ResetPassword";
+import VerifyEmail from "./VerifyEmail";
+import VerifyEmailNotice from "./VerifyEmailNotice";
+import Unsubscribe from "./Unsubscribe";
+import DeleteAccountDialog from "./DeleteAccountDialog";
+
+// El dashboard (con Recharts y Base UI) se descarga recién cuando entra un
+// vendedor: un cliente nunca baja ese código.
+const Dashboard = lazy(() => import("./dashboard/Dashboard"));
+const SellerPartDetail = lazy(() => import("./dashboard/SellerPartDetail"));
+const SellerOrderDetail = lazy(() => import("./dashboard/SellerOrderDetail"));
+
+const dashboardLoading = (
+  <p className="pt-[140px] text-center text-sm text-gray-400">Cargando dashboard…</p>
+);
+
+const ROUTES_WITHOUT_FOOTER = [
+  "/login",
+  "/registro",
+  "/recuperar-password",
+  "/restablecer-password",
+  "/verificar-correo",
+  "/baja-mails",
+];
 
 function App() {
   const navigate = useNavigate();
-  const { cargarCarrito, limpiarCarritoLocal } = useCart();
-  const { activarVehiculo } = useVehicle();
+  const { pathname, state: routeState } = useLocation();
+
+  // Al pasar a otra página se arranca desde arriba (sin esto, el
+  // navegador conserva el scroll de la página anterior).
+  useEffect(() => {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pathname]);
+  const { loadCart, clearCartLocal } = useCart();
+  const { activateVehicle } = useVehicle();
+  const { forget: forgetChatPit } = usePit();
+  const { reload: reloadOrders, clean: clearOrders } = useOrders();
+
+  // Al volver al inicio se actualizan los pedidos en curso (el aviso del
+  // banner y el número de la barra): un pedido pudo cambiar de estado.
+  useEffect(() => {
+    if (pathname === "/") reloadOrders();
+  }, [pathname, reloadOrders]);
 
 
   // null = sin filtro de categoría (el catálogo muestra todos los
   // repuestos). Los nombres de categoría los define el backend
   // (GET /api/v1/parts/categories), no el frontend.
-  const [categoriaCatalogo, setCategoriaCatalogo] =
-    useState(null);
-
-  const [productoSeleccionado, setProductoSeleccionado] =
+  const [categoryCatalogo, setCategoryCatalogo] =
     useState(null);
 
   /* =====================================================
      SESIÓN
   ====================================================== */
 
-  const [usuario, setUsuario] = useState(() => {
-    const sesion = obtenerSesion();
-    return sesionValida(sesion) ? sesion : null;
+  const [sessionUser, setUser] = useState(() => {
+    const session = getSession();
+    return isSessionValid(session) ? session : null;
   });
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
 
   /* =====================================================
      FAVORITOS
   ====================================================== */
 
-  const [favoritos, setFavoritos] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+
+  // El efecto depende de quién es el usuario y de si hay token, NO del
+  // valor del token: renovarlo cada ~55 minutos no tiene que volver a
+  // pedir (y pisar) los favoritos.
+  const userId = sessionUser?.userId;
+  const hasSessionWithToken = Boolean(sessionUser?.token);
+  const seller = isSeller(sessionUser);
 
   useEffect(() => {
-    if (!usuario?.token) return;
+    // Un vendedor no tiene favoritos (la API le responde 403).
+    if (!hasSessionWithToken || seller) return;
 
-    let cancelado = false;
-    obtenerFavoritos()
-      .then((lista) => {
-        if (!cancelado) setFavoritos(lista);
+    let cancelled = false;
+    getFavorites()
+      .then((list) => {
+        if (!cancelled) setFavorites(list);
       })
       .catch(() => {
-        if (!cancelado) setFavoritos([]);
+        if (!cancelled) setFavorites([]);
       });
 
     return () => {
-      cancelado = true;
+      cancelled = true;
     };
-  }, [usuario?.token]);
+  }, [userId, hasSessionWithToken, seller]);
 
   /* =====================================================
-     DIRECCIONES
+     AVISOS DE STOCK («Avisame cuando haya»)
+     Ids de los repuestos agotados de los que el cliente
+     pidió aviso. Se cargan igual que los favoritos.
   ====================================================== */
 
-  const [direcciones, setDirecciones] = useState(() => {
-    try {
-      return (
-        JSON.parse(
-          localStorage.getItem(
-            "autobought-direcciones"
-          )
-        ) || []
-      );
-    } catch {
-      return [];
-    }
-  });
-
-  /* =====================================================
-     MÉTODOS DE PAGO
-  ====================================================== */
-
-  const [metodosPago, setMetodosPago] = useState(() => {
-    try {
-      return (
-        JSON.parse(
-          localStorage.getItem(
-            "autobought-metodos-pago"
-          )
-        ) || []
-      );
-    } catch {
-      return [];
-    }
-  });
-
-  /* =====================================================
-     HISTORIAL DE COMPRAS
-  ====================================================== */
-
-  const [historialCompras, setHistorialCompras] =
-    useState(() => {
-      try {
-        return (
-          JSON.parse(
-            localStorage.getItem(
-              "autobought-historial-compras"
-            )
-          ) || []
-        );
-      } catch {
-        return [];
-      }
-    });
-
-  /* =====================================================
-     GUARDAR DIRECCIONES
-  ====================================================== */
+  const [noticesStock, setNoticesStock] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem(
-      "autobought-direcciones",
-      JSON.stringify(direcciones)
-    );
-  }, [direcciones]);
+    // Un vendedor no pide avisos de stock (la API le responde 403).
+    if (!hasSessionWithToken || seller) return;
 
-  /* =====================================================
-     GUARDAR MÉTODOS DE PAGO
-  ====================================================== */
+    let cancelled = false;
+    getStockAlerts()
+      .then((ids) => {
+        if (!cancelled) setNoticesStock(ids);
+      })
+      .catch(() => {
+        if (!cancelled) setNoticesStock([]);
+      });
 
-  useEffect(() => {
-    localStorage.setItem(
-      "autobought-metodos-pago",
-      JSON.stringify(metodosPago)
-    );
-  }, [metodosPago]);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, hasSessionWithToken, seller]);
 
-  /* =====================================================
-     GUARDAR HISTORIAL
-  ====================================================== */
-
-  useEffect(() => {
-    localStorage.setItem(
-      "autobought-historial-compras",
-      JSON.stringify(historialCompras)
-    );
-  }, [historialCompras]);
 
   /* =====================================================
      NAVEGACIÓN
@@ -170,28 +181,44 @@ function App() {
   // "Borrar filtros" (ver Home y Catalogo).
   // Si llega un vehículo (por ejemplo, la marca elegida en Home o en
    // /marcas), pasa a ser el Vehículo Activo.
-  const irAlCatalogo = (categoria = null, vehiculo = null) => {
-     setCategoriaCatalogo(categoria);
+  // Con `fabricante` (los botones de fabricantes del inicio) o `marca`
+  // (los logos de marcas del inicio y de /marcas), el catálogo abre con
+  // ese filtro tildado. Son filtros de una sola vez: a diferencia del
+  // vehículo, no se arrastran al volver a entrar al catálogo.
+  const goToCatalogo = (categoria = null, vehicle = null, { fabricante, marca } = {}) => {
+     setCategoryCatalogo(categoria);
 
-     if (vehiculo) {
-       activarVehiculo(vehiculo);
+     if (vehicle) {
+       activateVehicle(vehicle);
      }
 
-     navigate("/catalogo");
+     const params = new URLSearchParams();
+     if (fabricante) params.set("fabricante", fabricante);
+     if (marca) params.set("marca", marca);
+     const query = params.toString();
+
+     navigate(query ? `/catalogo?${query}` : "/catalogo");
   };
 
-  const irAlDetalle = (producto) => {
-    setProductoSeleccionado(producto);
-    navigate("/producto");
+  const goToDetail = (product) => {
+    const partId = product?.partId ?? product?.id;
+    const slug = slugifyProduct(product?.displayName, partId);
+    if (!slug) return;
+    navigate(`/producto/${encodeURIComponent(slug)}`);
   };
 
-  const irAlCarrito = () => {
+  const goToCart = () => {
     navigate("/carrito");
   };
 
-  const irAFavoritos = () => {
-    if (!usuario) {
+  const goToFavorites = () => {
+    if (!sessionUser) {
       navigate("/login");
+      return;
+    }
+
+    if (seller) {
+      navigate("/dashboard");
       return;
     }
 
@@ -202,41 +229,59 @@ function App() {
      LOGIN
   ====================================================== */
 
-  const iniciarSesion = (
-    usuarioLogueado,
-    recordar
+  const startSession = (
+    userLoggedIn,
+    remember
   ) => {
-    setUsuario(usuarioLogueado);
+    setUser(userLoggedIn);
 
-    if (recordar) {
+    // Se borra cualquier sesión anterior (por ejemplo, una vencida de
+    // «Recordarme»): obtenerSesion lee primero localStorage, así que si
+    // quedara ahí taparía a la nueva y /dashboard mandaría al vendedor de
+    // vuelta al login.
+    localStorage.removeItem("autobought-sesion");
+    sessionStorage.removeItem("autobought-sesion");
+
+    if (remember) {
       localStorage.setItem(
         "autobought-sesion",
-        JSON.stringify(usuarioLogueado)
+        JSON.stringify(userLoggedIn)
       );
     } else {
       sessionStorage.setItem(
         "autobought-sesion",
-        JSON.stringify(usuarioLogueado)
+        JSON.stringify(userLoggedIn)
       );
     }
 
-    cargarCarrito();
-    navigate("/");
+    // Si llegó al login desde una página que pedía sesión (por ejemplo, el
+    // enlace de un mail), vuelve ahí; si no, al inicio o al portal.
+    const destination = destinationAfterLogin(routeState?.from, userLoggedIn);
+
+    // Un vendedor no tiene carrito: va directo a su portal.
+    if (isSeller(userLoggedIn)) {
+      navigate(destination);
+      return;
+    }
+
+    loadCart();
+    reloadOrders();
+    navigate(destination);
   };
 
   /* =====================================================
      REGISTRO
   ====================================================== */
 
-  const registroExitoso = (usuarioNuevo) => {
-    setUsuario(usuarioNuevo);
+  const registroExitoso = (newUser) => {
+    setUser(newUser);
 
     localStorage.setItem(
       "autobought-sesion",
-      JSON.stringify(usuarioNuevo)
+      JSON.stringify(newUser)
     );
 
-    cargarCarrito();
+    loadCart();
     navigate("/");
   };
 
@@ -244,85 +289,208 @@ function App() {
      ACTUALIZAR USUARIO
   ====================================================== */
 
-  const actualizarUsuario = (usuarioActualizado) => {
-    const sesionActual = obtenerSesion();
+  const updateUser = (updatedUser) => {
+    const currentSession = getSession();
 
-    if (!sesionActual || sesionActual.token !== usuarioActualizado.token) {
+    if (!currentSession || currentSession.token !== updatedUser.token) {
       return;
     }
 
-    setUsuario(usuarioActualizado);
-
-    const storage = localStorage.getItem("autobought-sesion")
-      ? localStorage
-      : sessionStorage;
-
-    storage.setItem(
-      "autobought-sesion",
-      JSON.stringify(usuarioActualizado)
-    );
+    setUser(updatedUser);
+    saveSession(updatedUser);
   };
+
+  /* =====================================================
+     CORREO VERIFICADO
+     El enlace del mail se puede abrir con o sin sesión; si
+     hay una abierta, se le saca el aviso de verificación.
+  ====================================================== */
+
+  const markVerifiedEmail = useCallback(() => {
+    const currentSession = getSession();
+    if (!currentSession) return;
+
+    const verified = { ...currentSession, verifiedEmail: true };
+    saveSession(verified);
+    setUser((current) => (current ? { ...current, verifiedEmail: true } : current));
+  }, []);
 
   /* =====================================================
      CERRAR SESIÓN
   ====================================================== */
 
-  const cerrarSesion = () => {
-    setUsuario(null);
+  const closeSession = () => {
+    setUser(null);
+    setDeleteAccountOpen(false);
 
     localStorage.removeItem("autobought-sesion");
     sessionStorage.removeItem("autobought-sesion");
 
-    limpiarCarritoLocal();
-    setFavoritos([]);
+    clearCartLocal();
+    forgetChatPit();
+    setFavorites([]);
+    setNoticesStock([]);
+    clearOrders();
     navigate("/");
   };
+
+  /* =====================================================
+     RENOVACIÓN AUTOMÁTICA DE LA SESIÓN
+     Un rato antes de que venza el token se pide uno nuevo y
+     se reemplaza en la sesión, sin que el cliente lo note.
+  ====================================================== */
+
+  const reemplazarToken = ({ access_token, token_type }) => {
+    // Si no hay sesión guardada, el cliente cerró sesión en otra pestaña:
+    // no se la resucita, se cierra también acá.
+    if (!getSession()) {
+      closeSession();
+      return;
+    }
+
+    const renewed = {
+      ...getSession(),
+      token: access_token,
+      ...(token_type ? { tokenType: token_type } : {}),
+    };
+
+    saveSession(renewed);
+    setUser((current) => (current ? { ...current, ...renewed } : current));
+  };
+
+  // Único lugar que reacciona a una sesión inválida: lo disparan el 401 de
+  // cualquier pedido autenticado (ver `alSesionInvalida` en api.js) y la
+  // renovación automática. El mensaje sirve para los dos casos: token
+  // vencido o contraseña cambiada en otro dispositivo.
+  const expiredSession = () => {
+    closeSession();
+    toast.error("Tu sesión se cerró. Iniciá sesión de nuevo.");
+    navigate("/login");
+  };
+
+  // El manejador se registra una sola vez y lee la versión más reciente de
+  // `sesionVencida` desde una ref.
+  const sessionExpiredRef = useRef(expiredSession);
+  useEffect(() => {
+    sessionExpiredRef.current = expiredSession;
+  });
+
+  // Si varios pedidos dan 401 a la vez, el primero cierra la sesión y los
+  // demás la encuentran ya cerrada: un solo toast y una sola navegación.
+  useEffect(
+    () =>
+      onInvalidSession(() => {
+        if (!getSession()) return;
+        sessionExpiredRef.current();
+      }),
+    []
+  );
+
+  // Otras pantallas pueden guardar la sesión sin pasar por App (ej:
+  // CambiarPassword guarda el token nuevo): `usuario` la sigue para que la
+  // renovación automática no intente renovar el token viejo.
+  useEffect(
+    () =>
+      onSessionSaved(() => {
+        const saved = getSession();
+        if (!saved) return;
+        setUser((current) => (current ? { ...current, ...saved } : current));
+      }),
+    []
+  );
+
+  useSessionRenewal(sessionUser?.token, {
+    onRenewed: reemplazarToken,
+    onExpired: expiredSession,
+  });
 
   /* =====================================================
      FAVORITOS
   ====================================================== */
 
-  const alternarFavorito = async (producto) => {
-    if (!usuario) {
+  const toggleFavorite = async (product) => {
+    if (!sessionUser) {
       navigate("/login");
       return;
     }
 
-    const existe = favoritos.some(
-      (item) => item.id === producto.id
+    if (seller) {
+      toast.error("Los vendedores no tienen favoritos.");
+      return;
+    }
+
+    const existe = favorites.some(
+      (item) => item.id === product.id
     );
 
-    setFavoritos((actual) =>
+    setFavorites((current) =>
       existe
-        ? actual.filter((item) => item.id !== producto.id)
-        : [...actual, producto]
+        ? current.filter((item) => item.id !== product.id)
+        : [...current, product]
     );
 
     try {
       if (existe) {
-        await quitarFavoritoAPI(producto.partId ?? producto.id);
+        await removeFavoriteApi(product.partId ?? product.id);
       } else {
-        await agregarFavoritoAPI(producto.partId ?? producto.id);
+        await addFavoriteApi(product.partId ?? product.id);
       }
     } catch (error) {
-      setFavoritos((actual) =>
+      setFavorites((current) =>
         existe
-          ? [...actual, producto]
-          : actual.filter((item) => item.id !== producto.id)
+          ? [...current, product]
+          : current.filter((item) => item.id !== product.id)
       );
 
-      if (error.status === 401) {
-        toast.error("Tu sesión venció. Iniciá sesión de nuevo.");
-        navigate("/login");
-        return;
-      }
+      // Un 401 lo maneja `alSesionInvalida` (toast y /login): acá solo se
+      // deshace el cambio optimista, sin un segundo aviso.
+      if (error.status === 401) return;
 
       toast.error(error.message || "No pudimos actualizar tus favoritos.");
     }
   };
 
-  const esFavorito = (id) =>
-    favoritos.some(
+  const toggleNoticeStock = async (product) => {
+    if (!sessionUser) {
+      navigate("/login");
+      return;
+    }
+
+    if (seller) {
+      toast.error("Los vendedores no piden avisos de stock.");
+      return;
+    }
+
+    const partId = product.partId;
+    const tenia = noticesStock.includes(partId);
+
+    setNoticesStock((current) =>
+      tenia ? current.filter((id) => id !== partId) : [...current, partId]
+    );
+
+    try {
+      if (tenia) {
+        await removeStockAlert(partId);
+      } else {
+        await addStockAlert(partId);
+        toast.success("Listo: te mandamos un mail cuando vuelva a haber stock.");
+      }
+    } catch (error) {
+      setNoticesStock((current) =>
+        tenia ? [...current, partId] : current.filter((id) => id !== partId)
+      );
+
+      // Igual que en favoritos: el 401 lo maneja `alSesionInvalida`.
+      if (error.status === 401) return;
+
+      toast.error(error.message || "No pudimos actualizar el aviso.");
+    }
+  };
+
+  const hasNoticeStock = (partId) => noticesStock.includes(partId);
+
+  const isFavorite = (id) =>
+    favorites.some(
       (item) => item.id === id
     );
 
@@ -331,39 +499,47 @@ function App() {
   ====================================================== */
 
   const propsNavbar = {
-    usuario,
+    sessionUser,
 
     onHome: () => navigate("/"),
 
-    onCatalogo: irAlCatalogo,
+    onCatalogo: goToCatalogo,
 
     onLogin: () => {
-      if (usuario) {
+      if (sessionUser) {
         navigate("/perfil");
       } else {
         navigate("/login");
       }
     },
 
-    onMarcas: () => navigate("/marcas"),
+    onBrands: () => navigate("/marcas"),
 
-    onCarrito: irAlCarrito,
+    onCart: goToCart,
 
-    onFavoritos: irAFavoritos,
+    onFavorites: goToFavorites,
 
     // ==========================================
     // ACCESOS DEL MENÚ DE USUARIO
     // ==========================================
 
-    onPerfil: () => navigate("/perfil"),
+    onProfile: () => navigate("/perfil"),
 
-    onDirecciones: () => navigate("/direcciones"),
+    // «Mi cuenta» (/cuenta): el menú de la cuenta (en celular, su página).
+    onAccount: () => navigate("/cuenta"),
 
-    onMetodosPago: () => navigate("/metodos-pago"),
+    onAddresses: () => navigate("/direcciones"),
 
-    onHistorial: () => navigate("/historial"),
+    onHistory: () => navigate("/historial"),
 
-    onCerrarSesion: cerrarSesion,
+    // «Mis compras»: las que están en curso (el ícono de la barra).
+    onOrders: () => navigate("/pedidos"),
+
+    onCloseSession: closeSession,
+
+    onDeleteAccount: () => {
+      if (!seller) setDeleteAccountOpen(true);
+    },
 
     // ==========================================
     // CONTADORES
@@ -371,14 +547,33 @@ function App() {
     // lee directo de CartContext con useCart())
     // ==========================================
 
-    cantidadFavoritos: favoritos.length,
+    favoritesQuantity: favorites.length,
   };
 
   /* =====================================================
      RENDER
   ====================================================== */
 
+  // El footer queda siempre al fondo: si la página tiene poco contenido
+  // (un carrito vacío), el espacio que sobra queda arriba del footer y no
+  // debajo. Cada página trae su propio `min-h-screen`; acá se reemplaza
+  // por "ocupar lo que sobre" (flex-1) para que la página y el footer
+  // juntos llenen la pantalla.
+  // El portal del vendedor (/dashboard y el detalle de un repuesto) tiene
+  // su propio marco, sin el footer de la tienda.
+  const withFooter = !ROUTES_WITHOUT_FOOTER.includes(pathname) && !pathname.startsWith("/dashboard");
+
+  // Pit (el asistente con IA) flota en las páginas de la tienda para los
+  // clientes con sesión: no en las pantallas de cuenta sin footer (login,
+  // registro...) ni para el vendedor. No tiene página propia: se abre al
+  // costado, sin salir de lo que el cliente estaba mirando.
+  const showPit = Boolean(sessionUser) && !seller && withFooter;
+
   return (
+    <>
+    <VerifyEmailNotice sessionUser={sessionUser} onVerified={markVerifiedEmail} />
+    <div className={withFooter ? "min-h-screen flex flex-col" : undefined}>
+    <div className={withFooter ? "flex-1 flex flex-col *:flex-1 *:min-h-0!" : undefined}>
     <Routes>
       {/* =================================================
           HOME
@@ -387,7 +582,7 @@ function App() {
       <Route
         path="/"
         element={
-          <Home {...propsNavbar} />
+          <Home {...propsNavbar} onDetail={goToDetail} />
         }
       />
 
@@ -397,7 +592,7 @@ function App() {
 
       <Route
         path="/marcas"
-        element={<Marcas {...propsNavbar} />}
+        element={<Brands {...propsNavbar} />}
       />
 
       {/* =================================================
@@ -409,8 +604,56 @@ function App() {
         element={
           <Login
             {...propsNavbar}
-            onIniciarSesion={iniciarSesion}
+            onStartSession={startSession}
             onRegistro={() => navigate("/registro")}
+            onOlvidePassword={() => navigate("/recuperar-password")}
+          />
+        }
+      />
+
+      {/* =================================================
+          CUENTA: RECUPERAR CONTRASEÑA Y VERIFICAR CORREO
+          Se abren desde los enlaces de los mails, sin sesión.
+      ================================================== */}
+
+      <Route
+        path="/recuperar-password"
+        element={
+          <ForgotPassword
+            {...propsNavbar}
+            onGoBackLogin={() => navigate("/login")}
+          />
+        }
+      />
+
+      <Route
+        path="/restablecer-password"
+        element={
+          <ResetPassword
+            {...propsNavbar}
+            onStartSession={() => navigate("/login")}
+            onAskOtherLink={() => navigate("/recuperar-password")}
+          />
+        }
+      />
+
+      <Route
+        path="/baja-mails"
+        element={
+          <Unsubscribe
+            {...propsNavbar}
+            onGoToStore={() => navigate("/")}
+          />
+        }
+      />
+
+      <Route
+        path="/verificar-correo"
+        element={
+          <VerifyEmail
+            {...propsNavbar}
+            onVerified={markVerifiedEmail}
+            onGoToStore={() => navigate("/")}
           />
         }
       />
@@ -422,7 +665,7 @@ function App() {
       <Route
         path="/registro"
         element={
-          <Registro
+          <Register
             {...propsNavbar}
             onRegistroExitoso={registroExitoso}
           />
@@ -433,35 +676,39 @@ function App() {
           CATÁLOGO Y DETALLE DE PRODUCTO
           Navegar el catálogo es público: no requiere sesión.
           Agregar al carrito o marcar favoritos sí la requiere
-          (ver el guard de addToCart en CartContext y el de
-          alternarFavorito, que redirigen a /login).
+          (ver el guard de addToCart en CartContext, que muestra
+          un aviso con botón "Iniciar sesión", y el de
+          alternarFavorito, que redirige a /login).
       ================================================== */}
 
       <Route
         path="/catalogo"
         element={
-          <Catalogo
+          <Catalog
             {...propsNavbar}
-            onDetalle={irAlDetalle}
-            categoriaInicial={categoriaCatalogo}
-            onCategoriaSeleccionada={setCategoriaCatalogo}
-            favoritos={favoritos}
-            onAlternarFavorito={alternarFavorito}
-            esFavorito={esFavorito}
+            onDetail={goToDetail}
+            initialCategory={categoryCatalogo}
+            onSelectedCategory={setCategoryCatalogo}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
+            isFavorite={isFavorite}
+            onToggleNoticeStock={toggleNoticeStock}
+            hasNoticeStock={hasNoticeStock}
           />
         }
       />
 
       <Route
-        path="/producto"
+        path="/producto/:id"
         element={
-          <DetalleProducto
+          <ProductDetail
             {...propsNavbar}
-            onDetalle={irAlDetalle}
-            onCatalogo={irAlCatalogo}
-            producto={productoSeleccionado}
-            onAlternarFavorito={alternarFavorito}
-            esFavorito={esFavorito}
+            onDetail={goToDetail}
+            onCatalogo={goToCatalogo}
+            onToggleFavorite={toggleFavorite}
+            isFavorite={isFavorite}
+            onToggleNoticeStock={toggleNoticeStock}
+            hasNoticeStock={hasNoticeStock}
           />
         }
       />
@@ -475,109 +722,172 @@ function App() {
         <Route
           path="/carrito"
           element={
-            <Carrito
+            <CartPage
               {...propsNavbar}
-              onDetalle={irAlDetalle}
+              onDetail={goToDetail}
+              onAddresses={() => navigate("/direcciones")}
+            />
+          }
+        />
+
+        {/* FAVORITOS */}
+
+        <Route
+          path="/favoritos"
+          element={
+            <Favorites
+              {...propsNavbar}
+              favorites={favorites}
+              onToggleFavorite={toggleFavorite}
+              onDetail={goToDetail}
+            />
+          }
+        />
+
+        {/* PERFIL
+            ProtectedRoute mira la sesión guardada y `usuario` es el
+            estado de App: si alguna vez no coinciden (ej. sesión
+            iniciada en otra pestaña), se manda al login en vez de
+            renderizar Perfil sin usuario. */}
+
+        <Route
+          path="/perfil"
+          element={
+            sessionUser ? (
+              <Profile
+                {...propsNavbar}
+                sessionUser={sessionUser}
+                onUpdateUser={updateUser}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* MI CUENTA: el menú (en celular, su propia página), la
+            contraseña y los mails. */}
+
+        <Route path="/cuenta" element={<AccountHome {...propsNavbar} />} />
+
+        <Route
+          path="/seguridad"
+          element={sessionUser ? <Security {...propsNavbar} /> : <Navigate to="/login" replace />}
+        />
+
+        <Route
+          path="/notificaciones"
+          element={
+            sessionUser ? (
+              <Notifications {...propsNavbar} onUpdateUser={updateUser} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* DIRECCIONES */}
+
+        <Route
+          path="/direcciones"
+          element={
+            <Addresses
+              {...propsNavbar}
+            />
+          }
+        />
+
+        {/* VUELTA DE MERCADO PAGO
+            Mercado Pago devuelve al cliente acá después de pagar (o de
+            fallar el pago), con el número de pedido en la dirección. */}
+
+        <Route
+          path="/pago"
+          element={
+            <PaymentResult {...propsNavbar} />
+          }
+        />
+
+        {/* MIS COMPRAS: las que están en curso (el ícono de la barra) y
+            el detalle de cada una; las anteriores, en /historial. */}
+
+        <Route path="/pedidos" element={<MyOrders {...propsNavbar} />} />
+        <Route path="/pedidos/:id" element={<MyOrders {...propsNavbar} />} />
+
+        {/* MIS COMPRAS › ANTERIORES (las que ya terminaron) */}
+
+        <Route
+          path="/historial"
+          element={
+            <PurchaseHistory
+              {...propsNavbar}
             />
           }
         />
       </Route>
 
       {/* =================================================
-          FAVORITOS
-          (mismo comportamiento de antes: pantalla en
-          blanco si no hay sesión — no forma parte del
-          DoD de esta tarea)
+          DASHBOARD DEL VENDEDOR
+          (solo sesiones de vendedor)
       ================================================== */}
 
-      <Route
-        path="/favoritos"
-        element={
-          usuario ? (
-            <Favoritos
-              {...propsNavbar}
-              favoritos={favoritos}
-              onAlternarFavorito={alternarFavorito}
-              onDetalle={irAlDetalle}
-            />
-          ) : null
-        }
-      />
+      <Route element={<EmployeeRoute />}>
+        <Route
+          path="/dashboard"
+          element={
+            <Suspense fallback={dashboardLoading}>
+              <Dashboard {...propsNavbar} sessionUser={sessionUser} />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/dashboard/repuestos/:id"
+          element={
+            <Suspense fallback={dashboardLoading}>
+              <SellerPartDetail {...propsNavbar} sessionUser={sessionUser} />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/dashboard/pedidos/:id"
+          element={
+            <Suspense fallback={dashboardLoading}>
+              <SellerOrderDetail {...propsNavbar} sessionUser={sessionUser} />
+            </Suspense>
+          }
+        />
+      </Route>
 
       {/* =================================================
-          PERFIL
+          PÁGINA NO ENCONTRADA
+          Cualquier dirección que no coincide con las de arriba.
       ================================================== */}
 
       <Route
-        path="/perfil"
-        element={
-          usuario ? (
-            <Perfil
-              {...propsNavbar}
-              usuario={usuario}
-              onCerrarSesion={cerrarSesion}
-              onActualizarUsuario={actualizarUsuario}
-              onDirecciones={() => navigate("/direcciones")}
-              onMetodosPago={() => navigate("/metodos-pago")}
-              onHistorialCompras={() => navigate("/historial")}
-            />
-          ) : null
-        }
-      />
-
-      {/* =================================================
-          DIRECCIONES
-      ================================================== */}
-
-      <Route
-        path="/direcciones"
-        element={
-          usuario ? (
-            <Direcciones
-              {...propsNavbar}
-              direcciones={direcciones}
-              setDirecciones={setDirecciones}
-              onPerfil={() => navigate("/perfil")}
-            />
-          ) : null
-        }
-      />
-
-      {/* =================================================
-          MÉTODOS DE PAGO
-      ================================================== */}
-
-      <Route
-        path="/metodos-pago"
-        element={
-          usuario ? (
-            <MetodosPago
-              {...propsNavbar}
-              metodosPago={metodosPago}
-              setMetodosPago={setMetodosPago}
-              onPerfil={() => navigate("/perfil")}
-            />
-          ) : null
-        }
-      />
-
-      {/* =================================================
-          HISTORIAL DE COMPRAS
-      ================================================== */}
-
-      <Route
-        path="/historial"
-        element={
-          usuario ? (
-            <HistorialCompras
-              {...propsNavbar}
-              historialCompras={historialCompras}
-              onPerfil={() => navigate("/perfil")}
-            />
-          ) : null
-        }
+        path="*"
+        element={<NotFoundPage {...propsNavbar} />}
       />
     </Routes>
+    </div>
+    {/* Las pantallas de iniciar sesión y registro tienen su propio armado. */}
+    {withFooter && <Footer {...propsNavbar} />}
+    </div>
+    {showPit && (
+      <PitPanel
+        onDetail={goToDetail}
+        onSearchInCatalogo={(queryState) => navigate(`/catalogo?q=${encodeURIComponent(queryState)}`)}
+      />
+    )}
+    {deleteAccountOpen && (
+      <DeleteAccountDialog
+        onClose={() => setDeleteAccountOpen(false)}
+        onDeleted={() => {
+          setDeleteAccountOpen(false);
+          closeSession();
+        }}
+      />
+    )}
+    </>
   );
 }
 
