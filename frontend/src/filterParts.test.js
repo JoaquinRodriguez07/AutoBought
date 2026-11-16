@@ -1,4 +1,4 @@
-import { filterParts } from "./filterParts";
+import { facetCounts, filterParts } from "./filterParts";
 
 const pastillas = {
   displayName: "Pastillas de freno",
@@ -180,5 +180,41 @@ describe("raw backend shape", () => {
     expect(filterParts([{}], { brandsCar: ["Fiat"] })).toEqual([]);
     expect(filterParts([{}], { priceMin: 1 })).toEqual([]);
     expect(filterParts([{}, {}], { sort: "Nombre A-Z" })).toHaveLength(2);
+  });
+});
+
+describe("facetCounts", () => {
+  it("counts every option with no filters", () => {
+    const counts = facetCounts(catalogo);
+
+    expect(counts.manufacturers).toEqual([["Bosch", 1], ["NGK", 1], ["Shell", 1]]);
+    expect(counts.brandsCar).toEqual([["Chevrolet", 1], ["Fiat", 2], ["Toyota", 1]]);
+    expect(counts.withStock).toBe(2);
+  });
+
+  it("counts each group with the other filters applied", () => {
+    const counts = facetCounts(catalogo, { onlyWithStock: true, priceMax: 2000 });
+
+    // Solo el aceite tiene stock y cuesta hasta 2000: NGK y Bosch no aparecen.
+    expect(counts.manufacturers).toEqual([["Shell", 1]]);
+    expect(counts.brandsCar).toEqual([["Fiat", 1]]);
+    // El grupo de stock no se cuenta contra sí mismo, pero sí contra el precio.
+    expect(counts.withStock).toBe(1);
+  });
+
+  it("does not let an option narrow the counts of its own group", () => {
+    const counts = facetCounts(catalogo, { manufacturers: ["Bosch"] });
+
+    // Se puede sumar NGK o Shell a Bosch: siguen apareciendo.
+    expect(counts.manufacturers).toEqual([["Bosch", 1], ["NGK", 1], ["Shell", 1]]);
+    // Las otras secciones sí se cuentan con Bosch tildado.
+    expect(counts.brandsCar).toEqual([["Chevrolet", 1], ["Fiat", 1]]);
+  });
+
+  it("keeps a checked option even when nothing is left for it", () => {
+    const counts = facetCounts(catalogo, { brandsCar: ["Renault"], manufacturers: ["Peugeot"] });
+
+    expect(counts.brandsCar).toContainEqual(["Renault", 0]);
+    expect(counts.manufacturers).toContainEqual(["Peugeot", 0]);
   });
 });

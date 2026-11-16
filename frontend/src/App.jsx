@@ -96,11 +96,6 @@ function App() {
   }, [pathname, reloadOrders]);
 
 
-  // null = sin filtro de categoría (el catálogo muestra todos los
-  // repuestos). Los nombres de categoría los define el backend
-  // (GET /api/v1/parts/categories), no el frontend.
-  const [categoryCatalogo, setCategoryCatalogo] =
-    useState(null);
 
   /* =====================================================
      SESIÓN
@@ -181,23 +176,23 @@ function App() {
   // "Borrar filtros" (ver Home y Catalogo).
   // Si llega un vehículo (por ejemplo, la marca elegida en Home o en
    // /marcas), pasa a ser el Vehículo Activo.
-  // Con `fabricante` (los botones de fabricantes del inicio) o `marca`
-  // (los logos de marcas del inicio y de /marcas), el catálogo abre con
-  // ese filtro tildado. Son filtros de una sola vez: a diferencia del
-  // vehículo, no se arrastran al volver a entrar al catálogo.
+  // La categoría, `fabricante` (los botones de fabricantes del inicio) y
+  // `marca` (los logos de marcas del inicio, el footer y /marcas) van en
+  // la dirección: el catálogo abre con ese filtro. A diferencia del
+  // vehículo, no se arrastran al volver a entrar al catálogo. Si la marca
+  // no es la del vehículo activo, el catálogo lo pone en pausa.
   const goToCatalogo = (categoria = null, vehicle = null, { fabricante, marca } = {}) => {
-     setCategoryCatalogo(categoria);
-
      if (vehicle) {
        activateVehicle(vehicle);
      }
 
      const params = new URLSearchParams();
+     if (categoria) params.set("categoria", categoria);
      if (fabricante) params.set("fabricante", fabricante);
      if (marca) params.set("marca", marca);
      const query = params.toString();
 
-     navigate(query ? `/catalogo?${query}` : "/catalogo");
+     navigate(query ? `/catalogo?${query}` : "/catalogo", { state: { fromOutside: true } });
   };
 
   const goToDetail = (product) => {
@@ -687,8 +682,6 @@ function App() {
           <Catalog
             {...propsNavbar}
             onDetail={goToDetail}
-            initialCategory={categoryCatalogo}
-            onSelectedCategory={setCategoryCatalogo}
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
             isFavorite={isFavorite}
@@ -875,7 +868,7 @@ function App() {
     {showPit && (
       <PitPanel
         onDetail={goToDetail}
-        onSearchInCatalogo={(queryState) => navigate(`/catalogo?q=${encodeURIComponent(queryState)}`)}
+        onSearchInCatalogo={(queryState) => navigate(`/catalogo?q=${encodeURIComponent(queryState)}`, { state: { fromOutside: true } })}
       />
     )}
     {deleteAccountOpen && (

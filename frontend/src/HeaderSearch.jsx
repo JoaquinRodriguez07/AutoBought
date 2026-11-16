@@ -13,7 +13,7 @@ export default function HeaderSearch({ inputRef, onSearch, onEscape }) {
 
     if (!cleanText) return;
 
-    navigate(`/catalogo?q=${encodeURIComponent(cleanText)}`);
+    navigate(`/catalogo?q=${encodeURIComponent(cleanText)}`, { state: { fromOutside: true } });
     onSearch?.();
   };
 
