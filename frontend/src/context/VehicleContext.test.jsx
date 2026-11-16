@@ -39,6 +39,28 @@ it("forgets it when the vehicle is cleared", () => {
   expect(sessionStorage.getItem(VEHICLE_STORAGE_KEY)).toBeNull();
 });
 
+it("accepts real names with hyphens, spaces and accents", () => {
+  sessionStorage.setItem(VEHICLE_STORAGE_KEY, JSON.stringify({ brand: "Mercedes-Benz", model: "Clase C", year: "2020" }));
+
+  mount();
+
+  expect(vehicleState.activeVehicle).toEqual({ brand: "Mercedes-Benz", model: "Clase C", year: "2020" });
+});
+
+it.each([
+  ["a brand with symbols", { brand: "../../admin?x=1", model: "Gol", year: "2018" }],
+  ["a year that is not a year", { brand: "Fiat", model: "Uno", year: "2018&q=1" }],
+  ["a model that is not text", { brand: "Fiat", model: { a: 1 }, year: "" }],
+  ["no brand", { model: "Gol", year: "2018" }],
+])("discards a saved value with %s", (_case, saved) => {
+  sessionStorage.setItem(VEHICLE_STORAGE_KEY, JSON.stringify(saved));
+
+  mount();
+
+  expect(vehicleState.activeVehicle).toBeNull();
+  expect(sessionStorage.getItem(VEHICLE_STORAGE_KEY)).toBeNull();
+});
+
 it("ignores a broken saved value", () => {
   sessionStorage.setItem(VEHICLE_STORAGE_KEY, "{roto");
 

@@ -24,13 +24,40 @@ const VehicleContext = createContext(null);
 // olvida. Si el navegador no deja guardar, funciona igual, solo en memoria.
 const VEHICLE_STORAGE_KEY = "autobought-vehiculo";
 
+// Lo guardado en el navegador se puede manipular, y la marca, el modelo y
+// el año terminan en los pedidos al servidor. Por eso solo se acepta lo que
+// tiene forma de vehículo: letras, números, espacios, puntos y guiones
+// ("Mercedes-Benz", "Clase C", "T-Cross"), y un año de 4 cifras.
+const NAME_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N} .-]{0,39}$/u;
+const YEAR_PATTERN = /^\d{4}$/;
+
+function validName(value, required) {
+  if (value === undefined || value === null || value === "") return required ? null : "";
+  return typeof value === "string" && NAME_PATTERN.test(value) ? value : null;
+}
+
+function validYear(value) {
+  if (value === undefined || value === null || value === "") return "";
+  const text = String(value);
+  return YEAR_PATTERN.test(text) ? text : null;
+}
+
 function readSavedVehicle() {
+  let saved;
   try {
-    const saved = JSON.parse(sessionStorage.getItem(VEHICLE_STORAGE_KEY));
-    return saved?.brand ? { brand: saved.brand, model: saved.model || "", year: saved.year || "" } : null;
+    saved = JSON.parse(sessionStorage.getItem(VEHICLE_STORAGE_KEY));
   } catch {
     return null;
   }
+  const brand = validName(saved?.brand, true);
+  const model = validName(saved?.model, false);
+  const year = validYear(saved?.year);
+  if (brand === null || model === null || year === null) {
+    // Algo que no es un vehículo: se descarta y no se vuelve a leer.
+    saveVehicle(null);
+    return null;
+  }
+  return { brand, model, year };
 }
 
 function saveVehicle(vehicle) {
