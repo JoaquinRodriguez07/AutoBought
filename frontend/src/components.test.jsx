@@ -96,6 +96,7 @@ import {
   addFavoriteApi,
   updateProfile,
   changePassword,
+  requestPasswordReset,
   addCartItem,
   updateCartItem,
   createAddress,
@@ -3471,6 +3472,36 @@ describe("CambiarPassword", () => {
 
     await screen.findByText("La contraseña actual es incorrecta.");
     expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe("jwt-viejo");
+  });
+
+  it("sends a reset link to the account email when the current password is forgotten", async () => {
+    const user = userEvent.setup();
+    requestPasswordReset.mockResolvedValue("Si el correo está registrado, te mandamos un enlace.");
+    render(<ChangePassword email="ana@example.com" />);
+
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+    await user.click(screen.getByRole("button", { name: "Enviar enlace" }));
+
+    expect(requestPasswordReset).toHaveBeenCalledWith("ana@example.com");
+    expect(await screen.findByRole("status")).toHaveTextContent(/Te mandamos un enlace a ana@example.com/);
+    expect(screen.queryByLabelText("CONTRASEÑA ACTUAL")).not.toBeInTheDocument();
+    expect(changePassword).not.toHaveBeenCalled();
+
+    // Desde el aviso se puede pedir de nuevo.
+    await user.click(screen.getByRole("button", { name: "¿No te llegó? Reenviar enlace" }));
+    expect(requestPasswordReset).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the error when the reset link cannot be sent and keeps the form open", async () => {
+    const user = userEvent.setup();
+    requestPasswordReset.mockRejectedValue(new Error("No pudimos procesar el pedido."));
+    render(<ChangePassword email="ana@example.com" />);
+
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+    await user.click(screen.getByRole("button", { name: "Enviar enlace" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos procesar el pedido.");
+    expect(screen.getByLabelText("CONTRASEÑA ACTUAL")).toBeInTheDocument();
   });
 
   it("shows an error under each empty field before calling the API", async () => {
