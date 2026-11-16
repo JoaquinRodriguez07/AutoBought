@@ -1341,6 +1341,24 @@ describe("searchText", () => {
     expect(fetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/v1/parts?q=pastillas+%26+onix`);
   });
 
+  it("sends the chosen vehicle so the results are only compatible parts", async () => {
+    fetch.mockResolvedValue(response({ parts: [] }));
+
+    await searchText("pastias de freno", { brand: "Toyota", model: "Corolla", year: "2015" });
+
+    expect(fetch.mock.calls[0][0]).toBe(
+      `${BASE_URL}/api/v1/parts?q=pastias+de+freno&brand=Toyota&model=Corolla&year=2015`
+    );
+  });
+
+  it("sends only the brand when the vehicle is just a brand", async () => {
+    fetch.mockResolvedValue(response({ parts: [] }));
+
+    await searchText("filtro", { brand: "Fiat", model: "", year: "" });
+
+    expect(fetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/v1/parts?q=filtro&brand=Fiat`);
+  });
+
   it("returns empty entities when the backend sends none", async () => {
     fetch.mockResolvedValue(response({ parts: [] }));
 

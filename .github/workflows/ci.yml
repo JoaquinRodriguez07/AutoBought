@@ -1,5 +1,7 @@
 # Integración continua de AutoBought.
-# Corre en cada PR hacia dev o main y en cada push a dev.
+# Corre en cada PR hacia dev o main y en cada push a dev o main. El push a
+# main hace que SonarCloud analice también esa rama (en una PR analiza la PR,
+# no la rama).
 # Los nombres de los jobs ("backend" y "frontend") son los que se eligen
 # como "status checks" obligatorios en los rulesets de GitHub.
 name: CI
@@ -8,7 +10,7 @@ on:
   pull_request:
     branches: [dev, main]
   push:
-    branches: [dev]
+    branches: [dev, main]
 
 # Si se sube un commit nuevo al mismo PR, se cancela la corrida anterior.
 concurrency:
