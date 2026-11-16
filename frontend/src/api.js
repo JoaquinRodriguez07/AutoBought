@@ -594,11 +594,21 @@ export async function getPart(id) {
  * Búsqueda libre en lenguaje natural.
  * Ejemplo: "pastillas de freno onix 2020"
  */
-export async function searchText(texto) {
+/**
+ * Búsqueda en lenguaje natural (GET /api/v1/parts?q=).
+ * @param {string} texto lo que escribió el cliente.
+ * @param {{brand?: string, model?: string, year?: string}} [vehicle] el
+ *   vehículo elegido: se manda para que la búsqueda muestre solo repuestos
+ *   compatibles con él.
+ */
+export async function searchText(texto, vehicle) {
   const errorMessage = "No pudimos realizar la búsqueda.";
 
   const params = new URLSearchParams();
   params.set("q", texto);
+  if (vehicle?.brand) params.set("brand", vehicle.brand);
+  if (vehicle?.model) params.set("model", vehicle.model);
+  if (vehicle?.year) params.set("year", vehicle.year);
 
   const data = await fetchJson(
     `${API_BASE_URL}/api/v1/parts?${params.toString()}`,

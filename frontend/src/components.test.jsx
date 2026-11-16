@@ -1248,9 +1248,61 @@ it("shows free search results and activates the detected vehicle", async () => {
   expect(
     await screen.findByText("Pastillas de Freno Delanteras Bosch")
   ).toBeInTheDocument();
-  expect(searchText).toHaveBeenCalledWith("pastillas de freno onix 2020");
   expect(await screen.findByText("Chevrolet Onix 2020")).toBeInTheDocument();
+  // Sin auto elegido busca solo con el texto; el texto nombra un auto, que
+  // queda elegido, y la búsqueda se repite filtrada por él.
+  expect(searchText).toHaveBeenNthCalledWith(1, "pastillas de freno onix 2020", null);
+  expect(searchText).toHaveBeenLastCalledWith("pastillas de freno onix 2020", {
+    brand: "Chevrolet",
+    model: "Onix",
+    year: "2020",
+  });
   expect(getParts).not.toHaveBeenCalled();
+});
+
+it("keeps the chosen vehicle when searching: only compatible parts", async () => {
+  const props = navigationProps();
+  searchText.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno", brand: null, model: null, year: null },
+  });
+
+  render(
+    <>
+      <ActivateVehicle vehicle={{ brand: "Toyota", model: "Corolla", year: "2015" }} />
+      <Catalog {...props} isFavorite={() => false} />
+    </>,
+    { initialEntries: ["/catalogo?q=pastias%20de%20freno"] }
+  );
+
+  expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+  // El texto no nombra un auto: la búsqueda va con el elegido y no lo cambia.
+  expect(searchText).toHaveBeenLastCalledWith("pastias de freno", {
+    brand: "Toyota",
+    model: "Corolla",
+    year: "2015",
+  });
+  expect(screen.getByText(/Toyota Corolla 2015/)).toBeInTheDocument();
+});
+
+it("switches to the vehicle the text names, over the chosen one", async () => {
+  const props = navigationProps();
+  searchText.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno", brand: "Chevrolet", model: "Onix", year: null },
+  });
+
+  render(
+    <>
+      <ActivateVehicle vehicle={{ brand: "Toyota", model: "Corolla", year: "2015" }} />
+      <Catalog {...props} isFavorite={() => false} />
+    </>,
+    { initialEntries: ["/catalogo?q=pastillas%20onix"] }
+  );
+
+  expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+  expect(searchText).toHaveBeenLastCalledWith("pastillas onix", { brand: "Chevrolet", model: "Onix", year: "" });
+  expect(screen.queryByText(/Toyota Corolla/)).not.toBeInTheDocument();
 });
 
 it("runs the server search from the catalog bar on Enter and hides the header search", async () => {
@@ -1273,7 +1325,7 @@ it("runs the server search from the catalog bar on Enter and hides the header se
 
   await user.type(screen.getByPlaceholderText(/buscar repuesto/i), "pastillas de frenos{Enter}");
 
-  await waitFor(() => expect(searchText).toHaveBeenCalledWith("pastillas de frenos"));
+  await waitFor(() => expect(searchText).toHaveBeenCalledWith("pastillas de frenos", null));
   expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastillas");
   expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
 });
@@ -1331,7 +1383,7 @@ it("offers the server search for what was typed, also when nothing on screen mat
 
   await user.click(ofertas[1]);
 
-  await waitFor(() => expect(searchText).toHaveBeenCalledWith("pastilas"));
+  await waitFor(() => expect(searchText).toHaveBeenCalledWith("pastilas", null));
   expect(screen.getByTestId("ruta-actual")).toHaveTextContent("?q=pastilas");
   expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
   // Ya buscado: no se vuelve a ofrecer.
