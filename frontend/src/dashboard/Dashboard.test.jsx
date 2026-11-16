@@ -347,6 +347,15 @@ describe("alertas de reposición (HU 5.7)", () => {
     expect(within(items[0]).getByText("Alcanza para").nextSibling).toHaveTextContent("5 días");
   });
 
+  it("puts the alerts at the top of Resumen, before the sales cards", async () => {
+    renderDashboard();
+
+    const list = await screen.findByRole("list", { name: "Repuestos para reponer" });
+    const salesCard = await screen.findByText(/^Unidades vendidas/, { selector: "p" });
+    // DOCUMENT_POSITION_FOLLOWING: la tarjeta de ventas viene después de las alertas.
+    expect(list.compareDocumentPosition(salesCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("says so when no part needs restocking", async () => {
     getStockoutRisk.mockResolvedValue({ ...alertas, repuestos: [] });
     renderDashboard();

@@ -53,10 +53,13 @@ export default function Footer({
   onOrders,
   onFavorites,
   onCart,
+  onTerms,
 }) {
   return (
     <footer className="bg-[#151719] text-white">
-      <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12 grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_1fr_1.2fr] gap-8">
+      {/* En celular, espacio abajo para el botón flotante de Pit: sin él,
+          tapa la última línea del pie. */}
+      <div className="max-w-[1100px] mx-auto px-6 md:px-10 pt-12 pb-24 md:pb-12 grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1fr_1fr_1.2fr] gap-8">
 
         <div className="col-span-2 md:col-span-1">
           <p className="text-lg font-black italic">
@@ -111,6 +114,7 @@ export default function Footer({
             <BoxIcon className="w-4 h-4 shrink-0" />
             Despachamos de lunes a viernes
           </li>
+          <FooterLink onClick={onTerms}>Términos y condiciones</FooterLink>
         </Column>
 
       </div>

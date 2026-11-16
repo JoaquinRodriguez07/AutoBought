@@ -5,9 +5,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.crud.order import change_status, cancel_expired_orders, reactivate_paid_order
+from app.crud.order import _previous_for, change_status, cancel_expired_orders, reactivate_paid_order
 from app.models.order import Order, OrderStatus
-from app.models.order_status_history import CancelReason, OrderStatusHistory
+from app.models.order_status_history import RECEIVED_BY_CUSTOMER, CancelReason, OrderStatusHistory
 from app.models.payment import Payment
 from order_test import auth_headers, make_address, make_cart, make_client, make_part
 
@@ -161,6 +161,27 @@ def test_confirm_the_arrival_of_a_order_shipped_it_delivery_and_sends_the_mail(c
     assert states(body) == ["confirmed", "packing", "shipped", "delivered"]
     assert db_session.get(Order, order_id).status == OrderStatus.DELIVERED
     assert [mail_message["Subject"] for mail_message in sent_mails] == [f"Tu pedido #{order_id} fue entregado"]
+
+
+def test_the_delivery_confirmed_by_the_customer_cannot_be_undone(client, db_session, order_data):
+    # El vendedor puede volver atrás una entrega que marcó por error, pero no
+    # la que confirmó el cliente con «Ya lo recibí».
+    order_id, headers = order_data
+    move_to(db_session, order_id, OrderStatus.PACKING, OrderStatus.SHIPPED)
+
+    received(client, order_id, headers)
+
+    order = db_session.get(Order, order_id)
+    db_session.refresh(order)
+    assert order.status_history[-1].reason == RECEIVED_BY_CUSTOMER
+    assert _previous_for(order) is None
+
+
+def test_the_delivery_marked_by_the_seller_can_be_undone(db_session, order_data):
+    order_id, _ = order_data
+    move_to(db_session, order_id, OrderStatus.PACKING, OrderStatus.SHIPPED, OrderStatus.DELIVERED)
+
+    assert _previous_for(db_session.get(Order, order_id)) == OrderStatus.SHIPPED
 
 
 @pytest.mark.parametrize(

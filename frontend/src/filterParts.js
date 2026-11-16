@@ -121,7 +121,8 @@ function applyFilters(
  * @param {number|string} [opciones.priceMin] - precio mínimo; vacío = sin límite.
  * @param {number|string} [opciones.priceMax] - precio máximo; vacío = sin límite.
  * @param {boolean} [opciones.onlyWithStock] - oculta los repuestos sin stock.
- * @param {string} [opciones.sort]     - "Menor precio" | "Mayor precio" | "Nombre A-Z" | otro.
+ * @param {string} [opciones.sort]     - "Menor precio" | "Mayor precio" | "Nombre A-Z" | "Más vendidos" | otro.
+ * @param {string[]} [opciones.bestSellerIds] - con "Más vendidos": los ids del más vendido al menos.
  * @returns {Array<object>} nuevo array filtrado y ordenado (no muta el original).
  */
 export function filterParts(products, options = {}) {
@@ -138,6 +139,13 @@ export function filterParts(products, options = {}) {
 
   if (sort === "Nombre A-Z") {
     sortedList.sort((a, b) => getName(a).localeCompare(getName(b), "es"));
+  }
+
+  // Primero los más vendidos, en su orden; después el resto, como estaba.
+  if (sort === "Más vendidos") {
+    const rank = new Map((options.bestSellerIds ?? []).map((id, index) => [String(id), index]));
+    const position = (p) => rank.get(String(p.partId ?? p.id)) ?? Infinity;
+    sortedList.sort((a, b) => position(a) - position(b));
   }
 
   return sortedList;

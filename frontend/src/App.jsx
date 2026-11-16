@@ -48,6 +48,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Footer from "./Footer";
 import EmployeeRoute from "./EmployeeRoute";
 import NotFoundPage from "./NotFoundPage";
+import TermsPage from "./TermsPage";
 import ForgotPassword from "./ForgotPassword";
 import ResetPassword from "./ResetPassword";
 import VerifyEmail from "./VerifyEmail";
@@ -181,7 +182,7 @@ function App() {
   // la dirección: el catálogo abre con ese filtro. A diferencia del
   // vehículo, no se arrastran al volver a entrar al catálogo. Si la marca
   // no es la del vehículo activo, el catálogo lo pone en pausa.
-  const goToCatalogo = (categoria = null, vehicle = null, { fabricante, marca } = {}) => {
+  const goToCatalogo = (categoria = null, vehicle = null, { fabricante, marca, orden } = {}) => {
      if (vehicle) {
        activateVehicle(vehicle);
      }
@@ -190,6 +191,7 @@ function App() {
      if (categoria) params.set("categoria", categoria);
      if (fabricante) params.set("fabricante", fabricante);
      if (marca) params.set("marca", marca);
+     if (orden) params.set("orden", orden);
      const query = params.toString();
 
      navigate(query ? `/catalogo?${query}` : "/catalogo", { state: { fromOutside: true } });
@@ -509,6 +511,8 @@ function App() {
     },
 
     onBrands: () => navigate("/marcas"),
+
+    onTerms: () => navigate("/terminos"),
 
     onCart: goToCart,
 
@@ -850,6 +854,15 @@ function App() {
           }
         />
       </Route>
+
+      {/* =================================================
+          TÉRMINOS Y CONDICIONES (proyecto académico)
+      ================================================== */}
+
+      <Route
+        path="/terminos"
+        element={<TermsPage {...propsNavbar} />}
+      />
 
       {/* =================================================
           PÁGINA NO ENCONTRADA

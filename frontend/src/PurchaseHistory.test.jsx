@@ -7,7 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import OrderDetail from "./OrderDetail";
 import PurchaseHistory from "./PurchaseHistory";
-import { confirmReceipt, createPaymentLink, getPurchaseDetail, getPurchaseHistory } from "./api";
+import { confirmReceipt, createPaymentLink, getPickupInfo, getPurchaseDetail, getPurchaseHistory } from "./api";
 import { goTo } from "./redirect";
 
 jest.mock("./api", () => ({
@@ -15,6 +15,7 @@ jest.mock("./api", () => ({
   createPaymentLink: jest.fn(),
   getPurchaseDetail: jest.fn(),
   getPurchaseHistory: jest.fn(),
+  getPickupInfo: jest.fn(),
 }));
 
 // jsdom no navega a otras páginas: se registra adónde se habría ido.
@@ -234,6 +235,21 @@ describe("DetallePedido", () => {
 
     expect(createPaymentLink).toHaveBeenCalledWith(42);
     expect(goTo).toHaveBeenCalledWith("https://mercadopago.test/pagar");
+  });
+
+  test("a pickup order shows the store address and hours", async () => {
+    getPickupInfo.mockResolvedValue({ address: "Av. Italia 2850, Montevideo", hours: "Lunes a viernes de 9 a 18" });
+    renderDetail({ ...confirmed, deliveryMethod: "pickup", paymentMethod: "Mercado Pago", paymentStatus: "approved" });
+
+    expect(await screen.findByText("Retiro en el local: Av. Italia 2850, Montevideo")).toBeInTheDocument();
+    expect(screen.getByText("Horario: Lunes a viernes de 9 a 18")).toBeInTheDocument();
+  });
+
+  test("if the store data does not load, a pickup order points to the mail", async () => {
+    getPickupInfo.mockRejectedValue(new Error("Sin conexión."));
+    renderDetail({ ...confirmed, deliveryMethod: "pickup", paymentMethod: "Mercado Pago", paymentStatus: "approved" });
+
+    expect(await screen.findByText("Retiro en el local. Revisá el mail para ver dirección y horario.")).toBeInTheDocument();
   });
 
   test("a paid order has no pay button", () => {

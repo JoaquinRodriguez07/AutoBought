@@ -5,6 +5,7 @@ import AccountLayout from "./AccountLayout";
 import {
   getAddresses,
   createAddress,
+  updateAddress,
   setPrimaryAddress,
   deleteAddressApi,
 } from "./api";
@@ -51,6 +52,8 @@ export default function Addresses(navigation) {
   const [errorAction, setErrorAction] = useState("");
   // La dirección que pide confirmación antes de eliminarse.
   const [confirmingId, setConfirmingId] = useState(null);
+  // La dirección que se está editando (null: el formulario es para una nueva).
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     getAddresses()
@@ -78,11 +81,23 @@ export default function Addresses(navigation) {
   const toggleForm = () => {
     setShowForm(!showForm);
     setForm(EMPTY_FORM);
+    setEditingId(null);
     setErrors({});
     setErrorForm("");
   };
 
-  const addAddress = async (e) => {
+  // Abre el mismo formulario del alta, cargado con la dirección.
+  const startEditing = (shippingAddress) => {
+    const { id, ...fields } = shippingAddress;
+    setForm({ ...EMPTY_FORM, ...fields });
+    setEditingId(id);
+    setShowForm(true);
+    setErrors({});
+    setErrorForm("");
+    setConfirmingId(null);
+  };
+
+  const saveAddress = async (e) => {
     e.preventDefault();
 
     const errorsForm = validateAddress(form);
@@ -90,10 +105,12 @@ export default function Addresses(navigation) {
     if (Object.keys(errorsForm).length > 0) return;
 
     try {
-      await createAddress(form);
+      if (editingId === null) await createAddress(form);
+      else await updateAddress(editingId, form);
       setAddresses(await getAddresses());
       setError("");
       setForm(EMPTY_FORM);
+      setEditingId(null);
       setShowForm(false);
     } catch (err) {
       const fields = Object.fromEntries(
@@ -171,16 +188,21 @@ export default function Addresses(navigation) {
 
       {showForm && (
         <form
-          onSubmit={addAddress}
+          onSubmit={saveAddress}
           noValidate
           aria-labelledby="titulo-nueva-direccion"
           className="border border-gray-200 rounded-xl mb-8 bg-white"
         >
           <div className="px-6 py-5 border-b border-gray-100">
             <h3 id="titulo-nueva-direccion" className="text-base font-black text-gray-900">
-              Nueva dirección
+              {editingId === null ? "Nueva dirección" : "Editar dirección"}
             </h3>
             <p className="text-sm text-gray-500 mt-1">Los campos con * son obligatorios.</p>
+            {editingId !== null && (
+              <p className="text-sm text-gray-500 mt-1">
+                Los pedidos que ya hiciste se siguen enviando a la dirección con la que compraste.
+              </p>
+            )}
           </div>
 
           <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-6 gap-5">
@@ -370,6 +392,14 @@ export default function Addresses(navigation) {
                   </>
                 ) : (
                   <>
+                    <button
+                      type="button"
+                      onClick={() => startEditing(shippingAddress)}
+                      aria-label={`Editar la dirección ${shippingAddress.displayName}`}
+                      className="text-xs font-bold text-gray-600 hover:text-orange-600"
+                    >
+                      Editar
+                    </button>
                     {!shippingAddress.primary && (
                       <button
                         type="button"

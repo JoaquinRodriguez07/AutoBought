@@ -231,6 +231,10 @@ export default function CartPage({
                 <p className="mt-4 text-xs text-gray-500">
                   Vas a pagar en Mercado Pago: la tarjeta se carga ahí, no en la tienda.
                 </p>
+                {/* Proyecto académico: el pago es de prueba (ver /terminos). */}
+                <p role="note" className="mt-2 rounded-md bg-orange-50 border border-orange-200 px-3 py-2 text-xs font-bold text-orange-800">
+                  Pago de prueba: no uses una tarjeta real. Es un proyecto académico y no se venden productos reales.
+                </p>
                 {purchaseError && (
                   <p role="alert" className="mt-4 text-sm text-red-600 font-bold">{purchaseError}</p>
                 )}

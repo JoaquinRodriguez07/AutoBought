@@ -380,6 +380,21 @@ def test_stock_filters_by_category_and_by_part(client, db_session, seller):
     assert code_list(category="", search="") == ["FRE-001", "FIL-001"]
 
 
+def test_part_filter_ignores_accents(client, db_session, seller):
+    # Un vendedor que escribe "bujia" sin tilde tiene que ver la Bujía, y al revés.
+    spark_plug = _part(db_session, "ENC-001", stock=3, categoria="Encendido")
+    spark_plug.name = "Bujía NGK 1.6 MSI"
+    db_session.commit()
+    _part(db_session, "FIL-001", stock=2, categoria="Filtros")
+
+    def code_list(search):
+        return [p["part_code"] for p in client.get(STOCK, params={"search": search}, headers=seller).json()["parts"]]
+
+    assert code_list("bujia ngk") == ["ENC-001"]
+    assert code_list("Bujía") == ["ENC-001"]
+    assert code_list("BUJIA") == ["ENC-001"]
+
+
 def test_more_sold_by_months_calendar_and_category(client, db_session, seller, customer):
     _today(date(2026, 3, 31))
     brake_pads = _part(db_session, "FRE-001", stock=10, categoria="Frenos")

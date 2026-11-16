@@ -24,6 +24,22 @@ def create_address(body: ShippingAddressCreate, db: Session = Depends(get_db), c
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
 
 
+@router.put("/{shipping_address_id}", response_model=ShippingAddressOut)
+def update_address(
+    shipping_address_id: int,
+    body: ShippingAddressCreate,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client),
+):
+    try:
+        address = crud_address.update_address(db, client.user_id, shipping_address_id, body)
+    except crud_address.ShippingAddressConflict as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from None
+    if address is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dirección no encontrada.")
+    return address
+
+
 @router.patch("/{shipping_address_id}/primary", response_model=ShippingAddressOut)
 def set_primary_address(shipping_address_id: int, db: Session = Depends(get_db), client: Client = Depends(get_current_client)):
     address = crud_address.set_primary(db, client.user_id, shipping_address_id)

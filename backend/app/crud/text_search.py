@@ -503,4 +503,33 @@ def search_parts(
         search=entities["part"],
         category=category,
     )
-    return entities, parts
+    return entities, rank_by_words(parts, text)
+
+
+def _stem(word: str) -> str:
+    """La raíz de una palabra para comparar singular, plural y género
+    ("traseros", "trasero" y "traseras" → "traser")."""
+    if len(word) > 4 and word.endswith("es"):
+        word = word[:-2]
+    elif len(word) > 4 and word.endswith("s"):
+        word = word[:-1]
+    if len(word) > 4 and word[-1] in "aeo":
+        word = word[:-1]
+    return word
+
+
+def rank_by_words(parts: list[Part], text: str) -> list[Part]:
+    """Ordena los resultados para que primero vengan los que tienen más
+    palabras de la búsqueda en el nombre: con "amortiguadores traseros",
+    los traseros antes que los delanteros. Es un orden estable: entre los
+    que empatan queda el de siempre. No saca ni agrega resultados."""
+    words = {_stem(_fold(w)) for w in _content_words(apply_synonyms(normalize(text)).split())}
+    words.discard("")
+    if len(words) < 2:
+        return parts
+
+    def matches(part: Part) -> int:
+        name_stems = {_stem(w) for w in _fold(normalize(part.name)).split()}
+        return sum(1 for w in words if w in name_stems)
+
+    return sorted(parts, key=matches, reverse=True)

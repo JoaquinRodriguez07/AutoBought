@@ -141,6 +141,21 @@ describe("order", () => {
     ]);
   });
 
+  it("puts the best sellers first, in their order, and keeps the rest as they were", () => {
+    const withIds = [
+      { id: "1", displayName: "Pastillas" },
+      { id: "2", displayName: "Bujía" },
+      { id: "3", displayName: "Aceite" },
+      { id: "4", displayName: "Filtro" },
+    ];
+    expect(nombres(filterParts(withIds, { sort: "Más vendidos", bestSellerIds: [3, 2] }))).toEqual([
+      "Aceite",
+      "Bujía",
+      "Pastillas",
+      "Filtro",
+    ]);
+  });
+
   it("keeps the original order for any other value", () => {
     expect(nombres(filterParts(catalogo, { sort: "Relevancia" }))).toEqual(nombres(catalogo));
   });

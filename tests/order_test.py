@@ -207,6 +207,25 @@ def test_confirm_order_with_own_address(client, db_session):
 	assert order.shipping_address_id == chosen_id
 
 
+def test_editing_the_saved_address_does_not_change_an_order_already_placed(client, db_session):
+	# Un pedido en camino se sigue enviando a la dirección con la que se compró.
+	customer = make_client(db_session)
+	address = make_address(db_session, customer, street="Bv. Artigas", number="99")
+	make_cart(db_session, customer, [(make_part(db_session), 1)])
+	headers = auth_headers(customer)
+	order_id = client.post("/api/v1/orders", headers=headers).json()["order_id"]
+
+	edited = client.put(
+		f"/api/v1/addresses/{address.shipping_address_id}",
+		json={"personal_name": "Casa", "street": "Av. Italia", "number": "2850", "city": "Montevideo", "department": "Montevideo"},
+		headers=headers,
+	)
+
+	assert edited.status_code == 200
+	shipping = client.get(f"/api/v1/orders/{order_id}", headers=headers).json()["shipping_address"]
+	assert (shipping["street"], shipping["number"]) == ("Bv. Artigas", "99")
+
+
 def test_confirm_order_without_choice_uses_primary_address(client, db_session):
 	customer = make_client(db_session)
 	primary = make_address(db_session, customer)

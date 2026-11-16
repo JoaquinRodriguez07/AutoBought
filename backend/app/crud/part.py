@@ -13,6 +13,7 @@ from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.payment import Payment
 from app.crud.payment import is_paid_order
+from app.core import validators
 
 
 def get_part(db: Session, part_id: int) -> Part | None:
@@ -82,7 +83,12 @@ def list_parts(
     return list(db.scalars(query).unique().all())
 
 
-def list_categories(db: Session) -> list[tuple[str, int]]:
+def list_categories(
+    db: Session,
+    brand: str | None = None,
+    model: str | None = None,
+    year: int | None = None,
+) -> list[tuple[str, int]]:
     # Cantidad real de repuestos por categoría, agrupando por el valor tal
     # cual está guardado en la columna (case-sensitive), a diferencia de
     # list_parts que filtra sin distinguir mayúsculas/minúsculas. Si
@@ -91,8 +97,28 @@ def list_categories(db: Session) -> list[tuple[str, int]]:
     # devolvería el mismo total combinado (conteo del sidebar ≠ resultados).
     # Ordenado alfabéticamente por nombre; las categorías sin repuestos no
     # aparecen (GROUP BY las excluye naturalmente).
+    #
+    # Con un vehículo elegido, cuenta solo los repuestos compatibles con él
+    # (los mismos que muestra el catálogo), así el número de cada categoría
+    # coincide con lo que se ve al tocarla.
+    if not (brand or model or year):
+        query = (
+            select(Part.category, func.count(Part.id))
+            .group_by(Part.category)
+            .order_by(Part.category)
+        )
+        return [(category, count) for category, count in db.execute(query).all()]
+
+    compatible = select(Part.id).join(Compatibility).join(CarModel)
+    if brand:
+        compatible = compatible.where(func.lower(CarModel.brand) == brand.strip().lower())
+    if model:
+        compatible = compatible.where(func.lower(CarModel.model) == model.strip().lower())
+    if year:
+        compatible = compatible.where(Compatibility.year_from <= year, Compatibility.year_to >= year)
     query = (
         select(Part.category, func.count(Part.id))
+        .where(Part.id.in_(compatible))
         .group_by(Part.category)
         .order_by(Part.category)
     )
@@ -112,6 +138,20 @@ def list_manufacturers(db: Session) -> list[tuple[str, int]]:
     return [(name_value, total) for name_value, total in db.execute(query).all()]
 
 
+# Letras con tilde que aparecen en los nombres del catálogo, y su versión sin
+# tilde. Se reemplazan con REPLACE (anda igual en Postgres y en la SQLite de
+# los tests, que no tiene `unaccent` ni `translate`).
+_ACCENTS = {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u",
+            "Á": "a", "É": "e", "Í": "i", "Ó": "o", "Ú": "u", "Ü": "u"}
+
+
+def _unaccented(column):
+    """La columna en minúsculas y sin tildes, para comparar en SQL."""
+    for accented, plain in _ACCENTS.items():
+        column = func.replace(column, accented, plain)
+    return func.lower(column)
+
+
 def filter_parts(
     query,
     category: str | None = None,
@@ -120,15 +160,18 @@ def filter_parts(
 ):
     # Filtros del dashboard del vendedor (HU 5.9), los mismos en todas sus
     # vistas: categoría exacta y búsqueda parcial por nombre o código, sin
-    # distinguir mayúsculas, igual que en el catálogo.
+    # distinguir mayúsculas ni tildes ("bujia" encuentra "Bujía"), igual que
+    # en el catálogo.
     category_term = (category or "").strip()
     if category_term:
         query = query.where(func.lower(Part.category) == category_term.lower())
 
     term = (search or "").strip()
     if term:
-        pattern = f"%{term}%"
-        query = query.where(or_(Part.name.ilike(pattern), Part.part_code.ilike(pattern)))
+        pattern = f"%{validators.normalizar(term)}%"
+        query = query.where(
+            or_(_unaccented(Part.name).like(pattern), _unaccented(Part.part_code).like(pattern))
+        )
 
     if part_id is not None:
         query = query.where(Part.id == part_id)

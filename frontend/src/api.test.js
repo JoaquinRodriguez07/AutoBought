@@ -15,6 +15,7 @@ import {
   changePassword,
   addCartItem,
   createAddress,
+  updateAddress,
   confirmPurchase,
   confirmReceipt,
   createPaymentLink,
@@ -739,6 +740,16 @@ describe("catalog API", () => {
     ]);
   });
 
+  it("counts the categories for the chosen vehicle", async () => {
+    fetch.mockResolvedValueOnce(response({ categories: [{ name: "Frenos", count: 1 }] }));
+
+    await getCategories({ brand: "Volkswagen", model: "Gol", year: "2018" });
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${BASE_URL}/api/v1/parts/categories?brand=Volkswagen&model=Gol&year=2018`
+    );
+  });
+
   it("asks for the best sellers of the last 90 days with stock", async () => {
     fetch.mockResolvedValueOnce(response({ parts: [{ ...backendPart, units_sold: 7 }] }));
 
@@ -890,6 +901,27 @@ describe("address API", () => {
     codePostal: "",
     primary: true,
   };
+
+  it("submits the edit of an address with PUT", async () => {
+    fetch.mockResolvedValueOnce(response(backendAddress));
+
+    await expect(updateAddress(4, { ...uiAddress, displayName: "Taller", apartamento: "301" })).resolves.toEqual(uiAddress);
+
+    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/api/v1/addresses/4`, {
+      method: "PUT",
+      body: JSON.stringify({
+        personal_name: "Taller",
+        street: "Av. Italia",
+        number: "1234",
+        apartment: "301",
+        city: "Montevideo",
+        department: "Montevideo",
+        postal_code: null,
+        is_primary: true,
+      }),
+      headers: { "Content-Type": "application/json", Authorization: "Bearer jwt-token" },
+    });
+  });
 
   it("maps addresses and submits create, primary, and delete requests", async () => {
     fetch

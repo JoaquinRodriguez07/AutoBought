@@ -25,10 +25,12 @@ from app.schemas.part import (
 
 router = APIRouter(prefix="/parts", tags=["parts"])
 
-# El catálogo completo tarda en armarse. Vercel guarda la respuesta 1 minuto
-# y, pasado ese tiempo, sigue mostrando la guardada mientras pide una nueva.
-# El stock puede verse con hasta un minuto de atraso; al pagar se valida el real.
-CATALOG_CACHE = "public, s-maxage=60, stale-while-revalidate=300"
+# El catálogo completo tarda en armarse. Vercel guarda la respuesta 30
+# segundos y, pasado ese tiempo, puede mostrar la guardada 30 segundos más
+# mientras pide una nueva. Antes eran 5 minutos de margen, y un cambio de
+# precio o de stock del vendedor tardaba varios minutos en verse en la tienda.
+# Ahora se ve en menos de un minuto; al pagar se valida el stock real.
+CATALOG_CACHE = "public, s-maxage=30, stale-while-revalidate=30"
 
 
 @router.get("", response_model=PartsResponse)
@@ -105,8 +107,13 @@ def list_parts(
 # este router, de lo contrario FastAPI intentaría interpretar "categories"
 # como un identificador.
 @router.get("/categories", response_model=CategoriesResponse)
-def list_categories(db: Session = Depends(get_db)):
-    categories = crud_part.list_categories(db)
+def list_categories(
+    brand: str | None = Query(default=None, description="Contar solo lo compatible con esta marca."),
+    model: str | None = Query(default=None, description="...con este modelo."),
+    year: int | None = Query(default=None, description="...y este año."),
+    db: Session = Depends(get_db),
+):
+    categories = crud_part.list_categories(db, brand=brand, model=model, year=year)
     return {
         "categories": [
             {"name": name, "count": count} for name, count in categories

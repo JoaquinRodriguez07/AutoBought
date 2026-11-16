@@ -19,6 +19,29 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 
 const VehicleContext = createContext(null);
 
+// El vehículo activo se guarda en la pestaña (sessionStorage): así recargar
+// la página o entrar por un enlace no lo pierde, y al cerrar la pestaña se
+// olvida. Si el navegador no deja guardar, funciona igual, solo en memoria.
+const VEHICLE_STORAGE_KEY = "autobought-vehiculo";
+
+function readSavedVehicle() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(VEHICLE_STORAGE_KEY));
+    return saved?.brand ? { brand: saved.brand, model: saved.model || "", year: saved.year || "" } : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveVehicle(vehicle) {
+  try {
+    if (vehicle) sessionStorage.setItem(VEHICLE_STORAGE_KEY, JSON.stringify(vehicle));
+    else sessionStorage.removeItem(VEHICLE_STORAGE_KEY);
+  } catch {
+    // Sin almacenamiento disponible: el vehículo queda solo en memoria.
+  }
+}
+
 /**
  * Cascada mínima obligatoria: Marca > Modelo > Año.
  * Se exporta para que la pantalla que arma el borrador use la misma
@@ -29,7 +52,7 @@ export function isVehicleComplete(vehicle) {
 }
 
 export function VehicleProvider({ children }) {
-  const [activeVehicle, setActiveVehicle] = useState(null);
+  const [activeVehicle, setActiveVehicle] = useState(readSavedVehicle);
 
     const activateVehicle = useCallback((vehicle) => {
     // Sin marca no hay vehículo. Con marca sola sí: es el filtro que se
@@ -38,15 +61,18 @@ export function VehicleProvider({ children }) {
     // Home, con `vehiculoCompleto`.
     if (!vehicle?.brand) return;
 
-    setActiveVehicle({
+    const active = {
       brand: vehicle.brand,
       model: vehicle.model || "",
       year: vehicle.year ? String(vehicle.year) : "",
-    });
+    };
+    setActiveVehicle(active);
+    saveVehicle(active);
   }, []);
 
   const clearVehicle = useCallback(() => {
     setActiveVehicle(null);
+    saveVehicle(null);
   }, []);
 
   const value = useMemo(

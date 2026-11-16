@@ -1,8 +1,8 @@
 // Detalle de un pedido del cliente: seguimiento, pago, productos y envío.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { confirmReceipt, createPaymentLink } from "./api";
+import { confirmReceipt, createPaymentLink, getPickupInfo } from "./api";
 import { AlertIcon, CheckIcon } from "./Icons";
 import { paymentDeadlineText } from "./paymentDeadline";
 import { goTo } from "./redirect";
@@ -114,6 +114,26 @@ export default function OrderDetail({ purchase, onGoBack, textGoBack, onUpdated 
   const [paying, setPaying] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [received, setReceived] = useState(false);
+  const [pickupInfo, setPickupInfo] = useState(null);
+
+  // Para los pedidos con retiro, la dirección y el horario del local (los
+  // mismos que se ven al comprar), así no hace falta buscar el mail.
+  const isPickup = purchase.deliveryMethod === "pickup";
+  useEffect(() => {
+    if (!isPickup) return;
+    let active = true;
+    Promise.resolve()
+      .then(() => getPickupInfo())
+      .then((info) => {
+        if (active) setPickupInfo(info);
+      })
+      .catch(() => {
+        // Sin datos del local queda el texto que manda a revisar el mail.
+      });
+    return () => {
+      active = false;
+    };
+  }, [isPickup]);
 
   const pay = async () => {
     setPaying(true);
@@ -255,9 +275,16 @@ export default function OrderDetail({ purchase, onGoBack, textGoBack, onUpdated 
         </div>
 
         <aside className="bg-white border border-gray-200 rounded-xl p-5 h-fit space-y-5">
-          {purchase.deliveryMethod === "pickup" && (
+          {isPickup && (
             <div><p className="text-xs font-black uppercase text-gray-500">Entrega</p>
-              <p className="text-sm text-gray-700 mt-1">Retiro en el local. Revisá el mail para ver dirección y horario.</p></div>
+              {pickupInfo?.address ? (
+                <>
+                  <p className="text-sm text-gray-700 mt-1">Retiro en el local: {pickupInfo.address}</p>
+                  {pickupInfo.hours && <p className="text-sm text-gray-700">Horario: {pickupInfo.hours}</p>}
+                </>
+              ) : (
+                <p className="text-sm text-gray-700 mt-1">Retiro en el local. Revisá el mail para ver dirección y horario.</p>
+              )}</div>
           )}
           {purchase.shippingAddress && (
             <div>

@@ -7,6 +7,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 jest.mock("./api", () => ({
   unsubscribe: jest.fn(),
   saveMailPreferences: jest.fn(),
+  // Por defecto el servidor no tiene el perfil a mano: queda el de la sesión.
+  getProfile: jest.fn(() => Promise.reject(new Error("sin red"))),
 }));
 // La barra de navegación no es parte de estas pantallas (y necesita el
 // contexto del carrito).
@@ -15,7 +17,7 @@ jest.mock("./Navbar", () => () => null);
 import StockAlertButton from "./StockAlertButton";
 import Unsubscribe from "./Unsubscribe";
 import MailPreferences from "./MailPreferences";
-import { unsubscribe, saveMailPreferences } from "./api";
+import { unsubscribe, saveMailPreferences, getProfile } from "./api";
 
 afterEach(() => {
   jest.clearAllMocks();
@@ -60,6 +62,27 @@ describe("PreferenciasMails", () => {
 
     expect(saveMailPreferences).toHaveBeenCalledWith(false);
     expect(onUpdateUser).toHaveBeenCalledWith({ ...sessionUser, recibeOfertas: false });
+  });
+
+  it("al abrir, toma la preferencia del servidor si cambió desde el login", async () => {
+    const onUpdateUser = jest.fn();
+    // Se dio de baja desde el mail: la sesión dice que sí, el servidor que no.
+    getProfile.mockResolvedValueOnce({ recibeOfertas: false });
+    render(<MailPreferences sessionUser={sessionUser} onUpdateUser={onUpdateUser} />);
+
+    await screen.findByRole("switch");
+    expect(getProfile).toHaveBeenCalledWith("tok");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onUpdateUser).toHaveBeenCalledWith({ ...sessionUser, recibeOfertas: false });
+  });
+
+  it("si la preferencia del servidor es la misma, no toca la sesión", async () => {
+    const onUpdateUser = jest.fn();
+    getProfile.mockResolvedValueOnce({ recibeOfertas: true });
+    render(<MailPreferences sessionUser={sessionUser} onUpdateUser={onUpdateUser} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onUpdateUser).not.toHaveBeenCalled();
   });
 
   it("si el perfil todavía no cargó, muestra que sí recibe", () => {

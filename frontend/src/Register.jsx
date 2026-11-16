@@ -10,6 +10,7 @@ import { passwordStrength } from "./passwordStrength";
 import AccessScreen, { ErrorNotice, FormField, PasswordField, AccessHeader } from "./AccessScreen";
 import { formatUyPhone, normalizeUyPhone } from "./phone";
 import { NAME_MAX, clean, validateRegistration } from "./validations";
+import TermsDialog from "./TermsDialog";
 
 // Campos del backend → campos del formulario, para mostrar sus errores 422.
 const API_FIELDS = { name: "displayName", email: "email", phone: "phone", password: "password" };
@@ -56,6 +57,7 @@ export default function Register({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptsTerms, setAcceptsTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   const [error, setError] = useState("");
   const [errors, setErrors] = useState({});
@@ -217,9 +219,33 @@ export default function Register({
             className="w-4 h-4 mt-0.5 accent-orange-500"
             {...errorProps("terms", errors.terms)}
           />
-          <span className="text-sm text-gray-600">Acepto los términos y condiciones.</span>
+          <span className="text-sm text-gray-600">
+            Acepto los{" "}
+            {/* Se leen en una ventana encima del formulario: no se pierde lo cargado. */}
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                setShowTerms(true);
+              }}
+              className="font-bold text-orange-600 underline hover:no-underline"
+            >
+              términos y condiciones
+            </button>
+            .
+          </span>
         </label>
         {errorOf("terms")}
+        {showTerms && (
+          <TermsDialog
+            onClose={() => setShowTerms(false)}
+            onAccept={() => {
+              setAcceptsTerms(true);
+              setErrors((actuales) => ({ ...actuales, terms: undefined }));
+              setShowTerms(false);
+            }}
+          />
+        )}
 
         <button type="submit" disabled={loading} className={`${primaryButtonClass} mt-6`}>
           {loading ? "Creando cuenta..." : "Crear cuenta"}

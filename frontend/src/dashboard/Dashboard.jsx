@@ -267,6 +267,15 @@ function Overview({ filters, stock, alertas, sales, version, onView, onDetail, o
       {/* HU 6.3: el resumen escrito va arriba de todo. */}
       <AISummary />
 
+      {/* Justo debajo, las alertas de reposición: es lo más urgente (HU 5.7). */}
+      <RestockAlerts
+        queryState={alertas}
+        limit={5}
+        onDetail={onDetail}
+        onRestock={onRestock}
+        onSeeAll={() => onView("risk")}
+      />
+
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <Metric
           title={last ? `Unidades vendidas en ${monthOnly(last.month)}` : "Unidades vendidas"}
@@ -334,13 +343,6 @@ function Overview({ filters, stock, alertas, sales, version, onView, onDetail, o
             version={version}
             onDetail={onOrder}
             onSeeAll={() => onView("orders", { estado: "confirmed" })}
-          />
-          <RestockAlerts
-            queryState={alertas}
-            limit={5}
-            onDetail={onDetail}
-            onRestock={onRestock}
-            onSeeAll={() => onView("risk")}
           />
         </div>
       </div>
