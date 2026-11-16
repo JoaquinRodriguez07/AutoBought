@@ -5,7 +5,7 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.1",
     "bcrypt>=5.0.0",
-    "fastapi[standard]>=0.162.0",
+    "fastapi[standard]>=0.162.5",
     "httpx>=0.28.1",
     "numpy>=2.5.4",
     "psycopg2-binary>=2.9.13",
