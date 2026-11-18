@@ -96,6 +96,7 @@ import {
   addFavoriteApi,
   updateProfile,
   changePassword,
+  requestPasswordReset,
   addCartItem,
   updateCartItem,
   createAddress,
@@ -938,7 +939,7 @@ describe("Catalogo", () => {
     props.isFavorite = jest.fn(() => false);
 
     startClientSession();
-    render(<Catalog {...props} initialCategory="Frenos" />);
+    render(<Catalog {...props} />, { initialEntries: ["/catalogo?categoria=Frenos"] });
 
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     const search = screen.getByPlaceholderText(/buscar repuesto/i);
@@ -986,7 +987,7 @@ describe("Catalogo", () => {
       .mockResolvedValueOnce(cartWithPads(1))
       .mockResolvedValueOnce(cartWithPads(2));
 
-    render(<><Catalog {...catalogoProps()} initialCategory="Frenos" /><CurrentRoute /></>);
+    render(<><Catalog {...catalogoProps()} /><CurrentRoute /></>, { initialEntries: ["/catalogo?categoria=Frenos"] });
     await esperarCatalogo();
     await user.click(buttonsAdd()[0]);
 
@@ -1029,7 +1030,7 @@ describe("Catalogo", () => {
     let responder;
     addCartItem.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
 
-    render(<Catalog {...catalogoProps()} initialCategory="Frenos" />);
+    render(<Catalog {...catalogoProps()} />, { initialEntries: ["/catalogo?categoria=Frenos"] });
     await esperarCatalogo();
     await user.click(buttonsAdd()[0]);
 
@@ -1044,7 +1045,7 @@ describe("Catalogo", () => {
     startClientSession();
     addCartItem.mockResolvedValue(cartWithPads(1));
 
-    render(<Catalog {...catalogoProps()} initialCategory="Frenos" />);
+    render(<Catalog {...catalogoProps()} />, { initialEntries: ["/catalogo?categoria=Frenos"] });
     await esperarCatalogo();
     await user.click(buttonsAdd()[0]);
 
@@ -1059,7 +1060,7 @@ describe("Catalogo", () => {
     // El carrito ya tenía 2 unidades: después de agregar 1 quedan 3.
     addCartItem.mockResolvedValue(cartWithPads(3));
 
-    render(<Catalog {...catalogoProps()} initialCategory="Frenos" />);
+    render(<Catalog {...catalogoProps()} />, { initialEntries: ["/catalogo?categoria=Frenos"] });
     await esperarCatalogo();
     await user.click(buttonsAdd()[0]);
 
@@ -1077,7 +1078,7 @@ describe("Catalogo", () => {
       Object.assign(new Error("No hay stock suficiente. Disponible: 5 unidades."), { status: 409 })
     );
 
-    render(<Catalog {...catalogoProps()} initialCategory="Frenos" />);
+    render(<Catalog {...catalogoProps()} />, { initialEntries: ["/catalogo?categoria=Frenos"] });
     await esperarCatalogo();
     await waitFor(() =>
       expect(within(screen.getByTitle("Carrito")).getByText("4")).toBeInTheDocument()
@@ -1094,7 +1095,7 @@ describe("Catalogo", () => {
   it("asks an anonymous visitor to log in with a button instead of only a message", async () => {
     const user = userEvent.setup();
 
-    render(<><Catalog {...catalogoProps()} initialCategory="Frenos" /><CurrentRoute /></>);
+    render(<><Catalog {...catalogoProps()} /><CurrentRoute /></>, { initialEntries: ["/catalogo?categoria=Frenos"] });
     await esperarCatalogo();
     await user.click(buttonsAdd()[0]);
 
@@ -1102,7 +1103,7 @@ describe("Catalogo", () => {
       .getByText("Iniciá sesión para agregar productos al carrito.")
       .closest("[aria-live]");
     expect(addCartItem).not.toHaveBeenCalled();
-    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(/^\/$/);
+    expect(screen.getByTestId("ruta-actual")).toHaveTextContent(/^\/catalogo/);
 
     await user.click(within(aviso).getByRole("button", { name: "Iniciar sesión" }));
     expect(screen.getByTestId("ruta-actual")).toHaveTextContent("/login");
@@ -1115,7 +1116,7 @@ describe("Catalogo", () => {
     props.onDetail = jest.fn();
     props.isFavorite = jest.fn(() => false);
 
-    render(<Catalog {...props} initialCategory="Frenos" />);
+    render(<Catalog {...props} />, { initialEntries: ["/catalogo?categoria=Frenos"] });
 
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     // Solo los fabricantes de lo cargado (Frenos): Mann es de Motor.
@@ -1149,7 +1150,7 @@ describe("Catalogo", () => {
 
     expect(await screen.findByText("Para Chevrolet Onix")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("checkbox", { name: "Solo con stock" }));
+    await user.click(screen.getByRole("checkbox", { name: /Solo con stock/ }));
     expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
 
     await user.type(screen.getByRole("spinbutton", { name: "Precio máximo" }), "1000");
@@ -1176,7 +1177,7 @@ describe("Catalogo", () => {
     props.onDetail = jest.fn();
     props.isFavorite = jest.fn(() => false);
 
-    render(<Catalog {...props} initialCategory="Frenos" />);
+    render(<Catalog {...props} />, { initialEntries: ["/catalogo?categoria=Frenos"] });
 
     await user.click(await screen.findByRole("button", { name: /Motor/ }));
     expect(await screen.findByText("Filtro de Aire")).toBeInTheDocument();
@@ -1206,12 +1207,11 @@ it("exits free search mode when changing category", async () => {
     <>
       <Catalog
         {...props}
-        initialCategory="Frenos"
         isFavorite={() => false}
       />
       <CurrentRoute />
     </>,
-    { initialEntries: ["/catalogo?q=pastillas"] }
+    { initialEntries: ["/catalogo?categoria=Frenos&q=pastillas"] }
   );
 
   await user.click(
@@ -1420,9 +1420,9 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
     render(
       <Catalog
         {...navigationProps()}
-        initialCategory="Frenos"
         isFavorite={() => false}
-      />
+      />,
+      { initialEntries: ["/catalogo?categoria=Frenos"] }
     );
 
     expect(await screen.findByText("No pudimos cargar los repuestos.")).toBeInTheDocument();
@@ -1430,6 +1430,136 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
 
     expect(await screen.findByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
     expect(getParts).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("Catálogo: filtros que se ajustan y vehículo en pausa", () => {
+  const fiesta = { brand: "Ford", model: "Fiesta", year: "2018" };
+  const partes = [
+    { ...catalogProducts[0], price: 1500, stock: 0, brands: ["Chevrolet"], models: ["Onix"] },
+    { ...catalogProducts[1], price: 4200, stock: 3, brands: ["Ford"], models: ["Fiesta"] },
+    { ...catalogProducts[2], price: 900, stock: 8, brands: ["Chevrolet", "Ford"], models: [] },
+  ];
+  const props = () => ({ ...navigationProps(), onToggleFavorite: jest.fn(), onDetail: jest.fn(), isFavorite: () => false });
+  const filtros = () => screen.getByRole("complementary", { name: "Filtros" });
+
+  it("hides the options that would leave nothing with the other filters applied", async () => {
+    const user = userEvent.setup();
+    getParts.mockResolvedValue(partes);
+
+    render(<Catalog {...props()} />);
+    await screen.findByText("Filtro de Aire");
+    expect(within(filtros()).getByRole("checkbox", { name: /Bosch/ })).toBeInTheDocument();
+    expect(within(filtros()).getByRole("checkbox", { name: /Solo con stock/ })).toHaveAccessibleName("Solo con stock 2");
+
+    // El único Bosch no tiene stock: con "Solo con stock" deja de ofrecerse.
+    await user.click(within(filtros()).getByRole("checkbox", { name: /Solo con stock/ }));
+    expect(within(filtros()).queryByRole("checkbox", { name: /Bosch/ })).not.toBeInTheDocument();
+    expect(within(filtros()).getByRole("checkbox", { name: /Brembo/ })).toBeInTheDocument();
+  });
+
+  it("reads the filters from the address, so they survive going back or sharing the link", async () => {
+    getParts.mockResolvedValue(partes);
+
+    render(<Catalog {...props()} />, { initialEntries: ["/catalogo?fabricante=Mann&stock=1&orden=menor-precio"] });
+
+    expect(await screen.findByText("Filtro de Aire")).toBeInTheDocument();
+    expect(screen.queryByText("Discos de Freno Delanteros")).not.toBeInTheDocument();
+    expect(within(filtros()).getByRole("checkbox", { name: /Mann/ })).toBeChecked();
+    expect(within(filtros()).getByRole("checkbox", { name: /Solo con stock/ })).toBeChecked();
+    expect(screen.getByRole("combobox", { name: /Ordenar por/ })).toHaveValue("Menor precio");
+  });
+
+  it("suggests which filter to remove when the combination leaves nothing", async () => {
+    const user = userEvent.setup();
+    getParts.mockResolvedValue(partes);
+
+    render(<Catalog {...props()} />, { initialEntries: ["/catalogo?fabricante=Bosch&stock=1"] });
+
+    expect(await screen.findByText("Ningún repuesto coincide con los filtros elegidos.")).toBeInTheDocument();
+    // Sacar Bosch deja los 2 con stock; sacar "Con stock" deja el Bosch.
+    expect(screen.getByRole("button", { name: "Sacar Bosch · ver 2 repuestos" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sacar Con stock · ver 1 repuesto" }));
+
+    expect(screen.getByText("Pastillas de Freno Delanteras Bosch")).toBeInTheDocument();
+  });
+
+  it("hides the car brand filter while a vehicle is active", async () => {
+    getParts.mockResolvedValue(partes);
+
+    render(<><ActivateVehicle vehicle={fiesta} /><Catalog {...props()} /></>);
+
+    await screen.findByText("Filtro de Aire");
+    expect(within(filtros()).queryByText("Compatible con")).not.toBeInTheDocument();
+    expect(within(filtros()).getByText("Marca del repuesto")).toBeInTheDocument();
+  });
+
+  it("pauses the vehicle when entering with another brand and resumes it on demand", async () => {
+    const user = userEvent.setup();
+    getParts.mockResolvedValue(partes);
+
+    render(
+      <><ActivateVehicle vehicle={fiesta} /><Catalog {...props()} /></>,
+      { initialEntries: ["/catalogo?marca=Chevrolet"] }
+    );
+
+    expect(await screen.findByText("Tu Ford Fiesta 2018 quedó en pausa.")).toBeInTheDocument();
+    // No se combina Fiesta con Chevrolet: se pide sin el vehículo.
+    await waitFor(() =>
+      expect(getParts).toHaveBeenLastCalledWith(expect.objectContaining({ brand: undefined, model: undefined }))
+    );
+    expect(screen.queryByText("Discos de Freno Delanteros")).not.toBeInTheDocument();
+    expect(within(filtros()).getByText("Compatible con")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Volver a mi Ford Fiesta 2018" }));
+
+    expect(await screen.findByText("Mostrando repuestos para:")).toBeInTheDocument();
+    expect(screen.getByText("Ford Fiesta 2018")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(getParts).toHaveBeenLastCalledWith(expect.objectContaining({ brand: "Ford", model: "Fiesta" }))
+    );
+    expect(within(filtros()).queryByText("Compatible con")).not.toBeInTheDocument();
+  });
+
+  it("lets the visitor choose a vehicle from the catalog without going back home", async () => {
+    const user = userEvent.setup();
+    getParts.mockResolvedValue(partes);
+    getBrands.mockResolvedValue([{ brand: "Ford" }, { brand: "Fiat" }]);
+    getModels.mockResolvedValue(["Fiesta"]);
+    getYears.mockResolvedValue([2018]);
+
+    render(<Catalog {...props()} />, { initialEntries: ["/catalogo?marca=Chevrolet"] });
+
+    await screen.findByText("Filtro de Aire");
+    expect(screen.getByText("¿Para qué auto buscás?")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Elegir vehículo" }));
+    await user.selectOptions(await screen.findByLabelText("MARCA"), "Ford");
+    await user.selectOptions(await screen.findByLabelText("MODELO"), "Fiesta");
+    await screen.findByRole("option", { name: "2018" });
+    await user.selectOptions(screen.getByLabelText("AÑO"), "2018");
+    await user.click(screen.getByRole("button", { name: "Confirmar vehículo" }));
+
+    // El auto elegido manda: no queda en pausa por el "Para Chevrolet" que había.
+    expect(await screen.findByText("Ford Fiesta 2018")).toBeInTheDocument();
+    expect(screen.queryByText(/quedó en pausa/)).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(getParts).toHaveBeenLastCalledWith(expect.objectContaining({ brand: "Ford", model: "Fiesta", year: "2018" }))
+    );
+    expect(within(filtros()).queryByText("Compatible con")).not.toBeInTheDocument();
+  });
+
+  it("drops the brand filter when it is the brand of the active vehicle", async () => {
+    getParts.mockResolvedValue(partes);
+
+    render(
+      <><ActivateVehicle vehicle={fiesta} /><Catalog {...props()} /></>,
+      { initialEntries: ["/catalogo?marca=Ford"] }
+    );
+
+    await screen.findByText("Filtro de Aire");
+    expect(screen.queryByText(/quedó en pausa/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Quitar filtro Para Ford" })).not.toBeInTheDocument();
   });
 });
 
@@ -3342,6 +3472,36 @@ describe("CambiarPassword", () => {
 
     await screen.findByText("La contraseña actual es incorrecta.");
     expect(JSON.parse(localStorage.getItem("autobought-sesion")).token).toBe("jwt-viejo");
+  });
+
+  it("sends a reset link to the account email when the current password is forgotten", async () => {
+    const user = userEvent.setup();
+    requestPasswordReset.mockResolvedValue("Si el correo está registrado, te mandamos un enlace.");
+    render(<ChangePassword email="ana@example.com" />);
+
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+    await user.click(screen.getByRole("button", { name: "Enviar enlace" }));
+
+    expect(requestPasswordReset).toHaveBeenCalledWith("ana@example.com");
+    expect(await screen.findByRole("status")).toHaveTextContent(/Te mandamos un enlace a ana@example.com/);
+    expect(screen.queryByLabelText("CONTRASEÑA ACTUAL")).not.toBeInTheDocument();
+    expect(changePassword).not.toHaveBeenCalled();
+
+    // Desde el aviso se puede pedir de nuevo.
+    await user.click(screen.getByRole("button", { name: "¿No te llegó? Reenviar enlace" }));
+    expect(requestPasswordReset).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the error when the reset link cannot be sent and keeps the form open", async () => {
+    const user = userEvent.setup();
+    requestPasswordReset.mockRejectedValue(new Error("No pudimos procesar el pedido."));
+    render(<ChangePassword email="ana@example.com" />);
+
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+    await user.click(screen.getByRole("button", { name: "Enviar enlace" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No pudimos procesar el pedido.");
+    expect(screen.getByLabelText("CONTRASEÑA ACTUAL")).toBeInTheDocument();
   });
 
   it("shows an error under each empty field before calling the API", async () => {

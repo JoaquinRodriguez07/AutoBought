@@ -12,7 +12,7 @@ import ActiveVehicleBanner from "./ActiveVehicleBanner";
 import PageHeader from "./PageHeader";
 import CatalogFilters from "./CatalogFilters";
 import { CartIcon, CloseIcon, HeartIcon, FiltersIcon } from "./Icons";
-import { filterParts } from "./filterParts";
+import { facetCounts, filterParts } from "./filterParts";
 import NoSearchResults from "./NoSearchResults";
 import { searchText, getCategories, getParts } from "./api";
 import { useVehicle } from "./context/VehicleContext";
@@ -25,22 +25,32 @@ const PARTS_PER_BATCH = 24;
 // AYUDAS DE LOS FILTROS
 // ==========================================
 
-// Cuántos repuestos hay de cada opción ([nombre, cantidad]). `valores`
-// devuelve las opciones de un repuesto (un fabricante, varias marcas).
-function countOptions(products, values, selected) {
-  const quantities = new Map(selected.map((s) => [s, 0]));
-  for (const p of products) {
-    for (const rawValue of values(p)) {
-      quantities.set(rawValue, (quantities.get(rawValue) ?? 0) + 1);
-    }
-  }
-  return [...quantities];
-}
-
 // Para los setState de listas: saca un valor, o lo pone si no está.
 const without = (rawValue) => (list) => list.filter((v) => v !== rawValue);
 const toggle = (rawValue) => (list) =>
   list.includes(rawValue) ? list.filter((v) => v !== rawValue) : [...list, rawValue];
+
+// El orden elegido viaja en la dirección con un nombre corto (?orden=).
+const SORTS = {
+  "menor-precio": "Menor precio",
+  "mayor-precio": "Mayor precio",
+  nombre: "Nombre A-Z",
+};
+const DEFAULT_SORT = "Más relevantes";
+
+// Los filtros viven en la dirección (/catalogo?categoria=Frenos&fabricante=Bosch&max=2000):
+// así Atrás, recargar y compartir el enlace los conservan.
+function filtersFromUrl(params) {
+  return {
+    categoria: params.get("categoria") || null,
+    manufacturers: params.getAll("fabricante"),
+    brandsCar: params.getAll("marca"),
+    priceMin: params.get("min") ?? "",
+    priceMax: params.get("max") ?? "",
+    onlyWithStock: params.get("stock") === "1",
+    sort: SORTS[params.get("orden")] ?? DEFAULT_SORT,
+  };
+}
 
 const pesos = (rawValue) => `$${Number(rawValue).toLocaleString("es-UY")}`;
 
@@ -89,8 +99,6 @@ export default function Catalog({
   // CATÁLOGO
   // ==========================================
   onDetail,
-  initialCategory,
-  onSelectedCategory,
   onToggleFavorite,
   isFavorite,
   onToggleNoticeStock,
@@ -100,59 +108,77 @@ export default function Catalog({
   // VehicleContext, así que sobrevive a ir al carrito y volver.
   const { activeVehicle, clearVehicle, activateVehicle } = useVehicle();
 
-  // `categoria` en null significa "todas las categorías": es lo que
-  // deja el botón "Limpiar filtros" y lo que se traduce en un
-  // GET /api/v1/parts sin parámetros.
-  //
-  // El nombre de la categoría NO se inventa acá: se usa tal cual lo
-  // manda quien navega (App.jsx / Home.jsx) o el que devuelve
-  // GET /api/v1/parts/categories. Esta pantalla no tiene literales de
-  // categoría ni traducciones propias.
-  const [categoria, setCategory] = useState(
-    initialCategory || null
-  );
-
-  const [sort, setSort] = useState("Más relevantes");
+  // Los filtros se leen de la dirección (ver filtrosDesdeUrl). `categoria`
+  // en null es "todas las categorías". El nombre de la categoría NO se
+  // inventa acá: es el que manda quien navega (App.jsx / Home.jsx) o el
+  // que devuelve GET /api/v1/parts/categories.
   const [searchParams, setSearchParams] = useSearchParams();
   const queryState = (searchParams.get("q") || "").trim();
-  const { key: keyNavigation } = useLocation();
+  const filters = useMemo(() => filtersFromUrl(searchParams), [searchParams]);
+  const { categoria, manufacturers, brandsCar, priceMin, priceMax, onlyWithStock, sort } = filters;
+  const { key: keyNavigation, state: navigationState } = useLocation();
   // Si se entra con ?q= (desde la barra del menú), la búsqueda se ve en
   // la barra del catálogo.
   const [search, setSearch] = useState(queryState);
-  const [manufacturers, setManufacturers] = useState(() => {
-    const fromHome = searchParams.get("fabricante");
-    return fromHome ? [fromHome] : [];
-  });
-  const [brandsCar, setBrandsCar] = useState(() => {
-    const fromHome = searchParams.get("marca");
-    return fromHome ? [fromHome] : [];
-  });
 
-  // Los filtros ?marca= y ?fabricante= (marcas del footer, logos de Home,
-  // botones de fabricantes) también se aplican cuando YA se está en el
-  // catálogo: ahí la pantalla no se vuelve a montar y el estado inicial
-  // de arriba no se lee de nuevo. Se mira la navegación (no solo la
-  // dirección) para que tocar de nuevo la misma marca, después de haber
-  // destildado el filtro, lo vuelva a aplicar. Sin esos parámetros no se
-  // toca nada: lo que el cliente tildó a mano se conserva.
+  // Al entrar desde afuera del catálogo (inicio, footer, marcas, barra
+  // del menú) los filtros son los de la dirección nueva: se quita
+  // también el texto que se había escrito en la barra, que si no seguiría
+  // filtrando. Los cambios hechos acá adentro no lo tocan.
   useEffect(() => {
-    const marca = searchParams.get("marca");
-    const fabricante = searchParams.get("fabricante");
-    if (!marca && !fabricante) return;
-
-    if (marca) setBrandsCar([marca]);
-    if (fabricante) setManufacturers([fabricante]);
-    // Un filtro de una sola vez parte de la lista completa: se quita el
-    // texto que se había escrito en la barra, que si no seguiría filtrando.
-    setSearch(queryState);
-    // Solo cuando se navega: los filtros que el cliente cambia después
-    // a mano no se pisan.
+    if (navigationState?.fromOutside) setSearch(queryState);
+    // Solo cuando se navega.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyNavigation]);
 
-  const [priceMin, setPriceMin] = useState("");
-  const [priceMax, setPriceMax] = useState("");
-  const [onlyWithStock, setOnlyWithStock] = useState(false);
+  // Cambia la dirección a partir de la actual. `replace` para lo que se
+  // escribe tecla por tecla (el precio): no llena el historial.
+  const updateUrl = (change, { replace = false } = {}) => {
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        change(next);
+        return next;
+      },
+      { replace }
+    );
+  };
+  const setParam = (name, value, options) =>
+    updateUrl((next) => (value ? next.set(name, value) : next.delete(name)), options);
+  const setList = (name, change, options) =>
+    updateUrl((next) => {
+      const values = change(next.getAll(name));
+      next.delete(name);
+      values.forEach((v) => next.append(name, v));
+    }, options);
+
+  const setManufacturers = (change) => setList("fabricante", change);
+  const setBrandsCar = (change) => setList("marca", change);
+  const setPriceMin = (value) => setParam("min", value, { replace: true });
+  const setPriceMax = (value) => setParam("max", value, { replace: true });
+  const setOnlyWithStock = (value) => setParam("stock", value ? "1" : "");
+  const setSort = (value) =>
+    setParam("orden", Object.keys(SORTS).find((k) => SORTS[k] === value) ?? "");
+
+  // ==========================================
+  // VEHÍCULO EN PAUSA
+  // ==========================================
+  // El vehículo activo manda: con él elegido no se muestra el filtro de
+  // marca del auto. Pero si se entra con otra marca (un logo del inicio,
+  // el footer, /marcas), el cliente quiere ver esa marca: el vehículo
+  // queda en pausa (no se combina con la marca, que daría casi nada) y
+  // la franja ofrece volver a él. Vuelve solo al quitar la marca.
+  const vehiclePaused =
+    Boolean(activeVehicle) && brandsCar.some((m) => !sameName(m, activeVehicle.brand));
+  const vehicle = vehiclePaused ? null : activeVehicle;
+
+  // La marca del propio vehículo no filtra nada: se quita.
+  const redundantBrand = Boolean(activeVehicle) && brandsCar.length > 0 && !vehiclePaused;
+  useEffect(() => {
+    if (redundantBrand) setList("marca", () => [], { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [redundantBrand]);
+
   // En celular los filtros se esconden detrás de un botón.
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [quantities, setQuantities] = useState({});
@@ -174,9 +200,9 @@ export default function Catalog({
   // pisa a una nueva.
 
   const [retry, setRetry] = useState(0);
-  const vehicleKey = `${activeVehicle?.brand ?? ""}|${
-    activeVehicle?.model ?? ""
-  }|${activeVehicle?.year ?? ""}`;
+  const vehicleKey = `${vehicle?.brand ?? ""}|${
+    vehicle?.model ?? ""
+  }|${vehicle?.year ?? ""}`;
   const orderKey = `${retry}|${categoria ?? ""}|${vehicleKey}`;
 
   const [response, setResponse] = useState({
@@ -208,16 +234,6 @@ export default function Catalog({
   const categoriesError = categoriesResponse.error;
 
   // ==========================================
-  // ACTUALIZAR CATEGORÍA
-  // ==========================================
-  // Se entra al catálogo desde Home ya filtrado por una categoría
-  // (App.jsx pasa `categoriaCatalogo`); ese camino se mantiene.
-
-  useEffect(() => {
-    setCategory(initialCategory || null);
-  }, [initialCategory]);
-
-  // ==========================================
   // BÚSQUEDA LIBRE
   // ==========================================
   // La búsqueda respeta el vehículo elegido: el servidor filtra por él.
@@ -229,14 +245,14 @@ export default function Catalog({
   let active = true;
   const key = `libre|${queryState}|${vehicleKey}`;
 
-  searchText(queryState, activeVehicle)
+  searchText(queryState, vehicle)
     .then(({ parts, entities }) => {
       if (!active) return;
 
       const otherVehicle =
         entities?.brand &&
-        (!sameName(entities.brand, activeVehicle?.brand) ||
-          (entities.model && !sameName(entities.model, activeVehicle?.model)));
+        (!sameName(entities.brand, vehicle?.brand) ||
+          (entities.model && !sameName(entities.model, vehicle?.model)));
       if (otherVehicle) {
         activateVehicle({
           brand: entities.brand,
@@ -283,7 +299,7 @@ export default function Catalog({
   return () => {
     active = false;
   };
-// activeVehicle se lee por vehicleKey: el objeto cambia aunque sea el mismo auto.
+// vehicle se lee por vehicleKey: el objeto cambia aunque sea el mismo auto.
 }, [queryState, vehicleKey, activateVehicle]);
 
   // ==========================================
@@ -302,9 +318,9 @@ export default function Catalog({
 
     getParts({
       categoria: categoria || undefined,
-      brand: activeVehicle?.brand || undefined,
-      model: activeVehicle?.model || undefined,
-      year: activeVehicle?.year || undefined,
+      brand: vehicle?.brand || undefined,
+      model: vehicle?.model || undefined,
+      year: vehicle?.year || undefined,
     })
       .then((list) => {
         if (!active) return;
@@ -326,7 +342,7 @@ export default function Catalog({
     return () => {
       active = false;
     };
-  }, [categoria, activeVehicle, orderKey, queryState]);
+  }, [categoria, vehicle, orderKey, queryState]);
 
   // ==========================================
   // CARGAR CATEGORÍAS
@@ -371,20 +387,24 @@ export default function Catalog({
   // marca del auto) y el orden se resuelven en el navegador con
   // filtrarRepuestos, en vivo.
 
+  // Lo que se buscó con Enter ya lo resolvió el servidor: no se vuelve a
+  // filtrar por ese mismo texto.
+  const localSearch = search.trim() === queryState ? "" : search;
+  const listOptions = useMemo(
+    () => ({ ...filters, search: localSearch }),
+    [filters, localSearch]
+  );
+
   const shownProducts = useMemo(
-    () =>
-      filterParts(products, {
-        // Lo que se buscó con Enter ya lo resolvió el servidor: no se
-        // vuelve a filtrar por ese mismo texto.
-        search: search.trim() === queryState ? "" : search,
-        manufacturers,
-        brandsCar,
-        priceMin,
-        priceMax,
-        onlyWithStock,
-        sort,
-      }),
-    [products, search, queryState, manufacturers, brandsCar, priceMin, priceMax, onlyWithStock, sort]
+    () => filterParts(products, listOptions),
+    [products, listOptions]
+  );
+
+  // Los números del panel: cada grupo, con todos los demás filtros
+  // aplicados (ver facetCounts).
+  const facets = useMemo(
+    () => facetCounts(products, listOptions),
+    [products, listOptions]
   );
 
   // Se muestran de a REPUESTOS_POR_TANDA: con el catálogo completo son
@@ -397,19 +417,6 @@ export default function Catalog({
   const seeMore = () =>
     setBatch({ list: shownProducts, quantity: visibleQuantity + PARTS_PER_BATCH });
 
-  // Las opciones de fabricante y marca del auto salen de los repuestos
-  // cargados (con la categoría y el vehículo ya aplicados), con cuántos
-  // hay de cada una. Las tildadas se muestran aunque ya no tengan
-  // repuestos, para poder destildarlas.
-  const manufacturerOptions = useMemo(
-    () => countOptions(products, (p) => (p.fabricante ? [p.fabricante] : []), manufacturers),
-    [products, manufacturers]
-  );
-  const brandOptions = useMemo(
-    () => countOptions(products, (p) => p.brands ?? [], brandsCar),
-    [products, brandsCar]
-  );
-
   // ==========================================
   // LIMPIAR FILTROS
   // ==========================================
@@ -418,51 +425,67 @@ export default function Catalog({
   // "Limpiar filtros" es de todo lo demás; el vehículo se quita desde el
   // banner).
 
-  // La categoría vive en dos lados: acá y en App (`categoriaCatalogo`,
-  // que es lo que vuelve como `categoriaInicial` al entrar de nuevo al
-  // catálogo). Se cambian siempre juntas: si solo se limpiara la de
-  // acá, volver con el botón Atrás reaplicaría el filtro viejo.
-  const changeCategory = (newPassword) => {
-    if (queryState) {
-      setSearchParams({});
-      setSearch("");
-    }
-
-    setCategory(newPassword);
-    onSelectedCategory?.(newPassword);
+  // Cambiar de categoría deja los demás filtros; si había una búsqueda
+  // del servidor (?q=), se quita: se vuelve a la lista de la categoría.
+  const changeCategory = (newCategory) => {
+    if (queryState) setSearch("");
+    updateUrl((next) => {
+      next.delete("q");
+      if (newCategory) next.set("categoria", newCategory);
+      else next.delete("categoria");
+    });
   };
 
   const clearFilters = () => {
-    if (queryState) {
-      setSearchParams({});
-    }
-
-    changeCategory(null);
+    setSearchParams({});
     setSearch("");
-    setManufacturers([]);
-    setBrandsCar([]);
-    setPriceMin("");
-    setPriceMax("");
-    setOnlyWithStock(false);
   };
 
   // Los filtros activos, como chips arriba de los resultados: cada uno
   // con lo que hay que hacer para quitarlo.
+  // `relax`: los filtros sin este, para saber cuántos resultados
+  // aparecerían al quitarlo (lo usa el aviso de "sin resultados").
   const filtersActivos = [
     categoria && { key: "categoria", texto: categoria, remove: () => changeCategory(null) },
     search.trim() && { key: "search", texto: `"${search.trim()}"`, remove: () => runSearch("") },
-    ...manufacturers.map((f) => ({ key: `fabricante-${f}`, texto: f, remove: () => setManufacturers(without(f)) })),
-    ...brandsCar.map((m) => ({ key: `marca-${m}`, texto: `Para ${m}`, remove: () => setBrandsCar(without(m)) })),
+    ...manufacturers.map((f) => ({
+      key: `fabricante-${f}`,
+      texto: f,
+      remove: () => setManufacturers(without(f)),
+      relax: { manufacturers: manufacturers.filter((v) => v !== f) },
+    })),
+    ...brandsCar.map((m) => ({
+      key: `marca-${m}`,
+      texto: `Para ${m}`,
+      remove: () => setBrandsCar(without(m)),
+      relax: { brandsCar: brandsCar.filter((v) => v !== m) },
+    })),
     (priceMin !== "" || priceMax !== "") && {
       key: "price",
       texto: priceText(priceMin, priceMax),
-      remove: () => {
-        setPriceMin("");
-        setPriceMax("");
-      },
+      remove: () =>
+        updateUrl((next) => {
+          next.delete("min");
+          next.delete("max");
+        }),
+      relax: { priceMin: "", priceMax: "" },
     },
-    onlyWithStock && { key: "stock", texto: "Con stock", remove: () => setOnlyWithStock(false) },
+    onlyWithStock && {
+      key: "stock",
+      texto: "Con stock",
+      remove: () => setOnlyWithStock(false),
+      relax: { onlyWithStock: false },
+    },
   ].filter(Boolean);
+
+  // Con 0 resultados: qué filtro quitar para ver algo, y cuántos.
+  const relaxSuggestions =
+    shownProducts.length === 0
+      ? filtersActivos
+          .filter((f) => f.relax)
+          .map((f) => ({ ...f, quantity: filterParts(products, { ...listOptions, ...f.relax }).length }))
+          .filter((f) => f.quantity > 0)
+      : [];
 
   const hasFilters = filtersActivos.length > 0;
 
@@ -475,7 +498,7 @@ export default function Catalog({
   const runSearch = (texto) => {
     const cleaned = texto.trim();
     setSearch(cleaned);
-    setSearchParams(cleaned ? { q: cleaned } : {});
+    setParam("q", cleaned);
   };
 
   // Lo escrito que todavía no se buscó en el servidor: para eso se ofrece
@@ -601,16 +624,22 @@ export default function Catalog({
             </div>
           </div>
 
-          {/* VEHÍCULO ACTIVO */}
-          {/* Oculto si no hay vehículo activo en VehicleContext. */}
+          {/* VEHÍCULO */}
+          {/* Siempre a la vista. Sin vehículo invita a elegir uno; con
+              vehículo lo muestra y deja cambiarlo; en pausa (se entró
+              con otra marca) lo dice y ofrece volver a él. */}
 
-          {activeVehicle && (
-            <div className="mt-4">
-              <ActiveVehicleBanner
-                onClear={clearVehicleAndFilters}
-              />
-            </div>
-          )}
+          <div className="mt-4">
+            <ActiveVehicleBanner
+              askWhenEmpty
+              onClear={clearVehicleAndFilters}
+              pausedFor={vehiclePaused ? brandsCar : null}
+              onResume={() => setBrandsCar(() => [])}
+              // El auto recién elegido manda: el filtro "Compatible con"
+              // que hubiera se quita (si no, quedaría en pausa enseguida).
+              onChoose={() => brandsCar.length > 0 && setBrandsCar(() => [])}
+            />
+          </div>
 
         </PageHeader>
 
@@ -641,10 +670,11 @@ export default function Catalog({
                 onRetryCategories={() => setRetryCategories((v) => v + 1)}
                 categoria={categoria}
                 onCategory={changeCategory}
-                manufacturerOptions={manufacturerOptions}
+                manufacturerOptions={facets.manufacturers}
                 manufacturers={manufacturers}
                 onToggleManufacturer={(f) => setManufacturers(toggle(f))}
-                brandOptions={brandOptions}
+                brandOptions={facets.brandsCar}
+                showBrands={!vehicle}
                 brandsCar={brandsCar}
                 onToggleBrand={(m) => setBrandsCar(toggle(m))}
                 priceMin={priceMin}
@@ -652,6 +682,7 @@ export default function Catalog({
                 onPriceMin={setPriceMin}
                 onPriceMax={setPriceMax}
                 onlyWithStock={onlyWithStock}
+                withStockQuantity={facets.withStock}
                 onOnlyWithStock={setOnlyWithStock}
               />
 
@@ -999,7 +1030,41 @@ export default function Catalog({
                   mensaje genérico. */}
 
               {!loading && !error && shownProducts.length === 0 && (
-                search.trim() ? (
+                products.length > 0 && !textWithoutSearch ? (
+                  <div className="py-16 text-center">
+                    <p className="text-sm text-gray-500">
+                      Ningún repuesto coincide con los filtros elegidos.
+                    </p>
+
+                    {relaxSuggestions.length > 0 && (
+                      <div className="mt-5 flex flex-col items-center gap-2">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                          Probá sacando un filtro
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {relaxSuggestions.map((f) => (
+                            <button
+                              key={f.key}
+                              type="button"
+                              onClick={f.remove}
+                              className="h-9 px-4 rounded-full border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white text-xs font-bold transition"
+                            >
+                              Sacar {f.texto} · ver {f.quantity} {f.quantity === 1 ? "repuesto" : "repuestos"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="mt-5 text-xs font-bold text-orange-500 hover:underline"
+                    >
+                      Limpiar todos los filtros
+                    </button>
+                  </div>
+                ) : search.trim() ? (
                   <>
                     <NoSearchResults
                       termino={search.trim()}
@@ -1009,11 +1074,9 @@ export default function Catalog({
                   </>
                 ) : (
                   <div className="py-20 text-center text-gray-400 text-sm">
-                    {products.length > 0
-                      ? "Ningún repuesto coincide con los filtros elegidos."
-                      : categoria
+                    {categoria
                       ? `No hay productos en la categoría "${categoria}".`
-                      : activeVehicle
+                      : vehicle
                       ? "No encontramos repuestos para este vehículo."
                       : "No encontramos productos."}
                   </div>

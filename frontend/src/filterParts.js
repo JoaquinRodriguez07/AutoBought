@@ -60,31 +60,12 @@ const normalizeText = (texto) =>
 const limit = (rawValue) =>
   rawValue === "" || rawValue === null || rawValue === undefined ? null : Number(rawValue);
 
-/**
- * @param {Array<object>} productos - array de repuestos (mock o API).
- * @param {object} opciones
- * @param {string} [opciones.categoria] - categoría seleccionada en el sidebar.
- * @param {string} [opciones.busqueda]  - texto ingresado en el SearchBar.
- * @param {string[]} [opciones.fabricantes] - fabricantes tildados; vacío = todos.
- * @param {string[]} [opciones.marcasAuto] - marcas de auto tildadas; vacío = todas.
- * @param {number|string} [opciones.precioMin] - precio mínimo; vacío = sin límite.
- * @param {number|string} [opciones.precioMax] - precio máximo; vacío = sin límite.
- * @param {boolean} [opciones.soloConStock] - oculta los repuestos sin stock.
- * @param {string} [opciones.orden]     - "Menor precio" | "Mayor precio" | "Nombre A-Z" | otro.
- * @returns {Array<object>} nuevo array filtrado y ordenado (no muta el original).
- */
-export function filterParts(
+// Cada filtro, por separado. `filterParts` los aplica todos;
+// `facetCounts` los aplica todos MENOS el del grupo que está contando.
+function applyFilters(
   products,
-  {
-    categoria,
-    search = "",
-    manufacturers = [],
-    brandsCar = [],
-    priceMin,
-    priceMax,
-    onlyWithStock = false,
-    sort,
-  } = {}
+  { categoria, search = "", manufacturers = [], brandsCar = [], priceMin, priceMax, onlyWithStock = false } = {},
+  skip = null
 ) {
   let list = Array.isArray(products) ? products : [];
 
@@ -106,11 +87,11 @@ export function filterParts(
     list = list.filter((p) => getCategory(p) === categoria);
   }
 
-  if (manufacturers.length > 0) {
+  if (skip !== "manufacturers" && manufacturers.length > 0) {
     list = list.filter((p) => manufacturers.includes(getManufacturer(p)));
   }
 
-  if (brandsCar.length > 0) {
+  if (skip !== "brandsCar" && brandsCar.length > 0) {
     list = list.filter((p) => getBrandList(p).some((m) => brandsCar.includes(m)));
   }
 
@@ -123,11 +104,29 @@ export function filterParts(
     list = list.filter((p) => getPrice(p) <= maximo);
   }
 
-  if (onlyWithStock) {
+  if (skip !== "onlyWithStock" && onlyWithStock) {
     list = list.filter((p) => getStock(p) > 0);
   }
 
-  const sortedList = [...list];
+  return list;
+}
+
+/**
+ * @param {Array<object>} productos - array de repuestos (mock o API).
+ * @param {object} opciones
+ * @param {string} [opciones.categoria] - categoría seleccionada en el sidebar.
+ * @param {string} [opciones.search]  - texto ingresado en el SearchBar.
+ * @param {string[]} [opciones.manufacturers] - fabricantes tildados; vacío = todos.
+ * @param {string[]} [opciones.brandsCar] - marcas de auto tildadas; vacío = todas.
+ * @param {number|string} [opciones.priceMin] - precio mínimo; vacío = sin límite.
+ * @param {number|string} [opciones.priceMax] - precio máximo; vacío = sin límite.
+ * @param {boolean} [opciones.onlyWithStock] - oculta los repuestos sin stock.
+ * @param {string} [opciones.sort]     - "Menor precio" | "Mayor precio" | "Nombre A-Z" | otro.
+ * @returns {Array<object>} nuevo array filtrado y ordenado (no muta el original).
+ */
+export function filterParts(products, options = {}) {
+  const { sort } = options;
+  const sortedList = [...applyFilters(products, options)];
 
   if (sort === "Menor precio") {
     sortedList.sort((a, b) => getPrice(a) - getPrice(b));
@@ -142,4 +141,45 @@ export function filterParts(
   }
 
   return sortedList;
+}
+
+// Cuántos repuestos hay de cada valor ([nombre, cantidad]). Las opciones
+// tildadas se incluyen aunque queden en 0, para poder destildarlas.
+function countValues(list, values, selected) {
+  const quantities = new Map(selected.map((s) => [s, 0]));
+  for (const p of list) {
+    for (const rawValue of values(p)) {
+      quantities.set(rawValue, (quantities.get(rawValue) ?? 0) + 1);
+    }
+  }
+  return [...quantities];
+}
+
+/**
+ * Los números de cada opción del panel de filtros, como en las tiendas
+ * grandes: cada grupo se cuenta con TODOS los demás filtros aplicados
+ * menos el suyo. Así, dentro de un grupo se pueden sumar opciones
+ * (Bosch o NGK) y cada número dice cuántos resultados quedarían al
+ * tildarla. Una opción que no tiene nada no aparece (salvo que ya esté
+ * tildada).
+ *
+ * @returns {{ manufacturers: Array<[string, number]>, brandsCar: Array<[string, number]>, withStock: number }}
+ */
+export function facetCounts(products, options = {}) {
+  const { manufacturers = [], brandsCar = [] } = options;
+
+  return {
+    manufacturers: countValues(
+      applyFilters(products, options, "manufacturers"),
+      (p) => (getManufacturer(p) ? [getManufacturer(p)] : []),
+      manufacturers
+    ),
+    brandsCar: countValues(
+      applyFilters(products, options, "brandsCar"),
+      getBrandList,
+      brandsCar
+    ),
+    withStock: applyFilters(products, options, "onlyWithStock").filter((p) => getStock(p) > 0)
+      .length,
+  };
 }

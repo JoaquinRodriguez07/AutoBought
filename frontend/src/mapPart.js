@@ -40,7 +40,7 @@
  *     las pantallas tienen lugar para una sola, así que renderizan
  *     `marcaPrincipal ?? marca` (el `??` cubre lo viejo guardado en
  *     localStorage, que solo tiene `marca`).
- *   - `marcas`: la lista, para el filtro "Marca del auto" del catálogo.
+ *   - `marcas`: la lista, para el filtro "Compatible con" del catálogo.
  *
  * IDs: `PartOut.id` es un NÚMERO y los ids del mock son STRINGS
  * ("BP1234"). El carrito y favoritos viven en localStorage y comparan
