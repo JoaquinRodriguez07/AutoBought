@@ -8,7 +8,8 @@ test.describe("Catálogo", () => {
     await page.goto("/");
     await page.getByRole("button", { name: /^Frenos/ }).first().click();
 
-    await expect(page).toHaveURL(/\/catalogo$/);
+    // Desde la #149 los filtros viven en la dirección: la categoría queda en ?categoria=.
+    await expect(page).toHaveURL(/\/catalogo\?categoria=Frenos$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/frenos/i);
     await expect(page.getByText(/\d+ resultados?/)).toBeVisible();
   });
