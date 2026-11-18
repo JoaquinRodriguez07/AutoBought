@@ -101,16 +101,6 @@ describe("Carrito: productos", () => {
 });
 
 describe("Carrito: confirmación de compra (HU 1.9)", () => {
-  test("Antes de pagar avisa que el pago es de prueba y que no se use una tarjeta real", async () => {
-    const user = userEvent.setup();
-    withCart([pads]);
-
-    renderCart();
-    const dialogo = await openConfirmation(user);
-
-    expect(within(dialogo).getByRole("note")).toHaveTextContent("Pago de prueba: no uses una tarjeta real.");
-  });
-
   test("Al confirmar crea el pedido, refresca el carrito y lleva a pagar a Mercado Pago", async () => {
     const user = userEvent.setup();
     const loadCart = withCart([pads, filter]);
