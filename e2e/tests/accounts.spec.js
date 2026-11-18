@@ -17,7 +17,8 @@ test("registro: crear una cuenta y verificar el correo con el enlace del mail", 
   await page.getByPlaceholder("099 123 456").fill(phoneNumber);
   await page.getByPlaceholder("Mínimo 8 caracteres").fill("PruebaE2e2026x");
   await page.getByPlaceholder("Repetí tu contraseña").fill("PruebaE2e2026x");
-  await page.getByText("Acepto los términos y condiciones.").click();
+  // El texto trae un enlace a los términos: se tilda el casillero, no el texto.
+  await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "CREAR CUENTA" }).click();
 
   await expect(page).toHaveURL(/\/$/);

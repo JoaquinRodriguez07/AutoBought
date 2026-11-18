@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { saveMailPreferences } from "./api";
+import { useEffect, useState } from "react";
+import { getProfile, saveMailPreferences } from "./api";
 import AccountSection from "./AccountSection";
 
 /**
@@ -10,6 +10,29 @@ import AccountSection from "./AccountSection";
 export default function MailPreferences({ sessionUser, onUpdateUser }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // La sesión guarda la preferencia del momento del login, y puede haber
+  // cambiado después (por ejemplo, con «No quiero recibir estos mails» del
+  // mail). Al abrir la pantalla se pide la del servidor.
+  const token = sessionUser?.token;
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    getProfile(token)
+      .then((profile) => {
+        if (active && profile.recibeOfertas !== sessionUser?.recibeOfertas) {
+          onUpdateUser?.({ ...sessionUser, recibeOfertas: profile.recibeOfertas });
+        }
+      })
+      .catch(() => {
+        // Si falla, queda el valor de la sesión: guardar sigue funcionando.
+      });
+    return () => {
+      active = false;
+    };
+    // Solo al abrir la pantalla o si cambia la sesión.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   // Mientras el perfil no cargó, se muestra el valor por defecto (sí).
   const recibe = sessionUser?.recibeOfertas ?? true;

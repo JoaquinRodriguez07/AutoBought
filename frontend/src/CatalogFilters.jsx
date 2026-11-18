@@ -7,8 +7,12 @@ import { ArrowIcon } from "./Icons";
  * Barra lateral del catálogo. Solo muestra y avisa: los valores de los
  * filtros viven en Catalogo.jsx, que es el que filtra.
  *
+ * Los números de cada opción son cuántos resultados quedarían al
+ * tildarla, con los demás filtros ya aplicados (ver facetCounts): una
+ * opción sin resultados no aparece, salvo que ya esté tildada.
+ *
  * Cada sección es un <details> que se puede plegar. Categoría y
- * Fabricante arrancan abiertas; el resto, cerradas salvo que ya tengan
+ * Marca del repuesto arrancan abiertas; el resto, cerradas salvo que ya tengan
  * algo elegido, así la barra es corta y baja junto con la página.
  * Las listas largas (fabricantes, marcas) muestran las primeras
  * VISIBLES opciones, las que más repuestos tienen, y un "Ver todos".
@@ -98,6 +102,7 @@ export default function CatalogFilters({
   manufacturers,
   onToggleManufacturer,
   brandOptions,
+  showBrands = true,
   brandsCar,
   onToggleBrand,
   priceMin,
@@ -105,6 +110,7 @@ export default function CatalogFilters({
   onPriceMin,
   onPriceMax,
   onlyWithStock,
+  withStockQuantity,
   onOnlyWithStock,
 }) {
   return (
@@ -151,12 +157,12 @@ export default function CatalogFilters({
         )}
       </Section>
 
-      {/* FABRICANTES */}
+      {/* MARCA DEL REPUESTO (el fabricante: Bosch, NGK...) */}
       {/* Salen de los repuestos cargados (categoría y vehículo ya
           aplicados): solo aparecen los que tienen algo para mostrar. */}
 
       {manufacturerOptions.length > 0 && (
-        <Section title="Fabricante">
+        <Section title="Marca del repuesto">
           <CheckList
             opciones={manufacturerOptions}
             selected={manufacturers}
@@ -194,25 +200,30 @@ export default function CatalogFilters({
       </Section>
 
       {/* DISPONIBILIDAD */}
+      {/* Si nada de lo que se ve tiene stock, tildarla no deja nada:
+          no se ofrece. */}
 
-      <Section title="Disponibilidad" openToHome={onlyWithStock}>
-        <label className="flex items-center gap-2 py-1.5 cursor-pointer text-sm text-gray-700">
-          <input
-            type="checkbox"
-            className="w-4 h-4 accent-orange-500"
-            checked={onlyWithStock}
-            onChange={(e) => onOnlyWithStock(e.target.checked)}
-          />
-          Solo con stock
-        </label>
-      </Section>
+      {(onlyWithStock || withStockQuantity > 0) && (
+        <Section title="Disponibilidad" openToHome={onlyWithStock}>
+          <label className="flex items-center gap-2 py-1.5 cursor-pointer text-sm text-gray-700">
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-orange-500"
+              checked={onlyWithStock}
+              onChange={(e) => onOnlyWithStock(e.target.checked)}
+            />
+            Solo con stock
+            {withStockQuantity !== undefined && <Counter quantity={withStockQuantity} />}
+          </label>
+        </Section>
+      )}
 
-      {/* MARCA DEL AUTO */}
-      {/* Las marcas compatibles de lo cargado. Con un vehículo activo
-          todo es de esa marca, así que no se muestra. */}
+      {/* COMPATIBLE CON (marca del auto) */}
+      {/* Las marcas compatibles de lo cargado. Con un vehículo activo no
+          se muestra: el vehículo ya dice para qué auto es. */}
 
-      {brandOptions.length > 1 && (
-        <Section title="Marca del auto" openToHome={brandsCar.length > 0}>
+      {showBrands && (brandOptions.length > 1 || brandsCar.length > 0) && (
+        <Section title="Compatible con" openToHome={brandsCar.length > 0}>
           <CheckList
             opciones={brandOptions}
             selected={brandsCar}

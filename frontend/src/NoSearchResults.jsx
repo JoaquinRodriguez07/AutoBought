@@ -2,7 +2,8 @@
  * SinResultadosBusqueda
  * ==========================================
  * Componente de retroalimentación que se muestra cuando una búsqueda
- * de repuestos no devuelve ningún resultado (arreglo vacío).
+ * de repuestos no devuelve ningún resultado (arreglo vacío), con
+ * sugerencias para buscar de otra forma.
  *
  * Props:
  *  - termino        (string): el texto que ingresó el cliente en el buscador.
@@ -16,6 +17,12 @@ export default function NoSearchResults({ termino, onSearchInEverything }) {
       className="py-20 text-center text-gray-400 text-sm"
     >
       No encontramos repuestos para “<span className="font-bold text-gray-500">{termino}</span>”.
+
+      <ul aria-label="Sugerencias" className="mt-4 space-y-1 text-xs text-gray-500">
+        <li>Revisá cómo está escrito o probá con menos palabras.</li>
+        <li>Buscá por el tipo de repuesto (por ejemplo, «pastillas de freno» o «filtro de aceite»).</li>
+        <li>Elegí una categoría o tu vehículo en los filtros.</li>
+      </ul>
 
       {onSearchInEverything && (
         <div className="mt-5">

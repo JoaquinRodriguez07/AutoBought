@@ -166,16 +166,26 @@ export function CartProvider({ children }) {
     }
   };
 
-  const removeFromCart = async (idProduct) => {
+  // Quitar muestra un aviso con «Deshacer», igual que agregar. `aviso:
+  // false` es para cuando se quita como parte de deshacer otra cosa.
+  const removeFromCart = async (idProduct, { aviso: showNotice = true } = {}) => {
     const item = cart.find((it) => it.id === String(idProduct));
     const partId = item?.partId ?? idProduct;
 
     try {
       const cartState = await removeCartItem(partId);
       applyResponse(cartState);
+      if (showNotice && item) {
+        setNotice({ tipo: "removed", product: item, removedQuantity: item.quantity });
+      }
     } catch (error) {
       handleError(error);
     }
+  };
+
+  // Deshace un "quitar": vuelve a agregar la línea con la cantidad que tenía.
+  const undoRemoved = async (product, removedQuantity) => {
+    await addToCart(product, removedQuantity, { aviso: false });
   };
 
   // Deshace un "agregar al carrito": descuenta solo la cantidad que se
@@ -185,7 +195,7 @@ export function CartProvider({ children }) {
     if (item && item.quantity > addedQuantity) {
       await updateQuantity(idProduct, item.quantity - addedQuantity);
     } else {
-      await removeFromCart(idProduct);
+      await removeFromCart(idProduct, { aviso: false });
     }
   };
 
@@ -225,9 +235,10 @@ export function CartProvider({ children }) {
         total={total}
         onClose={closeNotice}
         onUndo={async () => {
-          const { product, addedQuantity } = aviso;
+          const { tipo, product, addedQuantity, removedQuantity } = aviso;
           closeNotice();
-          await undoAdded(product.id, addedQuantity);
+          if (tipo === "removed") await undoRemoved(product, removedQuantity);
+          else await undoAdded(product.id, addedQuantity);
         }}
         onSeeCart={() => {
           closeNotice();

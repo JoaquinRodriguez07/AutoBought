@@ -243,3 +243,38 @@ def test_the_command_passes_the_options_to_the_generator(monkeypatch, capsys):
 
     assert calls == [(7, date(2026, 3, 15))]
     assert "no se generan de nuevo" in capsys.readouterr().out
+
+
+# --- Completar el historial (pedidos del mes en curso) ---
+
+
+def test_complete_adds_the_missing_days_until_today_without_touching_the_old_ones():
+    from scripts.seed_order_history import complete_history
+
+    db = _db_with_catalog()
+    generate_history(db, semilla=2026, until=HASTA)
+    before = _orders(db)
+
+    resumen = complete_history(db, semilla=2026, until=date(2026, 11, 16))
+
+    after = _orders(db)
+    assert after[: len(before)] == before  # los de antes, iguales
+    new_orders = after[len(before):]
+    assert resumen.orders_list == len(new_orders) > 0
+    dates = [created.date() for _, created, *_ in new_orders]
+    assert min(dates) > HASTA
+    assert max(dates) <= date(2026, 11, 16)
+    # Noviembre (hasta el 16) tiene ventas, y en una cantidad creíble.
+    november = [d for d in dates if d.month == 11]
+    assert 150 < len(november) < 600
+    # Ya completo: correrlo de nuevo el mismo día no suma nada.
+    assert complete_history(db, semilla=2026, until=date(2026, 11, 16)).orders_list == 0
+
+
+def test_complete_does_nothing_without_a_history():
+    from scripts.seed_order_history import complete_history
+
+    db = _db_with_catalog()
+
+    assert complete_history(db, until=HASTA).skipped
+    assert _orders(db) == []

@@ -294,6 +294,9 @@ function mapSellerOrder(p) {
     // La dirección se corrige mientras el pedido no salió.
     canEditShipping: Boolean(p.can_edit_shipping),
     reasonCancellation: p.cancellation_reason ?? null,
+    // Cada cambio de estado, del primero al último, con su fecha (null si no
+    // se sabe). Incluye las vueltas atrás del vendedor.
+    history: (p.status_history ?? []).map((step) => ({ estado: step.status, date: step.changed_at ?? null })),
     // Solo la ve la tienda.
     internalNote: p.internal_note ?? null,
   };

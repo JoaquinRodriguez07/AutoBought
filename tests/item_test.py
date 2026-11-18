@@ -99,7 +99,7 @@ def test_parts_endpoint_lets_vercel_cache_the_catalog(client, db_session):
 	response = client.get("/api/v1/parts")
 
 	assert response.status_code == 200
-	assert response.headers["cache-control"] == "public, s-maxage=60, stale-while-revalidate=300"
+	assert response.headers["cache-control"] == "public, s-maxage=30, stale-while-revalidate=30"
 
 
 def test_parts_endpoint_serializes_compatibilities(client, db_session):
@@ -289,3 +289,23 @@ def test_user_polymorphism_loads_user_subclasses(db_session):
 	assert isinstance(loaded_users[1], Employee)
 	assert loaded_users[1].user_type == "employee"
 
+
+
+
+def test_category_counts_follow_the_chosen_vehicle(client, db_session):
+	# La pastilla es para Corolla 2018-2020 y Yaris 2016-2022; el filtro solo para Corolla.
+	make_catalog(db_session)
+	corolla = db_session.query(CarModel).filter_by(model="Corolla").one()
+	oil_filter = Part(part_code="FIL-001", name="Oil filter", manufacturer="Mann", category="Filters", price=900, stock=3)
+	oil_filter.compatibilities = [Compatibility(car_model=corolla, year_from=2010, year_to=2024)]
+	db_session.add(oil_filter)
+	db_session.commit()
+
+	def counts(**params):
+		body = client.get("/api/v1/parts/categories", params=params).json()
+		return {c["name"]: c["count"] for c in body["categories"]}
+
+	assert counts() == {"Brakes": 1, "Filters": 1}
+	assert counts(brand="Toyota", model="Yaris") == {"Brakes": 1}
+	assert counts(brand="toyota", model="corolla", year=2023) == {"Filters": 1}
+	assert counts(brand="Honda") == {}

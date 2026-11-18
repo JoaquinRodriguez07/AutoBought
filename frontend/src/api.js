@@ -636,10 +636,16 @@ export async function searchText(texto, vehicle) {
  *
  * @returns {Promise<Array<{nombre: string, cantidad: number}>>}
  */
-export async function getCategories() {
+export async function getCategories(vehicle = null) {
   const errorMessage = "No pudimos cargar las categorías.";
+  // Con un vehículo elegido, cuenta solo los repuestos compatibles con él.
+  const params = new URLSearchParams();
+  if (vehicle?.brand) params.set("brand", vehicle.brand);
+  if (vehicle?.model) params.set("model", vehicle.model);
+  if (vehicle?.year) params.set("year", vehicle.year);
+  const query = params.toString();
   const data = await fetchJson(
-    `${API_BASE_URL}/api/v1/parts/categories`,
+    `${API_BASE_URL}/api/v1/parts/categories${query ? `?${query}` : ""}`,
     errorMessage
   );
 
@@ -1001,20 +1007,34 @@ export async function getAddresses() {
   return data.map(mapAddress);
 }
 
+// El formulario de dirección → el cuerpo que espera el backend.
+function addressBody(f) {
+  return JSON.stringify({
+    personal_name: f.displayName,
+    street: f.street,
+    number: f.number,
+    apartment: f.apartamento || null,
+    city: f.city,
+    department: f.department,
+    postal_code: f.codePostal || null,
+    is_primary: Boolean(f.primary),
+  });
+}
+
 /** POST /api/v1/addresses */
 export async function createAddress(f) {
   const data = await fetchAddresses(`${API_BASE_URL}/api/v1/addresses`, {
     method: "POST",
-    body: JSON.stringify({
-      personal_name: f.displayName,
-      street: f.street,
-      number: f.number,
-      apartment: f.apartamento || null,
-      city: f.city,
-      department: f.department,
-      postal_code: f.codePostal || null,
-      is_primary: Boolean(f.primary),
-    }),
+    body: addressBody(f),
+  });
+  return mapAddress(data);
+}
+
+/** PUT /api/v1/addresses/{id}: corrige una dirección guardada. */
+export async function updateAddress(id, f) {
+  const data = await fetchAddresses(`${API_BASE_URL}/api/v1/addresses/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: addressBody(f),
   });
   return mapAddress(data);
 }

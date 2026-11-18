@@ -1,6 +1,6 @@
 """Genera pedidos históricos de los últimos 12 meses.
 
-Usage: python -m scripts.seed_order_history [--semilla 2026] [--hasta AAAA-MM-DD]
+Usage: python -m scripts.seed_order_history [--semilla 2026] [--hasta AAAA-MM-DD] [--completar]
        (en Docker: docker exec backend uv run python -m scripts.seed_order_history)
 
 Para el dashboard del vendedor (más vendidos, evolución de ventas,
@@ -32,7 +32,9 @@ exactamente los mismos pedidos. Sin `--hasta` se usa hoy, así que en
 otro día se obtienen los mismos pedidos corridos en el tiempo.
 
 No descuenta stock: el stock del catálogo ya es el de hoy.
-Si ya hay pedidos históricos, no hace nada.
+Si ya hay pedidos históricos, no hace nada. Con `--completar`, en cambio,
+suma los pedidos que faltan desde el último hasta hoy (por ejemplo, si el
+historial se generó el mes pasado y el mes en curso quedó sin ventas).
 """
 
 import argparse
@@ -281,6 +283,91 @@ def _quantity(part: Part, rng: random.Random) -> int:
     return rng.choices(*CANTIDADES)[0]
 
 
+def _insert_period(
+    db: Session,
+    rng: random.Random,
+    parts: list[Part],
+    base_weight: dict[int, float],
+    customers: list[dict],
+    start_at: date,
+    end: date,
+    monthly_orders: float,
+    until: date,
+) -> tuple[int, int]:
+    """Inserta los pedidos de un tramo de un mes (de `desde` a `hasta`, los
+    dos incluidos). `monthly_orders` es cuántos tendría el mes completo; si
+    el tramo es parte del mes, se hace la parte que le toca. Devuelve
+    cuántos pedidos y cuántas unidades insertó."""
+    days_in_month = (date(start_at.year + start_at.month // 12, start_at.month % 12 + 1, 1) - start_at.replace(day=1)).days
+    fraction = ((end - start_at).days + 1) / days_in_month
+    qty = round(monthly_orders * ESTACIONALIDAD_GENERAL[start_at.month] * rng.uniform(0.9, 1.1) * fraction)
+
+    cumulative_weights = list(accumulate(
+        base_weight[p.id] * _estacionalidad(p, start_at.month) for p in parts
+    ))
+
+    # Se insertan directo, sin place_order (no tienen que descontar stock),
+    # y en tandas: un INSERT de muchas filas por tabla y por mes. De a
+    # un pedido son decenas de miles de viajes a la base, y contra una
+    # base remota el script tarda horas.
+    units_total = 0
+    month_orders = []
+    month_items = []
+    for _ in range(qty):
+        day_number = start_at + timedelta(days=rng.randrange((end - start_at).days + 1))
+        hora = time(rng.randrange(8, 23), rng.randrange(60), rng.randrange(60))
+        # NOSONAR en estas líneas: son datos de prueba y el azar con semilla es a propósito.
+        customer = rng.choice(customers)  # NOSONAR
+        address = customer["direccion"]
+
+        chosen_parts: list[Part] = []
+        for _ in range(rng.choices(*ITEMS_PER_ORDER)[0]):  # NOSONAR
+            part = rng.choices(parts, cum_weights=cumulative_weights)[0]  # NOSONAR
+            if part not in chosen_parts:
+                chosen_parts.append(part)
+
+        month_orders.append({
+            "client_id": customer["id"],
+            "created_at": datetime.combine(day_number, hora, tzinfo=URUGUAY),
+            "status": _status(day_number, until, rng),
+            "shipping_address_id": address["id"],
+            "ship_personal_name": address["personal_name"],
+            "ship_street": address["street"],
+            "ship_number": address["number"],
+            "ship_apartment": address["apartment"],
+            "ship_city": address["city"],
+            "ship_department": address["department"],
+            "ship_postal_code": address["postal_code"],
+            "payment_method_label": crud_order.PAYMENT_LABEL,
+        })
+        items = []
+        for part in chosen_parts:
+            units = _quantity(part, rng)
+            items.append({"part_id": part.id, "quantity": units, "frozen_price": part.price})
+            units_total += units
+        month_items.append(items)
+
+    if month_orders:
+        ids = db.scalars(
+            insert(Order).returning(Order.order_id, sort_by_parameter_order=True),
+            month_orders,
+        ).all()
+        db.execute(
+            insert(Payment),
+            [{"order_id": order_id, "status": PaymentStatus.APPROVED} for order_id in ids],
+        )
+        db.execute(
+            insert(OrderItem),
+            [
+                {**item, "order_id": order_id}
+                for order_id, items in zip(ids, month_items)
+                for item in items
+            ],
+        )
+    db.commit()
+    return len(month_orders), units_total
+
+
 def generate_history(db: Session, semilla: int = SEMILLA, until: date | None = None) -> Resumen:
     until = until or date.today()
 
@@ -307,75 +394,79 @@ def generate_history(db: Session, semilla: int = SEMILLA, until: date | None = N
     for number_value, (start_at, end) in enumerate(periods):
         # Tendencia lineal + estacionalidad + un poco de ruido.
         tendencia = FIRST_MONTH_ORDERS + (LAST_MONTH_ORDERS - FIRST_MONTH_ORDERS) * number_value / (MONTHS - 1)
-        days_in_month = (date(start_at.year + start_at.month // 12, start_at.month % 12 + 1, 1) - start_at).days
-        fraction = ((end - start_at).days + 1) / days_in_month  # el mes actual va incompleto
-        qty = round(
-            tendencia * ESTACIONALIDAD_GENERAL[start_at.month] * rng.uniform(0.9, 1.1) * fraction
+        orders, units = _insert_period(db, rng, parts, base_weight, customers, start_at, end, tendencia, until)
+        orders_total += orders
+        units_total += units
+
+    return Resumen(
+        customers=len(customers),
+        orders_list=orders_total,
+        units=units_total,
+        at_risk=[p.part_code for p in at_risk],
+    )
+
+
+def _existing_clients(db: Session) -> list[dict]:
+    """Los clientes ficticios que ya están, con la copia de su dirección
+    principal que necesitan los pedidos."""
+    customers = []
+    query = select(Client).where(Client.email.like(f"%@{DOMINIO_CLIENTES}")).order_by(Client.user_id)
+    for client in db.scalars(query):
+        address = next((a for a in crud_address.list_addresses(db, client.user_id) if a.is_primary), None)
+        if address is None:
+            continue
+        customers.append({"id": client.user_id, "direccion": {
+            "id": address.shipping_address_id,
+            "personal_name": address.personal_name,
+            "street": address.street,
+            "number": address.number,
+            "apartment": address.apartment,
+            "city": address.city,
+            "department": address.department,
+            "postal_code": address.postal_code,
+        }})
+    return customers
+
+
+def complete_history(db: Session, semilla: int = SEMILLA, until: date | None = None) -> Resumen:
+    """Suma los pedidos que faltan desde el último pedido histórico hasta
+    `hasta` (hoy), con los mismos clientes ficticios. Sirve cuando el
+    historial se generó hace un tiempo y el mes en curso quedó sin ventas.
+    No toca los pedidos que ya están. Si todavía no hay historial, no hace
+    nada: para eso está `generar_historial`."""
+    until = until or date.today()
+    customers = _existing_clients(db)
+    if not customers:
+        return Resumen(customers=0, orders_list=0, units=0, at_risk=[], skipped=True)
+
+    last = db.scalar(
+        select(Order.created_at)
+        .where(Order.client_id.in_([c["id"] for c in customers]))
+        .order_by(Order.created_at.desc())
+        .limit(1)
+    )
+    start_at = (last.astimezone(URUGUAY).date() if last.tzinfo else last.date()) + timedelta(days=1) if last else until
+    if start_at > until:
+        return Resumen(customers=len(customers), orders_list=0, units=0, at_risk=[])
+
+    parts = list(db.scalars(select(Part).order_by(Part.part_code)))
+    db.expunge_all()
+    # Con una semilla que depende del día de arranque: completar dos veces
+    # tramos distintos no repite los mismos pedidos.
+    rng = random.Random(semilla * 100_000 + start_at.toordinal())
+    base_weight, at_risk = _popularidad(parts, rng)
+
+    orders_total = units_total = 0
+    # De a un mes por vez: el primer tramo arranca a mitad de mes.
+    while start_at <= until:
+        month_end = date(start_at.year + start_at.month // 12, start_at.month % 12 + 1, 1) - timedelta(days=1)
+        end = min(month_end, until)
+        orders, units = _insert_period(
+            db, rng, parts, base_weight, customers, start_at, end, LAST_MONTH_ORDERS, until
         )
-
-        cumulative_weights = list(accumulate(
-            base_weight[p.id] * _estacionalidad(p, start_at.month) for p in parts
-        ))
-
-        # Se insertan directo, sin place_order (no tienen que descontar stock),
-        # y en tandas: un INSERT de muchas filas por tabla y por mes. De a
-        # un pedido son decenas de miles de viajes a la base, y contra una
-        # base remota el script tarda horas.
-        month_orders = []
-        month_items = []
-        for _ in range(qty):
-            day_number = start_at + timedelta(days=rng.randrange((end - start_at).days + 1))
-            hora = time(rng.randrange(8, 23), rng.randrange(60), rng.randrange(60))
-            # NOSONAR en estas líneas: son datos de prueba y el azar con semilla es a propósito.
-            customer = rng.choice(customers)  # NOSONAR
-            address = customer["direccion"]
-
-            chosen_parts: list[Part] = []
-            for _ in range(rng.choices(*ITEMS_PER_ORDER)[0]):  # NOSONAR
-                part = rng.choices(parts, cum_weights=cumulative_weights)[0]  # NOSONAR
-                if part not in chosen_parts:
-                    chosen_parts.append(part)
-
-            month_orders.append({
-                "client_id": customer["id"],
-                "created_at": datetime.combine(day_number, hora, tzinfo=URUGUAY),
-                "status": _status(day_number, until, rng),
-                "shipping_address_id": address["id"],
-                "ship_personal_name": address["personal_name"],
-                "ship_street": address["street"],
-                "ship_number": address["number"],
-                "ship_apartment": address["apartment"],
-                "ship_city": address["city"],
-                "ship_department": address["department"],
-                "ship_postal_code": address["postal_code"],
-                "payment_method_label": crud_order.PAYMENT_LABEL,
-            })
-            items = []
-            for part in chosen_parts:
-                units = _quantity(part, rng)
-                items.append({"part_id": part.id, "quantity": units, "frozen_price": part.price})
-                units_total += units
-            month_items.append(items)
-
-        if month_orders:
-            ids = db.scalars(
-                insert(Order).returning(Order.order_id, sort_by_parameter_order=True),
-                month_orders,
-            ).all()
-            db.execute(
-                insert(Payment),
-                [{"order_id": order_id, "status": PaymentStatus.APPROVED} for order_id in ids],
-            )
-            db.execute(
-                insert(OrderItem),
-                [
-                    {**item, "order_id": order_id}
-                    for order_id, items in zip(ids, month_items)
-                    for item in items
-                ],
-            )
-        db.commit()
-        orders_total += len(month_orders)
+        orders_total += orders
+        units_total += units
+        start_at = end + timedelta(days=1)
 
     return Resumen(
         customers=len(customers),
@@ -390,15 +481,26 @@ def main():
     parser.add_argument("--semilla", type=int, default=SEMILLA)
     parser.add_argument("--hasta", type=date.fromisoformat, default=None,
                         help="último día del historial (AAAA-MM-DD); por defecto, hoy")
+    parser.add_argument("--completar", action="store_true",
+                        help="si ya hay historial, suma los pedidos que faltan desde el último hasta --hasta")
     args = parser.parse_args()
 
     require_head(engine)
     db = SessionLocal()
     try:
-        resumen = generate_history(db, semilla=args.semilla, until=args.hasta)
+        if args.completar:
+            resumen = complete_history(db, semilla=args.semilla, until=args.hasta)
+        else:
+            resumen = generate_history(db, semilla=args.semilla, until=args.hasta)
     finally:
         db.close()
 
+    if args.completar:
+        if resumen.skipped:
+            print("No hay historial para completar: correr primero sin --completar.")
+        else:
+            print(f"Se sumaron {resumen.orders_list} pedidos ({resumen.units} unidades) hasta hoy.")
+        return
     if resumen.skipped:
         print("Ya hay pedidos históricos, no se generan de nuevo.")
         return
