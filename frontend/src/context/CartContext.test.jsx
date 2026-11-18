@@ -398,6 +398,34 @@ describe("changing the cart", () => {
   });
 });
 
+describe("the removed notice", () => {
+  it("removing a line shows a notice that puts it back with the same quantity", async () => {
+    await montar(carritoConLinea);
+    removeCartItem.mockResolvedValue(carritoVacio);
+    await usar(() => carrito.removeFromCart("21"));
+
+    expect(screen.getByRole("status", { name: "removed" })).toBeInTheDocument();
+    addCartItem.mockResolvedValue(carritoConLinea);
+    await userEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(addCartItem).toHaveBeenCalledWith(21, 2);
+    expect(carrito.cart).toEqual([linea]);
+    // Deshacer no abre otro aviso de «agregado».
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("undoing an add that removes the line does not show the removed notice", async () => {
+    await montar(carritoVacio);
+    addCartItem.mockResolvedValue({ items: [{ ...linea, quantity: 1 }], total: 2450 });
+    await usar(() => carrito.addToCart(producto, 1));
+    removeCartItem.mockResolvedValue(carritoVacio);
+
+    await userEvent.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});
+
 describe("the added notice", () => {
   async function agregarConAviso(inicial, respuesta) {
     await montar(inicial);

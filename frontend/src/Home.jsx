@@ -506,7 +506,7 @@ export default function Home({
           label="LO MÁS ELEGIDO"
           title="Más vendidos"
           action="Ver más"
-          onAction={() => onCatalogo()}
+          onAction={() => onCatalogo(null, null, { orden: "mas-vendidos" })}
         >
 
           {moreVendidos === null && (

@@ -269,6 +269,13 @@ Es reproducible: con la misma semilla y la misma fecha final se generan exactame
 docker exec backend uv run python -m scripts.seed_order_history --semilla 7 --hasta 2026-10-19
 ```
 
+El historial se genera una sola vez: si ya hay pedidos históricos, no hace nada. Con el tiempo el mes en curso se queda sin ventas (el resumen con IA del dashboard habla entonces de un «desplome»). Para eso está `--completar`: suma los pedidos que faltan desde el último pedido histórico hasta hoy, con los mismos clientes ficticios, sin tocar los que ya están. Se puede correr las veces que haga falta; si ya está al día, no suma nada.
+
+```bash
+# Ponerse al día con las ventas simuladas (por ejemplo, antes de una demo)
+docker exec backend uv run python -m scripts.seed_order_history --completar
+```
+
 Si cambia algo del catálogo o de los pedidos y hay que regenerar todo, lo más simple es recrear la base (`docker compose down -v`, que borra todos los datos locales), aplicar las migraciones (`alembic upgrade head`) y volver a correr los tres scripts.
 
 ## Dashboard del vendedor

@@ -75,6 +75,9 @@ export default function SellerOrders({ initialStatus = "all", onCambio, onDetail
       fetchVisible(
         {
           estado: estado === "all" ? undefined : estado,
+          // «Confirmado» son los pedidos para preparar: los pagados. Los que
+          // esperan el pago no se pueden avanzar y quedan en «Todos».
+          ...(estado === "confirmed" ? { onlyPaid: true } : {}),
           sort: sort === DEFAULT_SORT ? undefined : sort,
         },
         visible
@@ -95,7 +98,7 @@ export default function SellerOrders({ initialStatus = "all", onCambio, onDetail
 
   return (
     <QueryState queryState={queryState}>
-      {({ orders, total, byStatus }) => {
+      {({ orders, total, byStatus, forPrepare }) => {
         const all = Object.values(byStatus).reduce((sum, n) => sum + n, 0);
         return (
           <div className="flex flex-col gap-4">
@@ -111,7 +114,8 @@ export default function SellerOrders({ initialStatus = "all", onCambio, onDetail
                   ["all", `Todos (${formatNumber(all)})`],
                   ...Object.entries(ORDER_STATUSES).map(([rawValue, { texto }]) => [
                     rawValue,
-                    `${texto} (${formatNumber(byStatus[rawValue] ?? 0)})`,
+                    // El mismo número que el menú: los confirmados ya pagados.
+                    `${texto} (${formatNumber((rawValue === "confirmed" ? forPrepare : byStatus[rawValue]) ?? 0)})`,
                   ]),
                 ]}
               />

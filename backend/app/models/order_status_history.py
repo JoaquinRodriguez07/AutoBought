@@ -16,6 +16,11 @@ class CancelReason(str, enum.Enum):
     STORE = "store"  # lo canceló la tienda
 
 
+# Se anota en la fila de «entregado» cuando lo confirmó el cliente con «Ya lo
+# recibí» (no es un motivo de cancelación). Esa entrega no se puede deshacer.
+RECEIVED_BY_CUSTOMER = "customer"
+
+
 class OrderStatusHistory(Base):
     """Cada cambio de estado de un pedido, con su fecha: de acá sale la
     línea de tiempo que ve el cliente. Los cambios se registran con

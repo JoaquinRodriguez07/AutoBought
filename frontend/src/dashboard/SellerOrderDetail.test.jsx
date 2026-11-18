@@ -99,6 +99,37 @@ it("shows where to ship it, who ordered it and how it was paid", async () => {
   expect(payment).toHaveTextContent("1234567890");
 });
 
+it("shows the status history, including a step back", async () => {
+  getOrder.mockResolvedValue(
+    pedido({
+      estado: "packing",
+      history: [
+        { estado: "confirmed", date: "2026-11-16T17:38:00.000Z" },
+        { estado: "packing", date: "2026-11-16T17:40:00.000Z" },
+        { estado: "shipped", date: "2026-11-16T17:41:00.000Z" },
+        { estado: "packing", date: "2026-11-16T17:42:00.000Z" },
+      ],
+    })
+  );
+  renderDetail();
+
+  const history = await screen.findByRole("list", { name: "Historia del pedido" });
+  const steps = within(history).getAllByRole("listitem");
+  expect(steps.map((step) => step.firstChild.textContent)).toEqual([
+    "Confirmado",
+    "Empaquetando",
+    "Enviado",
+    "Empaquetando",
+  ]);
+});
+
+it("hides the history when there is none", async () => {
+  renderDetail();
+  await screen.findByRole("table");
+
+  expect(screen.queryByRole("list", { name: "Historia del pedido" })).not.toBeInTheDocument();
+});
+
 it("says when the client has no phone", async () => {
   getOrder.mockResolvedValue(pedido({ customer: { displayName: "Ana", email: "ana@example.com", phone: null } }));
   renderDetail();

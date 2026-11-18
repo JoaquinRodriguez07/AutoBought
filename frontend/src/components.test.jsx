@@ -30,6 +30,7 @@ jest.mock("./api", () => ({
   getYears: jest.fn(),
   getAddresses: jest.fn(),
   createAddress: jest.fn(),
+  updateAddress: jest.fn(),
   setPrimaryAddress: jest.fn(),
   deleteAddressApi: jest.fn(),
   getRecommendations: jest.fn(),
@@ -84,6 +85,7 @@ import NoSearchResults from "./NoSearchResults";
 import AssistantInvite from "./AssistantInvite";
 import PitPanel from "./PitPanel";
 import Footer from "./Footer";
+import TermsPage from "./TermsPage";
 import { CartProvider } from "./context/CartContext";
 import { VehicleProvider } from "./context/VehicleContext";
 import { useVehicle } from "./context/VehicleContext";
@@ -100,6 +102,7 @@ import {
   addCartItem,
   updateCartItem,
   createAddress,
+  updateAddress,
   deleteAddressApi,
   removeCartItem,
   login,
@@ -551,6 +554,66 @@ describe("Footer", () => {
   });
 });
 
+describe("Proyecto académico", () => {
+  it("the footer opens the terms", async () => {
+    const user = userEvent.setup();
+    const props = { ...navigationProps(), onTerms: jest.fn() };
+
+    render(<Footer {...props} />);
+
+    await user.click(screen.getByRole("button", { name: "Términos y condiciones" }));
+    expect(props.onTerms).toHaveBeenCalled();
+  });
+
+  it("the terms page warns about real cards and explains the data and the AI", () => {
+    render(<TermsPage {...navigationProps()} />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Términos y condiciones" })).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("no ingreses una tarjeta real");
+    for (const title of ["Es un proyecto académico", "Los pagos son de prueba", "Tus datos", "Pit y las herramientas con IA"]) {
+      expect(screen.getByRole("heading", { level: 2, name: title })).toBeInTheDocument();
+    }
+  });
+
+  it("the registration shows the terms in a window, without leaving the form", async () => {
+    const user = userEvent.setup();
+    render(<Register {...navigationProps()} onRegistroExitoso={jest.fn()} />);
+    await user.type(screen.getByPlaceholderText("Tu nombre"), "Lucia");
+
+    await user.click(screen.getByRole("button", { name: "términos y condiciones" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Términos y condiciones" });
+    expect(within(dialog).getByRole("heading", { level: 3, name: "Los pagos son de prueba" })).toBeInTheDocument();
+    // Abrirla no tilda el casillero; cerrarla deja el formulario como estaba.
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    await user.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Tu nombre")).toHaveValue("Lucia");
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+  });
+
+  it("accepting in the terms window checks the box", async () => {
+    const user = userEvent.setup();
+    render(<Register {...navigationProps()} onRegistroExitoso={jest.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "términos y condiciones" }));
+    await user.click(screen.getByRole("button", { name: "Aceptar" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox")).toBeChecked();
+  });
+
+  it("the terms window closes with Escape", async () => {
+    const user = userEvent.setup();
+    render(<Register {...navigationProps()} onRegistroExitoso={jest.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "términos y condiciones" }));
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
 describe("Footer dentro del catálogo (App)", () => {
   const autos = [
     { ...catalogProducts[0], brands: ["Chevrolet"] },
@@ -729,6 +792,33 @@ describe("Home", () => {
 
     await waitFor(() => expect(addCartItem).toHaveBeenCalledWith(catalogProducts[0].id, 1));
     expect(props.onDetail).not.toHaveBeenCalled();
+  });
+
+  it("'Ver más' of the best sellers opens the catalog sorted by best sellers", async () => {
+    const user = userEvent.setup();
+    const props = navigationProps();
+    getBestSellers.mockResolvedValue([catalogProducts[0]]);
+
+    render(<Home {...props} />);
+    await screen.findByRole("button", { name: catalogProducts[0].displayName });
+    const section = screen.getByRole("heading", { name: "Más vendidos" }).closest("section");
+    await user.click(within(section).getByRole("button", { name: /Ver más/ }));
+
+    expect(props.onCatalogo).toHaveBeenCalledWith(null, null, { orden: "mas-vendidos" });
+  });
+
+  it("the catalog sorted by best sellers shows the ranking first", async () => {
+    getBestSellers.mockResolvedValue([catalogProducts[2]]);
+
+    render(<Catalog {...navigationProps()} isFavorite={() => false} />, {
+      initialEntries: ["/catalogo?orden=mas-vendidos"],
+    });
+
+    expect(await screen.findByRole("combobox", { name: /Ordenar/ })).toHaveValue("Más vendidos");
+    await waitFor(() => expect(getBestSellers).toHaveBeenCalledWith({ limit: 20 }));
+    await waitFor(() =>
+      expect(screen.getAllByRole("heading", { level: 3 })[0]).toHaveTextContent(catalogProducts[2].displayName)
+    );
   });
 
   it("the seller sees the best sellers without the 'Agregar' button", async () => {
@@ -1285,6 +1375,28 @@ it("keeps the chosen vehicle when searching: only compatible parts", async () =>
   expect(screen.getByText(/Toyota Corolla 2015/)).toBeInTheDocument();
 });
 
+it("counts each category over the search results, and over the chosen vehicle", async () => {
+  const props = navigationProps();
+  searchText.mockResolvedValue({
+    parts: [catalogProducts[0]],
+    entities: { part: "pastillas de freno", brand: null, model: null, year: null },
+  });
+
+  render(
+    <>
+      <ActivateVehicle vehicle={{ brand: "Toyota", model: "Corolla", year: "2015" }} />
+      <Catalog {...props} isFavorite={() => false} />
+    </>,
+    { initialEntries: ["/catalogo?q=pastias%20de%20freno"] }
+  );
+
+  await screen.findByText("Pastillas de Freno Delanteras Bosch");
+  // 1 resultado de Frenos: «Frenos» dice 1 (no los 2 del catálogo) y «Motor» no aparece.
+  expect(await screen.findByRole("button", { name: /^Frenos\s*1$/ })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^Motor/ })).not.toBeInTheDocument();
+  expect(getCategories).toHaveBeenLastCalledWith({ brand: "Toyota", model: "Corolla", year: "2015" });
+});
+
 it("switches to the vehicle the text names, over the chosen one", async () => {
   const props = navigationProps();
   searchText.mockResolvedValue({
@@ -1390,7 +1502,7 @@ it("offers the server search for what was typed, also when nothing on screen mat
   expect(screen.queryByRole("button", { name: /en todo el catálogo/ })).not.toBeInTheDocument();
 });
 
-it("shows the manual filter message when the search cannot be interpreted", async () => {
+it("shows the no-results notice with suggestions when the search cannot be interpreted", async () => {
   const props = navigationProps();
 
   searchText.mockResolvedValue({
@@ -1403,11 +1515,10 @@ it("shows the manual filter message when the search cannot be interpreted", asyn
     { initialEntries: ["/catalogo?q=xyz%20qwerty"] }
   );
 
-  expect(
-    await screen.findByText(
-      "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual"
-    )
-  ).toBeInTheDocument();
+  // No es un error: es una búsqueda sin resultados, con sugerencias y sin «Reintentar».
+  expect(await screen.findByText(/No encontramos repuestos para/)).toHaveTextContent("xyz qwerty");
+  expect(screen.getByRole("list", { name: "Sugerencias" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Reintentar" })).not.toBeInTheDocument();
   expect(screen.queryByText("Pastillas de Freno Delanteras Bosch")).not.toBeInTheDocument();
 });
 
@@ -2275,6 +2386,26 @@ describe("Favoritos", () => {
 
 describe("ConfirmacionAgregarCarrito", () => {
   afterEach(() => jest.useRealTimers());
+
+  it("after removing a part, says so and offers to undo it", async () => {
+    const user = userEvent.setup();
+    const onUndo = jest.fn();
+    renderBase(
+      <AddedToCartNotice
+        aviso={{ tipo: "removed", product: { ...product, displayName: "Pastillas Bosch" }, removedQuantity: 2 }}
+        cartQuantity={0}
+        total={0}
+        onUndo={onUndo}
+        onClose={jest.fn()}
+        onSeeCart={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("Quitado del carrito")).toBeInTheDocument();
+    expect(screen.getByText("Pastillas Bosch · ×2")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Deshacer" }));
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
 
   it("closes by itself after a few seconds, but waits while the mouse is over it", () => {
     jest.useFakeTimers();
@@ -3758,6 +3889,48 @@ describe("Direcciones", () => {
     expect(deleteAddressApi).toHaveBeenCalledWith(1);
   });
 
+  it("edits a saved address with the same form, already filled in", async () => {
+    const user = userEvent.setup();
+    let savedAddresses = [
+      { id: 7, displayName: "Casa", street: "Av. Italia", number: "1234", apartamento: "", city: "Montevideo", department: "Montevideo", codePostal: "", primary: true },
+    ];
+    getAddresses.mockImplementation(() => Promise.resolve(savedAddresses));
+    updateAddress.mockImplementation(async (id, address) => {
+      savedAddresses = [{ ...address, id }];
+    });
+    render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: "Editar la dirección Casa" }));
+
+    expect(screen.getByRole("heading", { name: "Editar dirección" })).toBeInTheDocument();
+    expect(screen.getByText("Los pedidos que ya hiciste se siguen enviando a la dirección con la que compraste.")).toBeInTheDocument();
+    const name = screen.getByLabelText("NOMBRE DE LA DIRECCIÓN *");
+    expect(name).toHaveValue("Casa");
+    expect(screen.getByPlaceholderText("Ej: Av. Italia")).toHaveValue("Av. Italia");
+    await user.clear(name);
+    await user.type(name, "Taller");
+    await user.click(screen.getByRole("button", { name: /guardar dirección/i }));
+
+    expect(updateAddress).toHaveBeenCalledWith(7, expect.objectContaining({ displayName: "Taller", street: "Av. Italia" }));
+    expect(createAddress).not.toHaveBeenCalled();
+    expect(await screen.findByRole("heading", { name: /taller/i })).toBeInTheDocument();
+  });
+
+  it("canceling an edit leaves the form empty for a new address", async () => {
+    const user = userEvent.setup();
+    getAddresses.mockResolvedValue([
+      { id: 7, displayName: "Casa", street: "Av. Italia", number: "1234", apartamento: "", city: "Montevideo", department: "Montevideo", codePostal: "", primary: true },
+    ]);
+    render(<Addresses {...navigationProps()} onProfile={jest.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: "Editar la dirección Casa" }));
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    await user.click(screen.getByRole("button", { name: /agregar dirección/i }));
+
+    expect(screen.getByRole("heading", { name: "Nueva dirección" })).toBeInTheDocument();
+    expect(screen.getByLabelText("NOMBRE DE LA DIRECCIÓN *")).toHaveValue("");
+  });
+
   const completeAddress = async (user, d = {}) => {
     const info = { displayName: "Casa", city: "Montevideo", street: "Av. Italia", number: "1234", department: "Montevideo", ...d };
     await user.click(await screen.findByRole("button", { name: /agregar dirección/i }));
@@ -4002,9 +4175,10 @@ describe("SearchBar and search helpers", () => {
       .toEqual(["Aceite", "Bujía", "Faro"]);
   });
 
-  it("renders the no-results message", () => {
+  it("renders the no-results message with suggestions", () => {
     render(<NoSearchResults termino="bujía" />);
     expect(screen.getByRole("status")).toHaveTextContent("bujía");
+    expect(within(screen.getByRole("list", { name: "Sugerencias" })).getAllByRole("listitem")).toHaveLength(3);
   });
 });
 

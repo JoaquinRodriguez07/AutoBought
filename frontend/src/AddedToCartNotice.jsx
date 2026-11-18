@@ -22,6 +22,7 @@ const price = (rawValue) => `$${Number(rawValue || 0).toLocaleString("es-UY")}`;
  * `aviso` puede ser:
  *   - { tipo: "agregado", producto, cantidadAgregada }
  *   - { tipo: "login" }  → se quiso agregar sin sesión iniciada
+ *   - { tipo: "removed", product, removedQuantity } → se quitó del carrito
  *
  * El contenedor con `aria-live` se renderiza siempre (aunque esté
  * vacío) para que los lectores de pantalla anuncien el aviso cuando
@@ -85,6 +86,8 @@ export default function AddedToCartNotice({
         >
           {aviso.tipo === "login" ? (
             <LoginContent onStartSession={onStartSession} onClose={onClose} />
+          ) : aviso.tipo === "removed" ? (
+            <RemovedContent aviso={aviso} onUndo={onUndo} onClose={onClose} />
           ) : (
             <AddedContent
               aviso={aviso}
@@ -178,6 +181,31 @@ function AddedContent({
         type="button"
         onClick={onUndo}
         className="mt-2 w-full text-center text-xs text-gray-400 underline hover:text-orange-400"
+      >
+        Deshacer
+      </button>
+    </>
+  );
+}
+
+// Se quitó un repuesto del carrito: por si fue sin querer, «Deshacer» lo
+// vuelve a poner con la misma cantidad.
+function RemovedContent({ aviso, onUndo, onClose }) {
+  const { product, removedQuantity } = aviso;
+
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-black">Quitado del carrito</p>
+        <CloseButton onClose={onClose} />
+      </div>
+      <p className="mt-2 text-xs text-gray-400 truncate" title={product.displayName}>
+        {product.displayName} · ×{removedQuantity}
+      </p>
+      <button
+        type="button"
+        onClick={onUndo}
+        className="mt-3 w-full rounded-md border border-white/20 py-2 text-sm font-bold text-gray-200 hover:border-orange-500 hover:text-orange-400 transition"
       >
         Deshacer
       </button>

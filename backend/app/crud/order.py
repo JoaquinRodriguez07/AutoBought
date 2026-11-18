@@ -16,7 +16,7 @@ from app.models.compatibility import Compatibility
 from app.models.employee import Employee
 from app.models.order import DeliveryMethod, Order, OrderStatus
 from app.models.order_item import OrderItem
-from app.models.order_status_history import CancelReason, OrderStatusHistory
+from app.models.order_status_history import RECEIVED_BY_CUSTOMER, CancelReason, OrderStatusHistory
 from app.models.part import Part
 from app.models.payment import Payment, PaymentStatus
 from app.models.shipping_address import ShippingAddress
@@ -266,6 +266,7 @@ def confirm_received(db: Session, order: Order) -> bool:
     if order.delivery_method != DeliveryMethod.SHIPPING or order.status != OrderStatus.SHIPPED:
         return False
     change_status(order, OrderStatus.DELIVERED)
+    order.status_history[-1].reason = RECEIVED_BY_CUSTOMER
     db.commit()
     return True
 
@@ -289,8 +290,17 @@ def _next_for(order: Order) -> OrderStatus | None:
         return OrderStatus.READY_FOR_PICKUP if order.delivery_method == DeliveryMethod.PICKUP else OrderStatus.SHIPPED
     return NEXT_STATUS.get(order.status)
 
+def _received_by_customer(order: Order) -> bool:
+    """Si la entrega la confirmó el cliente con «Ya lo recibí»."""
+    return bool(order.status_history) and order.status_history[-1].reason == RECEIVED_BY_CUSTOMER
+
+
 def _previous_for(order: Order) -> OrderStatus | None:
     if order.status == OrderStatus.DELIVERED:
+        # El vendedor puede corregir una entrega que marcó por error, pero no
+        # deshacer la que confirmó el cliente: ya le llegó.
+        if _received_by_customer(order):
+            return None
         return OrderStatus.READY_FOR_PICKUP if order.delivery_method == DeliveryMethod.PICKUP else OrderStatus.SHIPPED
     if order.status in (OrderStatus.READY_FOR_PICKUP, OrderStatus.SHIPPED):
         return OrderStatus.PACKING if (order.status == OrderStatus.READY_FOR_PICKUP) == (order.delivery_method == DeliveryMethod.PICKUP) else None

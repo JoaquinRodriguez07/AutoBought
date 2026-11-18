@@ -22,6 +22,7 @@ import {
   PaymentBadge,
 } from "./orderPieces";
 import { useQuery } from "./useQuery";
+import { STATUS_NAME } from "../orderTracking";
 
 // Un dato de una tarjeta: "Teléfono  099 123 456".
 function DataItem({ title, children }) {
@@ -225,6 +226,26 @@ function Payment({ pedido }) {
   );
 }
 
+// Por qué estados pasó el pedido y cuándo, del más viejo al más nuevo. Es
+// el registro real: si el vendedor volvió un paso atrás, también aparece.
+function History({ history }) {
+  if (!history?.length) return null;
+  return (
+    <Panel title="Historia del pedido" id="titulo-historia-pedido">
+      <ol aria-label="Historia del pedido" className="flex flex-col gap-2">
+        {history.map((step, index) => (
+          <li key={`${step.estado}-${index}`} className="flex items-baseline justify-between gap-4 text-sm">
+            <span className="font-medium">{STATUS_NAME[step.estado] ?? step.estado}</span>
+            <span className="text-muted-foreground tabular-nums">
+              {step.date ? formatOrderDate(step.date, { larga: true }) : "Sin fecha"}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </Panel>
+  );
+}
+
 // Detalle de un pedido para el vendedor (SCRUM-171): qué productos son,
 // a dónde se envía, quién lo pidió y cómo pagó. Desde acá también se
 // avanza o se cancela, igual que en el listado, se vuelve un paso atrás si
@@ -316,6 +337,7 @@ export default function SellerOrderDetail({ sessionUser, onHome, onCloseSession 
             {/* key: cuando el pedido se recarga con otra nota, el campo arranca de lo guardado. */}
             <InternalNote key={pedido.internalNote ?? ""} pedido={pedido} onSaved={queryState.reload} />
             <Products pedido={pedido} onPart={goToPart} />
+            <History history={pedido.history} />
 
             <CancelOrderDialog pedido={cambio.toCancel} onClose={cambio.closeCancel} onCancelled={cambio.onCancel} />
             <StepBackOrderDialog

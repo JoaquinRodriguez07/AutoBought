@@ -76,6 +76,33 @@ def create_address(db: Session, client_id: int, data: ShippingAddressCreate) -> 
     return address
 
 
+def update_address(
+    db: Session, client_id: int, shipping_address_id: int, data: ShippingAddressCreate
+) -> ShippingAddress | None:
+    """Corrige una dirección guardada. Los pedidos ya hechos no cambian:
+    guardan su propia copia de la dirección del momento de la compra."""
+    address = get_address(db, client_id, shipping_address_id)
+    if address is None:
+        return None
+
+    fields = data.model_dump(mode="json")
+    others = [other for other in list_addresses(db, client_id) if other.shipping_address_id != shipping_address_id]
+    if any(_same_address(other, fields) for other in others):
+        raise ShippingAddressConflict("Ya tenés guardada esta dirección.")
+
+    # La principal sigue siéndolo aunque no se marque: siempre tiene que haber una.
+    make_primary = fields.pop("is_primary") or address.is_primary
+    if make_primary and not address.is_primary:
+        _unset_primary(db, client_id)
+    for key, value in fields.items():
+        setattr(address, key, value)
+    address.is_primary = make_primary
+
+    db.commit()
+    db.refresh(address)
+    return address
+
+
 def set_primary(db: Session, client_id: int, shipping_address_id: int) -> ShippingAddress | None:
     address = get_address(db, client_id, shipping_address_id)
     if address is None:

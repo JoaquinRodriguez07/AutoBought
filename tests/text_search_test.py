@@ -278,3 +278,39 @@ def test_dictionary_without_keys_repeated_nor_cycles():
     assert all(k == _fold(k) and k == k.lower() for k in SYNONYMS)
     # Ninguna clave puede ser una palabra de combustible: se pisarían.
     assert not set(claves) & set(FUEL_WORDS)
+
+
+
+def test_puts_first_the_parts_with_more_words_of_the_search(client, db_session):
+    # "amortiguadores traseros": los traseros antes que el delantero, aunque
+    # el delantero se haya cargado primero.
+    db_session.add_all([
+        Part(part_code="SUS-0001", name="Amortiguador delantero Monroe",
+             manufacturer="Monroe", category="Suspensión", price=5000, stock=5),
+        Part(part_code="SUS-0002", name="Amortiguador trasero Monroe",
+             manufacturer="Monroe", category="Suspensión", price=4500, stock=5),
+    ])
+    db_session.commit()
+    onix = CarModel(brand="Chevrolet", model="Onix", engine_code="1.0 Turbo")
+    for part in db_session.query(Part).all():
+        part.compatibilities = [Compatibility(car_model=onix, year_from=2020, year_to=2024)]
+    db_session.commit()
+
+    response = client.get("/api/v1/parts", params={"q": "amortiguadores traseros"})
+
+    codes = [p["part_code"] for p in response.json()["parts"]]
+    assert codes[0] == "SUS-0002"
+
+
+def test_ranking_keeps_every_result_and_only_changes_the_order():
+    from app.crud.text_search import rank_by_words
+
+    front = Part(part_code="A", name="Amortiguador delantero Monroe")
+    rear = Part(part_code="B", name="Amortiguador trasero KYB")
+    bushing = Part(part_code="C", name="Bujes de amortiguador")
+
+    ranked = rank_by_words([front, bushing, rear], "amortiguadores traseros")
+
+    assert [p.part_code for p in ranked] == ["B", "A", "C"]
+    # Con una sola palabra no hay nada que desempatar: queda igual.
+    assert rank_by_words([front, rear], "amortiguador") == [front, rear]

@@ -14,7 +14,7 @@ import CatalogFilters from "./CatalogFilters";
 import { CartIcon, CloseIcon, HeartIcon, FiltersIcon } from "./Icons";
 import { facetCounts, filterParts } from "./filterParts";
 import NoSearchResults from "./NoSearchResults";
-import { searchText, getCategories, getParts } from "./api";
+import { searchText, getCategories, getParts, getBestSellers } from "./api";
 import { useVehicle } from "./context/VehicleContext";
 import { isSeller } from "./auth";
 
@@ -35,6 +35,7 @@ const SORTS = {
   "menor-precio": "Menor precio",
   "mayor-precio": "Mayor precio",
   nombre: "Nombre A-Z",
+  "mas-vendidos": "Más vendidos",
 };
 const DEFAULT_SORT = "Más relevantes";
 
@@ -220,7 +221,8 @@ export default function Catalog({
 
   const [retryCategories, setRetryCategories] = useState(0);
 
-  const categoriesKey = String(retryCategories);
+  // Los números de cada categoría dependen del vehículo elegido.
+  const categoriesKey = `${retryCategories}|${vehicleKey}`;
 
   const [categoriesResponse, setCategoriesResponse] = useState({
     key: null,
@@ -230,7 +232,19 @@ export default function Catalog({
 
   const loadingCategories =
     categoriesResponse.key !== categoriesKey;
-  const categories = categoriesResponse.categories;
+  // Con una búsqueda escrita y sin categoría elegida, cada categoría cuenta
+  // los resultados de esa búsqueda (los que se ven), no todo el catálogo.
+  const categories = useMemo(() => {
+    const all = categoriesResponse.categories;
+    if (!queryState || categoria || response.key !== searchKey) return all;
+    const found = {};
+    for (const product of response.products) {
+      found[product.categoria] = (found[product.categoria] ?? 0) + 1;
+    }
+    return all
+      .filter((item) => found[item.displayName])
+      .map((item) => ({ ...item, quantity: found[item.displayName] }));
+  }, [categoriesResponse.categories, queryState, categoria, response, searchKey]);
   const categoriesError = categoriesResponse.error;
 
   // ==========================================
@@ -270,13 +284,11 @@ export default function Catalog({
           entities.year ||
           entities.fuel);
 
+      // Una búsqueda que no se entiende no es un error: es una búsqueda
+      // sin resultados, y se muestra el aviso con sugerencias (no
+      // «Reintentar», que daría lo mismo).
       if (!hasEntities) {
-        setResponse({
-          key,
-          products: [],
-          error:
-            "No pudimos entender tu búsqueda, por favor usa el filtro de compatibilidad manual",
-        });
+        setResponse({ key, products: [], error: "" });
         return;
       }
 
@@ -354,7 +366,7 @@ export default function Catalog({
   useEffect(() => {
     let active = true;
 
-    getCategories()
+    getCategories(vehicle)
       .then((list) => {
         if (!active) return;
         setCategoriesResponse({
@@ -376,6 +388,9 @@ export default function Catalog({
     return () => {
       active = false;
     };
+    // `categoriesKey` ya incluye el vehículo (marca, modelo y año): cambia
+    // solo cuando cambia lo que hay que contar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoriesKey]);
 
   // ==========================================
@@ -395,9 +410,28 @@ export default function Catalog({
     [filters, localSearch]
   );
 
+  // «Más vendidos»: el ranking de los últimos 90 días (el mismo del
+  // inicio). Solo se pide si se elige ese orden.
+  const [bestSellerIds, setBestSellerIds] = useState([]);
+  const wantsBestSellers = sort === "Más vendidos";
+  useEffect(() => {
+    if (!wantsBestSellers) return;
+    let active = true;
+    getBestSellers({ limit: 20 })
+      .then((list) => {
+        if (active) setBestSellerIds(list.map((p) => p.partId ?? p.id));
+      })
+      .catch(() => {
+        // Sin ranking queda el orden de siempre.
+      });
+    return () => {
+      active = false;
+    };
+  }, [wantsBestSellers]);
+
   const shownProducts = useMemo(
-    () => filterParts(products, listOptions),
-    [products, listOptions]
+    () => filterParts(products, { ...listOptions, bestSellerIds }),
+    [products, listOptions, bestSellerIds]
   );
 
   // Los números del panel: cada grupo, con todos los demás filtros
@@ -746,6 +780,7 @@ export default function Catalog({
                     <option>Menor precio</option>
                     <option>Mayor precio</option>
                     <option>Nombre A-Z</option>
+                    <option>Más vendidos</option>
                   </select>
                 </label>
 

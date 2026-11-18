@@ -460,7 +460,7 @@ describe("seller orders", () => {
     can_edit_shipping: true,
     cancellation_reason: null,
     internal_note: "Llamar antes",
-    status_history: [],
+    status_history: [{ status: "confirmed", changed_at: "2026-11-01T10:00:00Z" }],
     payment_due_at: null,
     cancel_reason: null,
   };
@@ -491,6 +491,7 @@ describe("seller orders", () => {
     canCancel: true,
     canEditShipping: true,
     reasonCancellation: null,
+    history: [{ estado: "confirmed", date: "2026-11-01T10:00:00Z" }],
     internalNote: "Llamar antes",
   };
 

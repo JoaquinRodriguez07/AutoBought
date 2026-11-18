@@ -17,7 +17,8 @@ async function registerAndVerify(page, request, email = `e2e-delete-${randomUUID
   await page.getByPlaceholder("099 123 456").fill(`099${String(Date.now()).slice(-6)}`);
   await page.getByPlaceholder("Mínimo 8 caracteres").fill(PASSWORD);
   await page.getByPlaceholder("Repetí tu contraseña").fill(PASSWORD);
-  await page.getByText("Acepto los términos y condiciones.").click();
+  // El texto trae un enlace a los términos: se tilda el casillero, no el texto.
+  await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "CREAR CUENTA" }).click();
   await expect(page).not.toHaveURL(/\/registro/);
 

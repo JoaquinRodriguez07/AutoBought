@@ -119,6 +119,18 @@ describe("listado de pedidos", () => {
     expect(getOrders).toHaveBeenLastCalledWith({ estado: "packing", limit: 50 });
   });
 
+  it("«Confirmado» counts and lists only the paid ones, like the menu", async () => {
+    const user = userEvent.setup();
+    render(<SellerOrders />);
+    await screen.findByText("Cliente 1");
+
+    // 2 confirmados en total, pero solo 1 pagado: el mismo número que el menú.
+    const filter = screen.getByRole("group", { name: "Estado del pedido" });
+    await user.click(within(filter).getByRole("button", { name: "Confirmado (1)" }));
+
+    expect(getOrders).toHaveBeenLastCalledWith({ estado: "confirmed", onlyPaid: true, limit: 50 });
+  });
+
   it("sorts by date, client or total, asking the backend from the first page", async () => {
     const user = userEvent.setup();
     getOrders.mockResolvedValue(response([pedido(1), pedido(2)], { total: 120 }));
@@ -127,7 +139,7 @@ describe("listado de pedidos", () => {
     await user.click(screen.getByRole("button", { name: "Mostrar 50 más" }));
     // La segunda página va de a 50 (desde el 50), no todo junto.
     await waitFor(() =>
-      expect(getOrders).toHaveBeenLastCalledWith({ estado: "confirmed", limit: 50, from: 50 })
+      expect(getOrders).toHaveBeenLastCalledWith({ estado: "confirmed", onlyPaid: true, limit: 50, from: 50 })
     );
 
     const sort = screen.getByRole("combobox", { name: "Ordenar por" });
@@ -136,7 +148,7 @@ describe("listado de pedidos", () => {
     await user.click(await screen.findByRole("option", { name: "Cliente (A–Z)" }));
 
     await waitFor(() =>
-      expect(getOrders).toHaveBeenLastCalledWith({ estado: "confirmed", limit: 50, sort: "client_asc" })
+      expect(getOrders).toHaveBeenLastCalledWith({ estado: "confirmed", onlyPaid: true, limit: 50, sort: "client_asc" })
     );
     expect(screen.getByRole("combobox", { name: "Ordenar por" })).toHaveTextContent("Cliente (A–Z)");
   });

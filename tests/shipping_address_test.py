@@ -199,3 +199,68 @@ def test_no_can_save_more_of_10_addresses(client, db_session):
         assert create(client, headers).status_code == 201
 
     assert create(client, headers).status_code == 409
+
+
+# =====================================================
+# Editar una dirección
+# =====================================================
+
+
+def update(client, headers, address_id, **overrides):
+    return client.put(f"/api/v1/addresses/{address_id}", json=payload(**overrides), headers=headers)
+
+
+def test_edit_an_address(client, db_session):
+    headers = auth_headers(make_client(db_session))
+    address_id = create(client, headers).json()["shipping_address_id"]
+
+    resp = update(client, headers, address_id, personal_name="Taller", street="Av. Italia", number="2850")
+
+    assert resp.status_code == 200
+    saved = client.get("/api/v1/addresses", headers=headers).json()[0]
+    assert (saved["personal_name"], saved["street"], saved["number"]) == ("Taller", "Av. Italia", "2850")
+
+
+def test_editing_the_primary_keeps_it_primary(client, db_session):
+    headers = auth_headers(make_client(db_session))
+    primary = create(client, headers).json()["shipping_address_id"]
+    create(client, headers)
+
+    # Aunque no se marque como principal: siempre tiene que haber una.
+    update(client, headers, primary, number="77", is_primary=False)
+
+    assert primaries(client, headers) == [primary]
+
+
+def test_editing_can_make_it_primary(client, db_session):
+    headers = auth_headers(make_client(db_session))
+    create(client, headers)
+    other = create(client, headers).json()["shipping_address_id"]
+
+    update(client, headers, other, number="78", is_primary=True)
+
+    assert primaries(client, headers) == [other]
+
+
+def test_editing_into_another_saved_address_returns_409(client, db_session):
+    headers = auth_headers(make_client(db_session))
+    create(client, headers, number="10")
+    other = create(client, headers, number="20").json()["shipping_address_id"]
+
+    assert update(client, headers, other, number="10").status_code == 409
+
+
+def test_editing_with_invalid_data_is_rejected(client, db_session):
+    headers = auth_headers(make_client(db_session))
+    address_id = create(client, headers).json()["shipping_address_id"]
+
+    assert update(client, headers, address_id, department="Narnia").status_code == 422
+
+
+def test_client_cannot_edit_other_clients_address(client, db_session):
+    ana = auth_headers(make_client(db_session))
+    beto = auth_headers(make_client(db_session, username="beto", email="beto@example.com"))
+    address_id = create(client, ana).json()["shipping_address_id"]
+
+    assert update(client, beto, address_id, street="Otra").status_code == 404
+    assert update(client, {}, address_id).status_code == 401
