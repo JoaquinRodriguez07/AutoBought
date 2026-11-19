@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="680" height="740" viewBox="0 0 680 740">
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="830" viewBox="0 0 760 830">
 <title>Diagrama de despliegue — Producción</title>
 <style>
 text{font-family:'Segoe UI',Arial,sans-serif}
@@ -6,31 +6,38 @@ text{font-family:'Segoe UI',Arial,sans-serif}
 .s{font-size:12px;fill:#5f5e5a}
 .c{text-anchor:middle;dominant-baseline:central}
 .m{text-anchor:middle}
+.e{text-anchor:end}
 .node{fill:#f4f4f1;stroke:#5f5e5a}
 .face{fill:#e4e3dd;stroke:#5f5e5a}
 .env{fill:#ffffff;stroke:#5f5e5a}
 .envf{fill:#efeeea;stroke:#5f5e5a}
+.ext{fill:#f1f1f1;stroke:#7a7a7a}
+.extf{fill:#e2e2e2;stroke:#7a7a7a}
 .art{fill:#E1F5EE;stroke:#0F6E56}
-.art+text,.at{fill:#085041}
+.at{fill:#085041}
 .dash{fill:none;stroke:#5f5e5a;stroke-dasharray:5 4}
 .path{fill:none;stroke:#444441;stroke-width:1.2}
 </style>
-<rect width="680" height="740" fill="#ffffff"/>
+<rect width="760" height="830" fill="#ffffff"/>
 
 <!-- Nodos -->
 <rect class="node" x="60" y="52" width="400" height="150"/><polygon class="face" points="60,52 72,40 472,40 460,52"/><polygon class="face" points="460,52 472,40 472,190 460,202"/>
-<rect class="node" x="60" y="272" width="400" height="170"/><polygon class="face" points="60,272 72,260 472,260 460,272"/><polygon class="face" points="460,272 472,260 472,430 460,442"/>
-<rect class="node" x="60" y="512" width="400" height="180"/><polygon class="face" points="60,512 72,500 472,500 460,512"/><polygon class="face" points="460,512 472,500 472,680 460,692"/>
+<rect class="node" x="60" y="272" width="400" height="220"/><polygon class="face" points="60,272 72,260 472,260 460,272"/><polygon class="face" points="460,272 472,260 472,480 460,492"/>
+<rect class="node" x="60" y="592" width="400" height="180"/><polygon class="face" points="60,592 72,580 472,580 460,592"/><polygon class="face" points="460,592 472,580 472,760 460,772"/>
+
+<!-- Sistemas externos -->
+<rect class="ext" x="530" y="272" width="180" height="80"/><polygon class="extf" points="530,272 542,260 722,260 710,272"/><polygon class="extf" points="710,272 722,260 722,340 710,352"/>
+<rect class="ext" x="530" y="412" width="180" height="64"/><polygon class="extf" points="530,412 542,400 722,400 710,412"/><polygon class="extf" points="710,412 722,400 722,464 710,476"/>
+<rect class="ext" x="530" y="532" width="180" height="64"/><polygon class="extf" points="530,532 542,520 722,520 710,532"/><polygon class="extf" points="710,532 722,520 722,584 710,596"/>
 
 <!-- Entornos de ejecución -->
 <rect class="env" x="80" y="110" width="360" height="80"/><polygon class="envf" points="80,110 88,102 448,102 440,110"/><polygon class="envf" points="440,110 448,102 448,182 440,190"/>
 <rect class="env" x="76" y="330" width="180" height="96"/><polygon class="envf" points="76,330 84,322 264,322 256,330"/><polygon class="envf" points="256,330 264,322 264,418 256,426"/>
 <rect class="env" x="274" y="330" width="172" height="96"/><polygon class="envf" points="274,330 282,322 454,322 446,330"/><polygon class="envf" points="446,330 454,322 454,418 446,426"/>
-<rect class="env" x="176" y="570" width="270" height="110"/><polygon class="envf" points="176,570 184,562 454,562 446,570"/><polygon class="envf" points="446,570 454,562 454,672 446,680"/>
+<rect class="env" x="176" y="650" width="270" height="110"/><polygon class="envf" points="176,650 184,642 454,642 446,650"/><polygon class="envf" points="446,650 454,642 454,752 446,760"/>
 
-<!-- Sistema externo (planificado) y volumen -->
-<rect class="dash" x="500" y="272" width="140" height="80"/><polygon class="dash" points="500,272 512,260 652,260 640,272"/><polygon class="dash" points="640,272 652,260 652,340 640,352"/>
-<rect class="dash" x="80" y="610" width="80" height="50"/>
+<!-- Volumen -->
+<rect class="dash" x="80" y="690" width="80" height="50"/>
 
 <!-- Dispositivo del usuario -->
 <text class="s" x="76" y="72">«device»</text><text class="t" x="76" y="90">Dispositivo del usuario</text>
@@ -38,31 +45,49 @@ text{font-family:'Segoe UI',Arial,sans-serif}
 <rect class="art" x="96" y="140" width="328" height="40" rx="2"/><text class="t c at" x="260" y="160">«artifact» SPA React</text>
 
 <!-- Vercel -->
-<text class="s m" x="260" y="290">«device»</text><text class="t m" x="260" y="308">Vercel (PaaS)</text>
+<text class="s m" x="260" y="290">«device»</text><text class="t m" x="260" y="308">Vercel (PaaS) · región gru1</text>
 <text class="s m" x="166" y="346">«executionEnvironment»</text><text class="t m" x="166" y="362">Hosting estático</text>
 <rect class="art" x="88" y="376" width="156" height="40" rx="2"/><text class="s c at" x="166" y="388">«artifact»</text><text class="t c at" x="166" y="404">Build de Vite</text>
 <text class="s m" x="360" y="346">«executionEnvironment»</text><text class="t m" x="360" y="362">Serverless Python</text>
 <rect class="art" x="286" y="376" width="148" height="40" rx="2"/><text class="s c at" x="360" y="388">«artifact»</text><text class="t c at" x="360" y="404">API FastAPI</text>
+<rect class="env" x="88" y="440" width="168" height="40"/><text class="s c" x="172" y="452">«service»</text><text class="t c" x="172" y="468">Vercel Cron</text>
 
-<!-- Pasarela de pagos -->
-<text class="s m" x="570" y="294">«external system»</text><text class="t m" x="570" y="314">Pasarela</text><text class="t m" x="570" y="332">de pagos</text>
+<!-- Mercado Pago -->
+<text class="s m" x="620" y="294">«external system»</text><text class="t m" x="620" y="314">Mercado Pago</text><text class="s m" x="620" y="332">Checkout Pro</text>
+
+<!-- Google Gemini -->
+<text class="s m" x="620" y="430">«external system»</text><text class="t m" x="620" y="450">Google Gemini</text><text class="s m" x="620" y="466">asistente Pit · resumen IA</text>
+
+<!-- SMTP -->
+<text class="s m" x="620" y="550">«external system»</text><text class="t m" x="620" y="570">Servidor SMTP</text><text class="s m" x="620" y="586">mails a clientes</text>
 
 <!-- VM Oracle Cloud -->
-<text class="s" x="76" y="532">«device»</text><text class="t" x="76" y="550">VM Oracle Cloud (OCI)</text>
-<text class="s" x="190" y="584">«executionEnvironment»</text><text class="t" x="190" y="598">Docker Engine</text>
-<rect class="art" x="190" y="610" width="244" height="50" rx="2"/><text class="s c at" x="312" y="626">«container»</text><text class="t c at" x="312" y="644">postgres:17 · PostgreSQL</text>
-<text class="s m" x="120" y="628">«volume»</text><text class="s m" x="120" y="644">datos</text>
+<text class="s" x="76" y="612">«device»</text><text class="t" x="76" y="630">VM Oracle Cloud (OCI)</text>
+<text class="s" x="190" y="664">«executionEnvironment»</text><text class="t" x="190" y="678">Docker Engine</text>
+<rect class="art" x="190" y="690" width="244" height="50" rx="2"/><text class="s c at" x="312" y="706">«container»</text><text class="t c at" x="312" y="724">postgres:17 · PostgreSQL</text>
+<text class="s m" x="120" y="708">«volume»</text><text class="s m" x="120" y="724">datos</text>
 
 <!-- Vías de comunicación -->
 <line class="path" x1="120" y1="180" x2="120" y2="322"/>
 <line class="path" x1="400" y1="180" x2="400" y2="322"/>
-<line class="path" x1="420" y1="426" x2="420" y2="610"/>
-<line class="path" x1="160" y1="635" x2="190" y2="635"/>
-<line class="path" x1="454" y1="340" x2="500" y2="340" stroke-dasharray="5 4"/>
+<polyline class="path" points="472,130 620,130 620,260"/>
+<line class="path" x1="454" y1="345" x2="530" y2="345"/>
+<line class="path" x1="454" y1="414" x2="530" y2="414"/>
+<polyline class="path" points="436,426 436,560 530,560"/>
+<line class="path" x1="420" y1="426" x2="420" y2="690"/>
+<polyline class="path" points="256,460 360,460 360,426"/>
+<line class="path" x1="160" y1="715" x2="190" y2="715"/>
+
 <text class="s" x="128" y="232">HTTPS · descarga de la SPA</text>
 <text class="s" x="408" y="232">HTTPS · REST/JSON · JWT</text>
-<text class="s" x="500" y="376">HTTPS · API de pagos</text>
-<text class="s" x="428" y="472">TCP 5432 · SQL (psycopg2)</text>
+<text class="s" x="486" y="122">HTTPS · checkout (redirección)</text>
+<text class="s" x="530" y="372">HTTPS · preferencias, consulta</text>
+<text class="s" x="530" y="388">de pagos, devoluciones; webhook</text>
+<text class="s" x="530" y="492">HTTPS · API de Gemini</text>
+<text class="s" x="530" y="612">SMTP · puerto 587</text>
+<text class="s" x="264" y="482">HTTPS · tareas diarias</text>
+<text class="s e" x="414" y="540">TCP 5432 · SQL (psycopg2)</text>
 
-<text class="s" x="60" y="724">Borde punteado = planificado o volumen. Líneas = vías de comunicación.</text>
+<text class="s" x="60" y="800">Gris = sistema externo. Punteado = volumen. Líneas = vías de comunicación.</text>
+<text class="s" x="60" y="816">Mercado Pago avisa los cambios de pago a la API (webhook) y devuelve al cliente a la SPA.</text>
 </svg>
