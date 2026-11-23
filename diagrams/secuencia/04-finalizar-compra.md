@@ -1,16 +1,19 @@
 # Secuencia: finalizar compra
 
-> **Implementado:** `POST /api/v1/orders` con body opcional
-> `{ shipping_address_id, payment_method_id }` (lo que no se envía usa la dirección
-> o el método principal del cliente) y la transacción `place_order()` de
-> `backend/app/crud/order.py` (recuadro amarillo). El pedido nace en estado
-> `confirmed` y guarda una copia de la dirección y del método de pago, para que el
-> historial no cambie si el cliente los edita o borra.
+> **Implementado:** la compra tiene dos pasos. Primero `POST /api/v1/orders`
+> (body opcional `{ shipping_address_id, delivery_method }`) arma el pedido con la
+> transacción `place_order()` de `backend/app/crud/order.py` (recuadro amarillo):
+> descuenta el stock y vacía el carrito, y el pedido nace `confirmed` con su
+> **pago pendiente** (entidad `payment` aparte). Después el cliente paga en
+> **Mercado Pago (Checkout Pro)**: `POST /api/v1/pagos/{id}` da el link, y el pago
+> se confirma al volver a `/pago` (`POST /api/v1/pagos/{id}/verificar`) o por el
+> aviso de Mercado Pago (`POST /api/v1/pagos/webhook`), lo que llegue primero.
+> En los dos casos no se le cree al aviso: se consulta el pago a Mercado Pago.
 >
-> **Planificado (a confirmar con el equipo):** el cobro con la pasarela de pagos,
-> con el orden "primero se reserva el stock y se crea el pedido, después se cobra".
-> El estado del cobro iría en una entidad de pago aparte; el `status` del pedido es
-> solo logístico (confirmado / enviado / entregado / cancelado). Hoy no se cobra.
+> El stock queda reservado `MINUTOS_PARA_PAGAR` minutos (15 por defecto). Si el
+> pedido no se paga a tiempo, `cancel_expired_orders()` lo cancela y devuelve el
+> stock; si el pago se aprueba igual después, se le devuelve el dinero.
+> El `status` del pedido es solo logístico; el estado del cobro vive en `payment`.
 
 ```mermaid
 ---
@@ -22,116 +25,115 @@ sequenceDiagram
     actor C as Cliente
 
     box rgb(227,240,255) Frontend
-        participant P as Pantallas<br/>(Carrito)
+        participant P as Pantallas<br/>(Carrito · Resultado del pago)
         participant S as Estado y Sesión<br/>(CartContext)
         participant A as Cliente API
     end
 
     box rgb(247,251,255) Backend
-        participant R as API REST
+        participant R as API REST<br/>(/orders · /pagos)
         participant Seg as Seguridad
-        participant L as Lógica de negocio<br/>(Pedidos)
+        participant L as Lógica de negocio<br/>(Pedidos · Pagos)
     end
 
     participant DB as Base de Datos
+    participant MP as Mercado Pago
 
     Note over P: "Finalizar compra" está deshabilitado<br/>si el carrito está vacío
     C->>P: "Finalizar compra"
 
-    par Datos de envío y pago
-        P->>A: obtenerDirecciones()
+    par Datos de entrega
+        P->>A: getAddresses()
         A->>R: GET /api/v1/addresses
         R-->>A: direcciones
-        A-->>P: direcciones
     and
-        P->>A: obtenerMetodosPago()
-        A->>R: GET /api/v1/payment-methods
-        R-->>A: métodos de pago (con is_expired)
-        A-->>P: métodos de pago
+        P->>A: getPickupInfo()
+        A->>R: GET /api/v1/orders/pickup-info
+        R-->>A: dirección y horario del local
     end
+    P-->>C: Modal: envío a domicilio (dirección principal preseleccionada)<br/>o retiro en el local
 
-    P-->>C: Modal de confirmación con la dirección y la tarjeta<br/>principales preseleccionadas (las vencidas no se pueden elegir)
-    opt Sin direcciones o sin tarjetas vigentes
-        P-->>C: "Agregar una dirección" / "Agregar una tarjeta"<br/>(confirmar queda deshabilitado)
-    end
-
-    C->>P: Elige dirección y tarjeta, y confirma
-    P->>A: confirmarCompra({ direccionId, metodoPagoId })
-    A->>R: POST /api/v1/orders (Bearer JWT)<br/>{ shipping_address_id, payment_method_id }
+    C->>P: Elige y confirma
+    P->>A: confirmPurchase({ idAddress, deliveryMethod })
+    A->>R: POST /api/v1/orders (Bearer JWT)<br/>{ shipping_address_id, delivery_method }
     R->>Seg: get_current_client(token)
-    Seg->>DB: Buscar cliente por id (sub)
 
-    alt Token ausente, inválido o vencido
-        Seg-->>R: 401
-        R-->>A: 401 "Token inválido o expirado."
-    else El usuario no es cliente
-        Seg-->>R: 403
-        R-->>A: 403 "Esta acción requiere una cuenta de cliente."
+    alt Token inválido / no es cliente / correo sin verificar
+        R-->>A: 401 / 403
+    else Mercado Pago sin configurar (o retiro sin datos del local)
+        R-->>A: 503 "Por ahora no podemos cobrar…"
     else Cliente válido
-        Seg-->>R: cliente
-        R->>DB: ROLLBACK (cierra la transacción de lectura de la autenticación)
-        R->>L: place_order(client_id, dirección, método de pago)
+        R->>L: cancel_expired_orders() (devuelve el stock de los vencidos)
+        R->>L: place_order(client_id, dirección, delivery_method)
 
         rect rgb(255,248,220)
             Note over L,DB: place_order() — una sola transacción
             L->>DB: BEGIN · SELECT cart + items FOR UPDATE
-
-            alt Carrito inexistente o vacío
+            alt Carrito vacío / sin dirección
                 L->>DB: ROLLBACK
-                L-->>R: ValueError
-                R-->>A: 400 "Tu carrito está vacío."
-            else Carrito con items
-                L->>DB: SELECT dirección y método de pago del cliente<br/>(los elegidos o, sin elegir, los principales)
-
-                alt Sin dirección o sin método de pago guardado
-                    L->>DB: ROLLBACK
-                    L-->>R: ValueError
-                    R-->>A: 400 "Agregá una dirección de envío /<br/>un método de pago para confirmar la compra."
-                else Dirección o método inexistente o de otro cliente
-                    L->>DB: ROLLBACK
-                    L-->>R: ValueError
-                    R-->>A: 422 "La dirección de envío / el método de pago<br/>elegido no es válido."
-                else Tarjeta vencida
-                    L->>DB: ROLLBACK
-                    L-->>R: ValueError
-                    R-->>A: 422 "La tarjeta elegida está vencida.<br/>Elegí otra o agregá una nueva."
-                else Dirección y tarjeta válidas
-                    L->>DB: SELECT part WHERE id IN (…) FOR UPDATE
-                    DB-->>L: repuestos (bloqueados)
-
-                    alt Algún repuesto ya no existe
-                        L->>DB: ROLLBACK
-                        L-->>R: ValueError
-                        R-->>A: 409 "Algún repuesto del carrito ya no está disponible."
-                    else Stock insuficiente
-                        L->>DB: ROLLBACK
-                        L-->>R: ValueError (repuesto, pedido, disponible)
-                        R->>DB: SELECT part (nombre del repuesto)
-                        R-->>A: 409 "No hay stock suficiente de 'X': pediste N, hay M."
-                    else Stock suficiente
-                        L->>DB: INSERT order (status = confirmed,<br/>copia de dirección y método de pago)<br/>INSERT order_item (frozen_price = precio actual)
-                        L->>DB: UPDATE part.stock -= cantidad · DELETE cart_item
-                        L->>DB: COMMIT
-                        L-->>R: pedido
-                        R->>R: build_order_detail_out (total con frozen_price)
-                        R-->>A: 201 { order_id, created_at, status,<br/>shipping_address, payment_method, total, items }
-                    end
-                end
+                R-->>A: 400 "Tu carrito está vacío." / "Agregá una dirección…"
+            else Dirección de otro cliente o inexistente
+                L->>DB: ROLLBACK
+                R-->>A: 422 "La dirección de envío elegida no es válida."
+            else Repuesto inexistente o stock insuficiente
+                L->>DB: SELECT part … FOR UPDATE
+                L->>DB: ROLLBACK
+                R-->>A: 409 "No hay stock suficiente de 'X': pediste N, hay M."
+            else Todo bien
+                L->>DB: SELECT part … FOR UPDATE
+                L->>DB: INSERT order (confirmed, copia de la dirección)<br/>INSERT payment (pending) · INSERT order_item (frozen_price)
+                L->>DB: UPDATE part.stock -= cantidad · DELETE cart_item
+                L->>DB: COMMIT
+                R-->>A: 201 { order_id, status, items, total, … }
             end
         end
     end
 
-    Note over P,A: Manejo de la respuesta en el frontend
     alt 201
-        A->>A: mapearPedido
         A-->>P: pedido
-        P-->>C: "¡Compra confirmada!" con el número de pedido
-        P->>S: cargarCarrito()
-        S->>A: GET /api/v1/cart
-        A-->>S: carrito vacío
-        S-->>C: Actualiza el carrito y el contador del Navbar
-    else 400 / 401 / 403 / 409 / 422 / error de red
+        P->>S: loadCart() (el carrito ya quedó vacío)
+        P->>A: createPaymentLink(orderId)
+        A->>R: POST /api/v1/pagos/{orderId}
+        R->>L: cancel_expired_orders() · buscar el pago del cliente
+        alt Pago pendiente con link vivo
+            R->>MP: GET preferencia existente
+        else Primer intento o reintento tras un rechazo
+            R->>MP: POST preferencia (items, external_reference = pedido,<br/>back_urls a /pago, vence con el plazo, sin efectivo)
+            R->>DB: guardar mp_preference_id
+        end
+        MP-->>R: link de checkout
+        R-->>A: { url }
+        A-->>P: url
+        P-->>C: Redirige a Mercado Pago
+        Note over A,P: Si el link falla (409 ya pagado / cancelado, 503),<br/>el pedido queda creado y se puede reintentar
+    else 400 / 401 / 403 / 409 / 422 / 503
         A-->>P: error (mensaje del backend)
         P-->>C: Muestra el mensaje en el modal
     end
+
+    C->>MP: Paga con tarjeta en el checkout
+
+    par El cliente vuelve al sitio
+        MP-->>C: Redirige a /pago?pedido={id}&payment_id=…
+        C->>P: Resultado del pago
+        P->>A: verifyPayment(orderId, paymentId)
+        A->>R: POST /api/v1/pagos/{orderId}/verificar (Bearer JWT)
+        R->>MP: GET pago {payment_id}
+        MP-->>R: estado, monto, external_reference
+        R->>L: apply_mp_status() (si el pago es de este pedido)
+        L->>DB: UPDATE payment (approved / rejected / pending)
+        R-->>A: { estado }
+        A-->>P: estado
+        P-->>C: "Pago aprobado" / "en proceso" / "rechazado" (reintentar)
+    and Aviso de Mercado Pago (respaldo, solo en producción)
+        MP->>R: POST /api/v1/pagos/webhook (firma x-signature)
+        R->>R: valid_signature() (401 si no la firmó Mercado Pago)
+        R->>MP: GET pago {id}
+        MP-->>R: estado, monto, external_reference
+        R->>L: apply_mp_status()
+        L->>DB: UPDATE payment
+        R-->>MP: 200
+    end
+
+    Note over R,MP: Al aprobarse (una sola vez): mail de la compra. Si el pedido ya<br/>se había cancelado por vencido, o el monto no coincide, se devuelve el dinero.
 ```
